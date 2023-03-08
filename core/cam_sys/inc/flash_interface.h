@@ -38,7 +38,7 @@ struct cam_flash_task_info {
 	struct cam_flash_ops *flash_core_ops;
 };
 
-struct cam_flash_task_info *get_cam_flash_handle(uint32_t cam_idx);
-int put_cam_flash_handle(struct cam_flash_task_info *flash_ctx);
+struct cam_flash_task_info *cam_flash_handle_get(uint32_t cam_idx);
+int cam_flash_handle_put(struct cam_flash_task_info *flash_ctx);
 
 #endif

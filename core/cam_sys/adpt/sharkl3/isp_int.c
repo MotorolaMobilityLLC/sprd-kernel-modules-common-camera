@@ -106,21 +106,21 @@ void ispint_iommu_regs_dump(void)
 		val[1] = ISP_MMU_RD(reg + 4);
 		val[2] = ISP_MMU_RD(reg + 8);
 		val[3] = ISP_MMU_RD(reg + 12);
-		pr_err("fail to handle,offset=0x%04x: %08x %08x %08x %08x\n",
+		pr_err("fail to handle, offset=0x%04x: %08x %08x %08x %08x\n",
 			reg, val[0], val[1], val[2], val[3]);
 	}
 
-	pr_err("fail to handle,fetch y %08x u %08x v %08x \n",
+	pr_err("fail to handle, fetch y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_FETCH_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_V_ADDR));
 
-	pr_err("fail to handle,store pre cap y %08x u %08x v %08x \n",
+	pr_err("fail to handle, store pre cap y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_V_ADDR));
 
-	pr_err("fail to handle,store vid y %08x u %08x v %08x \n",
+	pr_err("fail to handle, store vid y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_V_ADDR));
@@ -176,6 +176,10 @@ struct isp_int_ctxs_com isp_int_reg_handle(int c_id)
 	ISP_HREG_WR(ctxs_com.irq_offset + ISP_INT_CLR0, ctxs_com.irq_line);
 
 	ctxs_com.isp_isr_handler = isp_isr_handler;
+
+	ctxs_com.mmu_irq_line = ISP_MMU_RD(ISP_MMU_INT_STS);
+	if (ctxs_com.irq_line)
+		ctxs_com.irq_line = (ctxs_com.irq_line & 0xFFFFFF) | ((ctxs_com.mmu_irq_line & 0xFF) << 24);
 
 	return ctxs_com;
 }

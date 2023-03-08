@@ -16,6 +16,7 @@
 
 #include "cam_hw.h"
 #include "isp_interface.h"
+#include "cam_queue.h"
 
 #define ISP_HIST_VALUE_SIZE             256
 
@@ -25,6 +26,7 @@ enum isp_postproc_type {
 	POSTPROC_RGB_LTM_HISTS_DONE,
 	POSTPROC_RGB_GTM_HISTS_DONE,
 	POSTPROC_HIST_CAL_DONE,
+	POSTPROC_FRAME_ERROR_DONE,
 	POSTPROC_MAX,
 };
 
@@ -46,7 +48,6 @@ struct isp_hw_context {
 	uint32_t cfg_id;
 	uint32_t hw_ctx_id;
 	uint32_t fmcu_used;
-	void *pctx_handle;
 	void *node;
 	void *fmcu_handle;
 	struct cam_hw_info *hw;
@@ -60,7 +61,7 @@ struct isp_hw_context {
 	uint32_t valid_slc_num;
 	uint32_t pyr_layer_num;
 	uint32_t is_dewarping;
-	uint32_t enable_slowmotion;
+	enum en_status enable_slowmotion;
 	uint32_t slowmotion_count;
 	uint32_t nr3_fbc_fbd;
 	uint32_t iommu_status;
@@ -77,9 +78,7 @@ struct isp_start_param {
 	uint32_t type;
 	uint32_t is_dual;
 	uint32_t *slw_state;
-	struct camera_queue *param_share_queue;
 	struct dcam_isp_k_block **isp_using_param;
-	struct camera_frame *src_frame;
 };
 
 int isp_hwctx_fetch_set(void *handle);

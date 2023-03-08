@@ -18,6 +18,9 @@
 #include "cam_dump_node.h"
 #include "cam_replace_node.h"
 
+typedef void (*debug_write_ioctl)(struct cam_hw_info *hw, char *name, char * val, uint32_t idx);
+typedef void (*debug_read_ioctl)(struct seq_file *s, uint32_t idx);
+
 enum {
 	CH_PRE = 0,
 	CH_CAP = 1,
@@ -50,30 +53,36 @@ enum dbg_rawcap_frgb_switch {
 	DEBUG_MODE_MAX,
 };
 
-/* compression override setting */
-struct compression_override {
-	uint32_t enable;
-	uint32_t override[CH_MAX][FBC_MAX];
+enum hw_ctx_index {
+	HW_CTX_0,
+	HW_CTX_1,
+	HW_CTX_2,
+	HW_CTX_3,
+	HW_CTX_MAX,
 };
 
-struct cam_debug_bypass {
-	uint32_t idx;
-	struct cam_hw_info *hw;
+enum ip_type {
+	IP_DCAM,
+	IP_ISP,
+	IP_MAX,
 };
 
-struct camera_debugger {
-	struct compression_override compression[CAM_ID_MAX];
-	struct cam_hw_info *hw;
+struct debug_cmd {
+	char *name;
+	debug_write_ioctl write_fun;
+	debug_read_ioctl read_fun;
+	uint32_t hw_ctx;
+	uint32_t ip_info;
 };
 
-#define CAM_DEBUGGER_IF_GET_CORRECT_KEY(val)  ({ \
-		if (!val) { \
-			pr_err("fail to get correct key\n"); \
-			return -EFAULT; \
-		} \
+#define CAM_DEBUGGER_IF_GET_CORRECT_KEY(val) ( { \
+	if (!val) { \
+		pr_err("fail to get correct key\n"); \
+		return -EFAULT; \
+	} \
 })
 
-int cam_debugger_init(struct camera_debugger *debugger);
+int cam_debugger_init(struct cam_hw_info *hw);
 int cam_debugger_deinit(void);
 
 #endif

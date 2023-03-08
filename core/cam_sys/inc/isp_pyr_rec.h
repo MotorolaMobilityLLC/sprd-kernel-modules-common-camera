@@ -156,8 +156,8 @@ enum isp_rec_cfg_cmd {
 
 struct isp_rec_ops {
 	int (*cfg_param)(void *rec_handle, enum isp_rec_cfg_cmd cmd, void *param);
-	int (*pipe_proc)(void *rec_handle, void *param);
-	int (*buf_cb_func)(void *rec_handle, void *param);
+	int (*pipe_proc)(void *rec_handle, void *param, void *buf_manager_handle);
+	int (*buf_cb_func)(void *rec_handle, void *param, void *buf_manager_handle);
 };
 
 struct isp_pyr_rec_in {
@@ -228,9 +228,9 @@ struct isp_rec_ctx_desc {
 	struct cam_hw_info *hw;
 };
 
-void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw);
-void isp_pyr_rec_ctx_put(void *ctx);
-int isp_pyr_rec_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param);
+void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw, void *buf_manager_handle);
+void isp_pyr_rec_ctx_put(void *ctx, void *buf_manager_handle);
+int isp_pyr_rec_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param, void *buf_manager_handle);
 
 #ifdef __cplusplus
 }

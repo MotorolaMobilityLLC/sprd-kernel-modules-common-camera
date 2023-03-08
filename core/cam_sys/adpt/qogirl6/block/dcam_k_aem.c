@@ -118,6 +118,9 @@ int dcam_k_aem_skip_num(struct dcam_isp_k_block *param)
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 	hw_ctx = &dev->hw_ctx[idx];
+	/* on L5/L5P/L6 when slowmotion,AEM & BAYER_HIST & BIN skip with a special
+	 * register and skip_num no need set or have to set 0 now
+	*/
 	if (hw_ctx->slowmotion_count) {
 		pr_info("DCAM%u AEM ignore skip_num %u, slowmotion_count %u\n",
 			hw_ctx->hw_ctx_id, param->aem.skip_num, hw_ctx->slowmotion_count);
@@ -130,6 +133,7 @@ int dcam_k_aem_skip_num(struct dcam_isp_k_block *param)
 
 	/* It is better to set aem_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_1, 1 << 1);
+	dcam_online_port_skip_num_set(param->dev, idx, DCAM_PATH_AEM, param->aem.skip_num);
 
 	return ret;
 }

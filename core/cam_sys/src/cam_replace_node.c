@@ -25,19 +25,6 @@
 #define CAM_REPLACE_NODE_PATH "/data/ylog/"
 #define BYTE_PER_ONCE                   4096
 
-static void camreplace_frame_put(void *param)
-{
-	struct camera_frame *frame = NULL;
-
-	if (!param) {
-		pr_err("fail to get valid param\n");
-		return;
-	}
-
-	frame = (struct camera_frame *)param;
-	cam_buf_destory(frame);
-}
-
 static void camreplace_node_read_data_to_buf(uint8_t *buffer,
 		ssize_t size, const char *file, loff_t offset)
 {
@@ -67,55 +54,55 @@ static void camreplace_node_read_data_to_buf(uint8_t *buffer,
 	pr_debug("read image done, total=%d\n", (uint32_t)total);
 }
 
-static void camreplace_node_frame_size_get(struct camera_frame *frame, struct cam_replace_msg *msg, int cur_layer)
+static void camreplace_node_frame_size_get(struct cam_frame *frame, struct cam_replace_msg *msg, int cur_layer)
 {
-	if (cam_raw_fmt_get(frame->cam_fmt))
-		msg->size = cal_sprd_raw_pitch(frame->width, frame->cam_fmt) * frame->height;
-	else if (frame->cam_fmt == CAM_FULL_RGB14)
-		msg->size = frame->width * frame->height;
+	if (cam_raw_fmt_get(frame->common.cam_fmt))
+		msg->size = cal_sprd_pitch(frame->common.width, frame->common.cam_fmt) * frame->common.height;
+	else if (frame->common.cam_fmt == CAM_FULL_RGB14)
+		msg->size = frame->common.width * frame->common.height;
 	else {
 		if (cur_layer == 0)
-			msg->size = cal_sprd_yuv_pitch(frame->width, frame->cam_fmt, cam_is_pack(frame->cam_fmt)) * frame->height;
+			msg->size = cal_sprd_pitch(frame->common.width, frame->common.cam_fmt) * frame->common.height;
 		else
-			msg->size = cal_sprd_yuv_pitch(msg->align_w, frame->cam_fmt, cam_is_pack(frame->cam_fmt)) * msg->align_h;
+			msg->size = cal_sprd_pitch(msg->align_w, frame->common.cam_fmt) * msg->align_h;
 	}
 
-	pr_debug("replace frame buf_size %d cal_size %d fmt %s\n", frame->buf.size, msg->size, camport_fmt_name_get(frame->img_fmt));
+	pr_debug("replace frame buf_size %d cal_size %d fmt %s\n", frame->common.buf.size, msg->size, camport_fmt_name_get(frame->common.img_fmt));
 }
 
-static void camreplace_node_param_cfg(struct cam_replace_msg *msg, struct camera_frame *pframe)
+static void camreplace_node_param_cfg(struct cam_replace_msg *msg, struct cam_frame *pframe)
 {
 	msg->offset = 0;
-	msg->is_compressed = pframe->is_compressed;
-	if (pframe->need_pyr_rec) {
-		if (pframe->pyr_status == ONLINE_DEC_ON)
+	msg->is_compressed = pframe->common.is_compressed;
+	if (pframe->common.pyr_status) {
+		if (pframe->common.link_from.node_type != CAM_NODE_TYPE_PYR_DEC)
 			msg->layer_num = DCAM_PYR_DEC_LAYER_NUM;
 		else
 			msg->layer_num = ISP_PYR_DEC_LAYER_NUM;
-		while (isp_rec_small_layer_w(pframe->width, msg->layer_num) < MIN_PYR_WIDTH
-			|| isp_rec_small_layer_h(pframe->height, msg->layer_num) < MIN_PYR_HEIGHT) {
+		while (isp_rec_small_layer_w(pframe->common.width, msg->layer_num) < MIN_PYR_WIDTH
+			|| isp_rec_small_layer_h(pframe->common.height, msg->layer_num) < MIN_PYR_HEIGHT) {
 			if (--msg->layer_num == 0)
 				break;
 		}
-		msg->align_w = isp_rec_layer0_width(pframe->width, msg->layer_num);
-		msg->align_h = isp_rec_layer0_heigh(pframe->height, msg->layer_num);
+		msg->align_w = isp_rec_layer0_width(pframe->common.width, msg->layer_num);
+		msg->align_h = isp_rec_layer0_heigh(pframe->common.height, msg->layer_num);
 	} else
 		msg->layer_num = 0;
 }
 
-static void camreplace_node_frame_file_read(struct camera_frame *frame,
+static void camreplace_node_frame_file_read(struct cam_frame *frame,
 		struct cam_replace_msg *msg, uint8_t *name, uint8_t *name1)
 {
 	unsigned long  addr = 0;
 	loff_t offset = 0;
 
-	if (cam_buf_kmap(&frame->buf)) {
+	if (cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
 		pr_err("fail to kmap replace buf\n");
 		return;
 	}
 
-	addr = frame->buf.addr_k + msg->offset;
-	if (frame->cam_fmt >= CAM_YUV_BASE && frame->cam_fmt <= CAM_YVU420_2FRAME_MIPI) {
+	addr = frame->common.buf.addr_k + msg->offset;
+	if (frame->common.cam_fmt >= CAM_YUV_BASE && frame->common.cam_fmt <= CAM_YVU420_2FRAME_MIPI) {
 		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name, offset);
 		addr += msg->size;
 		msg->size = msg->size / 2;
@@ -124,32 +111,31 @@ static void camreplace_node_frame_file_read(struct camera_frame *frame,
 	} else
 		camreplace_node_read_data_to_buf((uint8_t *)addr, msg->size, name, offset);
 
-	cam_buf_kunmap(&frame->buf);
+	cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
 }
 
-static int camreplace_node_compress_get(struct camera_frame *pframe, struct cam_replace_msg *msg, uint8_t* file_name)
+static int camreplace_node_compress_get(struct cam_frame *pframe, struct cam_replace_msg *msg, uint8_t* file_name)
 {
 	/* size of fbc header file */
 	loff_t offset = sizeof(struct cam_dump_fbc_header);
 
-	if (pframe->cam_fmt == CAM_RAW_14 || pframe->cam_fmt == CAM_RAW_HALFWORD_10)
+	if (pframe->common.cam_fmt == CAM_RAW_14 || pframe->common.cam_fmt == CAM_RAW_HALFWORD_10)
 		strcat(file_name, ".raw");
 	else
 		strcat(file_name, ".mipi_raw");
 
-	if (cam_buf_kmap(&pframe->buf)) {
+	if (cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
 		pr_err("fail to kmap dump buf\n");
 		return -EFAULT;
 	}
 
-	camreplace_node_read_data_to_buf((char *)pframe->buf.addr_k, pframe->fbc_info.buffer_size, file_name, offset);
-	msg->offset += pframe->fbc_info.buffer_size;
-	cam_buf_kunmap(&pframe->buf);
-
+	camreplace_node_read_data_to_buf((char *)pframe->common.buf.addr_k, pframe->common.fbc_info.buffer_size, file_name, offset);
+	msg->offset += pframe->common.fbc_info.buffer_size;
+	cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
 	return 0;
 }
 
-int camreplace_node_image_name_get(struct camera_frame *frame, struct cam_replace_msg *msg,
+int camreplace_node_image_name_get(struct cam_frame *frame, struct cam_replace_msg *msg,
 	uint8_t *file_name, uint8_t *file_name1, int cur_layer)
 {
 	int ret = 0;
@@ -185,7 +171,7 @@ int camreplace_node_image_name_get(struct camera_frame *frame, struct cam_replac
 	return ret;
 }
 
-static int camreplace_node_switch(struct cam_replace_node *node, struct camera_frame *pframe)
+static int camreplace_node_switch(struct cam_replace_node *node, struct cam_frame *pframe)
 {
 	int ret = 0;
 
@@ -194,12 +180,12 @@ static int camreplace_node_switch(struct cam_replace_node *node, struct camera_f
 
 	/* Prev/video pipeline replace dcam online bin port need set g_dbg_replaceswitch,
 			cap pipeline replace dcam online full bort need start capture. */
-	if ((pframe->link_from.node_type == CAM_NODE_TYPE_DCAM_ONLINE)
-		&& ((pframe->link_from.port_id == PORT_BIN_OUT && !g_dbg_replace_switch)
-		|| (pframe->link_from.port_id == PORT_FULL_OUT && pframe->link_to.node_type == CAM_NODE_TYPE_DCAM_ONLINE)))
+	if ((pframe->common.link_from.node_type == CAM_NODE_TYPE_DCAM_ONLINE)
+		&& ((pframe->common.link_from.port_id == PORT_BIN_OUT && !g_dbg_replace_switch)
+		|| (pframe->common.link_from.port_id == PORT_FULL_OUT && pframe->common.link_to.node_type == CAM_NODE_TYPE_DCAM_ONLINE)))
 		ret = 0;
 	else
-		ret = pframe->replace_en;
+		ret = pframe->common.replace_en;
 
 	return ret;
 }
@@ -209,7 +195,7 @@ static int camreplace_node_frame_start(void *param)
 	int ret = 0, i = 0;
 	struct cam_replace_msg msg  = {0};
 	struct cam_replace_node *node = NULL;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 	uint8_t file_name[256] = { '\0' };
 	uint8_t file_name1[256] = { '\0' };
 
@@ -219,7 +205,7 @@ static int camreplace_node_frame_start(void *param)
 		return -EFAULT;
 	}
 
-	pframe = cam_queue_dequeue(&node->replace_queue, struct camera_frame, list);
+	pframe = cam_queue_dequeue(&node->replace_queue, struct cam_frame, list);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame for replace node %d\n", node->node_id);
 		return -EFAULT;
@@ -242,7 +228,7 @@ static int camreplace_node_frame_start(void *param)
 			memset(file_name1, 0, sizeof(file_name1));
 		}
 	}
-	pframe->replace_en = 0;
+	pframe->common.replace_en = DISABLE;
 	pr_debug("cam replace node %d frame start\n", node->node_id);
 	node->replace_cb_func(CAM_CB_REPLACE_DATA_DONE, pframe, node->replace_cb_handle);
 
@@ -253,7 +239,7 @@ int cam_replace_node_request_proc(struct cam_replace_node *node, void *param)
 {
 	int ret = 0;
 	struct cam_node_cfg_param *node_param = NULL;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 	struct cam_pipeline *pipeline = NULL;
 	struct cam_node *cam_node = NULL;
 
@@ -263,15 +249,15 @@ int cam_replace_node_request_proc(struct cam_replace_node *node, void *param)
 	}
 
 	node_param = (struct cam_node_cfg_param *)param;
-	pframe = (struct camera_frame *)node_param->param;
-	pframe->priv_data = node;
+	pframe = (struct cam_frame *)node_param->param;
+	pframe->common.priv_data = node;
 	cam_node = (struct cam_node *)node->replace_cb_handle;
 	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 
 	if (pipeline->debug_log_switch)
-		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
-			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
-			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->common.is_reserved %d, compress_en %d\n",
+			pipeline->pipeline_graph->name, pframe->common.fid, pframe->common.channel_id, pframe->common.buf.mfd,
+			pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
 	ret = cam_queue_enqueue(&node->replace_queue, &pframe->list);
 	if (ret == 0)
@@ -342,7 +328,7 @@ void *cam_replace_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_dat
 		node->replace_cb_handle = priv_data;
 	}
 
-	cam_queue_init(&node->replace_queue, REPLACE_NODE_Q_LEN, camreplace_frame_put);
+	cam_queue_init(&node->replace_queue, REPLACE_NODE_Q_LEN, cam_queue_empty_frame_put);
 	init_completion(&node->replace_com);
 	node->node_id = node_id;
 
@@ -367,7 +353,7 @@ void cam_replace_node_put(struct cam_replace_node *node)
 	}
 
 	camthread_stop(&node->thread);
-	cam_queue_clear(&node->replace_queue, struct camera_frame, list);
+	cam_queue_clear(&node->replace_queue, struct cam_frame, list);
 	node->replace_cb_func = NULL;
 	node->replace_cb_handle = NULL;
 	pr_info("cam replace node %d put\n", node->node_id);

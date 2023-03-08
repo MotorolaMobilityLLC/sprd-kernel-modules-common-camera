@@ -56,10 +56,10 @@ int dcam_k_frgbhist_block(struct dcam_isp_k_block *param)
 	 */
 	dev = param->dev;
 	hw_ctx = &dev->hw_ctx[idx];
-	if (hw_ctx && p->skip_num > 0 && hw_ctx->slowmotion_count) {
+	if (hw_ctx && hw_ctx->slowmotion_count) {
 		pr_debug("DCAM%u frgb hist ignore skip_num %u, slowmotion_count %u\n",
 			hw_ctx->hw_ctx_id, p->skip_num, hw_ctx->slowmotion_count);
-		p->skip_num = 0;
+		p->skip_num = hw_ctx->slowmotion_count - 1;
 	}
 
 	val = (0 << 12) | ((p->skip_num & 0xff) << 4) | (1 << 2) | ((p->mode & 1) << 1);

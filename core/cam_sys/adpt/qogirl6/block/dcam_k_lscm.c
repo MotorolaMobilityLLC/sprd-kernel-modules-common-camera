@@ -15,6 +15,7 @@
 #include <sprd_mm.h>
 
 #include "cam_block.h"
+#include "dcam_core.h"
 #include "dcam_reg.h"
 
 #ifdef pr_fmt
@@ -39,6 +40,14 @@ int dcam_k_lscm_monitor(struct dcam_isp_k_block *param)
 	uint32_t idx = param->idx;
 	uint32_t mode = 0;
 	uint32_t val = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
+
+	dev = param->dev;
+	hw_ctx = &dev->hw_ctx[idx];
+
+	if (hw_ctx->slowmotion_count)
+		param->lscm.skip_num = hw_ctx->slowmotion_count - 1;
 
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0, 0);
 
@@ -58,6 +67,7 @@ int dcam_k_lscm_monitor(struct dcam_isp_k_block *param)
 
 	/* It is better to set lscm_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL1, BIT_1, 1 << 1);
+	dcam_online_port_skip_num_set(param->dev, idx, DCAM_PATH_LSCM, param->lscm.skip_num);
 
 	val = ((param->lscm.offset_y & 0x1FFF) << 16) |
 			(param->lscm.offset_x & 0x1FFF);

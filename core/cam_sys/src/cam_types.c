@@ -13,6 +13,7 @@
 
 #include "cam_types.h"
 #include "dcam_core.h"
+#include "dcam_hw_adpt.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -58,46 +59,6 @@ uint32_t cam_data_bits(uint32_t dcam_out_fmt)
 		break;
 	}
 	return data_bwd_bits;
-}
-
-uint32_t cam_pack_bits(uint32_t raw_out_fmt)
-{
-	uint32_t data_pack_bits = 0;
-
-	switch (raw_out_fmt) {
-	case CAM_RAW_PACK_10:
-	case CAM_FULL_RGB10:
-	case CAM_FULL_RGB14:
-	case CAM_YUV422_2FRAME:
-	case CAM_YVU422_2FRAME:
-	case CAM_YUV420_2FRAME:
-	case CAM_YVU420_2FRAME:
-	case CAM_YUV420_2FRAME_10:
-	case CAM_YVU420_2FRAME_10:
-	case CAM_YUV420_2FRAME_MIPI:
-	case CAM_YVU420_2FRAME_MIPI:
-	case CAM_YUV422_3FRAME:
-	case CAM_YUV420_3FRAME:
-	case CAM_YUYV_1FRAME:
-	case CAM_UYVY_1FRAME:
-	case CAM_YVYU_1FRAME:
-	case CAM_VYUY_1FRAME:
-		data_pack_bits = 0;
-		break;
-	case CAM_RAW_HALFWORD_10:
-		data_pack_bits = 1;
-		break;
-	case CAM_RAW_14:
-		data_pack_bits = 2;
-		break;
-	case CAM_RAW_8:
-		data_pack_bits = 3;
-		break;
-	default:
-		pr_err("fail to get raw_out_fmt : %d\n", raw_out_fmt);
-		break;
-	}
-	return data_pack_bits;
 }
 
 uint32_t cam_is_pack(uint32_t dcam_out_fmt)
@@ -197,35 +158,31 @@ int cam_valid_fmt_get(int32_t *fmt, uint32_t default_value)
 	return 0;
 }
 
-int dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt)
+uint32_t cam_cal_hw_pitch(uint32_t w, uint32_t format)
 {
-	int outpitch = 0;
+	uint32_t pitch = 0;
 
-	switch (dcam_out_fmt) {
+	switch (format) {
+	case CAM_RAW_BASE:
+		pitch = 0;
+		break;
+	case CAM_RAW_8:
+		pitch = w;
 	case CAM_RAW_PACK_10:
+		pitch = CAL_HW_PACK_PITCH(w);
+		break;
 	case CAM_RAW_HALFWORD_10:
 	case CAM_RAW_14:
-	case CAM_RAW_8:
-		outpitch = cal_sprd_raw_pitch(w, cam_pack_bits(dcam_out_fmt));
-		break;
-	case CAM_YUV_BASE:
-	case CAM_YUV422_2FRAME:
-	case CAM_YVU422_2FRAME:
-	case CAM_YUV420_2FRAME:
-	case CAM_YVU420_2FRAME:
-	case CAM_YUV420_2FRAME_MIPI:
-	case CAM_YVU420_2FRAME_MIPI:
-		outpitch = cal_sprd_yuv_pitch(w, cam_data_bits(dcam_out_fmt), cam_is_pack(dcam_out_fmt));
+		pitch = CAL_HW_UNPACK_PITCH(w);
 		break;
 	case CAM_FULL_RGB14:
-		outpitch = w * 8;
+		pitch = CAL_FULLRGB14_PITCH(w) * 8 / 128;
 		break;
-	default :
-		pr_err("fail to support dcam_out_fmt %d  w %d\n", dcam_out_fmt, w);
+	default:
+		pr_err("fail to format : %d\n", format);
 		break;
 	}
-
-	return outpitch;
+	return pitch;
 }
 
 int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,

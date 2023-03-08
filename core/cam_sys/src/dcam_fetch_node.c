@@ -11,8 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
-
 #include "cam_node.h"
 #include "dcam_slice.h"
 
@@ -21,29 +19,29 @@
 #endif
 #define pr_fmt(fmt) "DCAM_FETCH_NODE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-static void dcamfetch_nr3_mv_get(struct dcam_hw_context *hw_ctx, struct camera_frame *frame)
+static void dcamfetch_nr3_mv_get(struct dcam_hw_context *hw_ctx, struct cam_frame *frame)
 {
 	int i = 0;
 
-	i = frame->fid % DCAM_NR3_MV_MAX;
-	frame->nr3_me.mv_x = hw_ctx->nr3_mv_ctrl[i].mv_x;
-	frame->nr3_me.mv_y = hw_ctx->nr3_mv_ctrl[i].mv_y;
-	frame->nr3_me.project_mode = hw_ctx->nr3_mv_ctrl[i].project_mode;
-	frame->nr3_me.sub_me_bypass = hw_ctx->nr3_mv_ctrl[i].sub_me_bypass;
-	frame->nr3_me.src_height = hw_ctx->nr3_mv_ctrl[i].src_height;
-	frame->nr3_me.src_width = hw_ctx->nr3_mv_ctrl[i].src_width;
-	frame->nr3_me.valid = hw_ctx->nr3_mv_ctrl[i].valid;
+	i = frame->common.fid % DCAM_NR3_MV_MAX;
+	frame->common.nr3_me.mv_x = hw_ctx->nr3_mv_ctrl[i].mv_x;
+	frame->common.nr3_me.mv_y = hw_ctx->nr3_mv_ctrl[i].mv_y;
+	frame->common.nr3_me.project_mode = hw_ctx->nr3_mv_ctrl[i].project_mode;
+	frame->common.nr3_me.sub_me_bypass = hw_ctx->nr3_mv_ctrl[i].sub_me_bypass;
+	frame->common.nr3_me.src_height = hw_ctx->nr3_mv_ctrl[i].src_height;
+	frame->common.nr3_me.src_width = hw_ctx->nr3_mv_ctrl[i].src_width;
+	frame->common.nr3_me.valid = hw_ctx->nr3_mv_ctrl[i].valid;
 	pr_debug("dcam%d fid %d, valid %d, x %d, y %d, w %u, h %u\n",
-		hw_ctx->hw_ctx_id, frame->fid, frame->nr3_me.valid,
-		frame->nr3_me.mv_x, frame->nr3_me.mv_y,
-		frame->nr3_me.src_width, frame->nr3_me.src_height);
+		hw_ctx->hw_ctx_id, frame->common.fid, frame->common.nr3_me.valid,
+		frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y,
+		frame->common.nr3_me.src_width, frame->common.nr3_me.src_height);
 }
 
-static struct camera_frame *dcamfetch_frame_prepare(struct dcam_online_node *node,
+static struct cam_frame *dcamfetch_frame_prepare(struct dcam_online_node *node,
 			struct dcam_online_port *dcam_port, struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
  	timespec *ts = NULL;
 	uint32_t dev_fid = 0, path_id = 0;
 
@@ -52,8 +50,8 @@ static struct camera_frame *dcamfetch_frame_prepare(struct dcam_online_node *nod
 		pr_warn("warning: %s cnt %d, deci %u, out %u, result %u\n",
 			cam_port_name_get(dcam_port->port_id),
 			atomic_read(&dcam_port->set_frm_cnt), hw_ctx->hw_path[path_id].frm_deci,
-			cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool),
-			cam_buf_manager_pool_cnt(&dcam_port->result_pool));
+			cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle),
+			cam_buf_manager_pool_cnt(&dcam_port->result_pool, node->buf_manager_handle));
 		return NULL;
 	}
 
@@ -63,7 +61,7 @@ static struct camera_frame *dcamfetch_frame_prepare(struct dcam_online_node *nod
 		return NULL;
 	}
 
-	frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL);
+	frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL, node->buf_manager_handle);
 	if (!frame) {
 		pr_err("fail to available output buffer DCAM%u %s\n",
 			node->hw_ctx_id, cam_port_name_get(dcam_port->port_id));
@@ -71,7 +69,7 @@ static struct camera_frame *dcamfetch_frame_prepare(struct dcam_online_node *nod
 	}
 	atomic_dec(&dcam_port->set_frm_cnt);
 
-	if (unlikely(frame->is_reserved)) {
+	if (unlikely(frame->common.is_reserved)) {
 		pr_info_ratelimited("DCAM%u %s use reserved buffer\n",
 			hw_ctx->hw_ctx_id, cam_port_name_get(dcam_port->port_id));
 		dcam_online_port_reserved_buf_set(dcam_port, frame);
@@ -79,23 +77,23 @@ static struct camera_frame *dcamfetch_frame_prepare(struct dcam_online_node *nod
 	}
 
 	/* assign same SOF time here for each port */
-	dev_fid = frame->fid - hw_ctx->base_fid;
+	dev_fid = frame->common.fid;
 	ts = &node->frame_ts[tsid(dev_fid)];
-	frame->sensor_time.tv_sec = ts->tv_sec;
-	frame->sensor_time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
-	frame->boot_sensor_time = node->frame_ts_boot[tsid(dev_fid)];
+	frame->common.sensor_time.tv_sec = ts->tv_sec;
+	frame->common.sensor_time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
+	frame->common.boot_sensor_time = node->frame_ts_boot[tsid(dev_fid)];
 	if (dev_fid == 0)
-		frame->frame_interval_time = 0;
+		frame->common.frame_interval_time = 0;
 	else
-		frame->frame_interval_time = frame->boot_sensor_time - node->frame_ts_boot[tsid(dev_fid - 1)];
+		frame->common.frame_interval_time = frame->common.boot_sensor_time - node->frame_ts_boot[tsid(dev_fid - 1)];
 
 	pr_debug("DCAM%u %s: TX DONE, fid %u, %lld\n", hw_ctx->hw_ctx_id,
-		cam_port_name_get(dcam_port->port_id), frame->fid, frame->frame_interval_time);
+		cam_port_name_get(dcam_port->port_id), frame->common.fid, frame->common.frame_interval_time);
 
-	if (!frame->boot_sensor_time) {
+	if (!frame->common.boot_sensor_time) {
 		pr_info("DCAM%u %s fid %u invalid 0 timestamp\n",
-			hw_ctx->hw_ctx_id, cam_port_name_get(dcam_port->port_id), frame->fid);
-		ret = dcamonline_port_buffer_cfg(dcam_port, frame);
+			hw_ctx->hw_ctx_id, cam_port_name_get(dcam_port->port_id), frame->common.fid);
+		ret = dcam_online_port_buffer_cfg(dcam_port, frame);
 		if (ret) {
 			pr_err("fail to set dcam online port outbuf_queue\n");
 		}
@@ -111,11 +109,11 @@ static void dcamfetch_frame_dispatch(void *param, void *handle)
 	struct dcam_online_node *node = NULL;
 	struct dcam_online_port *dcam_port = NULL;
 	struct dcam_irq_proc *irq_proc = NULL;
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 
 	node = (struct dcam_online_node *)handle;
 	irq_proc = (struct dcam_irq_proc *)param;
-	frame = (struct camera_frame *)irq_proc->param;
+	frame = (struct cam_frame *)irq_proc->param;
 
 	if (unlikely(!node || !frame || !IS_VALID_DCAM_PORT_ID(irq_proc->dcam_port_id))) {
 		pr_err("fail to get valid param %px %px %d\n", node, frame, irq_proc->dcam_port_id);
@@ -123,18 +121,18 @@ static void dcamfetch_frame_dispatch(void *param, void *handle)
 	}
 
 	dcam_port = dcam_online_node_port_get(node, irq_proc->dcam_port_id);
-	frame->link_from.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-	frame->link_from.port_id = irq_proc->dcam_port_id;
+	frame->common.link_from.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+	frame->common.link_from.port_id = irq_proc->dcam_port_id;
 	if (irq_proc->type == CAM_CB_DCAM_DATA_DONE) {
-		ret = cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+		ret = cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 		if (ret) {
 			pr_err("fail ro unmap path:%d buffer.\n", irq_proc->dcam_port_id);
 			ret = dcam_port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, dcam_port->data_cb_handle);
 			if (ret) {
 				struct cam_buf_pool_id pool_id = {0};
 				pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
-				cam_buf_manager_buf_enqueue(&pool_id, frame, NULL);
-				pr_err("fail to enqueue path:%d frame, q_cnt:%d.\n", irq_proc->dcam_port_id, cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool));
+				cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				pr_err("fail to enqueue path:%d frame, q_cnt:%d.\n", irq_proc->dcam_port_id, cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle));
 			}
 			return;
 		}
@@ -151,7 +149,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 	struct dcam_fetch_node *node = NULL;
 	struct dcam_online_node *online_node = NULL;
 	struct dcam_irq_proc *irq_proc = NULL;
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 	struct dcam_online_port *dcam_port = NULL;
 	uint32_t mv_ready = 0;
 	struct camera_buf_get_desc buf_desc = {0};
@@ -162,7 +160,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 	online_node = &node->online_node;
 	slice_info = &node->hw_ctx->slice_info;
 
-	list_for_each_entry(dcam_port, &online_node->port_queue.head, list) {
+	cam_queue_for_each_entry(dcam_port, &online_node->port_queue.head, list) {
 		if (dcam_port->port_id != irq_proc->dcam_port_id)
 			continue;
 		switch (irq_proc->dcam_port_id) {
@@ -189,7 +187,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 					dcamfetch_nr3_mv_get(hw_ctx, frame);
 					online_node->nr3_me.full_path_mv_ready = 0;
 					online_node->nr3_me.full_path_cnt = 0;
-					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", online_node->hw_ctx_id, frame->fid, frame->nr3_me.mv_x, frame->nr3_me.mv_y);
+					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", online_node->hw_ctx_id, frame->common.fid, frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y);
 					irq_proc->param = frame;
 					irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 					dcamfetch_frame_dispatch(irq_proc, online_node);
@@ -197,15 +195,15 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 			} else {
 				if ((frame = dcamfetch_frame_prepare(online_node, dcam_port, hw_ctx))) {
 					if (online_node->is_4in1)
-						frame->irq_type = CAMERA_IRQ_4IN1_DONE;
+						frame->common.irq_type = CAMERA_IRQ_4IN1_DONE;
 					irq_proc->param = frame;
 					irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 					dcamfetch_frame_dispatch(irq_proc, online_node);
 				}
 			}
-			frame = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
+			frame = cam_queue_dequeue(&node->proc_queue, struct cam_frame, list);
 			if (frame) {
-				cam_buf_iommu_unmap(&frame->buf, CAM_BUF_IOMMUDEV_DCAM);
+				cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 				if (online_node->data_cb_func)
 					online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, online_node->data_cb_handle);
 			}
@@ -225,13 +223,13 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 			if (cnt <= online_node->slowmotion_count) {
 				pr_warn("warning: DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
 					hw_ctx->hw_ctx_id, cnt, hw_ctx->hw_path[DCAM_PATH_BIN].frm_deci,
-					cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool),
-					cam_buf_manager_pool_cnt(&dcam_port->result_pool));
+					cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, online_node->buf_manager_handle),
+					cam_buf_manager_pool_cnt(&dcam_port->result_pool, online_node->buf_manager_handle));
 				return ret;
 			}
 			buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
-			frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc);
-			if (unlikely(!frame) || (frame->need_pyr_rec && !hw_ctx->dec_all_done))
+			frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc, online_node->buf_manager_handle);
+			if (unlikely(!frame) || (frame->common.pyr_status && !hw_ctx->dec_all_done))
 				return 0;
 			hw_ctx->dec_all_done = 0;
 			hw_ctx->dec_layer0_done = 0;
@@ -249,7 +247,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 					dcamfetch_nr3_mv_get(hw_ctx, frame);
 					online_node->nr3_me.bin_path_mv_ready = 0;
 					online_node->nr3_me.bin_path_cnt = 0;
-					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", online_node->hw_ctx_id, frame->fid, frame->nr3_me.mv_x, frame->nr3_me.mv_y);
+					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", online_node->hw_ctx_id, frame->common.fid, frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y);
 					irq_proc->param = frame;
 					irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 					dcamfetch_frame_dispatch(irq_proc, online_node);
@@ -269,9 +267,9 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 				dcamfetch_frame_dispatch(irq_proc, online_node);
 			}
 			if (!node->virtualsensor_cap_en) {
-				frame = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
+				frame = cam_queue_dequeue(&node->proc_queue, struct cam_frame, list);
 				if (frame) {
-					cam_buf_iommu_unmap(&frame->buf, CAM_BUF_IOMMUDEV_DCAM);
+					cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 					if (online_node->data_cb_func)
 						online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, online_node->data_cb_handle);
 				}
@@ -320,7 +318,7 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 		break;
 	case PREV_START_OF_FRAME:
 		dcam_online_node_irq_proc(param, online_node);
-		hw_ctx->frame_index++;
+		hw_ctx->fid++;
 		break;
 	case CAP_DATA_DONE:
 		if (irq_proc->dcam_port_id == PORT_FULL_OUT
@@ -339,10 +337,10 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 static int dcamfetch_frm_set(struct dcam_fetch_node *node, void *param)
 {
 	int ret = 0;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 
-	pframe = (struct camera_frame *)param;
-	pframe->priv_data = node;
+	pframe = (struct cam_frame *)param;
+	pframe->common.priv_data = node;
 	ret = cam_queue_enqueue(&node->in_queue, &pframe->list);
 	if (ret)
 		return -1;
@@ -353,7 +351,7 @@ static int dcamfetch_frm_set(struct dcam_fetch_node *node, void *param)
 
 static void dcamfetch_src_frame_ret(void *param)
 {
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 	struct dcam_fetch_node *node = NULL;
 
 	if (!param) {
@@ -361,42 +359,41 @@ static void dcamfetch_src_frame_ret(void *param)
 		return;
 	}
 
-	frame = (struct camera_frame *)param;
-	node = (struct dcam_fetch_node *)frame->priv_data;
+	frame = (struct cam_frame *)param;
+	node = (struct dcam_fetch_node *)frame->common.priv_data;
 	if (!node) {
 		pr_err("fail to get valid src_frame node.\n");
 		return;
 	}
 
 	pr_debug("frame %p, ch_id %d, buf_fd %d\n",
-		frame, frame->channel_id, frame->buf.mfd);
+		frame, frame->common.channel_id, frame->common.buf.mfd);
 
-	cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+	cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 	node->online_node.data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, node->online_node.data_cb_handle);
 }
 
-static struct camera_frame *dcamfetch_cycle_frame(struct dcam_fetch_node *node)
+static struct cam_frame *dcamfetch_cycle_frame(struct dcam_fetch_node *node)
 {
 	int ret = 0, loop = 0;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 
 	if (!node) {
 		pr_err("fail to get valid dcam fetch node\n");
 		return NULL;
 	}
 
-	pframe = cam_queue_dequeue(&node->in_queue, struct camera_frame, list);
+	pframe = cam_queue_dequeue(&node->in_queue, struct cam_frame, list);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame (%p) for node %d\n", pframe, node->online_node.node_id);
 		return NULL;
 	}
 
 	pr_debug("frame %p, dcam%d ch_id %d.  buf_fd %d\n", pframe,
-			node->online_node.hw_ctx_id, pframe->channel_id, pframe->buf.mfd);
-	pr_debug("size %d %d,  endian %d, pattern %d\n",
-			pframe->width, pframe->height, pframe->endian, pframe->pattern);
+			node->online_node.hw_ctx_id, pframe->common.channel_id, pframe->common.buf.mfd);
+	pr_debug("size %d %d\n", pframe->common.width, pframe->common.height);
 
-	ret = cam_buf_iommu_map(&pframe->buf, CAM_BUF_IOMMUDEV_DCAM);
+	ret = cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 	if (ret) {
 		pr_err("fail to map buf to DCAM iommu. ctx %d\n", node->online_node.node_id);
 		goto map_err;
@@ -409,7 +406,7 @@ static struct camera_frame *dcamfetch_cycle_frame(struct dcam_fetch_node *node)
 			break;
 		pr_info_ratelimited("wait for proc queue. loop %d\n", loop);
 		/* wait for previous frame proccessed done.*/
-		usleep_range(600, 2000);
+		os_adapt_time_usleep_range(600, 2000);
 	} while (loop++ < 500);
 
 	if (ret) {
@@ -420,7 +417,7 @@ static struct camera_frame *dcamfetch_cycle_frame(struct dcam_fetch_node *node)
 	return pframe;
 
 inq_overflow:
-	cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+	cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 
 map_err:
 	node->online_node.data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->online_node.data_cb_handle);
@@ -429,21 +426,19 @@ map_err:
 }
 
 static int dcamfetch_param_get(struct dcam_fetch_node *node,
-		struct camera_frame *pframe)
+		struct cam_frame *pframe)
 {
 	int ret = 0;
 	struct dcam_fetch_info *fetch = NULL;
 
 	fetch = &node->fetch_info;
-	fetch->endian = pframe->endian;
-	fetch->pattern = pframe->pattern;
-	fetch->size.w = pframe->width;
-	fetch->size.h = pframe->height;
+	fetch->size.w = pframe->common.width;
+	fetch->size.h = pframe->common.height;
 	fetch->trim.start_x = 0;
 	fetch->trim.start_y = 0;
-	fetch->trim.size_x = pframe->width;
-	fetch->trim.size_y = pframe->height;
-	fetch->addr.addr_ch0 = (uint32_t)pframe->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+	fetch->trim.size_x = pframe->common.width;
+	fetch->trim.size_y = pframe->common.height;
+	fetch->addr.addr_ch0 = (uint32_t)pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 
 	node->online_node.hw_ctx->hw_fetch.idx = node->online_node.hw_ctx_id;
 	node->online_node.hw_ctx->hw_fetch.virtualsensor_pre_sof = 1;
@@ -458,7 +453,6 @@ static int dcamfetch_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 	struct cam_hw_info *hw = NULL;
 
 	hw = hw_ctx->hw;
-
 	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		if (!hw_ctx->hw_path[i].need_update)
 			continue;
@@ -472,7 +466,6 @@ static int dcamfetch_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 		if (hw_ctx->hw_path[i].hw_fbc.compress_en)
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &hw_ctx->hw_path[i].hw_fbc);
 	}
-
 	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &hw_ctx->hw_fetch);
 
 	return ret;
@@ -509,10 +502,10 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node)
 		slice->cur_slice = &slice->slice_trim[i];
 		pr_debug("slice%d/%d proc start\n", i, slice->slice_num);
 
-		if (hw->ip_dcam[hw_ctx->hw_ctx_id]->offline_slice_support && slice->slice_num > 1) {
+		if (hw->ip_dcam[hw_ctx->hw_ctx_id]->dcamhw_abt->offline_slice_support && slice->slice_num > 1) {
 			slicearg.idx = hw_ctx->hw_ctx_id;
 			slicearg.virtualsensor_pre_sof = 1;
-			slicearg.path_id= hw->ip_dcam[1]->aux_dcam_path;
+			slicearg.path_id= hw->ip_dcam[1]->dcamhw_abt->aux_dcam_path;
 			slicearg.fetch = fetch;
 			slicearg.cur_slice = slice->cur_slice;
 			slicearg.dcam_slice_mode = slice->dcam_slice_mode;
@@ -531,7 +524,7 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node)
 		copyarg.idx = hw_ctx->hw_ctx_id;
 		copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
-		udelay(500);
+		os_adapt_time_udelay(500);
 
 		if (i == 0) {
 			trace.type = NORMAL_REG_TRACE;
@@ -550,7 +543,7 @@ static int dcamfetch_node_frame_start(void *param)
 	int ret = 0;
 	struct dcam_fetch_node *node = NULL;
 	struct dcam_online_node *online_node = NULL;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
 	uint32_t lbuf_width = 0, dev_fid = 0;
 
@@ -564,7 +557,7 @@ static int dcamfetch_node_frame_start(void *param)
 	pr_debug("dcam fetch frame start %px\n", param);
 	ret = wait_for_completion_interruptible_timeout(&node->frm_done, DCAM_OFFLINE_TIMEOUT);
 	if (ret <= 0) {
-		pframe = cam_queue_dequeue(&node->in_queue, struct camera_frame, list);
+		pframe = cam_queue_dequeue(&node->in_queue, struct cam_frame, list);
 		if (!pframe) {
 			pr_warn("warning: no frame from in_q node %px\n", node);
 			return 0;
@@ -578,12 +571,12 @@ static int dcamfetch_node_frame_start(void *param)
 	if (!pframe)
 		goto fetch_input_err;
 
-	node->hw_ctx->index_to_set = pframe->fid - node->hw_ctx->base_fid + 1;
-	dev_fid = pframe->fid - node->hw_ctx->base_fid;
-	if (pframe->sensor_time.tv_sec || pframe->sensor_time.tv_usec) {
-		online_node->frame_ts[tsid(dev_fid)].tv_sec = pframe->sensor_time.tv_sec;
-		online_node->frame_ts[tsid(dev_fid)].tv_nsec = pframe->sensor_time.tv_usec * NSEC_PER_USEC;
-		online_node->frame_ts_boot[tsid(dev_fid)] = pframe->boot_sensor_time;
+	node->hw_ctx->index_to_set = pframe->common.fid + 1;
+	dev_fid = pframe->common.fid;
+	if (pframe->common.sensor_time.tv_sec || pframe->common.sensor_time.tv_usec) {
+		online_node->frame_ts[tsid(dev_fid)].tv_sec = pframe->common.sensor_time.tv_sec;
+		online_node->frame_ts[tsid(dev_fid)].tv_nsec = pframe->common.sensor_time.tv_usec * NSEC_PER_USEC;
+		online_node->frame_ts_boot[tsid(dev_fid)] = pframe->common.boot_sensor_time;
 	}
 	ret = dcamfetch_param_get(node, pframe);
 	if (ret) {
@@ -593,7 +586,7 @@ static int dcamfetch_node_frame_start(void *param)
 
 	/* fetch in node may put it into hw ctx */
 	slice->fetch_fmt= node->fetch_info.fmt;
-	dcamslice_needed_info_get(online_node->hw_ctx, &lbuf_width, pframe->width);
+	dcamslice_needed_info_get(online_node->hw_ctx, &lbuf_width, pframe->common.width);
 	dcam_slice_info_cal(slice, pframe, lbuf_width);
 	dcamfetch_hw_frame_param_set(online_node->hw_ctx);
 
@@ -603,8 +596,8 @@ static int dcamfetch_node_frame_start(void *param)
 	return ret;
 
 fetch_return_buf:
-	pframe = cam_queue_dequeue(&node->proc_queue, struct camera_frame, list);
-	cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+	pframe = cam_queue_dequeue(&node->proc_queue, struct cam_frame, list);
+	cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 	online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, online_node->data_cb_handle);
 fetch_input_err:
 	complete(&node->slice_done);
@@ -667,7 +660,7 @@ int dcam_fetch_node_cfg_param(void *handle, uint32_t cmd, void *param)
 		break;
 	case CAM_NODE_CFG_STATIS:
 	case CAM_NODE_RECT_GET:
-		ret =dcam_online_cfg_param(&node->online_node, cmd, param);
+		ret = dcam_online_cfg_param(&node->online_node, cmd, param);
 		break;
 	default:
 		pr_err("fail to support vaild cmd %d\n", cmd);
@@ -783,6 +776,10 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 	node->online_node.hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	node->online_node.raw_alg_type = param->online_node_desc->raw_alg_type;
 	node->online_node.param_frame_sync = param->online_node_desc->param_frame_sync;
+	node->online_node.buf_manager_handle = param->online_node_desc->buf_manager_handle;
+	node->fetch_info.pattern = param->online_node_desc->pattern;
+	node->fetch_info.endian = param->online_node_desc->endian;
+	pr_debug("pattern %d, endian %d\n", node->fetch_info.pattern, node->fetch_info.endian);
 
 	cam_queue_init(&node->online_node.port_queue, PORT_DCAM_OUT_MAX, NULL);
 	node->online_node.node_id = node_id;
@@ -841,13 +838,14 @@ void dcam_fetch_node_put(struct dcam_fetch_node *node)
 	cam_queue_clear(&node->online_node.port_queue, struct dcam_online_port, list);
 	if (atomic_dec_return(&node->user_cnt) == 0) {
 		camthread_stop(&node->thread);
-		cam_queue_clear(&node->in_queue, struct camera_frame, list);
-		cam_queue_clear(&node->proc_queue, struct camera_frame, list);
+		cam_queue_clear(&node->in_queue, struct cam_frame, list);
+		cam_queue_clear(&node->proc_queue, struct cam_frame, list);
 		memset(&node->online_node.nr3_me, 0, sizeof(struct nr3_me_data));
 		if (atomic_read(&node->online_node.pm_cnt) > 0)
 			dcam_online_node_pmctx_deinit(&node->online_node);
 		node->online_node.data_cb_func = NULL;
 		node->online_node.data_cb_handle = NULL;
+		node->online_node.buf_manager_handle = NULL;
 		node->online_node.resbuf_get_cb = NULL;
 		node->online_node.resbuf_cb_data = NULL;
 		node->online_node.port_cfg_cb_func = NULL;

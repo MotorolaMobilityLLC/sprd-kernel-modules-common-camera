@@ -51,7 +51,7 @@ int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
 	idx = pctx_hw->cfg_id;
-	if (idx > ISP_CONTEXT_SUPERZOOM) {
+	if (idx >= ISP_CONTEXT_SW_NUM) {
 		pr_err("fail to get sw_id:%d for hw_idx=%d\n", idx, hw_idx);
 		return 0;
 	}
@@ -293,17 +293,17 @@ void ispint_iommu_regs_dump(void)
 	uint32_t reg = 0;
 	uint32_t val[4];
 
-	pr_err("isp mmu int sts:%d", ISP_MMU_RD(ISP_MMU_INT_STS));
+	pr_err("fail to handle, isp mmu int sts:%d", ISP_MMU_RD(ISP_MMU_INT_STS));
 	for (reg = ISP_MMU_VERSION; reg <= ISP_MMU_INT_RAW; reg += 16) {
 		val[0] = ISP_MMU_RD(reg);
 		val[1] = ISP_MMU_RD(reg + 4);
 		val[2] = ISP_MMU_RD(reg + 8);
 		val[3] = ISP_MMU_RD(reg + 12);
-		pr_err("offset=0x%04x: %08x %08x %08x %08x\n",
+		pr_err("fail to handle, offset=0x%04x: %08x %08x %08x %08x\n",
 			reg, val[0], val[1], val[2], val[3]);
 	}
 
-	pr_err("fetch y %08x u %08x pyr_rec_fetch y %08x u %08x pyr_dec_fetch y %08x u %08x\n",
+	pr_err("fail to handle, fetch y %08x u %08x pyr_rec_fetch y %08x u %08x pyr_dec_fetch y %08x u %08x\n",
 		ISP_HREG_RD(ISP_FETCH_BASE + ISP_FETCH_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_FETCH_BASE + ISP_FETCH_SLICE_U_ADDR),
 		ISP_HREG_RD(PYR_REC_CUR_FETCH_BASE + ISP_FETCH_SLICE_Y_ADDR),
@@ -311,27 +311,27 @@ void ispint_iommu_regs_dump(void)
 		ISP_HREG_RD(PYR_DEC_FETCH_BASE + ISP_FETCH_SLICE_Y_ADDR),
 		ISP_HREG_RD(PYR_DEC_FETCH_BASE + ISP_FETCH_SLICE_U_ADDR));
 
-	pr_err("afbd head normal/rec frame %08x slice %08x dec frame %08x slice %08x\n",
+	pr_err("fail to handle, afbd head normal/rec frame %08x slice %08x dec frame %08x slice %08x\n",
 		ISP_HREG_RD(ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM1),
 		ISP_HREG_RD(ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM2),
 		ISP_HREG_RD(ISP_YUV_DEC_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM1),
 		ISP_HREG_RD(ISP_YUV_DEC_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM2));
 
-	pr_err("store pre cap y %08x u %08x afbc head y %08x y %08x offset %08x\n",
+	pr_err("fail to handle, store pre cap y %08x u %08x afbc head y %08x y %08x offset %08x\n",
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_CAP_FBC_STORE_BASE + ISP_FBC_STORE_SLICE_HEADER_BASE_ADDR),
 		ISP_HREG_RD(ISP_CAP_FBC_STORE_BASE + ISP_FBC_STORE_SLICE_PAYLOAD_BASE_ADDR),
 		ISP_HREG_RD(ISP_CAP_FBC_STORE_BASE + ISP_FBC_STORE_SLICE_PAYLOAD_OFFSET_ADDR));
 
-	pr_err("store vid y %08x u %08x fbc head y %08x y %08x offset %08x\n",
+	pr_err("fail to handle, store vid y %08x u %08x fbc head y %08x y %08x offset %08x\n",
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_VID_FBC_STORE_BASE  + ISP_FBC_STORE_SLICE_HEADER_BASE_ADDR),
 		ISP_HREG_RD(ISP_VID_FBC_STORE_BASE  + ISP_FBC_STORE_SLICE_PAYLOAD_BASE_ADDR),
 		ISP_HREG_RD(ISP_VID_FBC_STORE_BASE  + ISP_FBC_STORE_SLICE_PAYLOAD_OFFSET_ADDR));
 
-	pr_err("store thumb y %08x u %08x\n",
+	pr_err("fail to handle, store thumb y %08x u %08x\n",
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_U_ADDR));
 }

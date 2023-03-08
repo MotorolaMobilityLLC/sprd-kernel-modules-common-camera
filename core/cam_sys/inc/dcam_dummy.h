@@ -112,7 +112,7 @@ struct dcam_dummy_slave {
 	uint32_t dummy_total_skip_num[DCAM_HW_CONTEXT_MAX];
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
-	struct camera_frame *reserved_buf;
+	struct cam_frame *reserved_buf;
 	enum dcam_dummy_use_reserved_buf use_reserved_buf;
 };
 

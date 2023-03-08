@@ -19,6 +19,8 @@
 
 #include "cam_types.h"
 
+typedef void (*dcam_int_isr)(void *param);
+
 enum {
 	DCAM_IF_IRQ_INT0_SENSOR_SOF              = 0,
 	DCAM_IF_IRQ_INT0_SENSOR_EOF              = 1,
@@ -89,43 +91,20 @@ enum {
 enum {
 	DCAM2_SENSOR_SOF        = 0,
 	DCAM2_SENSOR_EOF        = 1,
-	/* reserved */
-	/* reserved */
+	DCAM2_CAP_SOF           = 2,
+	DCAM2_CAP_EOF           = 3,
 
 	DCAM2_DCAM_OVF          = 4,
-	/* reserved */
-	/* reserved */
-	/* reserved */
+	DCAM2_CAP_LINE_ERR      = 5,
+	DCAM2_CAP_FRM_ERR       = 6,
+	DCAM2_FULL_PATH0_END    = 7,
+
+	DCAM2_FULL_PATH1_END    = 8,
+	DCAM2_FULL_PATH_TX_DONE = 9,
 
 	/* reserved */
-	/* reserved */
-	DCAM2_CAP_LINE_ERR      = 10,
-	DCAM2_CAP_FRM_ERR       = 11,
 
-	DCAM2_FULL_PATH0_END    = 12,
-	DCAM2_FULL_PATH1_END    = 13,
-	/* reserved */
-	/* reserved */
-
-	/* reserved */
-	/* reserved */
-	DCAM2_FULL_PATH_TX_DONE = 18,
-	/* reserved */
-
-	/* reserved */
-	/* reserved */
-	/* reserved */
-	/* reserved */
-
-	DCAM2_MMU_INT           = 24,
-	/* reserved */
-	/* reserved */
-	/* reserved */
-
-	/* reserved */
-	/* reserved */
-	/* reserved */
-	/* reserved */
+	DCAM2_MMU_INT           = 31,
 };
 
 enum {
@@ -263,6 +242,21 @@ enum {
 
 #define DCAMINT_IRQ_LINE_EN1_NORMAL  DCAMINT_IRQ_LINE_INT1_MASK
 
+/* all prj unify name */
+#define DCAM_IRQ_NUMBER          DCAM_IF_IRQ_INT0_NUMBER
+#define DCAM_SENSOR_EOF          DCAM_IF_IRQ_INT0_SENSOR_EOF
+#define DCAM_CAP_SOF             DCAM_IF_IRQ_INT0_CAP_SOF
+#define DCAM_FULL_PATH_TX_DONE   DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE
+#define DCAM_PREV_PATH_TX_DONE   DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE
+#define DCAM_AEM_TX_DONE         DCAM_IF_IRQ_INT0_AEM_PATH_TX_DONE
+#define DCAM_AFM_INTREQ1         DCAM_IF_IRQ_INT0_AFM_INTREQ1
+#define DCAM_LSCM_TX_DONE        DCAM_IF_IRQ_INT0_LSCM_TX_DONE
+#define DCAM_DCAM_OVF            DCAM_IF_IRQ_INT0_DCAM_OVF
+#define DCAM_CAP_LINE_ERR        DCAM_IF_IRQ_INT0_CAP_LINE_ERR
+#define DCAM_MMU_INT             DCAM_IF_IRQ_INT0_MMU_INT
+#define DCAM_CAP_FRM_ERR         DCAM_IF_IRQ_INT0_CAP_FRM_ERR
+#define DCAMINT_FATAL_ERROR      DCAMINT_INT0_FATAL_ERROR
+
 struct nr3_done {
 	uint32_t hw_ctx;
 	uint32_t p;
@@ -270,18 +264,23 @@ struct nr3_done {
 	uint32_t out1;
 };
 
+struct dcam_sequences{
+	size_t count;
+	const int *bits;
+};
+
 struct dcam_irq_info {
 	uint32_t irq_num;
 	uint32_t status;
 	uint32_t status1;
+	const dcam_int_isr (*_DCAM_ISR_IRQ)[DCAM_IF_IRQ_INT0_NUMBER];
+	const struct dcam_sequences (*DCAM_SEQUENCES)[2];
 };
 
-int dcam_int_irq_request(struct device *pdev, int irq, void *param);
-void dcam_int_irq_free(struct device *pdev, void *param);
 int dcam_int_irq_desc_get(uint32_t index, void *param);
-void dcam_int_tracker_reset(uint32_t idx);
-void dcam_int_tracker_dump(uint32_t idx);
-irqreturn_t dcamint_error_handler(void *dcam_hw_ctx, uint32_t status);
-void dcamint_dcam_status_rw(struct dcam_irq_info irq_info, void *priv);
-
+struct dcam_irq_info dcam_int_isr_handle(void *param);
+void dcam_int_status_warning(void *param, uint32_t status, uint32_t status1);
+struct dcam_irq_info dcam_int_mask_clr(uint32_t idx);
+struct nr3_done dcam_int_nr3_done_rd(void *param, uint32_t idx);
+void dcam_int_iommu_regs_dump(void *param);
 #endif

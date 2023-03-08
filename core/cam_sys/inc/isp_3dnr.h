@@ -38,14 +38,6 @@ extern "C" {
 #define NR3_BLEND_CNT                  5
 #define MAX_SLICE_NUM                  16
 
-enum nr3_func_type {
-	NR3_FUNC_OFF,
-	NR3_FUNC_PRE,
-	NR3_FUNC_VID,
-	NR3_FUNC_CAP,
-	NR3_FUNC_MAX
-};
-
 struct isp_3dnr_mem_ctrl {
 	uint32_t bypass;
 	uint32_t nr3_done_mode;
@@ -214,7 +206,7 @@ struct isp_3dnr_crop {
 	int start_y;
 };
 
-struct  fast_mv {
+struct fast_mv {
 	int mv_x;
 	int mv_y;
 };
@@ -224,7 +216,6 @@ struct frame_size {
 	uint32_t height;
 };
 
-/* capture */
 struct nr3_slice {
 	uint32_t start_row;
 	uint32_t end_row;
@@ -278,8 +269,6 @@ struct nr3_slice_for_blending {
 };
 
 enum isp_3dnr_cfg_cmd {
-	ISP_3DNR_CFG_MODE,
-	ISP_3DNR_CFG_BLEND_CNT,
 	ISP_3DNR_CFG_FBC_FBD_INFO,
 	ISP_3DNR_CFG_SIZE_INFO,
 	ISP_3DNR_CFG_BLEND_INFO,
@@ -294,7 +283,6 @@ struct isp_3dnr_ops {
 };
 
 struct isp_3dnr_ctx_desc {
-	uint32_t type;
 	uint32_t mode;
 	uint32_t width;
 	uint32_t ctx_id;
@@ -317,8 +305,6 @@ struct isp_3dnr_ctx_desc {
 	struct isp_3dnr_fbd_fetch nr3_fbd_fetch;
 	struct camera_frame nr3_frame[ISP_NR3_BUF_NUM];
 	struct ImageRegion_Info image_region_info[MAX_SLICE_NUM];
-
-	enum sprd_cam_sec_mode nr3_sec_mode;
 };
 
 void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx);

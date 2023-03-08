@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 
 #include "alg_nr3_calc.h"
-#include "cam_types.h"
+#include "cam_block.h"
 #include "isp_hw.h"
 
 extern struct cam_hw_info sharkl3_hw_info;
@@ -98,6 +98,7 @@ enum isp_k_gtm_blk_idx {
 	ISP_K_GTM_MAX
 };
 
+/* TBD: need move to sprd_camsys.h later */
 enum dcam_full_src_sel_type {
 	ORI_RAW_SRC_SEL,
 	PROCESS_RAW_SRC_SEL,
@@ -281,6 +282,7 @@ enum isp_hw_cfg_cmd {
 	ISP_HW_CFG_GTM_FUNC_GET,
 	ISP_HW_CFG_HIST_GET,
 	ISP_HW_CFG_GTMHIST_GET,
+	ISP_HW_CFG_MMU_FACEID_RECFG,
 	ISP_HW_CFG_MAX
 };
 
@@ -436,6 +438,7 @@ struct isp_hw_path_store {
 	uint32_t ctx_id;
 	uint32_t used;
 	enum isp_sub_path_id spath_id;
+	enum sprd_cam_sec_mode sec_mode;
 	struct isp_store_info store;
 };
 
@@ -598,6 +601,7 @@ struct dcam_hw_slice_fetch {
 	struct dcam_fetch_info *fetch;
 	struct img_trim *cur_slice;
 	struct img_trim slice_trim;
+	struct img_trim store_trim;
 };
 
 struct dcam_hw_sram_ctrl {
@@ -652,7 +656,7 @@ struct dcam_hw_path_restart {
 };
 
 struct dcam_fetch_info {
-	uint32_t fmt;
+	enum cam_format fmt;
 	uint32_t endian;
 	uint32_t pattern;
 	struct img_size size;
@@ -748,7 +752,7 @@ typedef int (*func_isp_cfg_block_param)(
 	struct dcam_isp_k_block *isp_k_param);
 
 typedef int (*func_cam_cfg_param)
-			(struct isp_io_param *param,struct dcam_isp_k_block *p);
+			(struct isp_io_param *param, struct dcam_isp_k_block *p);
 
 struct isp_cfg_pre_param {
 	uint32_t sub_block;
@@ -898,7 +902,7 @@ struct isp_hw_afbc_path_slice {
 
 struct isp_hw_slw_fmcu_cmds {
 	uint32_t ctx_id;
-	uint32_t is_compressed;
+	enum en_status is_compressed;
 	struct img_addr fetchaddr;
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct isp_store_info store[ISP_SPATH_NUM];
@@ -1206,6 +1210,98 @@ struct qos_reg {
 	u32 set_value;
 };
 
+/* TBD: need move to sprd_camsys.h later */
+enum sprd_dcam_path_id {
+	DCAM_SENSOR_IN_PATH,
+	DCAM_FETCH_IN_PATH,
+	DCAM_RAW_OUT_PATH,
+	DCAM_BIN_OUT_PATH,
+	DCAM_FULL_OUT_PATH,
+	DCAM_PATH_ID_MAX
+};
+
+enum sprd_isp_path_id {
+	ISP_FETCH_IN_PATH,
+	ISP_PRECAP_OUT_PATH,
+	ISP_VID_OUT_PATH,
+	ISP_THUMB_OUT_PATH,
+	ISP_PATH_ID_MAX
+};
+
+enum sprd_cam_path_type {
+	CAM_PATH_INPUT,
+	CAM_PATH_OUTPUT,
+	CAM_PATH_TYPE_MAX
+};
+
+struct path_hw_abt {
+	uint32_t enable;
+	uint32_t fbc_sup;
+	uint32_t fbd_sup;
+	enum sprd_cam_path_type type;
+	uint32_t format[CAM_FORMAT_MAX];
+	uint32_t full_src_sel_sup;
+	uint32_t full_src_sel_type[MAX_RAW_SRC_SEL];
+	uint32_t scaler_sup;
+	uint32_t scaler_max_ratio;
+	uint32_t scaler_min_ratio;
+	uint32_t max_in_size_w;
+	uint32_t max_out_size_w;
+	uint32_t max_out_size_h;
+};
+
+struct dcam_hw_abt {
+	uint32_t slm_path;
+	uint32_t aux_dcam_path;
+	uint32_t dcam_raw_path_id;
+	uint32_t dcam_scaling_path;
+	uint32_t fmcu_support;
+	uint32_t pyramid_support;
+	uint32_t bpc_raw_support;
+	uint32_t superzoom_support;
+	uint32_t lbuf_share_support;
+	uint32_t recovery_support;
+	uint32_t dummy_slave_support;
+	uint32_t offline_slice_support;
+	uint32_t dcam_offline_fbc_support;
+	uint32_t vch3_output_pdaf_support;
+	uint32_t sensor_raw_fmt;
+	uint32_t store_pyr_fmt;
+	uint32_t store_3dnr_fmt[CAM_FORMAT_MAX];
+	uint32_t dcam_zoom_mode;
+	uint32_t save_band_for_bigsize;
+	enum dcam_output_strategy output_strategy;
+	uint32_t dcam_block[ISP_BLOCK_TOTAL];
+};
+
+struct dcamlite_hw_abt {
+	uint32_t sensor_raw_fmt;
+	uint32_t raw_fmt_support[CAM_FORMAT_MAX];
+	uint32_t dcam_output_fmt[CAM_FORMAT_MAX];
+};
+
+struct isp_hw_abt {
+	uint32_t slm_cfg_support;
+	uint32_t *ctx_fmcu_support;
+	uint32_t fetch_raw_support;
+	uint32_t pyr_rec_support;
+	uint32_t pyr_dec_support;
+	uint32_t rgb_ltm_support;
+	uint32_t rgb_gtm_support;
+	uint32_t frbg_hist_support;
+	uint32_t nr3_compress_support;
+	uint32_t pyr_rec_lay0_support;
+	uint32_t nr3_mv_alg_version;
+	uint32_t dyn_overlap_version;
+	uint32_t thumb_scaler_cal_version;
+	uint32_t scaler_coeff_ex;
+	uint32_t scaler_bypass_ctrl;
+	uint32_t max_size_w;
+	uint32_t max_size_h;
+	uint32_t isp_scaling_path_id;
+	uint32_t isp_block[ISP_BLOCK_TOTAL];
+};
+
 struct cam_hw_ip_info {
 	uint32_t idx;
 	uint32_t irq_no;
@@ -1214,49 +1310,11 @@ struct cam_hw_ip_info {
 	unsigned long reg_base;
 	struct glb_syscon syscon;
 
-	/* For dcam support info */
-	uint32_t aux_dcam_path;
-	uint32_t slm_path;
-	uint32_t lbuf_share_support;
-	uint32_t offline_slice_support;
-	uint32_t superzoom_support;
-	uint32_t dcam_full_fbc_support;
-	uint32_t dcam_bin_fbc_support;
-	uint32_t dcam_raw_fbc_support;
-	uint32_t dcam_offline_fbc_support;
-	uint32_t dcam_raw_path_id;
-	uint32_t bpc_raw_support;
-	uint32_t pyramid_support;
-	uint32_t fmcu_support;
-	uint32_t sensor_raw_fmt;
-	uint32_t save_band_for_bigsize;
-	uint32_t raw_fmt_support[CAM_FORMAT_MAX];
-	uint32_t dcam_zoom_mode;
-	uint32_t dcam_output_strategy;
-	uint32_t recovery_support;
-	uint32_t dcam_output_fmt[CAM_FORMAT_MAX];
-	uint32_t store_pyr_fmt;
-	uint32_t store_3dnr_fmt[CAM_FORMAT_MAX];
-	uint32_t dummy_slave_support;
-
-	/* For isp support info */
-	uint32_t slm_cfg_support;
-	uint32_t scaler_coeff_ex;
-	uint32_t scaler_bypass_ctrl;
-	uint32_t *ctx_fmcu_support;
-	uint32_t rgb_ltm_support;
-	uint32_t pyr_rec_support;
-	uint32_t pyr_dec_support;
-	uint32_t fbd_yuv_support;
-	uint32_t rgb_gtm_support;
-	uint32_t frbg_hist_support;
-	uint32_t nr3_mv_alg_version;
-	uint32_t dyn_overlap_version;
-	uint32_t fetch_raw_support;
-	uint32_t nr3_compress_support;
-	uint32_t capture_thumb_support;
-	uint32_t thumb_scaler_cal_version;
-	uint32_t pyr_rec_lay0_support;
+	struct path_hw_abt *dcampath_abt[DCAM_PATH_ID_MAX];
+	struct dcam_hw_abt *dcamhw_abt;
+	struct dcamlite_hw_abt *dcamlitehw_abt;
+	struct path_hw_abt *isppath_abt[ISP_PATH_ID_MAX];
+	struct isp_hw_abt *isphw_abt;
 };
 
 struct cam_hw_soc_info {
@@ -1316,6 +1374,8 @@ struct cam_hw_info {
 	int (*isp_ioctl)(void *,enum isp_hw_cfg_cmd, void *);
 	int (*pyrdec_ioctl)(void *,enum pyrdec_hw_cfg_cmd, void *);
 	int (*cam_ioctl)(void *,enum cam_hw_cfg_cmd, void *);
+	void *s_dcam_dev_debug;
+	void *s_isp_dev_debug;
 };
 
 #endif

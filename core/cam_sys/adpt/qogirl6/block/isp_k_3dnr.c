@@ -23,8 +23,66 @@
 #endif
 #define pr_fmt(fmt) "3DNR: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
+static void isp_3dnr_blend_param_debug(struct isp_dev_3dnr_info *pnr3)
+{
+	uint32_t i = 0;
+
+	pr_debug("3dnr_blend param: bypass %d, filter_switch %d, fusion_mode %d\n",
+		pnr3->blend.bypass, pnr3->blend.filter_switch, pnr3->blend.fusion_mode);
+	for (i = 0; i < 4; i++)
+		pr_debug("pixel_src_weight: i %d, y %d, u %d, v %d\n",
+			i, pnr3->blend.y_pixel_src_weight[i], pnr3->blend.u_pixel_src_weight[i], pnr3->blend.v_pixel_src_weight[i]);
+	pr_debug("noise_threshold: y %d, u %d, v %d\n",
+		pnr3->blend.y_pixel_noise_threshold, pnr3->blend.u_pixel_noise_threshold, pnr3->blend.v_pixel_noise_threshold);
+	pr_debug("noise_weight: y %d, u %d, v %d\n",
+		pnr3->blend.y_pixel_noise_weight, pnr3->blend.u_pixel_noise_weight, pnr3->blend.v_pixel_noise_weight);
+	pr_debug("threshold_radial_variation: u_min %d, u_max %d, v_min %d, v_max %d\n",
+		pnr3->blend.threshold_radial_variation_u_range_min, pnr3->blend.threshold_radial_variation_u_range_max,
+		pnr3->blend.threshold_radial_variation_v_range_min, pnr3->blend.threshold_radial_variation_v_range_min);
+	pr_debug("threshold_polyline: y0 %d, y1 %d, y2 %d, y3 %d, y4 %d, y5 %d, y6 %d, y7 %d, y8 %d\n",
+		pnr3->blend.y_threshold_polyline_0, pnr3->blend.y_threshold_polyline_1, pnr3->blend.y_threshold_polyline_2,
+		pnr3->blend.y_threshold_polyline_3, pnr3->blend.y_threshold_polyline_4, pnr3->blend.y_threshold_polyline_5,
+		pnr3->blend.y_threshold_polyline_6, pnr3->blend.y_threshold_polyline_7, pnr3->blend.y_threshold_polyline_8);
+	pr_debug("threshold_polyline: u0 %d, u1 %d, u2 %d, u3 %d, u4 %d, u5 %d, u6 %d, u7 %d, u8 %d\n",
+		pnr3->blend.u_threshold_polyline_0, pnr3->blend.u_threshold_polyline_1, pnr3->blend.u_threshold_polyline_2,
+		pnr3->blend.u_threshold_polyline_3, pnr3->blend.u_threshold_polyline_4, pnr3->blend.u_threshold_polyline_5,
+		pnr3->blend.u_threshold_polyline_6, pnr3->blend.u_threshold_polyline_7, pnr3->blend.u_threshold_polyline_8);
+	pr_debug("threshold_polyline: v0 %d, v1 %d, v2 %d, v3 %d, v4 %d, v5 %d, v6 %d, v7 %d, v8 %d\n",
+		pnr3->blend.v_threshold_polyline_0, pnr3->blend.v_threshold_polyline_1, pnr3->blend.v_threshold_polyline_2,
+		pnr3->blend.v_threshold_polyline_3, pnr3->blend.v_threshold_polyline_4, pnr3->blend.v_threshold_polyline_5,
+		pnr3->blend.v_threshold_polyline_6, pnr3->blend.v_threshold_polyline_7, pnr3->blend.v_threshold_polyline_8);
+	pr_debug("intensity_gain_polyline: y0 %d, y1 %d, y2 %d, y3 %d, y4 %d, y5 %d, y6 %d, y7 %d, y8 %d\n",
+		pnr3->blend.y_intensity_gain_polyline_0, pnr3->blend.y_intensity_gain_polyline_1, pnr3->blend.y_intensity_gain_polyline_2,
+		pnr3->blend.y_intensity_gain_polyline_3, pnr3->blend.y_intensity_gain_polyline_4, pnr3->blend.y_intensity_gain_polyline_5,
+		pnr3->blend.y_intensity_gain_polyline_6, pnr3->blend.y_intensity_gain_polyline_7, pnr3->blend.y_intensity_gain_polyline_8);
+	pr_debug("intensity_gain_polyline: u0 %d, u1 %d, u2 %d, u3 %d, u4 %d, u5 %d, u6 %d, u7 %d, u8 %d\n",
+		pnr3->blend.u_intensity_gain_polyline_0, pnr3->blend.u_intensity_gain_polyline_1, pnr3->blend.u_intensity_gain_polyline_2,
+		pnr3->blend.u_intensity_gain_polyline_3, pnr3->blend.u_intensity_gain_polyline_4, pnr3->blend.u_intensity_gain_polyline_5,
+		pnr3->blend.u_intensity_gain_polyline_6, pnr3->blend.u_intensity_gain_polyline_7, pnr3->blend.u_intensity_gain_polyline_8);
+	pr_debug("intensity_gain_polyline: v0 %d, v1 %d, v2 %d, v3 %d, v4 %d, v5 %d, v6 %d, v7 %d, v8 %d\n",
+		pnr3->blend.v_intensity_gain_polyline_0, pnr3->blend.v_intensity_gain_polyline_1, pnr3->blend.v_intensity_gain_polyline_2,
+		pnr3->blend.v_intensity_gain_polyline_3, pnr3->blend.v_intensity_gain_polyline_4, pnr3->blend.v_intensity_gain_polyline_5,
+		pnr3->blend.v_intensity_gain_polyline_6, pnr3->blend.v_intensity_gain_polyline_7, pnr3->blend.v_intensity_gain_polyline_8);
+	pr_debug("gradient_weight_polyline: %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
+		pnr3->blend.gradient_weight_polyline_0, pnr3->blend.gradient_weight_polyline_1, pnr3->blend.gradient_weight_polyline_2,
+		pnr3->blend.gradient_weight_polyline_3, pnr3->blend.gradient_weight_polyline_4, pnr3->blend.gradient_weight_polyline_5,
+		pnr3->blend.gradient_weight_polyline_6, pnr3->blend.gradient_weight_polyline_7, pnr3->blend.gradient_weight_polyline_8);
+	pr_debug("threshold_factor: u0 %d, u1 %d, u2 %d, u3 %d, v0 %d, v1 %d, v2 %d, v3 %d\n",
+		pnr3->blend.u_threshold_factor0, pnr3->blend.u_threshold_factor1, pnr3->blend.u_threshold_factor2, pnr3->blend.u_threshold_factor3,
+		pnr3->blend.v_threshold_factor0, pnr3->blend.v_threshold_factor1, pnr3->blend.v_threshold_factor2, pnr3->blend.v_threshold_factor3);
+	pr_debug("divisor_factor: u0 %d, u1 %d, u2 %d, u3 %d, v0 %d, v1 %d, v2 %d, v3 %d\n",
+		pnr3->blend.u_divisor_factor0, pnr3->blend.u_divisor_factor1, pnr3->blend.u_divisor_factor2, pnr3->blend.u_divisor_factor3,
+		pnr3->blend.v_divisor_factor0, pnr3->blend.v_divisor_factor1, pnr3->blend.v_divisor_factor2, pnr3->blend.v_divisor_factor3);
+	pr_debug("circle: r1 %d, r2 %d, r3 %d\n",
+		pnr3->blend.r1_circle, pnr3->blend.r2_circle, pnr3->blend.r3_circle);
+	pr_debug("circle_factor: r1 %d, r2 %d, r3 %d\n",
+		pnr3->blend.r1_circle_factor, pnr3->blend.r2_circle_factor, pnr3->blend.r3_circle_factor);
+	pr_debug("radius %d, r_circle_base %d\n",
+		pnr3->blend.radius, pnr3->blend.r_circle_base);
+}
+
 static void isp_3dnr_config_mem_ctrl(uint32_t idx,
-				struct isp_3dnr_mem_ctrl *mem_ctrl, bool  nr3sec_eb)
+		struct isp_3dnr_mem_ctrl *mem_ctrl)
 {
 	unsigned int val;
 
@@ -71,23 +129,16 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	       (mem_ctrl->mv_y & 0xFF);
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM7, val);
 
+	ISP_REG_WR(idx,
+		ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR,
+		mem_ctrl->ft_luma_addr);
 
-	if (!nr3sec_eb) {
-		ISP_REG_WR(idx,
-			ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR,
-			mem_ctrl->ft_luma_addr);
+	ISP_REG_WR(idx,
+		ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR,
+		mem_ctrl->ft_chroma_addr);
 
-		ISP_REG_WR(idx,
-			ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR,
-			mem_ctrl->ft_chroma_addr);
-
-		val = mem_ctrl->img_width & 0xFFFF;
-		ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_FT_CTRL_PITCH, val);
-	} else {
-		val = mem_ctrl->img_width & 0xFFFF;
-		cam_trusty_isp_3dnr_fetch_set(mem_ctrl->ft_chroma_addr,
-			mem_ctrl->ft_luma_addr, val);
-	}
+	val = mem_ctrl->img_width & 0xFFFF;
+	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_FT_CTRL_PITCH, val);
 
 	val = ((mem_ctrl->blend_y_en_start_col & 0x1FFF) << 16)  |
 	       (mem_ctrl->blend_y_en_start_row & 0x1FFF);
@@ -115,19 +166,22 @@ static void isp_3dnr_config_mem_ctrl(uint32_t idx,
 	ISP_REG_WR(idx, ISP_3DNR_MEM_CTRL_PARAM13, val);
 }
 
-void isp_3dnr_config_blend(uint32_t idx,
-				  struct isp_3dnr_blend_info *blend)
+void isp_3dnr_config_blend(uint32_t idx, struct isp_3dnr_blend_info *blend)
 {
-	unsigned int val;
+	unsigned int val = 0;
 
 	if (blend == NULL) {
 		pr_err("fail to 3ndr config_blend_reg param NULL\n");
 		return;
 	}
 
-	if (blend->isupdate == 0)
+	if (blend->isupdate == 0) {
+		pr_debug("ctx_id %d blend is not update, return\n", idx);
 		return;
+	}
 	blend->isupdate = 0;
+	pr_debug("ctx_id %d config blend regs\n", idx);
+
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, blend->bypass);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_1, blend->fusion_mode << 1);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_2, blend->filter_switch << 2);
@@ -335,7 +389,7 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 	struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
-	struct isp_dev_3dnr_info *pnr3;
+	struct isp_dev_3dnr_info *pnr3 = NULL;
 
 	pnr3 = &isp_k_param->nr3_info_base;
 
@@ -348,9 +402,10 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 	}
 
 	pnr3->blend.isupdate = 1;
-
 	memcpy(&isp_k_param->nr3d_info, pnr3, sizeof(struct isp_dev_3dnr_info));
 
+	isp_3dnr_blend_param_debug(pnr3);
+	pr_debug("ctx_id %d get 3dnr_blend param done\n", idx);
 	return ret;
 }
 
@@ -381,7 +436,7 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx)
 	idx = ctx->ctx_id;
 	blend = &ctx->isp_block->nr3_info_base.blend;
 	mem_ctrl = &ctx->mem_ctrl;
-	isp_3dnr_config_mem_ctrl(idx, mem_ctrl, ctx->nr3_sec_mode);
+	isp_3dnr_config_mem_ctrl(idx, mem_ctrl);
 
 	nr3_store = &ctx->nr3_store;
 	isp_3dnr_config_store(idx, nr3_store);
@@ -389,6 +444,7 @@ void isp_3dnr_config_param(struct isp_3dnr_ctx_desc *ctx)
 	crop = &ctx->crop;
 	isp_3dnr_config_crop(idx, crop);
 
+	pr_debug("ctx %d blend_bypass %d\n", ctx->ctx_id, blend->bypass);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, blend->bypass);
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_8, 0x1 << 8);
 
@@ -487,6 +543,7 @@ int isp_k_cpy_3dnr(struct dcam_isp_k_block *param_block, struct dcam_isp_k_block
 {
 	int ret = 0;
 	if (isp_k_param->nr3_info_base.blend.isupdate == 1) {
+		pr_debug("ctx_id %d copy 3dnr_blend param from receive_param to isp_k_param of node\n", param_block->cfg_id);
 		memcpy(&param_block->nr3_info_base, &isp_k_param->nr3_info_base, sizeof(struct isp_dev_3dnr_info));
 		memcpy(&param_block->nr3d_info, &isp_k_param->nr3d_info, sizeof(struct isp_dev_3dnr_info));
 		isp_k_param->nr3_info_base.blend.isupdate = 0;

@@ -22,17 +22,15 @@
 
 struct statis_port_buf_info {
 	enum cam_port_dcam_online_out_id port_id;
+	enum isp_statis_buf_type buf_type;
 	size_t buf_size;
 	size_t buf_cnt;
-	uint32_t buf_type;
 };
 
 /* dcam online */
-int cam_statis_dcam_port_bufferq_init(void *dcam_handle);
-int cam_statis_dcam_port_bufferq_deinit(void *dcam_handle);
-int cam_statis_dcam_port_buffer_cfg(void *dcam_handle, struct isp_statis_buf_input *input);
-int cam_statis_dcam_port_buffer_skip_cfg(void *dcam_handle, struct camera_frame *pframe);
-int cam_statis_isp_buffer_cfg(void *isp_handle, void *node, struct isp_statis_buf_input *input);
-int cam_statis_isp_buffer_unmap(void *isp_handle, void *node);
+int cam_statis_isp_port_buffer_deinit(void *isp_handle, void *node);
+int cam_statis_isp_port_buffer_cfg(void *isp_handle, void *node, struct isp_statis_buf_input *input);
+int cam_statis_dcam_port_buffer_deinit(void *dcam_handle);
+int cam_statis_dcam_port_buffer_cfg(void *dcam_handle, void *param);
 
 #endif

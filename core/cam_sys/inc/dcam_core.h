@@ -14,6 +14,7 @@
 #ifndef _DCAM_CORE_H_
 #define _DCAM_CORE_H_
 
+#include <os_adapt_common.h>
 #include "sprd_cam.h"
 #include <linux/sprd_ion.h>
 
@@ -54,12 +55,6 @@ enum dcam_path_state {
 	DCAM_PATH_RESUME,
 };
 
-enum dcam_csi_state {
-	DCAM_CSI_IDLE,
-	DCAM_CSI_PAUSE,
-	DCAM_CSI_RESUME,
-};
-
 /*
  * state machine for DCAM
  *
@@ -79,10 +74,10 @@ enum dcam_state {
 };
 
 struct dcam_offline_slice_info {
-	uint32_t dcam_slice_mode;
+	enum camera_slice_mode dcam_slice_mode;
 	uint32_t slice_num;
 	uint32_t slice_count;
-	uint32_t fetch_fmt;
+	enum cam_format fetch_fmt;
 	struct img_trim *cur_slice;
 	struct img_trim slice_trim[DCAM_OFFLINE_SLC_MAX];
 	timespec slice_start_ts[DCAM_FRAME_TIMESTAMP_COUNT];
@@ -95,7 +90,7 @@ struct dcam_online_start_param {
 };
 
 struct dcam_hw_path {
-	uint32_t need_update;
+	enum en_status need_update;
 	uint32_t frm_deci;
 	uint32_t frm_deci_cnt;
 	struct img_trim in_trim;
@@ -107,24 +102,22 @@ struct dcam_hw_path {
 };
 
 struct dcam_hw_context {
-	uint32_t is_offline_proc;
-	uint32_t is_virtualsensor_proc;
+	enum en_status is_offline_proc;
+	enum en_status is_virtualsensor_proc;
 	uint32_t fid;
-	int base_fid;
-	uint32_t frame_index;
+	uint32_t recovery_fid;
 	uint32_t index_to_set;
 	uint32_t slw_idx;
 	bool need_fix;
 	atomic_t user_cnt;
-	uint32_t is_4in1;
 	uint32_t irq;
-	uint32_t irq_enable;
+	enum en_status irq_enable;
 	uint32_t node_id;
 	uint32_t hw_ctx_id;
 	uint32_t handled_bits;
 	uint32_t handled_bits_on_int1;
 	uint32_t in_irq_proc;
-	uint32_t dcam_slice_mode;
+	enum camera_slice_mode dcam_slice_mode;
 	uint32_t slowmotion_count;
 	spinlock_t glb_reg_lock;
 	void *node;
@@ -133,15 +126,15 @@ struct dcam_hw_context {
 	uint32_t zoom_ratio;
 	uint32_t total_zoom;
 	struct img_trim next_roi;
-	uint32_t is_pyr_rec;
+	enum en_status is_pyr_rec;
 	uint32_t iommu_status;
 	uint32_t err_count;/* iommu register dump count in dcam_err */
-	uint32_t dec_all_done;
-	uint32_t dec_layer0_done;
+	enum en_status dec_all_done;
+	enum en_status dec_layer0_done;
 	atomic_t shadow_done_cnt;
 	atomic_t shadow_config_cnt;
-	uint32_t prev_fbc_done;
-	uint32_t cap_fbc_done;
+	enum en_status prev_fbc_done;
+	enum en_status cap_fbc_done;
 	spinlock_t fbc_lock;
 	struct dcam_offline_slice_info slice_info;
 	struct dcam_fmcu_ctx_desc *fmcu;
@@ -153,11 +146,10 @@ struct dcam_hw_context {
 	struct dcam_mipi_info cap_info;
 	struct nr3_me_data nr3_mv_ctrl[DCAM_NR3_MV_MAX];
 	struct dcam_dummy_slave *dummy_slave;
+	struct dcam_hw_binning_4in1 binning;
 
 	void *dcam_irq_cb_handle;
 	dcam_irq_proc_cb dcam_irq_cb_func;
-	spinlock_t ghist_read_lock;
-	uint32_t gtm_hist_value[GTM_HIST_VALUE_SIZE];
 	uint32_t frame_addr[DCAM_ADDR_RECORD_FRAME_NUM][DCAM_RECORD_PORT_INFO_MAX];
 };
 
@@ -187,12 +179,12 @@ enum camera_csi_switch_mode {
 struct dcam_switch_param {
 	uint32_t csi_id;
 	uint32_t dcam_id;
-	uint32_t is_recovery;
+	enum en_status is_recovery;
 };
 
 struct dcam_csi_reset_param {
 	uint32_t mode;
-	uint32_t csi_connect_stat;
+	enum dcam_csi_state csi_connect_stat;
 	void *param;
 };
 
@@ -211,10 +203,10 @@ static inline uint32_t cal_sprd_pitch(uint32_t w, uint32_t fmt)
 	case CAM_UYVY_1FRAME:
 	case CAM_YVYU_1FRAME:
 	case CAM_VYUY_1FRAME:
+	case CAM_RAW_8:
 		pitchsize = w;
 		break;
 	case CAM_RAW_14:
-	case CAM_RAW_8:
 	case CAM_RAW_HALFWORD_10:
 		pitchsize = CAL_UNPACK_PITCH(w);
 		break;
@@ -291,7 +283,7 @@ struct dcam_dummy_param {
 static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)
 {
 	if (dcam_out_bits != CAM_8_BITS) {
-		if(is_pack)
+		if (is_pack)
 			w = (w * 10 + 127) / 128 * 128 / 8;
 		else
 			w = (w * 16 + 127) / 128 * 128 / 8;

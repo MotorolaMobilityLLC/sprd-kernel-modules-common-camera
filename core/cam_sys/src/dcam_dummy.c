@@ -12,9 +12,9 @@
  */
 
 #include <linux/types.h>
-#include <linux/delay.h>
 #include <linux/sprd_iommu.h>
 #include <linux/sprd_ion.h>
+#include <os_adapt_common.h>
 #include <sprd_mm.h>
 
 #include "cam_types.h"
@@ -53,7 +53,7 @@ static void dcamdummy_trigger_init(struct dcam_dummy_slave *dummy_slave)
 static int dcamdummy_senselessmode_trigger(struct dcam_dummy_slave *dummy_slave, void *param)
 {
 	struct dcam_hw_context *hw_ctx = NULL;
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 	uint32_t i = 0;
 	unsigned long flags = 0;
 
@@ -68,7 +68,7 @@ static int dcamdummy_senselessmode_trigger(struct dcam_dummy_slave *dummy_slave,
 			if (dummy_slave->resbuf_get_cb)
 				dummy_slave->resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, dummy_slave->resbuf_cb_data);
 			if (frame) {
-				if (cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA, CAM_BUF_IOMMUDEV_DCAM)) {
+				if (cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA, CAM_BUF_IOMMUDEV_DCAM)) {
 					pr_err("fail to iommu map\n");
 					dummy_slave->resbuf_get_cb(RESERVED_BUF_SET_CB, frame, dummy_slave->resbuf_cb_data);
 					frame = NULL;
@@ -148,7 +148,7 @@ static int dcamdummy_senselessmode_addr_config(struct dcam_dummy_slave *dummy_sl
 					store_arg.idx = hw_ctx->hw_ctx_id;
 					store_arg.blk_param = hw_ctx->blk_pm;
 					store_arg.path_id = i;
-					store_arg.frame_addr[0] = dummy_slave->reserved_buf->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+					store_arg.frame_addr[0] = dummy_slave->reserved_buf->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 					store_arg.frame_addr[1] = 0;
 					dummy_slave->hw->dcam_ioctl(dummy_slave->hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 					if (i == DCAM_PATH_BIN) {
@@ -158,8 +158,8 @@ static int dcamdummy_senselessmode_addr_config(struct dcam_dummy_slave *dummy_sl
 						dec_store.idx = hw_ctx->hw_ctx_id;
 						for (layer = 0; layer < DCAM_PYR_DEC_LAYER_NUM; layer++) {
 							dec_store.cur_layer = layer;
-							dec_store.addr[0] = dummy_slave->reserved_buf->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
-							dec_store.addr[1] = dummy_slave->reserved_buf->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+							dec_store.addr[0] = dummy_slave->reserved_buf->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+							dec_store.addr[1] = dummy_slave->reserved_buf->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 							dummy_slave->hw->dcam_ioctl(dummy_slave->hw, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
 						}
 					}
@@ -507,7 +507,7 @@ static int dcamdummy_enable(void *handle, void *arg)
 			atomic_set(&dummy_slave->hw_status[dummy_param->hw_ctx_id], DCAM_DUMMY_HW_ALREADY);
 			while (atomic_read(&dummy_slave->hw_status[dummy_param->hw_ctx_id]) == DCAM_DUMMY_HW_ALREADY && loop < DCAM_DUMMY_SLAVE_START_TIME_OUT) {
 				loop++;
-				msleep(1);
+				os_adapt_time_msleep(1);
 			};
 			break;
 		default:

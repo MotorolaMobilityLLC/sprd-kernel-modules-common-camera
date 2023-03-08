@@ -97,7 +97,7 @@ static int dcamonline_port_scaler_param_calc(struct img_trim *in_trim,
 static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 	struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
 {
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
 	int ret = 0, recycle = 0;
 
@@ -113,73 +113,23 @@ static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 		recycle = 1;
 	if (recycle) {
 		pr_debug("dcam hw%d gtm bypass, no need buf\n", hw_ctx->hw_ctx_id);
-		frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc);
+		frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc, dcam_port->buf_manager_handle);
 		if (frame) {
-			if (frame->is_reserved)
+			if (frame->common.is_reserved)
 				ret = dcam_online_port_reserved_buf_set(dcam_port, frame);
 			else
-				ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, NULL);
+				ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, NULL, dcam_port->buf_manager_handle);
 			if (ret)
 				pr_err("fail to enqueue gtm\n");
 		}
 	}
 }
 
-int dcamonline_port_buffer_cfg(void *handle, void *param)
+static int dcamonline_port_buffer_reset_cfg(void *handle, void *param)
 {
 	int ret = 0;
 	struct dcam_online_port *dcam_online_port = NULL;
-	struct camera_frame *pframe = NULL;
-	struct cam_buf_pool_id pool_id = {0};
-	struct camera_buf_get_desc buf_desc = {0};
-
-	if (!handle || !param) {
-		pr_err("fail to get valid input ptr %px %px\n", handle, param);
-		return -EFAULT;
-	}
-
-	dcam_online_port = (struct dcam_online_port *)handle;
-	pframe = (struct camera_frame *)param;
-
-	if (dcam_online_port->port_id == PORT_BIN_OUT) {
-		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
-		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-	} else if (dcam_online_port->port_id == PORT_FULL_OUT || dcam_online_port->port_id == PORT_RAW_OUT || dcam_online_port->port_id == PORT_VCH2_OUT)
-		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
-
-	pframe->is_reserved = 0;
-	pframe->not_use_isp_reserved_buf = 0;
-	pframe->priv_data = dcam_online_port;
-	if (pframe->pyr_status == ONLINE_DEC_ON)
-		pframe->need_pyr_rec = 1;
-	else if (pframe->pyr_status == OFFLINE_DEC_ON)
-		pframe->need_pyr_dec = 1;
-
-	if (dcam_online_port->share_full_path)
-		pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
-	else
-		pool_id.private_pool_idx = dcam_online_port->unprocess_pool.private_pool_idx;
-
-	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc);
-	if (ret) {
-		struct cam_buf_pool_id pool_id = {0};
-		pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
-		cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL);
-		pr_err("fail to enqueue frame of online port %d\n", cam_port_name_get(dcam_online_port->port_id));
-		return ret;
-	}
-
-	pr_debug("out_buf_queue cnt:%d, port id:%d, addr:%x.\n", cam_buf_manager_pool_cnt(&pool_id),
-		dcam_online_port->port_id, pframe->buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
-
-	return ret;
-}
-
-int dcamonline_port_buffer_reset_cfg(void *handle, void *param)
-{
-	int ret = 0;
-	struct dcam_online_port *dcam_online_port = NULL;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
 
@@ -188,65 +138,56 @@ int dcamonline_port_buffer_reset_cfg(void *handle, void *param)
 		return -EFAULT;
 	}
 	dcam_online_port = (struct dcam_online_port *)handle;
-	pframe = (struct camera_frame *)param;
+	pframe = (struct cam_frame *)param;
 
 	buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
-	pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc);
+	pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc, dcam_online_port->buf_manager_handle);
 	while (pframe) {
-		pr_debug("port %s fid %u\n", cam_port_name_get(dcam_online_port->port_id), pframe->fid);
-		if (pframe->is_reserved)
+		pr_debug("port %s fid %u\n", cam_port_name_get(dcam_online_port->port_id), pframe->common.fid);
+		if (pframe->common.is_reserved)
 			ret = dcam_online_port_reserved_buf_set(dcam_online_port, pframe);
 		else {
-			if (dcam_online_port->port_id == PORT_BIN_OUT) {
-				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
-				buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-			} else if (dcam_online_port->port_id == PORT_FULL_OUT || dcam_online_port->port_id == PORT_RAW_OUT || dcam_online_port->port_id == PORT_VCH2_OUT)
-				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 			buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
-			pframe->is_reserved = 0;
-			pframe->not_use_isp_reserved_buf = 0;
-			pframe->priv_data = dcam_online_port;
-			if (pframe->pyr_status == ONLINE_DEC_ON)
-				pframe->need_pyr_rec = 1;
-			else if (pframe->pyr_status == OFFLINE_DEC_ON)
-				pframe->need_pyr_dec = 1;
+			pframe->common.is_reserved = 0;
+			pframe->common.not_use_isp_reserved_buf = 0;
+			pframe->common.priv_data = dcam_online_port;
 
 			if (dcam_online_port->share_full_path)
 				pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 			else
-				pool_id.private_pool_idx = dcam_online_port->unprocess_pool.private_pool_idx;
+				pool_id.private_pool_id = dcam_online_port->unprocess_pool.private_pool_id;
 
-			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc);
+			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, dcam_online_port->buf_manager_handle);
 			if (ret) {
 				pr_err("fail to enqueue frame of online port %d\n", cam_port_name_get(dcam_online_port->port_id));
-				cam_buf_destory(pframe);
+				cam_queue_empty_frame_put(pframe);
 				return ret;
 			}
 
-			pr_debug("out_buf_queue cnt:%d, port id:%d, addr:%x.\n", cam_buf_manager_pool_cnt(&pool_id),
-					dcam_online_port->port_id, pframe->buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
+			pr_debug("out_buf_queue cnt:%d, port id:%d, addr:%x.\n", cam_buf_manager_pool_cnt(&pool_id, dcam_online_port->buf_manager_handle),
+					dcam_online_port->port_id, pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
 		}
-		pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc);
+		pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc, dcam_online_port->buf_manager_handle);
 	}
 
 	return ret;
 }
 
-static struct camera_frame *
-dcamonline_port_reserved_buf_get(struct dcam_online_port *dcam_port)
+static struct cam_frame *dcamonline_port_reserved_buf_get(struct dcam_online_port *dcam_port)
 {
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
 
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA;
 	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-	frame = cam_buf_manager_buf_dequeue(&dcam_port->reserved_pool, &buf_desc);
+	frame = cam_buf_manager_buf_dequeue(&dcam_port->reserved_pool, &buf_desc, dcam_port->buf_manager_handle);
 	if (frame != NULL) {
-		frame->priv_data = dcam_port;
+		frame->common.priv_data = dcam_port;
 		pr_debug("use reserved buffer for port %d\n", dcam_port->port_id);
 		if (dcam_port->compress_en)
-			frame->is_compressed = 1;
+			frame->common.is_compressed = 1;
 	}
 	return frame;
 }
@@ -384,17 +325,18 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 	return ret;
 }
 
-static inline struct camera_frame *dcamonline_port_frame_cycle(struct dcam_online_port *dcam_port, struct dcam_hw_context *hw_ctx)
+static inline struct cam_frame *dcamonline_port_frame_cycle(struct dcam_online_port *dcam_port, struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
-	struct camera_frame *frame = NULL;
+	uint32_t path_id = 0;
+	struct cam_frame *frame = NULL;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
 	struct cam_zoom_base zoom_base = {0};
 	struct cam_zoom_index zoom_index = {0};
 
 	if (!dcam_port || !hw_ctx) {
-		pr_err("fail to get null pointer.\n");
+		pr_err("fail to get input handle:%p, %p.\n", dcam_port, hw_ctx);
 		return NULL;
 	}
 
@@ -407,47 +349,49 @@ static inline struct camera_frame *dcamonline_port_frame_cycle(struct dcam_onlin
 		pool_id = dcam_port->unprocess_pool;
 	pool_id.reserved_pool_id = dcam_port->reserved_pool.reserved_pool_id;
 
-	frame = cam_buf_manager_buf_dequeue(&pool_id, &buf_desc);
+	frame = cam_buf_manager_buf_dequeue(&pool_id, &buf_desc, dcam_port->buf_manager_handle);
 	if (unlikely(!frame)) {
 		pr_err("fail to get port%d output buf\n", dcam_port->port_id);
 		return ERR_PTR(-EPERM);
 	}
 
-	frame->fid = hw_ctx->base_fid + hw_ctx->index_to_set;
-	frame->priv_data = dcam_port;
+	frame->common.fid = hw_ctx->index_to_set;
+	path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
+	if (!hw_ctx->slowmotion_count)
+		frame->common.fid += hw_ctx->hw_path[path_id].frm_deci;
+	frame->common.priv_data = dcam_port;
 	if (dcam_port->compress_en)
-		frame->is_compressed = 1;
-	hw_ctx->fid = frame->fid;
-	frame->cam_fmt = dcam_port->dcamout_fmt;
+		frame->common.is_compressed = 1;
+	frame->common.cam_fmt = dcam_port->dcamout_fmt;
 	if (dcam_port->port_id == PORT_FULL_OUT ||
 		dcam_port->port_id == PORT_BIN_OUT ||
 		dcam_port->port_id == PORT_RAW_OUT) {
-		memset(&frame->zoom_data, 0 , sizeof(struct cam_zoom_frame));
-		ret = dcam_port->zoom_cb_func(dcam_port->zoom_cb_handle, &frame->zoom_data);
+		memset(&frame->common.zoom_data, 0 , sizeof(struct cam_zoom_frame));
+		ret = dcam_port->zoom_cb_func(dcam_port->zoom_cb_handle, &frame->common.zoom_data);
 		if (!ret) {
 			zoom_index.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 			zoom_index.node_id = DCAM_ONLINE_PRE_NODE_ID;
 			zoom_index.port_type = PORT_TRANSFER_OUT;
 			zoom_index.port_id = dcam_port->port_id;
-			zoom_index.zoom_data = &frame->zoom_data;
+			zoom_index.zoom_data = &frame->common.zoom_data;
 			ret = cam_zoom_frame_base_get(&zoom_base, &zoom_index);
 			if (!ret)
 				dcamonline_port_zoom_cfg(dcam_port, &zoom_base);
 		}
 	}
 
-	ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL);
+	ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
 	if (ret) {
-		pr_err("fail to set next frm buffer, pool %d, %s\n", dcam_port->result_pool.private_pool_idx, cam_port_name_get(dcam_port->port_id));
+		pr_err("fail to set next frm buffer, pool %d, %s\n", dcam_port->result_pool.private_pool_id, cam_port_name_get(dcam_port->port_id));
 		pool_id.reserved_pool_id = 0;
 		if (dcam_port->port_id == PORT_FULL_OUT || dcam_port->port_id == PORT_RAW_OUT || dcam_port->port_id == PORT_VCH2_OUT) {
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 		}
-		if (frame->is_reserved)
+		if (frame->common.is_reserved)
 			dcam_online_port_reserved_buf_set(dcam_port, frame);
 		else
-			cam_buf_manager_buf_enqueue(&pool_id, frame, &buf_desc);
+			cam_buf_manager_buf_enqueue(&pool_id, frame, &buf_desc, dcam_port->buf_manager_handle);
 		return NULL;
 	}
 
@@ -455,7 +399,7 @@ static inline struct camera_frame *dcamonline_port_frame_cycle(struct dcam_onlin
 }
 
 static void dcamonline_port_update_path_size(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
 {
 	struct dcam_hw_path_size path_size = {0};
 	struct cam_hw_info *hw;
@@ -473,16 +417,14 @@ static void dcamonline_port_update_path_size(struct dcam_online_port *dcam_port,
 	path_size.in_trim = dcam_port->in_trim;
 	path_size.out_size = dcam_port->out_size;
 	path_size.out_pitch= dcam_port->out_pitch;
-	path_size.compress_info = frame->fbc_info;
+	path_size.compress_info = frame->common.fbc_info;
 	path_size.deci = dcam_port->deci;
 	path_size.scaler_info = &dcam_port->scaler_info;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
-	if (!hw_ctx->is_virtualsensor_proc)
-		dcam_port->base_update = 0;
 }
 
 static int dcamonline_port_pyr_dec_cfg(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
 {
 	int ret = 0, i = 0;
 	uint32_t align_w = 0, align_h = 0;
@@ -557,7 +499,7 @@ static int dcamonline_port_pyr_dec_cfg(struct dcam_online_port *dcam_port,
 }
 
 static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
 {
 	int ret = 0, i = 0;
 	uint32_t layer_num = 0;
@@ -587,10 +529,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		if (layer_num == 0)
 			break;
 	}
-	if (!layer_num)
-		frame->need_pyr_rec = 0;
-	else
-		frame->need_pyr_rec = 1;
+	frame->common.pyr_status = (layer_num == 0) ? DISABLE : ENABLE;
 
 	align_w = dcamonline_dec_align_width(dcam_port->out_size.w, layer_num);
 	align_h = dcamonline_dec_align_heigh(dcam_port->out_size.h, layer_num);
@@ -599,11 +538,11 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 	dec_store->align_w = align_w;
 	dec_store->align_h = align_h;
 
-	pr_debug("dcam %d out pitch %d addr %x\n", dec_store->idx, dcam_port->out_pitch, frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
+	pr_debug("dcam %d out pitch %d addr %x\n", dec_store->idx, dcam_port->out_pitch, frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
 	for (i = 0; i < layer_num; i++) {
 		align = align * 2;
-		if (i == 0 && frame->is_compressed)
-			offset += frame->fbc_info.buffer_size;
+		if (i == 0 && frame->common.is_compressed)
+			offset += frame->common.fbc_info.buffer_size;
 		else
 			offset += (size * 3 / 2);
 		dec_store->cur_layer = i;
@@ -612,7 +551,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		dec_store->pitch_t[i].pitch_ch0 = cal_sprd_pitch(dec_store->size_t[i].w, dcam_port->pyr_out_fmt);
 		dec_store->pitch_t[i].pitch_ch1 = dec_store->pitch_t[i].pitch_ch0;
 		size = dec_store->pitch_t[i].pitch_ch0 * dec_store->size_t[i].h;
-		dec_store->addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM] + offset;
+		dec_store->addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + offset;
 		dec_store->addr[1] = dec_store->addr[0] + size;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, dec_store);
 
@@ -623,7 +562,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 	return ret;
 }
 
-static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,struct camera_frame *frame,
+static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,struct cam_frame *frame,
 	struct dcam_hw_slw_fmcu_cmds *slw, struct dcam_hw_context *hw_ctx, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
 {
 	uint32_t path_id = 0;
@@ -633,14 +572,14 @@ static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,st
 
 	path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
 	if (slw == NULL) {
-		if (frame->is_compressed) {
+		if (frame->common.is_compressed) {
 			struct compressed_addr fbc_addr = {0};
 			struct img_size *size = &dcam_port->out_size;
 			struct dcam_compress_cal_para cal_fbc = {0};
 
 			cal_fbc.data_bits = cam_data_bits(dcam_port->dcamout_fmt);
-			cal_fbc.fbc_info = &frame->fbc_info;
-			cal_fbc.in = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+			cal_fbc.fbc_info = &frame->common.fbc_info;
+			cal_fbc.in = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 			cal_fbc.fmt = dcam_port->dcamout_fmt;
 			cal_fbc.height = size->h;
 			cal_fbc.width = size->w;
@@ -654,7 +593,7 @@ static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,st
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &fbcadr);
 		} else {
 			store_arg.idx = idx;
-			store_arg.frame_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+			store_arg.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 			store_arg.frame_addr[1] = 0;
 			store_arg.path_id= path_id;
 			store_arg.out_fmt = dcam_port->dcamout_fmt;
@@ -663,36 +602,29 @@ static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,st
 			store_arg.out_pitch = dcam_port->out_pitch;
 			store_arg.in_fmt = hw_ctx->cap_info.format;
 			store_arg.blk_param = blk_dcam_pm;
-			store_arg.frame_size = frame->buf.size;
+			store_arg.frame_size = frame->common.buf.size;
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 		}
 	}
 }
 
 static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, struct dcam_hw_slw_fmcu_cmds *slw, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, struct dcam_hw_slw_fmcu_cmds *slw, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
 {
-	unsigned long flags = 0;
-	uint32_t layer_num = ISP_PYR_DEC_LAYER_NUM;
-	struct cam_hw_info *hw = NULL;
-
-	hw = hw_ctx->hw;
-
-	spin_lock_irqsave(&dcam_port->size_lock, flags);
 	dcamonline_port_cfg_store_addr(dcam_port, frame, slw, hw_ctx, idx, blk_dcam_pm);
 
 	switch (dcam_port->port_id) {
 	case PORT_RAW_OUT:
 		dcamonline_port_update_path_size(dcam_port, frame, hw_ctx, idx);
-		frame->width = dcam_port->out_size.w;
-		frame->height = dcam_port->out_size.h;
+		frame->common.width = dcam_port->out_size.w;
+		frame->common.height = dcam_port->out_size.h;
 		break;
 	case PORT_BIN_OUT:
-		if ((slw == NULL) && (frame->pyr_status == ONLINE_DEC_ON))
+		if (dcam_port->is_pyr_rec)
 			dcamonline_port_update_pyr_dec_addr(dcam_port, frame, hw_ctx, idx);
 
-		if (!frame->is_reserved || slw != NULL) {
-			if (frame->pyr_status == ONLINE_DEC_ON)
+		if (!frame->common.is_reserved || slw != NULL) {
+			if (dcam_port->is_pyr_rec)
 				dcamonline_port_pyr_dec_cfg(dcam_port, frame, hw_ctx, idx);
 			dcamonline_port_update_path_size(dcam_port, frame, hw_ctx, idx);
 			hw_ctx->next_roi = dcam_port->in_trim;
@@ -700,47 +632,24 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 			hw_ctx->total_zoom = ZOOM_RATIO_DEFAULT * dcam_port->in_size.w / dcam_port->total_zoom_crop_w;
 			pr_debug("total_zoom %d, zoom_ratio %d\n",hw_ctx->total_zoom, hw_ctx->zoom_ratio);
 		}
-		frame->width = dcam_port->out_size.w;
-		frame->height = dcam_port->out_size.h;
+		frame->common.width = dcam_port->out_size.w;
+		frame->common.height = dcam_port->out_size.h;
 		break;
 	case PORT_FULL_OUT:
-		if (dcam_port->base_update) {
-			struct dcam_hw_path_src_sel patharg;
-			patharg.idx = idx;
-			patharg.src_sel = dcam_port->src_sel;
-			patharg.fmt = dcam_port->dcamout_fmt;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SRC_SEL, &patharg);
-		}
 		dcamonline_port_update_path_size(dcam_port, frame, hw_ctx, idx);
-		if (frame->pyr_status == OFFLINE_DEC_ON) {
-			while (isp_rec_small_layer_w(dcam_port->out_size.w, layer_num) < MIN_PYR_WIDTH ||
-				isp_rec_small_layer_h(dcam_port->out_size.h, layer_num) < MIN_PYR_HEIGHT) {
-				pr_debug("layer num need decrease based on small input %d %d\n",
-					dcam_port->out_size.w, dcam_port->out_size.h);
-				if (--layer_num == 0)
-					break;
-			}
-			if (!layer_num)
-				frame->need_pyr_dec = 0;
-			else
-				frame->need_pyr_dec = 1;
-		}
-		frame->width = dcam_port->out_size.w;
-		frame->height = dcam_port->out_size.h;
+		frame->common.width = dcam_port->out_size.w;
+		frame->common.height = dcam_port->out_size.h;
 		break;
 	default:
-		if (!frame->is_reserved || slw != NULL)
-			dcam_port->base_update = 0;
 		break;
 	}
 
-	frame->zoom_ratio = hw_ctx->zoom_ratio;
-	frame->total_zoom = hw_ctx->total_zoom;
-	spin_unlock_irqrestore(&dcam_port->size_lock, flags);
+	frame->common.zoom_ratio = hw_ctx->zoom_ratio;
+	frame->common.total_zoom = hw_ctx->total_zoom;
 }
 
 static void dcamonline_port_aem_update_statis_head(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
 {
 	struct dcam_dev_aem_win *win;
 	struct sprd_img_rect *zoom_rect;
@@ -750,9 +659,9 @@ static void dcamonline_port_aem_update_statis_head(struct dcam_online_port *dcam
 	spin_lock_irqsave(&blk_dcam_pm->aem.aem_win_lock, flags);
 	dcam_k_aem_win(blk_dcam_pm);
 
-	if (frame->buf.addr_k) {
-		win = (struct dcam_dev_aem_win *)(frame->buf.addr_k);
-		pr_debug("kaddr %lx\n", frame->buf.addr_k);
+	if (frame->common.buf.addr_k) {
+		win = (struct dcam_dev_aem_win *)(frame->common.buf.addr_k);
+		pr_debug("kaddr %lx\n", frame->common.buf.addr_k);
 		memcpy(win, &blk_dcam_pm->aem.win_info, sizeof(struct dcam_dev_aem_win));
 		win++;
 		zoom_rect = (struct sprd_img_rect *)win;
@@ -765,7 +674,7 @@ static void dcamonline_port_aem_update_statis_head(struct dcam_online_port *dcam
 }
 
 static void dcamonline_port_hist_update_statis_head(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, struct dcam_isp_k_block *blk_dcam_pm)
 {
 	unsigned long flags = 0;
 	struct cam_hw_info *hw = NULL;
@@ -775,9 +684,9 @@ static void dcamonline_port_hist_update_statis_head(struct dcam_online_port *dca
 	/* Re-config hist win if it is updated */
 	spin_lock_irqsave(&blk_dcam_pm->hist.param_update_lock, flags);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_HIST_ROI_UPDATE, blk_dcam_pm);
-	if (frame->buf.addr_k) {
+	if (frame->common.buf.addr_k) {
 		struct dcam_dev_hist_info *info = NULL;
-		info = (struct dcam_dev_hist_info *)frame->buf.addr_k;
+		info = (struct dcam_dev_hist_info *)frame->common.buf.addr_k;
 		memcpy(info, &blk_dcam_pm->hist.bayerHist_info,
 			sizeof(struct dcam_dev_hist_info));
 	}
@@ -786,7 +695,7 @@ static void dcamonline_port_hist_update_statis_head(struct dcam_online_port *dca
 }
 
 static inline int dcamonline_port_hist_out_frm_set(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
 {
 	int ret = 0;
 	struct cam_hw_info *hw = NULL;
@@ -802,16 +711,13 @@ static inline int dcamonline_port_hist_out_frm_set(struct dcam_online_port *dcam
 
 	/* assign last buffer for AEM and HIST in slow motion */
 	i = hw_ctx->slowmotion_count - 1;
-	if (hw_ctx->slowmotion_count) {
-		/* slow motion HIST */
-		addr = slowmotion_store_addr[_hist][i];
-		frame->fid += i;
-	}
+	if (hw_ctx->slowmotion_count)
+		frame->common.fid += i;
 
 	dcamonline_port_update_addr_and_size(dcam_port, frame, hw_ctx, NULL, idx, blk_dcam_pm);
 	dcamonline_port_hist_update_statis_head(dcam_port, frame, hw_ctx, blk_dcam_pm);
 
-	slm_path = hw->ip_dcam[idx]->slm_path;
+	slm_path = hw->ip_dcam[idx]->dcamhw_abt->slm_path;
 	if (hw_ctx->slowmotion_count && !hw_ctx->index_to_set && (slm_path & BIT(port_id))) {
 		/* configure reserved buffer for AEM and hist */
 		frame = dcamonline_port_reserved_buf_get(dcam_port);
@@ -825,7 +731,7 @@ static inline int dcamonline_port_hist_out_frm_set(struct dcam_online_port *dcam
 			addr = slowmotion_store_addr[_hist][i];
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
-			slw_addr.frame_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+			slw_addr.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
 			pr_debug("DCAM%u %s set reserved frame\n", idx, cam_port_name_get(port_id));
 			i++;
@@ -838,7 +744,7 @@ static inline int dcamonline_port_hist_out_frm_set(struct dcam_online_port *dcam
 }
 
 static inline int dcamonline_port_aem_out_frm_set(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
 {
 	int ret = 0;
 	struct dcam_hw_cfg_store_addr slw_addr = {0};
@@ -854,14 +760,12 @@ static inline int dcamonline_port_aem_out_frm_set(struct dcam_online_port *dcam_
 
 	/* assign last buffer for AEM and HIST in slow motion */
 	i = hw_ctx->slowmotion_count - 1;
-	if (hw_ctx->slowmotion_count) {
-		/* slow motion AEM */
-		addr = slowmotion_store_addr[_aem][i];
-		frame->fid += i;
-	}
+	if (hw_ctx->slowmotion_count)
+		frame->common.fid += i;
+
 	dcamonline_port_update_addr_and_size(dcam_port, frame, hw_ctx, NULL, idx, blk_dcam_pm);
 	dcamonline_port_aem_update_statis_head(dcam_port, frame, hw_ctx, blk_dcam_pm);
-	slm_path = hw->ip_dcam[idx]->slm_path;
+	slm_path = hw->ip_dcam[idx]->dcamhw_abt->slm_path;
 	if (hw_ctx->slowmotion_count && !hw_ctx->index_to_set && (slm_path & BIT(port_id))) {
 		/* configure reserved buffer for AEM and hist */
 		frame = dcamonline_port_reserved_buf_get(dcam_port);
@@ -875,7 +779,7 @@ static inline int dcamonline_port_aem_out_frm_set(struct dcam_online_port *dcam_
 			addr = slowmotion_store_addr[_aem][i];
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
-			slw_addr.frame_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+			slw_addr.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
 			pr_debug("DCAM%u %s set reserved frame\n", idx, cam_port_name_get(port_id));
 			i++;
@@ -889,7 +793,7 @@ static inline int dcamonline_port_aem_out_frm_set(struct dcam_online_port *dcam_
 }
 
 static inline int dcamonline_port_bin_out_frm_set(struct dcam_online_port *dcam_port,
-	struct camera_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx, struct dcam_isp_k_block *blk_dcam_pm)
 {
 	int ret = 0, i = 0;
 	struct cam_hw_info *hw = NULL;
@@ -908,24 +812,23 @@ static inline int dcamonline_port_bin_out_frm_set(struct dcam_online_port *dcam_
 		while (i < hw_ctx->slowmotion_count) {
 			frame = dcamonline_port_frame_cycle(dcam_port, hw_ctx);
 			/* in init phase, return failure if error happens */
-			if (IS_ERR(frame) && !hw_ctx->index_to_set) {
-				ret = PTR_ERR(frame);
-			}
+			if (IS_ERR_OR_NULL(frame) && !hw_ctx->index_to_set)
+				ret = -EINVAL;
 
 			/* in normal running, just stop configure */
-			if (IS_ERR(frame))
+			if (IS_ERR_OR_NULL(frame))
 				break;
 
 			addr = slowmotion_store_addr[_bin][i];
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
-			slw_addr.frame_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+			slw_addr.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
 			atomic_inc(&dcam_port->set_frm_cnt);
 
-			frame->fid = hw_ctx->base_fid + hw_ctx->index_to_set + i;
+			frame->common.fid = hw_ctx->index_to_set + i;
 
-			pr_debug("DCAM%u set frame: fid %u, count %d\n", idx, frame->fid,
+			pr_debug("DCAM%u set frame: fid %u, count %d\n", idx, frame->common.fid,
 				atomic_read(&dcam_port->set_frm_cnt));
 			i++;
 		}
@@ -937,13 +840,12 @@ static inline int dcamonline_port_bin_out_frm_set(struct dcam_online_port *dcam_
 	return ret;
 }
 
-static inline struct camera_frame *
-	dcamonline_port_slw_frame_cycle(struct dcam_online_port *dcam_port, struct dcam_hw_context *hw_ctx)
+static inline struct cam_frame *dcamonline_port_slw_frame_cycle(struct dcam_online_port *dcam_port, struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
 	int slw_idx = 0;
 	int port_id = 0;
-	struct camera_frame *out_frame = NULL;
+	struct cam_frame *out_frame = NULL;
 
 	if (!dcam_port || !hw_ctx) {
 		pr_err("fail to get valid inptr %px %px\n", dcam_port, hw_ctx);
@@ -953,7 +855,7 @@ static inline struct camera_frame *
 	port_id = dcam_port->port_id;
 	slw_idx = hw_ctx->slw_idx;
 
-	if (hw_ctx->slw_idx == 0) {
+	if (hw_ctx->slw_idx == hw_ctx->slowmotion_count - 1) {
 		out_frame = dcamonline_port_frame_cycle(dcam_port, hw_ctx);
 		return out_frame;
 	}
@@ -965,7 +867,7 @@ static inline struct camera_frame *
 	case PORT_VCH2_OUT:
 	case PORT_VCH3_OUT:
 		out_frame = dcamonline_port_frame_cycle(dcam_port, hw_ctx);
-		pr_debug("enqueue bin path buffer, no.%d, cnt %d\n", slw_idx, cam_buf_manager_pool_cnt(&dcam_port->result_pool));
+		pr_debug("enqueue bin path buffer, no.%d, cnt %d\n", slw_idx, cam_buf_manager_pool_cnt(&dcam_port->result_pool, dcam_port->buf_manager_handle));
 		break;
 	default:
 		out_frame = dcamonline_port_reserved_buf_get(dcam_port);
@@ -973,7 +875,7 @@ static inline struct camera_frame *
 			pr_err("fail to get reserve buffer, port %s\n", cam_port_name_get(port_id));
 			return ERR_PTR(-ENOMEM);
 		}
-		ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, out_frame, NULL);
+		ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, out_frame, NULL, dcam_port->buf_manager_handle);
 		if (ret) {
 			dcam_online_port_reserved_buf_set(dcam_port, out_frame);
 			return ERR_PTR(-ENOMEM);
@@ -987,7 +889,6 @@ static inline struct camera_frame *
 static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_online_port_desc *param)
 {
 	int ret = 0;
-	unsigned long flags = 0;
 
 	if (!port || !param) {
 		pr_err("fail to get valid param, port=%p, param=%p.\n", port, param);
@@ -1011,17 +912,15 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 
 	switch (port->port_id) {
 	case PORT_FULL_OUT:
-		spin_lock_irqsave(&port->size_lock, flags);
 		port->compress_en = param->compress_en;
 		port->raw_src = param->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
-		port->base_update = 1;
 		pr_info("full path out fmt %s\n",camport_fmt_name_get(port->dcamout_fmt));
-		spin_unlock_irqrestore(&port->size_lock, flags);
 		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_BIN_OUT:
 		port->compress_en = param->compress_en;
 		port->pyr_out_fmt = param->pyr_out_fmt;
+		port->is_pyr_rec = param->is_pyr_rec;
 		pr_info("bin path out fmt %s\n",camport_fmt_name_get(port->dcamout_fmt));
 		atomic_set(&port->is_work, 1);
 		break;
@@ -1046,7 +945,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	int ret = 0, slw_idx = 0, port_id = 0, path_id = 0;
 	struct dcam_online_port *dcam_port = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
-	struct camera_frame *out_frame = NULL;
+	struct cam_frame *out_frame = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_slw_fmcu_cmds *slw = NULL;
 	uint32_t idx = 0, addr_ch = 0;
@@ -1078,34 +977,32 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 
 	atomic_inc(&dcam_port->set_frm_cnt);
 
-	out_frame->fid = hw_ctx->base_fid + hw_ctx->index_to_set + hw_ctx->slw_idx;
-	out_frame->need_pyr_dec = 0;
-	out_frame->need_pyr_rec = 0;
-	out_frame->pyr_status = PYR_OFF;
+	out_frame->common.fid = hw_ctx->index_to_set + hw_ctx->slw_idx;
+	out_frame->common.pyr_status = DISABLE;
 
 	path_id = dcamonline_portid_convert_to_pathid(port_id);
-	if (out_frame->is_compressed) {
+	if (out_frame->common.is_compressed) {
 		struct compressed_addr fbc_addr;
 		struct img_size *size = &dcam_port->out_size;
 		struct dcam_compress_cal_para cal_fbc;
 
 		cal_fbc.data_bits = cam_data_bits(dcam_port->dcamout_fmt);
-		cal_fbc.fbc_info = &out_frame->fbc_info;
-		cal_fbc.in = out_frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+		cal_fbc.fbc_info = &out_frame->common.fbc_info;
+		cal_fbc.in = out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 		cal_fbc.fmt = dcam_port->dcamout_fmt;
 		cal_fbc.height = size->h;
 		cal_fbc.width = size->w;
 		cal_fbc.out = &fbc_addr;
 		dcam_if_cal_compressed_addr(&cal_fbc);
-		slw->store_info[path_id].is_compressed = out_frame->is_compressed;
+		slw->store_info[path_id].is_compressed = out_frame->common.is_compressed;
 		slw->store_info[path_id].store_addr.addr_ch0 = fbc_addr.addr0;
 		slw->store_info[path_id].store_addr.addr_ch1 = fbc_addr.addr1;
 		slw->store_info[path_id].store_addr.addr_ch2 = fbc_addr.addr2;
 	} else {
-		slw->store_info[path_id].store_addr.addr_ch0 = out_frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+		slw->store_info[path_id].store_addr.addr_ch0 = out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 
 		if (dcam_port->dcamout_fmt & CAM_YUV_BASE)
-			addr_ch = out_frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM] + dcam_port->out_pitch * dcam_port->out_size.h;
+			addr_ch = out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + dcam_port->out_pitch * dcam_port->out_size.h;
 
 		slw->store_info[path_id].store_addr.addr_ch1 = addr_ch;
 	}
@@ -1123,7 +1020,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 			uint32_t w = 0, h = 0;
 			w = blk_dcam_pm->afm.win_num.width;
 			h = blk_dcam_pm->afm.win_num.height;
-			slw->store_info[path_id].store_addr.addr_ch1 = out_frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM] + w * h * 16;
+			slw->store_info[path_id].store_addr.addr_ch1 = out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + w * h * 16;
 		}
 		break;
 	}
@@ -1131,7 +1028,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	return ret;
 }
 
-static inline int dcamonline_port_frm_set(struct dcam_online_port *dcam_port, struct camera_frame *frame, struct dcam_hw_context *hw_ctx)
+static inline int dcamonline_port_frm_set(struct dcam_online_port *dcam_port, struct cam_frame *frame, struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
 	switch (dcam_port->port_id) {
@@ -1150,6 +1047,8 @@ static inline int dcamonline_port_frm_set(struct dcam_online_port *dcam_port, st
 	default:
 		if (dcam_port->port_id == PORT_GTM_HIST_OUT)
 			return 0;
+		if (hw_ctx->slowmotion_count)
+			frame->common.fid += hw_ctx->slowmotion_count - 1;
 		dcamonline_port_update_addr_and_size(dcam_port, frame, hw_ctx, NULL, hw_ctx->hw_ctx_id, hw_ctx->blk_pm);
 		break;
 	}
@@ -1159,13 +1058,15 @@ static inline int dcamonline_port_frm_set(struct dcam_online_port *dcam_port, st
 static int dcamonline_port_store_reconfig(struct dcam_online_port *dcam_port, void *param)
 {
 	struct dcam_hw_context *hw_ctx = NULL;
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 
 	hw_ctx = VOID_PTR_TO(param, struct dcam_hw_context);
-	frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL);
+
+	frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL, dcam_port->buf_manager_handle);
 	if (IS_ERR_OR_NULL(frame))
 		return PTR_ERR(frame);
-	cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL);
+
+	cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
 
 	return dcamonline_port_frm_set(dcam_port, frame, hw_ctx);
 }
@@ -1175,7 +1076,7 @@ static int dcamonline_port_store_set(void *handle, void *param)
 	int ret = 0;
 	struct dcam_online_port *dcam_port = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 	struct dcam_isp_k_block *blk_dcam_pm = NULL;
 	uint32_t idx = 0;
 
@@ -1195,8 +1096,10 @@ static int dcamonline_port_store_set(void *handle, void *param)
 	idx = hw_ctx->hw_ctx_id;
 	blk_dcam_pm = hw_ctx->blk_pm;
 
-	if(idx >= DCAM_HW_CONTEXT_MAX || !blk_dcam_pm)
+	if(idx >= DCAM_HW_CONTEXT_MAX || !blk_dcam_pm) {
+		pr_err("fail to get info ctx:%d, pm:%p.\n", idx, blk_dcam_pm);
 		return 0;
+	}
 
 	pr_debug("DCAM%u ONLINE %s enter\n", idx, cam_port_name_get(dcam_port->port_id));
 	if (dcam_port->port_id == PORT_GTM_HIST_OUT)
@@ -1208,8 +1111,8 @@ static int dcamonline_port_store_set(void *handle, void *param)
 	atomic_inc(&dcam_port->set_frm_cnt);
 
 	pr_debug("dcam%u, fid %u, count %d, port out_size %d %d, is_reserver %d, channel_id %d, addr %08x, fbc %u\n",
-		idx, frame->fid, atomic_read(&dcam_port->set_frm_cnt), dcam_port->out_size.w, dcam_port->out_size.h,
-		frame->is_reserved, frame->channel_id, (uint32_t)frame->buf.iova[CAM_BUF_IOMMUDEV_DCAM], frame->is_compressed);
+		idx, frame->common.fid, atomic_read(&dcam_port->set_frm_cnt), dcam_port->out_size.w, dcam_port->out_size.h,
+		frame->common.is_reserved, frame->common.channel_id, (uint32_t)frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM], frame->common.is_compressed);
 
 	ret = dcamonline_port_frm_set(dcam_port, frame, hw_ctx);
 	return ret;
@@ -1219,7 +1122,7 @@ static int dcamonline_port_store_set(void *handle, void *param)
 static int dcamonline_port_cfg_callback(void *param, uint32_t cmd, void *handle)
 {
 	int ret = 0;
-	struct camera_frame **frame = NULL;
+	struct cam_frame **frame = NULL;
 	struct dcam_online_port *dcam_port = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
 
@@ -1235,20 +1138,20 @@ static int dcamonline_port_cfg_callback(void *param, uint32_t cmd, void *handle)
 		ret = dcamonline_port_slw_store_set(dcam_port, param);
 		break;
 	case DCAM_PORT_BUFFER_CFG_SET:
-		ret = dcamonline_port_buffer_cfg(dcam_port, param);
+		ret = dcam_online_port_buffer_cfg(dcam_port, param);
 		break;
 	case DCAM_PORT_BUFFER_CFG_GET:
-		frame = (struct camera_frame **)param;
-		*frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL);
+		frame = (struct cam_frame **)param;
+		*frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL, dcam_port->buf_manager_handle);
 		break;
 	case DCAM_PORT_BUFFER_CFG_OUTBUF_GET:
-		frame = (struct camera_frame **)param;
-		*frame = cam_buf_manager_buf_dequeue(&dcam_port->unprocess_pool, NULL);
+		frame = (struct cam_frame **)param;
+		*frame = cam_buf_manager_buf_dequeue(&dcam_port->unprocess_pool, NULL, dcam_port->buf_manager_handle);
 		break;
 	case DCAM_PORT_NEXT_FRM_BUF_GET:
-		frame = (struct camera_frame **)param;
+		frame = (struct cam_frame **)param;
 		buf_desc.q_ops_cmd = CAM_QUEUE_TAIL_PEEK;
-		*frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc);
+		*frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc, dcam_port->buf_manager_handle);
 		break;
 	case DCAM_PORT_RES_BUF_CFG_SET:
 		ret = dcam_online_port_reserved_buf_set(dcam_port, param);
@@ -1264,14 +1167,56 @@ static int dcamonline_port_cfg_callback(void *param, uint32_t cmd, void *handle)
 	return ret;
 }
 
-int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct camera_frame *frame)
+int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct cam_frame *frame)
 {
 	struct camera_buf_get_desc buf_desc = {0};
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-	frame->priv_data = NULL;
-	frame->is_compressed = 0;
-	return cam_buf_manager_buf_enqueue(&dcam_port->reserved_pool, frame, &buf_desc);
+	frame->common.priv_data = NULL;
+	frame->common.is_compressed = 0;
+	return cam_buf_manager_buf_enqueue(&dcam_port->reserved_pool, frame, &buf_desc, dcam_port->buf_manager_handle);
+}
+
+int dcam_online_port_buffer_cfg(void *handle, void *param)
+{
+	int ret = 0;
+	struct dcam_online_port *dcam_online_port = NULL;
+	struct cam_frame *pframe = NULL;
+	struct cam_buf_pool_id pool_id = {0};
+	struct camera_buf_get_desc buf_desc = {0};
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);
+		return -EFAULT;
+	}
+
+	dcam_online_port = (struct dcam_online_port *)handle;
+	pframe = (struct cam_frame *)param;
+
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
+	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
+	pframe->common.is_reserved = 0;
+	pframe->common.not_use_isp_reserved_buf = 0;
+	pframe->common.priv_data = dcam_online_port;
+
+	if (dcam_online_port->share_full_path)
+		pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
+	else
+		pool_id.private_pool_id = dcam_online_port->unprocess_pool.private_pool_id;
+
+	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, dcam_online_port->buf_manager_handle);
+	if (ret) {
+		struct cam_buf_pool_id pool_id = {0};
+		pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
+		cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, dcam_online_port->buf_manager_handle);
+		pr_err("fail to enqueue frame of online port %d\n", cam_port_name_get(dcam_online_port->port_id));
+		return ret;
+	}
+
+	pr_debug("out_buf_queue cnt:%d, port id:%d, addr:%x.\n", cam_buf_manager_pool_cnt(&pool_id, dcam_online_port->buf_manager_handle),
+		dcam_online_port->port_id, pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
+
+	return ret;
 }
 
 int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
@@ -1291,7 +1236,7 @@ int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *pa
 
 	switch (cmd) {
 	case PORT_BUFFER_CFG_SET:
-		ret = dcamonline_port_buffer_cfg(dcam_port, param);
+		ret = dcam_online_port_buffer_cfg(dcam_port, param);
 		break;
 	case PORT_ZOOM_CFG_SET:
 		ret = dcamonline_port_zoom_cfg(dcam_port, param);
@@ -1329,22 +1274,24 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 {
 	int ret = 0;
 	uint32_t i = 0, alloc_cnt = 0, total = 0, size = 0, width = 0, height = 0, ch_id = 0, iommu_enable = 0;
-	uint32_t dcam_out_bits = 0, pyr_data_bits = 0, pyr_is_pack = 0;
+	uint32_t dcam_out_bits = 0;
 	struct dcam_online_port *port = (struct dcam_online_port *)handle;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 	struct dcam_compress_info fbc_info = {0};
 	struct dcam_compress_cal_para cal_fbc = {0};
 	struct cam_buf_pool_id share_buffer_q = {0};
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);;
+		return -1;
+	}
 
 	dcam_out_bits = cam_data_bits(port->dcamout_fmt);
 	height = param->height;
 	width = param->width;
 	ch_id = param->ch_id;
 	iommu_enable = param->iommu_enable;
-	if (param->is_pyr_rec) {
-		pyr_data_bits = cam_data_bits(port->pyr_out_fmt);
-		pyr_is_pack = cam_is_pack(port->pyr_out_fmt);
-	}
+
 	if (param->compress_en) {
 		cal_fbc.data_bits = dcam_out_bits;
 		cal_fbc.fbc_info = &fbc_info;
@@ -1359,19 +1306,11 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 
 	if (param->is_pyr_rec && port->port_id == PORT_BIN_OUT)
 		size += dcam_if_cal_pyramid_size(width, height,
-			pyr_data_bits, pyr_is_pack, 1, DCAM_PYR_DEC_LAYER_NUM);
+			port->pyr_out_fmt, 1, DCAM_PYR_DEC_LAYER_NUM);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
 	/* TBD: need to add buf_desc*/
 	total = param->dcamonline_buf_alloc_num;
-
-	if (param->share_buffer && (port->port_id == PORT_FULL_OUT)) {
-		uint32_t share_buf_num = 0;
-		share_buffer_q.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
-		share_buf_num = cam_buf_manager_pool_cnt(&share_buffer_q);
-		if (share_buf_num >= total)
-			return 0;
-	}
 
 	pr_info("port:%d, cam%d, ch_id %d, buffer size: %u (%u x %u), fmt %s, pyr fmt %s, num %d\n",
 		port->port_id, param->cam_idx, ch_id,
@@ -1380,41 +1319,34 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	if ((total == 0) && param->stream_on_buf_com)
 		complete(param->stream_on_buf_com);
 	for (i = 0; i < total; i++) {
-		pframe = cam_queue_empty_frame_get();
-		pframe->channel_id = ch_id;
-		pframe->is_compressed = param->compress_en;
-		pframe->width = param->width;
-		pframe->height = param->height;
-		pframe->endian = ENDIAN_LITTLE;
-		pframe->pattern = param->sensor_img_ptn;
-		pframe->fbc_info = fbc_info;
-		cam_queue_frame_flag_reset(pframe);
-		if (param->is_pyr_rec && port->port_id == PORT_BIN_OUT)
-			pframe->pyr_status = ONLINE_DEC_ON;
-		if (param->is_pyr_dec && port->port_id == PORT_FULL_OUT)
-			pframe->pyr_status = OFFLINE_DEC_ON;
+		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		pframe->common.channel_id = ch_id;
+		pframe->common.is_compressed = param->compress_en;
+		pframe->common.width = param->width;
+		pframe->common.height = param->height;
+		pframe->common.fbc_info = fbc_info;
+		cam_queue_frame_flag_reset(&pframe->common);
 
-		ret = cam_buf_alloc(&pframe->buf, size, iommu_enable);
+		ret = cam_buf_alloc(&pframe->common.buf, size, iommu_enable);
 		if (ret) {
 			pr_err("fail to alloc buf: %d ch %d\n", i, ch_id);
 			cam_queue_empty_frame_put(pframe);
 			continue;
 		}
 
-		if (port->port_id == PORT_BIN_OUT) {
-			cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
-			cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-			pframe->buf.bypass_iova_ops = 1;
-		}
+		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
+		pframe->common.buf.bypass_iova_ops = 1;
 
-		if (param->share_buffer && (port->port_id == PORT_FULL_OUT))
-			ret = cam_buf_manager_buf_enqueue(&share_buffer_q, pframe, NULL);
-		else
-			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL);
+		if (param->share_buffer && (port->port_id == PORT_FULL_OUT)) {
+			share_buffer_q.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
+			ret = cam_buf_manager_buf_enqueue(&share_buffer_q, pframe, NULL, port->buf_manager_handle);
+		} else
+			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL, port->buf_manager_handle);
 
 		if (ret) {
 			pr_err("fail to enq, port %d, buffer i=%d\n", port->port_id, i);
-			cam_buf_destory(pframe);
+			cam_queue_empty_frame_put(pframe);
 		}
 
 		alloc_cnt++;
@@ -1459,31 +1391,31 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 	atomic_set(&port->set_frm_cnt, 0);
 	atomic_set(&port->is_work, 0);
 	atomic_set(&port->is_shutoff, 0);
-	spin_lock_init(&port->size_lock);
 	spin_lock_init(&port->state_lock);
 	port->port_cfg_cb_func = dcamonline_port_cfg_callback;
 
 	port->shutoff_cb_func = param->shutoff_cb_func;
 	port->shutoff_cb_handle = param->shutoff_cb_handle;
+	port->buf_manager_handle = param->buf_manager_handle;
 
 	dcamonline_port_base_cfg(port, param);
 
-	ret = cam_buf_manager_pool_reg(NULL, DCAM_OUT_BUF_Q_LEN);
+	ret = cam_buf_manager_pool_reg(NULL, DCAM_OUT_BUF_Q_LEN, port->buf_manager_handle);
 	if (ret < 0) {
 		pr_err("fail to reg pool for port%d\n", port->port_id);
 		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
-	port->unprocess_pool.private_pool_idx = ret;
+	port->unprocess_pool.private_pool_id = ret;
 
-	ret = cam_buf_manager_pool_reg(NULL, DCAM_OUT_BUF_Q_LEN);
+	ret = cam_buf_manager_pool_reg(NULL, DCAM_OUT_BUF_Q_LEN, port->buf_manager_handle);
 	if (ret < 0) {
 		pr_err("fail to reg pool for port%d\n", cam_port_name_get(port->port_id));
-		cam_buf_manager_pool_unreg(&port->unprocess_pool);
+		cam_buf_manager_pool_unreg(&port->unprocess_pool, port->buf_manager_handle);
 		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
-	port->result_pool.private_pool_idx = ret;
+	port->result_pool.private_pool_id = ret;
 
 	port->reserved_pool.reserved_pool_id = param->reserved_pool_id;
 	if (port->port_id == PORT_FULL_OUT)
@@ -1492,7 +1424,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 		port->share_full_path = 0;
 
 	*param->port_dev = port;
-	pr_info("port %s reg pool %d %d\n", cam_port_name_get(port_id), port->unprocess_pool.private_pool_idx, port->result_pool.private_pool_idx);
+	pr_info("port %s reg pool %d %d\n", cam_port_name_get(port_id), port->unprocess_pool.private_pool_id, port->result_pool.private_pool_id);
 
 exit:
 	port->data_cb_handle = param->data_cb_handle;
@@ -1514,34 +1446,39 @@ void dcam_online_port_put(struct dcam_online_port *port)
 		if (port->share_full_path) {
 			struct cam_buf_pool_id pool_id = {0};
 			struct camera_buf_get_desc buf_desc = {0};
-			struct camera_frame *frame_unprocess = NULL;
-			struct camera_frame *frame_result_pool = NULL;
+			struct cam_frame *frame_unprocess = NULL;
+			struct cam_frame *frame_result_pool = NULL;
 
 			pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 			do {
-				frame_unprocess = cam_buf_manager_buf_dequeue(&port->unprocess_pool, &buf_desc);
+				frame_unprocess = cam_buf_manager_buf_dequeue(&port->unprocess_pool, &buf_desc, port->buf_manager_handle);
 				if (!frame_unprocess)
 					break;
-				cam_buf_manager_buf_enqueue(&pool_id, frame_unprocess, &buf_desc);
+				frame_unprocess->common.blkparam_info.param_block = NULL;
+				cam_buf_manager_buf_enqueue(&pool_id, frame_unprocess, &buf_desc, port->buf_manager_handle);
 			} while(1);
 
 			do {
-				frame_result_pool = cam_buf_manager_buf_dequeue(&port->result_pool, &buf_desc);
+				frame_result_pool = cam_buf_manager_buf_dequeue(&port->result_pool, &buf_desc, port->buf_manager_handle);
 				if (!frame_result_pool)
 					break;
-				cam_buf_manager_buf_enqueue(&pool_id, frame_result_pool, &buf_desc);
+				frame_result_pool->common.blkparam_info.param_block = NULL;
+				if (frame_result_pool->common.is_reserved)
+					dcam_online_port_reserved_buf_set(port, frame_result_pool);
+				else
+					cam_buf_manager_buf_enqueue(&pool_id, frame_result_pool, &buf_desc, port->buf_manager_handle);
 			} while(1);
 		}
 
 		port->data_cb_func = NULL;
 		port->port_cfg_cb_func = NULL;
 		port->zoom_cb_func = NULL;
-		cam_buf_manager_pool_unreg(&port->unprocess_pool);
-		pr_info("unreg unprocess_pool_id %d\n", port->unprocess_pool.private_pool_idx);
-		cam_buf_manager_pool_unreg(&port->result_pool);
-		pr_info("unreg result_pool_id %d\n", port->result_pool.private_pool_idx);
+		cam_buf_manager_pool_unreg(&port->unprocess_pool, port->buf_manager_handle);
+		pr_info("unreg unprocess_pool_id %d\n", port->unprocess_pool.private_pool_id);
+		cam_buf_manager_pool_unreg(&port->result_pool, port->buf_manager_handle);
+		pr_info("unreg result_pool_id %d\n", port->result_pool.private_pool_id);
 
 		pr_debug("dcam online port %s put success\n", cam_port_name_get(port->port_id));
 		cam_buf_kernel_sys_vfree(port);

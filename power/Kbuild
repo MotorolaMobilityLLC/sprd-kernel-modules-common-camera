@@ -20,6 +20,11 @@ ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
 KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/kernel/*.c)
 
 #
+# Build Options
+#
+ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
+
+#
 # Final Objects
 #
 obj-m := $(KO_MODULE_NAME).o

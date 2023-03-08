@@ -64,8 +64,6 @@ struct dcam_fmcu_ops {
 	int (*push_cmdq)(void *handle, uint32_t addr, uint32_t cmd);
 	int (*hw_start)(void *handle);
 	int (*cmd_ready)(void *handle);
-	int (*buf_map)(void *handle);
-	int (*buf_unmap)(void *handle);
 };
 
 struct dcam_fmcu_ctx_desc {
@@ -76,8 +74,9 @@ struct dcam_fmcu_ctx_desc {
 	unsigned long hw_addr[DCAM_FMCU_BUF_MAX];
 	size_t cmdq_size;
 	size_t cmdq_pos[DCAM_FMCU_BUF_MAX];
+	spinlock_t lock;
 	atomic_t user_cnt;
-	struct list_head list;
+	struct cam_q_head list;
 	struct dcam_fmcu_ops *ops;
 	struct cam_hw_info *hw;
 	uint32_t hw_ctx_id;

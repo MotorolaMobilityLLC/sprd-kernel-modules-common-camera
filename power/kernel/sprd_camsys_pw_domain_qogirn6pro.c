@@ -12,7 +12,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -28,6 +27,7 @@
 
 #include <linux/mfd/syscon.h>
 #include <linux/pm_domain.h>
+#include <os_adapt_common.h>
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 #include <linux/pm_runtime.h>
@@ -147,7 +147,7 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	unsigned int power_state3 = 0;
 	unsigned int read_count = 0;
 
-	usleep_range(300, 350);
+	os_adapt_time_usleep_range(300, 350);
 
 	/* 1:auto shutdown en, shutdown with ap; 0: control by b25 */
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_DCAM_SHUTDOWN_EN], 0);
@@ -155,7 +155,7 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_DCAM_FORCE_SHUTDOWN], ~((uint32_t)0));
 
 	do {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		read_count++;
 
 		ret = regmap_read_mmsys(
@@ -191,7 +191,7 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_ISP_FORCE_SHUTDOWN], ~((uint32_t)0));
 
 	do {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		read_count++;
 
 		ret = regmap_read_mmsys(
@@ -227,7 +227,7 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_FORCE_SHUTDOWN], ~((uint32_t)0));
 
 	do {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		read_count++;
 
 		ret = regmap_read_mmsys(
@@ -280,7 +280,7 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_FORCE_SHUTDOWN], 0);
 
 	for (i = 0; i < 30; i++) {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		cnt = 0;
 
 		for (j = 0; j < 5; j++) {
@@ -305,7 +305,7 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_DCAM_FORCE_SHUTDOWN], 0);
 
 	for (k = 0; k < 30; k++) {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		cnt = 0;
 
 		for (j = 0; j < 5; j++) {
@@ -330,7 +330,7 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_ISP_FORCE_SHUTDOWN], 0);
 
 	for (l = 0; l < 30; l++) {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		cnt = 0;
 
 		for (j = 0; j < 5; j++) {

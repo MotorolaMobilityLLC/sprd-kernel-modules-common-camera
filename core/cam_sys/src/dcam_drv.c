@@ -35,60 +35,6 @@ unsigned long g_dcam_mmubase;
 unsigned long g_dcam_lite_mmubase;
 unsigned long g_dcam_fmcubase;
 
-/*
- * Initialize dcam_if hardware, power/clk/int should be prepared after this call
- * returns. It also brings the dcam_pipe_dev from INIT state to IDLE state.
- */
-int dcam_drv_hw_init(void *arg)
-{
-	int ret = 0;
-	struct dcam_pipe_dev *dev = NULL;
-	struct cam_hw_info *hw = NULL;
-
-	if (unlikely(!arg)) {
-		pr_err("fail to get invalid arg\n");
-		return -EINVAL;
-	}
-
-	dev = (struct dcam_pipe_dev *)arg;
-	hw = dev->hw;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	ret = sprd_cam_pw_on();
-	ret = sprd_cam_domain_eb();
-#endif
-	/* prepare clk */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
-	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
-	return ret;
-}
-
-/*
- * De-initialize dcam_if hardware thus power/clk/int resource can be released.
- * Registers will be inaccessible and dcam_pipe_dev will enter INIT state from
- * IDLE state.
- */
-int dcam_drv_hw_deinit(void *arg)
-{
-	int ret = 0;
-	struct dcam_pipe_dev *dev = NULL;
-	struct cam_hw_info *hw = NULL;
-
-	if (unlikely(!arg)) {
-		pr_err("fail to get invalid arg\n");
-		return -EINVAL;
-	}
-
-	dev = (struct dcam_pipe_dev *)arg;
-	hw = dev->hw;
-	/* unprepare clk and other resource */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, NULL);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	ret = sprd_cam_domain_disable();
-	ret = sprd_cam_pw_off();
-#endif
-	return ret;
-}
-
 static int dcam_drv_lite_dt_parse(struct device_node *dn, struct cam_hw_info *hw_info)
 {
 	int ret = 0;

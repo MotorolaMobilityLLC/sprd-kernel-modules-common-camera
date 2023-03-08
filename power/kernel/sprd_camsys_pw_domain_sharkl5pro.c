@@ -12,7 +12,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
@@ -21,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/pm_domain.h>
+#include <os_adapt_common.h>
 
 #include "sprd_camsys_domain.h"
 
@@ -147,7 +147,7 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	if (pw_info->u.l5pro.regs[PWR_STATUS0].gpr != NULL)
 		shift = SHIFT_MASK(pw_info->u.l5pro.regs[PWR_STATUS0].mask);
 	do {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		read_count++;
 
 		ret = regmap_read_mmsys(&pw_info->u.l5pro.regs[PWR_STATUS0],
@@ -185,7 +185,7 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.l5pro.regs[SHUTDOWN_EN], 0);
 
 	for (i = 0; i < 30; i++) {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		cnt = 0;
 
 		for (j = 0; j < 5; j++) {

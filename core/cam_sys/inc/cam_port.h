@@ -14,12 +14,14 @@
 #ifndef _CAM_PORT_H_
 #define _CAM_PORT_H_
 
-#include "cam_link.h"
 #include "cam_types.h"
 #include "cam_queue.h"
 #include "dcam_hw_adpt.h"
 #include "cam_scaler.h"
 #include "cam_buf_manager.h"
+
+#define CAM_LINK_DEFAULT_NODE_ID     0xFFFF
+#define CAM_LINK_DEFAULT_PORT_ID     0xFFFF
 
 #define IS_VALID_DCAM_PORT_ID(id) ((id) >= PORT_RAW_OUT && (id) < PORT_DCAM_OUT_MAX)
 #define IS_VALID_ISP_PORT_ID(id) ((id) >= PORT_PRE_OUT && (id) < PORT_ISP_OUT_MAX)
@@ -130,7 +132,6 @@ enum cam_port_dec_in_id {
 
 enum cam_port_dec_out_id {
 	PORT_DEC_OUT,
-	PORT_DEC_DCT_OUT,
 	PORT_DEC_OUT_MAX,
 };
 
@@ -142,20 +143,15 @@ enum cam_port_buf_type {
 
 enum cam_port_cfg_cmd {
 	PORT_ZOOM_CFG_SET,
-	PORT_SIZE_CFG_SET,
 	PORT_BUFFER_CFG_SET,
 	PORT_PARAM_CFG_GET,
+	PORT_BUFFER_CFG_CYCLE,
 	PORT_BUFFER_CFG_GET,
+	PORT_BUFFER_CFG_ALLOC,
 	PORT_CFG_BASE,
 	PORT_UFRAME_CFG,
 	PORT_RESERVERD_BUF_CFG,
 	PORT_PM_CFG_MAX,
-};
-
-enum cam_port_transfer_type {
-	PORT_TRANSFER_IN,
-	PORT_TRANSFER_OUT,
-	PORT_TRANSFER_MAX,
 };
 
 enum cam_port_link_state {
@@ -183,60 +179,21 @@ struct cam_port_shutoff_ctrl {
 	enum shutoff_type shutoff_type;
 };
 
-static inline uint32_t cal_sprd_pitch_yuv(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)
-{
-	if (dcam_out_bits != CAM_8_BITS) {
-		if(is_pack)
-			w = (w * 10 + 127) / 128 * 128 / 8;
-		else
-			w = (w * 16 + 127) / 128 * 128 / 8;
-	}
-
-	return w;
-}
-
-static inline uint32_t cal_sprd_pitch_raw(uint32_t w, uint32_t pack_bits)
-{
-	if(pack_bits == DCAM_RAW_PACK_10)
-		w = (w * 10 + 127) / 128 * 128 / 8;
-	else
-		w = (w * 16 + 127) / 128 * 128 / 8;
-
-	return w;
-}
-
-struct cam_port_buf_prepare_param{
-	uint32_t cam_idx;
-	uint32_t hw_idx;
-	uint32_t reg_addr;
-	uint32_t fid;
-	struct cam_hw_info *hw;
-	struct dcam_mipi_info *cap_info;
-	struct dcam_isp_k_block *blk_dcam_pm;
-	uint32_t port_need_sync;
-	uint32_t is_fmcu_slowmotion;
-	uint32_t slowmotion_count;
-	uint32_t use_reserved_buf;
-	uint32_t not_use_reserved_buf;
-	uint32_t use_fdr_raw_buffer;
-	uint32_t share_full_buf;
-};
-
 struct cam_port_topology {
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	enum cam_port_transfer_type transfer_type;
 	enum cam_port_link_state link_state;
 	uint32_t id;
-	uint32_t dump_en;
+	enum en_status dump_en;
 	uint32_t dump_node_id;
 	uint32_t replace_en;
 	uint32_t replace_node_id;
-	uint32_t copy_en;
+	enum en_status copy_en;
 	uint32_t copy_node_id;
-	uint32_t dynamic_link_en;
+	enum en_status dynamic_link_en;
 	enum export_type depend_type;
-	struct cam_linkage link;
-	struct cam_linkage switch_link;
+	struct cam_port_linkage link;
+	struct cam_port_linkage switch_link;
 };
 
 struct cam_port_desc {
@@ -245,6 +202,7 @@ struct cam_port_desc {
 	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	void *zoom_cb_handle;
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
@@ -253,6 +211,7 @@ struct cam_port_desc {
 	struct dcam_offline_port_desc *dcam_offline_bpcraw;
 	struct dcam_offline_port_desc *dcam_offline_raw2frgb;
 	struct dcam_offline_port_desc *dcam_offline_frgb2yuv;
+	struct pyr_dec_port_desc *pyr_dec;
 	struct isp_port_desc *isp_offline;
 	struct isp_scaler_port_desc *isp_offline_scaler;
 	struct cam_port_topology *port_graph;

@@ -18,6 +18,7 @@
 #include <sprd_mm.h>
 
 #include "cam_debugger.h"
+#include "cam_buf_manager.h"
 #include "isp_cfg.h"
 #include "isp_reg.h"
 
@@ -181,18 +182,11 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto err_alloc_cfg;
 	}
 
-	ret = cam_buf_kmap(ion_buf);
-	if (ret) {
-		pr_err("fail to kmap cfg buffer\n");
-		ret = -EFAULT;
-		goto err_kmap_cfg;
-	}
-
-	ret = cam_buf_iommu_map(ion_buf, CAM_BUF_IOMMUDEV_ISP);
+	ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to map cfg buffer\n");
 		ret = -EFAULT;
-		goto err_hwmap_cfg;
+		goto err_map_cfg;
 	}
 
 	/*alloc cfg sw context buffer*/
@@ -207,7 +201,7 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		goto err_alloc_cfg1;
 	}
 
-	ret = cam_buf_kmap(ion_buf_cached);
+	ret = cam_buf_manager_buf_status_cfg(ion_buf_cached, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
 	if (ret) {
 		pr_err("fail to kmap cfg buffer\n");
 		ret = -EFAULT;
@@ -229,10 +223,8 @@ static int ispcfg_cctx_buf_init(struct isp_cfg_ctx_desc *cfg_ctx)
 err_kmap_cfg1:
 	cam_buf_free(ion_buf_cached);
 err_alloc_cfg1:
-	cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
-err_hwmap_cfg:
-	cam_buf_kunmap(ion_buf);
-err_kmap_cfg:
+	cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_PUT_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
+err_map_cfg:
 	cam_buf_free(ion_buf);
 err_alloc_cfg:
 	return ret;
@@ -247,12 +239,11 @@ static int ispcfg_cctx_buf_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 	ispcfg_cctx_regbuf_addr_deinit(cfg_ctx);
 	ispcfg_cctx_page_buf_addr_deinit(cfg_ctx);
 
-	cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
-	cam_buf_kunmap(ion_buf);
+	cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_ISP);
 	cam_buf_free(ion_buf);
 
 	ion_buf = &cfg_ctx->ion_pool_cached;
-	cam_buf_kunmap(ion_buf);
+	cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_ISP);
 	cam_buf_free(ion_buf);
 
 	return 0;
@@ -310,7 +301,7 @@ setting:
 
 static int ispcfg_block_config(
 		struct isp_cfg_ctx_desc *cfg_ctx,
-		enum isp_context_id sw_ctx_id,
+		uint32_t sw_ctx_id,
 		enum isp_context_hw_id hw_ctx_id,
 		uint32_t fmcu_enable)
 {
@@ -392,7 +383,6 @@ static int ispcfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 
 	atomic_set(&cfg_ctx->map_cnt, 0);
 	atomic_set(&cfg_ctx->node_cnt, -1);
-	atomic_set(&cfg_ctx->scaler_node_cnt, -1);
 	ret = ispcfg_cctx_buf_init(cfg_ctx);
 	if (ret) {
 		pr_err("fail to init isp cfg ctx buffer.\n");
@@ -435,7 +425,7 @@ exit:
 
 static int ispcfg_ctx_buf_reset(
 		struct isp_cfg_ctx_desc *cfg_ctx,
-		enum isp_context_id ctx_id)
+		uint32_t ctx_id)
 {
 	void *shadow_buf_vaddr = NULL;
 
@@ -482,12 +472,10 @@ int isp_cfg_ctx_desc_put(struct isp_cfg_ctx_desc *param)
 	return -EINVAL;
 }
 
-int isp_cfg_ctx_reg_buf_debug_show(void *param)
+int isp_cfg_ctx_reg_buf_debug_show(void *param, uint32_t ctx_id)
 {
 	struct seq_file *s = (struct seq_file *)param;
-	struct cam_debug_bypass *debug_bypass = NULL;
 	struct cam_hw_info *hw = NULL;
-	uint32_t ctx_id = 0;
 	uint32_t i, item, offset, size;
 	uint32_t addr;
 	unsigned long datap;
@@ -500,9 +488,7 @@ int isp_cfg_ctx_reg_buf_debug_show(void *param)
 		0, 0, 0
 	};
 
-	debug_bypass = (struct cam_debug_bypass *)s->private;
-	ctx_id = debug_bypass->idx;
-	hw = debug_bypass->hw;
+	hw  = (struct cam_hw_info *)s->private;
 
 	mutex_lock(&buf_mutex);
 	datap = isp_cfg_ctx_addr[ctx_id];
@@ -529,3 +515,4 @@ int isp_cfg_ctx_reg_buf_debug_show(void *param)
 	seq_puts(s, "------------------------\n");
 	return 0;
 }
+

@@ -284,6 +284,8 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define MMU_MIN_PPN2_SHAD           (0x00A4UL)
 #define MMU_PPN_RANGE2_SHAD         (0x00A8UL)
 
+#define DCAM_MMU_INT_STS             MMU_STS
+
 /* buffer addr map */
 #define RDS_COEF_TABLE_START        (0x0340UL)
 #define RDS_COEF_TABLE_SIZE         (0x00C0UL)

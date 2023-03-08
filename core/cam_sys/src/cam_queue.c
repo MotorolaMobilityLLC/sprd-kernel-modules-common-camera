@@ -14,49 +14,112 @@
 #include <linux/slab.h>
 
 #include "cam_queue.h"
-
+#include "cam_buf_manager.h"
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
 #define pr_fmt(fmt) "CAM_QUEUE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-int cam_queue_enqueue_front(struct camera_queue *q, struct list_head *list)
+static struct cam_queue_frame_manager *g_frame_manager = NULL;
+
+static int camqueue_frame_state_clear(struct cam_frame *pframe)
 {
-	int ret = 0;
-	unsigned long flags = 0;
-
-	if (q == NULL || list == NULL) {
-		pr_err("fail to get valid param %p %p\n", q, list);
-		return -EINVAL;
+	if (pframe == NULL) {
+		pr_err("fail to get frame\n");
+		return -1;
 	}
 
-	spin_lock_irqsave(&q->lock, flags);
-	if (q->state == CAM_Q_CLEAR) {
-		pr_warn("warning: q is clear\n");
-		ret = -EPERM;
-		goto unlock;
+	switch (pframe->type) {
+	case CAM_FRAME_GENERAL:
+		if (pframe->common.buf.type != CAM_BUF_NONE && pframe->common.buf.status != CAM_BUF_EMPTY) {
+			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX);
+			if (pframe->common.buf.type == CAM_BUF_KERNEL)
+				cam_buf_free(&pframe->common.buf);
+		}
+		if (pframe->common.is_reserved == CAM_RESERVED_BUFFER_COPY)
+			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_MOVE_TO_ION, CAM_BUF_IOMMUDEV_MAX);
+
+		if (pframe->common.pframe_data)
+			cam_queue_empty_frame_put(pframe->common.pframe_data);
+		memset(&pframe->common, 0, sizeof(struct camera_frame));
+		break;
+	case CAM_FRAME_ISP_BLK:
+		if (pframe->isp_blk.param_block)
+			cam_buf_kernel_sys_vfree(pframe->isp_blk.param_block);
+		memset(&pframe->isp_blk, 0, sizeof(struct cam_ispblk_frame));
+		break;
+	case CAM_FRAME_DEC_BLK:
+		if (pframe->dec_blk.decblk_pm)
+			cam_buf_kernel_sys_vfree(pframe->dec_blk.decblk_pm);
+		memset(&pframe->dec_blk, 0, sizeof(struct cam_decblk_frame));
+		break;
+	case CAM_FRMAE_USER_ZOOM:
+		memset(&pframe->user_zoom, 0, sizeof(struct camera_zoom_frame));
+		break;
+	case CAM_FRAME_NODE_ZOOM:
+		memset(&pframe->node_zoom, 0, sizeof(struct cam_zoom_frame));
+		break;
+	default:
+		pr_err("fail to get pframe %lx type:%d\n", pframe, pframe->type);
+		break;
 	}
+	pframe->type = 0;
 
-	if (q->cnt >= q->max) {
-		pr_warn_ratelimited("warning: q full, cnt %d, max %d\n", q->cnt, q->max);
-		ret = -EPERM;
-		goto unlock;
-	}
-	q->cnt++;
-	list_add(list, &q->head);
-
-unlock:
-	spin_unlock_irqrestore(&q->lock, flags);
-
-	return ret;
+	return 0;
 }
 
-struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,
-	bool (*filter)(struct camera_frame *, void *), void *data)
+/* in irq handler, may return NULL if alloc failed
+ * else: will always retry alloc and return valid frame
+ */
+static int cam_queue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
+{
+	struct cam_frame *frame_array = NULL;
+	int32_t ret = 0, j = 0;
+	if (frame_manager->array_num >= CAM_EMP_ARRAY_LEN_MAX) {
+		pr_err("fail to array_num:%d surpass max\n", frame_manager->array_num);
+		return -1;
+	}
+	if (in_interrupt()) {
+		frame_array = cam_buf_kernel_sys_kzalloc(sizeof(struct cam_frame) * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), GFP_ATOMIC);
+		if (!frame_array)
+			return -1;
+	} else
+		frame_array = cam_buf_kernel_sys_kzalloc(sizeof(struct cam_frame) * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), GFP_KERNEL);
+
+	if (frame_array) {
+		spin_lock(&frame_manager->frame_lock);
+		for (j = 0; j < CAM_EMP_ARRAT_LEN_PER(struct cam_frame); ++j) {
+			ret = cam_queue_enqueue(&frame_manager->empty_frame_q, &frame_array[j].list);
+			if (ret) {
+				pr_err("fail to enqueue empty frame_q\n");
+				break;
+			}
+		}
+		if (ret) {
+			while (j > 0) {
+				--j;
+				cam_queue_dequeue_tail(&frame_manager->empty_frame_q, struct cam_frame, list);
+			}
+			cam_buf_kernel_sys_kfree(frame_array);
+			spin_unlock(&frame_manager->frame_lock);
+			return -1;
+		}
+		frame_manager->frame_array[frame_manager->array_num] = frame_array;
+		frame_manager->array_num++;
+		atomic_add(CAM_EMP_ARRAT_LEN_PER(struct cam_frame), &g_mem_dbg->empty_frm_cnt);
+		spin_unlock(&frame_manager->frame_lock);
+	}
+	pr_debug("frame alloc add num:%d, q cnt:%d\n", CAM_EMP_ARRAT_LEN_PER(struct cam_frame), cam_queue_cnt_get(&g_frame_manager->empty_frame_q));
+	return 0;
+}
+
+struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q,
+	bool (*filter)(struct cam_frame *, void *), void *data)
 {
 	int fatal_err = 0;
 	unsigned long flags = 0;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
+	struct cam_q_head *_list = NULL;
 
 	if (q == NULL || !filter) {
 		pr_err("fail to get valid param %p %p\n", q, filter);
@@ -79,14 +142,14 @@ struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,
 		goto unlock;
 	}
 
-	pframe = list_first_entry(&q->head, struct camera_frame, list);
-
+	_list = list_first_entry(&q->head, struct cam_q_head, list);
+	pframe = container_of(_list, struct cam_frame, list);
 	if (!filter(pframe, data)) {
 		pframe = NULL;
 		goto unlock;
 	}
 
-	list_del(&pframe->list);
+	cam_queue_list_del(_list);
 	q->cnt--;
 
 unlock:
@@ -101,13 +164,12 @@ unlock:
  * use the slave next frame.
  */
 int cam_queue_same_frame_get(struct camera_queue *q0,
-	struct camera_frame **pf0, int64_t t_sec, int64_t t_usec)
+	struct cam_frame **pf0, int64_t t_sec, int64_t t_usec)
 {
 	int ret = 0;
 	unsigned long flags0 = 0;
-	struct camera_frame *tmpf0 = NULL;
-	int64_t t0 = 0, t1 = 0, mint = 0;
-	int64_t t_diff_time = 0;
+	struct cam_frame *tmpf0 = NULL;
+	int64_t t0 = 0, t1 = 0, t_diff = 0, mint = 0;
 
 	spin_lock_irqsave(&q0->lock, flags0);
 	if (list_empty(&q0->head)) {
@@ -120,26 +182,26 @@ int cam_queue_same_frame_get(struct camera_queue *q0,
 	/* get least delta time two frame */
 	t1 = t_sec * 1000000ll;
 	t1 += t_usec;
-	list_for_each_entry(tmpf0, &q0->head, list) {
-		t0 = tmpf0->sensor_time.tv_sec * 1000000ll;
-		t0 += tmpf0->sensor_time.tv_usec;
-		t0 -= t1;
-		if (t0 < 0)
-			t0 = -t0;
-		if (t0 < mint) {
+	cam_queue_for_each_entry(tmpf0, &q0->head, list) {
+		t0 = tmpf0->common.sensor_time.tv_sec * 1000000ll;
+		t0 += tmpf0->common.sensor_time.tv_usec;
+		t_diff = t0 - t1;
+		if (t_diff < 0)
+			t_diff = -t_diff;
+		if (t_diff < mint) {
 			*pf0 = tmpf0;
-			mint = t0;
+			mint = t_diff;
 		}
 		if (mint < 400)
 			break;
 	}
 	pr_info("mint:%lld\n", mint);
-	t_diff_time = div64_u64((*pf0)->frame_interval_time, 1000 * 2);
-	if (mint > t_diff_time) { /* delta > slave dynamic frame rate half fail */
+	t_diff = div64_u64((*pf0)->common.frame_interval_time, 1000 * 2);
+	if (mint > t_diff) { /* delta > slave dynamic frame rate half fail */
 		ret = -EFAULT;
 		goto _EXT;
 	}
-	list_del(&((*pf0)->list));
+	cam_queue_list_del(&((*pf0)->list));
 	q0->cnt--;
 	ret = 0;
 _EXT:
@@ -148,81 +210,156 @@ _EXT:
 	return ret;
 }
 
-/* in irq handler, may return NULL if alloc failed
- * else: will always retry alloc and return valid frame
- */
-struct camera_frame *cam_queue_empty_frame_get(void)
+void cam_queue_frame_check_lock()
 {
-	int ret = 0;
-	uint32_t i = 0;
-	struct camera_frame *pframe = NULL;
-
-	pr_debug("Enter.\n");
-	do {
-		pframe = cam_queue_dequeue(g_empty_frm_q, struct camera_frame, list);
-		if (pframe == NULL) {
-			if (in_interrupt()) {
-				/* fast alloc and return for irq handler */
-				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_ATOMIC);
-				if (pframe)
-					atomic_inc(&g_mem_dbg->empty_frm_cnt);
-				else
-					pr_err("fail to alloc memory\n");
-				return pframe;
-			}
-
-			for (i = 0; i < CAM_EMP_Q_LEN_INC; i++) {
-				pframe = cam_buf_kernel_sys_kzalloc(sizeof(*pframe), GFP_KERNEL);
-				if (pframe == NULL) {
-					pr_err("fail to alloc memory, retry\n");
-					continue;
-				}
-				atomic_inc(&g_mem_dbg->empty_frm_cnt);
-				pr_debug("alloc frame %p\n", pframe);
-				ret = cam_queue_enqueue(g_empty_frm_q, &pframe->list);
-				if (ret) {
-					/* q full, return pframe directly here */
-					break;
-				}
-				pframe = NULL;
-			}
-			pr_info("alloc %d empty frames, cnt %d\n", i, atomic_read(&g_mem_dbg->empty_frm_cnt));
-		}
-	} while (pframe == NULL);
-
-	pr_debug("Done. get frame %p\n", pframe);
-	return pframe;
+	down_read(&g_frame_manager->check_lock);
 }
 
-int cam_queue_empty_frame_put(struct camera_frame *pframe)
+void cam_queue_frame_check_unlock()
 {
-	int ret = 0;
-	if (pframe == NULL) {
-		pr_err("fail to get valid param\n");
-		return -EINVAL;
-	}
+	up_read(&g_frame_manager->check_lock);
+}
 
-	memset(pframe, 0, sizeof(struct camera_frame));
-	ret = cam_queue_enqueue(g_empty_frm_q, &pframe->list);
-	if (ret) {
-		pr_info("queue should be enlarged\n");
-		atomic_dec(&g_mem_dbg->empty_frm_cnt);
-		cam_buf_kernel_sys_kfree(pframe);
+int cam_queue_frame_array_check(uint32_t mode)
+{
+	int32_t i = 0, j = 0;
+	struct cam_frame *pframe = NULL;
+	down_write(&g_frame_manager->check_lock);
+	for (i = 0; i < CAM_EMP_ARRAY_LEN_MAX; ++i) {
+		if (!g_frame_manager->frame_array[i])
+			break;
+		for (j = 0; j < CAM_EMP_ARRAT_LEN_PER(struct cam_frame); ++j) {
+			pframe = &g_frame_manager->frame_array[i][j];
+			switch (mode) {
+			case CAM_FRAME_CHECK_QUEUE_OUT:
+				if (atomic_read(&pframe->list.status) == CAM_Q_FREE) {
+					pr_warn("frame:%px leak, frame type:%d status:%d\n", pframe, pframe->common.buf.type, pframe->common.buf.status);
+					cam_queue_empty_frame_put(pframe);
+				}
+				break;
+			case CAM_FRAME_CHECK_ALL:
+				if (pframe->common.buf.status != CAM_BUF_EMPTY) {
+					pr_warn("frame:%px leak, frame type:%d status:%d list status:%d\n", pframe, pframe->common.buf.type, pframe->common.buf.status, pframe->list.status);
+					camqueue_frame_state_clear(pframe);
+				}
+				break;
+			default:
+				pr_err("fail to get mode:%d\n", mode);
+			}
+		}
 	}
+	up_write(&g_frame_manager->check_lock);
 	return 0;
 }
 
-void cam_queue_empty_frame_free(void *param)
+struct cam_frame *cam_queue_empty_frame_get(enum camera_frame_type type)
 {
-	struct camera_frame *pframe = NULL;
+	int ret = 0;
+	struct cam_frame *pframe = NULL;
 
-	pframe = (struct camera_frame *)param;
+	pr_debug("Enter.\n");
+	if (cam_queue_cnt_get(&g_frame_manager->empty_frame_q) <= CAM_EMP_ARRAT_LEN_PER(struct cam_frame) && !in_interrupt())
+		cam_queue_frame_alloc(g_frame_manager);
+	do {
+		pframe = cam_queue_dequeue(&g_frame_manager->empty_frame_q, struct cam_frame, list);
+		if (pframe == NULL) {
+			ret = cam_queue_frame_alloc(g_frame_manager);
+			if (ret) {
+				pr_err("fail to alloc frame\n");
+				break;
+			}
+		}
+	} while (pframe == NULL);
 
-	atomic_dec(&g_mem_dbg->empty_frm_cnt);
-	pr_debug("free frame %p, cnt %d\n", pframe,
-		atomic_read(&g_mem_dbg->empty_frm_cnt));
-	cam_buf_kernel_sys_kfree(pframe);
-	pframe = NULL;
+	if (pframe)
+		pframe->type = type;
+	pr_debug("Done. get frame %px\n", pframe);
+	return pframe;
+}
+
+void cam_queue_empty_frame_put(void *frame)
+{
+	int ret = 0;
+	struct cam_frame *pframe = NULL;
+
+	if (frame == NULL) {
+		pr_err("fail to get valid param\n");
+		return;
+	}
+	pframe = (struct cam_frame *)frame;
+	camqueue_frame_state_clear(pframe);
+	ret = cam_queue_enqueue(&g_frame_manager->empty_frame_q, &pframe->list);
+	if (ret) {
+		pr_warn("queue should be enlarged\n");
+	}
+	return;
+}
+
+int cam_queue_empty_frame_init()
+{
+	struct cam_queue_frame_manager *frame_manager = g_frame_manager;
+	int32_t i = 0, j = 0, array_index = 0;
+	struct cam_frame *frame_array[CAM_EMP_ARRAY_INIT_LEN] = {0};
+
+	if (!frame_manager) {
+		frame_manager = cam_buf_kernel_sys_vzalloc(sizeof(struct cam_queue_frame_manager));
+		if (IS_ERR_OR_NULL(frame_manager)) {
+			g_frame_manager = NULL;
+			pr_err("fail to create cam buf manager\n");
+			return -1;
+		};
+		frame_manager->array_num = 0;
+		cam_queue_init(&frame_manager->empty_frame_q, CAM_EMP_ARRAY_LEN_MAX * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), NULL);
+		spin_lock_init(&frame_manager->frame_lock);
+		init_rwsem(&frame_manager->check_lock);
+		g_frame_manager = frame_manager;
+	}
+
+	for (i = 0; i < CAM_EMP_ARRAY_INIT_LEN; ++i)
+		frame_array[i] = cam_buf_kernel_sys_kzalloc(sizeof(struct cam_frame) * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), GFP_KERNEL);
+
+	spin_lock(&frame_manager->frame_lock);
+
+	array_index = frame_manager->array_num;
+	for (i = 0; i < CAM_EMP_ARRAY_INIT_LEN; ++i) {
+		if (frame_array[i]) {
+			frame_manager->frame_array[array_index] = frame_array[i];
+			for (j = 0; j < CAM_EMP_ARRAT_LEN_PER(struct cam_frame); ++j)
+				cam_queue_enqueue(&frame_manager->empty_frame_q, &frame_manager->frame_array[array_index][j].list);
+			array_index++;
+		}
+	}
+	atomic_add((array_index - frame_manager->array_num) * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), &g_mem_dbg->empty_frm_cnt);
+	frame_manager->array_num = array_index;
+	pr_info("frame array init,array:%d\n", frame_manager->array_num);
+	spin_unlock(&frame_manager->frame_lock);
+	return 0;
+}
+
+int cam_queue_empty_frame_deinit()
+{
+	struct cam_queue_frame_manager *frame_manager = g_frame_manager;
+	int32_t i = 0;
+
+	spin_lock(&frame_manager->frame_lock);
+	cam_queue_frame_array_check(CAM_FRAME_CHECK_ALL);
+	cam_queue_clear(&frame_manager->empty_frame_q, struct cam_frame, list);
+	while (i <= CAM_EMP_ARRAY_LEN_MAX && frame_manager->frame_array[i]) {
+		cam_buf_kernel_sys_kfree(frame_manager->frame_array[i]);
+		frame_manager->frame_array[i] = NULL;
+		i++;
+	}
+	if (i != frame_manager->array_num)
+		pr_err("fail to release all frame, i:%d, frame_manager->array_num:%d\n", i, frame_manager->array_num);
+	atomic_sub(i * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), &g_mem_dbg->empty_frm_cnt);
+	frame_manager->array_num = 0;
+	spin_unlock(&frame_manager->frame_lock);
+	cam_buf_kernel_sys_vfree(frame_manager);
+	frame_manager = NULL;
+	g_frame_manager = NULL;
+	pr_info("frame manager deinit\n");
+
+	return 0;
 }
 
 void cam_queue_ioninfo_free(void *param)
@@ -255,7 +392,7 @@ void cam_queue_ioninfo_free(void *param)
 	ioninfo = NULL;
 }
 
-int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe)
+int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe)
 {
 	int ret = 0;
 
@@ -264,56 +401,24 @@ int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *par
 		return -1;
 	}
 
-	param_pframe->blkparam_info.update = 0;
-	param_pframe->fid = 0xffff;
-	param_pframe->blkparam_info.param_block = NULL;
-
-	if (param_pframe->buf.addr_k)
-		memset((void *)param_pframe->buf.addr_k, 0, sizeof(struct dcam_isp_k_block));
 	ret = cam_queue_enqueue(q, &param_pframe->list);
-	if(ret) {
-		pr_err("fail to recycle param node %px\n", param_pframe);
-		goto error;
-	}
-	return ret;
-
-error:
-	cam_buf_free(&param_pframe->buf);
-	cam_queue_empty_frame_put(param_pframe);
+	if(ret)
+		pr_err("fail to recycle param node %px, cnt %d\n", param_pframe, q->cnt);
 	return ret;
 }
 
-struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
+struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
 {
-	struct camera_frame *param_frame = NULL;
+	struct cam_frame *param_frame = NULL;
 
 	if (!q) {
 		pr_err("fail to get valid handle\n");
 		return NULL;
 	}
 
-	param_frame = cam_queue_dequeue(q, struct camera_frame, list);
-	if (param_frame) {
-		param_frame->blkparam_info.param_block = (void *)param_frame->buf.addr_k;
-		if (IS_ERR_OR_NULL((void *)param_frame->buf.addr_k))
-			goto kmap_fail;
-		pr_debug("pframe_param.buf =%lu,pframe_param->param_block=%p\n",param_frame->buf,param_frame->blkparam_info.param_block);
-	}
-	return param_frame;
-kmap_fail:
-	param_frame->buf.addr_k = 0;
-	param_frame->blkparam_info.param_block = NULL;
-	cam_queue_enqueue(q, &param_frame->list);
-	return NULL;
-}
+	param_frame = cam_queue_dequeue(q, struct cam_frame, list);
+	if (param_frame)
+		pr_debug("param_frame %px\n",param_frame);
 
-int cam_queue_blk_param_unbind(struct camera_queue *param_share_queue, struct camera_frame *pframe)
-{
-	pframe->blkparam_info.update = 0;
-	pframe->blkparam_info.param_block = NULL;
-	if (pframe->blkparam_info.blk_param_node) {
-		cam_queue_recycle_blk_param(param_share_queue, pframe->blkparam_info.blk_param_node);
-		pframe->blkparam_info.blk_param_node = NULL;
-	}
-	return 0;
+	return param_frame;
 }

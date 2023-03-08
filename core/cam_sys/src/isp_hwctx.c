@@ -139,11 +139,8 @@ uint32_t isp_hwctx_hw_start(struct isp_hw_context *pctx_hw, void *dev_handle, st
 			fmcu_used = 1;
 		ret = cfg_desc->ops->hw_cfg(cfg_desc, pctx_hw->cfg_id, pctx_hw->hw_ctx_id, fmcu_used);
 		mutex_unlock(param->blkpm_lock);
-
-		cam_queue_blk_param_unbind(param->param_share_queue, param->src_frame);
 		*param->isp_using_param = NULL;
 		pctx_hw->isp_using_param = NULL;
-
 		/* Tmp to solve camera dismiss in refocus continue capture scene */
 		if (param->is_dual) {
 			mutex_lock(&dev->dev_lock);
@@ -164,10 +161,8 @@ uint32_t isp_hwctx_hw_start(struct isp_hw_context *pctx_hw, void *dev_handle, st
 		} else
 			pctx_hw->hw->isp_ioctl(pctx_hw->hw, ISP_HW_CFG_START_ISP, &pctx_hw->hw_ctx_id);
 	} else {
-		cam_queue_blk_param_unbind(param->param_share_queue, param->src_frame);
 		*param->isp_using_param = NULL;
 		pctx_hw->isp_using_param = NULL;
-
 		if (pctx_hw->fmcu_handle) {
 			fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
 			ret = fmcu->ops->hw_start(fmcu);
@@ -242,7 +237,7 @@ int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_inf
 	}
 
 	slc_cfg_in.nofilter_ctx = pctx_hw->isp_k_param;
-	slc_cfg_in.calc_dyn_ov.verison = pctx_hw->hw->ip_isp->dyn_overlap_version;
+	slc_cfg_in.calc_dyn_ov.verison = pctx_hw->hw->ip_isp->isphw_abt->dyn_overlap_version;
 
 	if (slc_cfg_in.calc_dyn_ov.verison != ALG_ISP_DYN_OVERLAP_NONE)
 		isphwctx_init_dyn_ov_param(&slc_cfg_in, pctx_hw, pipe_info);
@@ -274,7 +269,7 @@ int isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input 
 	slc_cfg->frame_in_size.w = pctx_hw->pipe_info.fetch.in_trim.size_x;
 	slc_cfg->frame_in_size.h = pctx_hw->pipe_info.fetch.in_trim.size_y;
 	slc_cfg->nofilter_ctx = pctx_hw->isp_using_param;
-	slc_cfg->calc_dyn_ov.verison = pctx_hw->hw->ip_isp->dyn_overlap_version;
+	slc_cfg->calc_dyn_ov.verison = pctx_hw->hw->ip_isp->isphw_abt->dyn_overlap_version;
 	isp_slice_info_cfg(slc_cfg, pctx_hw->slice_ctx);
 
 	if (pctx_hw->fmcu_handle) {
@@ -309,8 +304,7 @@ int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, stru
 		cnt++;
 		if (cnt == pctx_hw->valid_slc_num)
 			pctx_hw->is_last_slice = 1;
-		pr_debug("slice %d, valid %d, last %d\n", slice_id,
-			pctx_hw->valid_slc_num, pctx_hw->is_last_slice);
+		pr_debug("slice %d, valid %d, last %d\n", slice_id, pctx_hw->valid_slc_num, pctx_hw->is_last_slice);
 
 		mutex_lock(param->blkpm_lock);
 		blk_ctrl.idx = pctx_hw->cfg_id;
@@ -319,7 +313,6 @@ int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, stru
 		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
 
 		if (pctx_hw->is_last_slice) {
-			cam_queue_blk_param_unbind(param->param_share_queue, param->src_frame);
 			*param->isp_using_param = NULL;
 			pctx_hw->isp_using_param = NULL;
 		}
@@ -333,9 +326,7 @@ int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, stru
 		else
 			hw->isp_ioctl(hw, ISP_HW_CFG_FETCH_START, NULL);
 
-		ret = wait_for_completion_interruptible_timeout(
-				&pctx_hw->slice_done,
-				ISP_CONTEXT_TIMEOUT);
+		ret = wait_for_completion_interruptible_timeout(&pctx_hw->slice_done, ISP_CONTEXT_TIMEOUT);
 		if (ret == -ERESTARTSYS) {
 			pr_err("fail to interrupt, when isp wait\n");
 			ret = -EFAULT;
@@ -356,25 +347,25 @@ int isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_handle)
 {
 	struct isp_pipe_dev *dev;
 	struct isp_hw_context *pctx_hw;
-	struct camera_frame *pframe;
+	struct cam_frame *pframe;
 	uint32_t sum = 0;
 	unsigned long flag = 0;
 
-	pframe = VOID_PTR_TO(buf, struct camera_frame);
+	pframe = VOID_PTR_TO(buf, struct cam_frame);
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
 
-	if (!(uint32_t *)pframe->buf.addr_k)
+	if (!(uint32_t *)pframe->common.buf.addr_k)
 		return -1;
-	buf = (uint32_t *)pframe->buf.addr_k;
+	buf = (uint32_t *)pframe->common.buf.addr_k;
 	spin_lock_irqsave(&pctx_hw->yhist_read_lock, flag);
 	memcpy(buf, pctx_hw->yhist_value, sizeof(uint32_t) * ISP_HIST_VALUE_SIZE);
 	sum = pctx_hw->yhist_value[ISP_HIST_VALUE_SIZE];
 	spin_unlock_irqrestore(&pctx_hw->yhist_read_lock, flag);
-	pframe->width = pctx_hw->pipe_info.fetch.in_trim.size_x;
-	pframe->height = pctx_hw->pipe_info.fetch.in_trim.size_y;
-	if (sum != (pframe->width * pframe->height)) {
-		pr_debug("pixel num check wrong, sum %d, should be %d\n", sum, pframe->width * pframe->height);
+	pframe->common.width = pctx_hw->pipe_info.fetch.in_trim.size_x;
+	pframe->common.height = pctx_hw->pipe_info.fetch.in_trim.size_y;
+	if (sum != (pframe->common.width * pframe->common.height)) {
+		pr_debug("pixel num check wrong, sum %d, should be %d\n", sum, pframe->common.width * pframe->common.height);
 		return -1;
 	}
 
@@ -386,12 +377,12 @@ int isp_hwctx_gtm_hist_result_get(void *buf, uint32_t hw_idx, void *dev,
 {
 	int ret = 0;
 	struct isp_pipe_dev *isp_dev;
-	struct camera_frame *pframe;
+	struct cam_frame *pframe;
 	struct isp_hw_gtmhist_get_param param;
 
-	pframe = VOID_PTR_TO(buf, struct camera_frame);
+	pframe = VOID_PTR_TO(buf, struct cam_frame);
 	isp_dev = (struct isp_pipe_dev *)dev;
-	param.buf = (uint32_t *)pframe->buf.addr_k;
+	param.buf = (uint32_t *)pframe->common.buf.addr_k;
 	param.hist_total = hist_total;
 	param.fid = fid;
 	ret = isp_dev->isp_hw->isp_ioctl(isp_dev->isp_hw, ISP_HW_CFG_GTMHIST_GET, &param);
@@ -450,7 +441,7 @@ int isp_hwctx_fetch_frm_set(void *dev_handle, struct isp_hw_fetch_info *fetch, s
 		fetch->addr_hw.addr_ch0 = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 		fetch->addr_hw.addr_ch1 = fetch->addr_hw.addr_ch0;
 	}
-	if (dev->sec_mode == SEC_SPACE_PRIORITY)
+	if (dev->sec_mode == SEC_TIME_PRIORITY)
 		cam_trusty_isp_fetch_addr_set(yuv_addr[0], yuv_addr[1], yuv_addr[2]);
 
 	pr_debug("camca  isp sec_mode=%d,  %lx %lx %lx\n", dev->sec_mode, yuv_addr[0], yuv_addr[1], yuv_addr[2]);
@@ -485,6 +476,9 @@ int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, s
 			frame->buf.mfd);
 		return -EINVAL;
 	}
+
+	if (pipe_info->fetch.sec_mode == SEC_TIME_PRIORITY)
+		pipe_info->store[ISP_SPATH_VID].sec_mode = SEC_TIME_PRIORITY;
 
 	yuv_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 

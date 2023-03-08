@@ -11,9 +11,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
 #include <linux/vmalloc.h>
-
 #include "cam_pipeline.h"
 
 #ifdef pr_fmt
@@ -23,30 +21,22 @@
 
 static void pyrdec_node_src_frame_ret(void *param)
 {
-	struct camera_frame *frame = NULL;
+	struct cam_frame *frame = NULL;
 	struct pyr_dec_node *node = NULL;
-	struct isp_node *isp_node = NULL;
 
 	if (!param) {
 		pr_err("fail to get input ptr.\n");
 		return;
 	}
 
-	frame = (struct camera_frame *)param;
-	node = (struct pyr_dec_node *)frame->priv_data;
+	frame = (struct cam_frame *)param;
+	node = (struct pyr_dec_node *)frame->common.priv_data;
 	if (!node) {
 		pr_err("fail to get pyrdec node.\n");
 		return;
 	}
 
-	isp_node = (struct isp_node *)node->isp_node;
-	if (!isp_node) {
-		pr_err("fail to get pyrdec_isp node.\n");
-		return;
-	}
-
-	cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
-	cam_queue_blk_param_unbind(&isp_node->param_share_queue, frame);
+	cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_MAX);
 	node->data_cb_func(CAM_CB_PYRDEC_RET_SRC_BUF, frame, node->data_cb_handle);
 }
 
@@ -442,7 +432,40 @@ static int pyrdec_node_dct_ynr_get(struct pyr_dec_node *node, uint32_t idx)
 	return ret;
 }
 
-static int pyrdec_node_afbd_get(uint32_t fmt, void *cfg_out, struct camera_frame *frame)
+struct dcam_isp_k_block *pyrdecnode_blk_param_get(struct pyr_dec_node *node, uint32_t target_fid)
+{
+	int loop = 0;
+	struct cam_frame *decblk_frame = NULL;
+	struct dcam_isp_k_block *out = NULL;
+
+	do {
+		mutex_lock(&node->blkpm_q_lock);
+		decblk_frame = cam_queue_dequeue_peek(&node->param_buf_queue, struct cam_frame, list);
+		if (decblk_frame) {
+			pr_debug("decblk_frame.fid=%d,pframe.id=%d\n",decblk_frame->dec_blk.fid, target_fid);
+			decblk_frame = cam_queue_dequeue(&node->param_buf_queue, struct cam_frame, list);
+			mutex_unlock(&node->blkpm_q_lock);
+			cam_queue_enqueue(&node->param_share_queue, &decblk_frame->list);
+			if (decblk_frame->dec_blk.fid == target_fid) {
+				out = decblk_frame->dec_blk.decblk_pm;
+				break;
+			}
+			if (decblk_frame->dec_blk.fid > target_fid) {
+				pr_warn("dont have old param, use latest param, frame %d\n", target_fid);
+				out = &node->decblk_param;
+				break;
+			}
+		} else {
+			mutex_unlock(&node->blkpm_q_lock);
+			pr_warn("dont have old param %d\n", target_fid);
+			out = &node->decblk_param;
+		}
+	} while (loop++ < node->param_buf_queue.max);
+
+	return out;
+}
+
+static int pyrdec_node_afbd_get(uint32_t fmt, void *cfg_out, struct cam_frame *frame)
 {
 	int32_t tile_col = 0, tile_row = 0;
 	struct isp_fbd_yuv_info *fbd_yuv = NULL;
@@ -455,12 +478,12 @@ static int pyrdec_node_afbd_get(uint32_t fmt, void *cfg_out, struct camera_frame
 
 	fbd_yuv = (struct isp_fbd_yuv_info *)cfg_out;
 
-	if (frame->is_compressed == 0)
+	if (frame->common.is_compressed == 0)
 		return 0;
 
 	fbd_yuv->fetch_fbd_bypass = 0;
-	fbd_yuv->slice_size.w = frame->width;
-	fbd_yuv->slice_size.h = frame->height;
+	fbd_yuv->slice_size.w = frame->common.width;
+	fbd_yuv->slice_size.h = frame->common.height;
 	tile_col = (fbd_yuv->slice_size.w + ISP_FBD_TILE_WIDTH - 1) / ISP_FBD_TILE_WIDTH;
 	tile_row =(fbd_yuv->slice_size.h + ISP_FBD_TILE_HEIGHT - 1) / ISP_FBD_TILE_HEIGHT;
 
@@ -469,8 +492,8 @@ static int pyrdec_node_afbd_get(uint32_t fmt, void *cfg_out, struct camera_frame
 	fbd_yuv->slice_start_pxl_ypt = 0;
 
 	cal_fbc.data_bits = cam_data_bits(fmt);
-	cal_fbc.fbc_info = &frame->fbc_info;
-	cal_fbc.in = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
+	cal_fbc.fbc_info = &frame->common.fbc_info;
+	cal_fbc.in = frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP];
 	if (fmt == CAM_YUV420_2FRAME_10 || fmt == CAM_YUV420_2FRAME_MIPI)
 		cal_fbc.fmt = CAM_YUV420_2FRAME;
 	else if (fmt == CAM_YVU420_2FRAME_10 || fmt == CAM_YVU420_2FRAME_MIPI)
@@ -489,9 +512,9 @@ static int pyrdec_node_afbd_get(uint32_t fmt, void *cfg_out, struct camera_frame
 	fbd_yuv->data_bits = cal_fbc.data_bits;
 
 	pr_debug("iova:%x, fetch_fbd: %u 0x%x 0x%x, 0x%x, size %u %u, channel_id:%d, tile_col:%d\n",
-		 frame->buf.iova[CAM_BUF_IOMMUDEV_ISP], frame->fid, fbd_yuv->hw_addr.addr0,
+		 frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP], frame->common.fid, fbd_yuv->hw_addr.addr0,
 		 fbd_yuv->hw_addr.addr1, fbd_yuv->hw_addr.addr2,
-		frame->width, frame->height, frame->channel_id, fbd_yuv->tile_num_pitch);
+		frame->common.width, frame->common.height, frame->common.channel_id, fbd_yuv->tile_num_pitch);
 
 	return 0;
 }
@@ -538,29 +561,24 @@ static int pyrdec_node_param_cfg(struct pyr_dec_node *node, uint32_t index)
 	return ret;
 }
 
-static int pyrdec_node_calc_base_info(struct pyr_dec_node *node, struct camera_frame *pframe)
+static int pyrdec_node_calc_base_info(struct pyr_dec_node *node, struct cam_frame *pframe,
+		struct cam_frame *out_frame)
 {
 	int ret = 0;
-	uint32_t layer_num = 0, i = 0, pitch = 0;
-	struct camera_frame *out_frame = NULL;
-	uint32_t offset = 0, size = 0;
+	uint32_t layer_num = 0, i = 0, in_pitch = 0, out_pitch = 0;
+	uint32_t offset = 0, in_size = 0, out_size = 0;
 
-	if (!node || !pframe) {
-		pr_err("fail to get valid input ptr\n", node, pframe);
+	if (!node || !pframe || !out_frame) {
+		pr_err("fail to get valid input ptr:0x%p, 0x%p, 0x%p\n", node, pframe, out_frame);
 		return -EFAULT;
 	}
 
-	out_frame = node->buf_out;
-	if (!out_frame) {
-		pr_err("fail to get out_frame");
-		return -EFAULT;
-	}
 	layer_num = PYR_DEC_LAYER_NUM;
-	node->src.w = pframe->width;
-	node->src.h = pframe->height;
-	out_frame->width = pframe->width;
-	out_frame->height = pframe->height;
-	out_frame->nr3_me = pframe->nr3_me;
+	node->src.w = pframe->common.width;
+	node->src.h = pframe->common.height;
+	out_frame->common.width = pframe->common.width;
+	out_frame->common.height = pframe->common.height;
+	out_frame->common.nr3_me = pframe->common.nr3_me;
 	/* update layer num based on img size */
 	while (pyrdec_small_layer_w(node->src.w, layer_num) < MIN_PYR_WIDTH ||
 		pyrdec_small_layer_h(node->src.h, layer_num) < MIN_PYR_HEIGHT) {
@@ -569,15 +587,17 @@ static int pyrdec_node_calc_base_info(struct pyr_dec_node *node, struct camera_f
 		layer_num--;
 	}
 	node->layer_num = layer_num;
-	pitch = pyrdec_node_cal_pitch(node->src.w, node->in_fmt);
-	size = pitch * node->src.h;
-	node->fetch_path_sel = pframe->is_compressed;
-	node->fetch_addr[0].addr_ch0 = pframe->buf.iova[CAM_BUF_IOMMUDEV_ISP];
-	node->fetch_addr[0].addr_ch1 = pframe->buf.iova[CAM_BUF_IOMMUDEV_ISP] + size;
-	node->store_addr[0].addr_ch0 = node->buf_out->buf.iova[CAM_BUF_IOMMUDEV_ISP];
-	node->store_addr[0].addr_ch1 = node->store_addr[0].addr_ch0 + size;
-	node->yuv_afbd_info.frame_header_base_addr = pframe->buf.iova[CAM_BUF_IOMMUDEV_ISP];
-	node->yuv_afbd_info.slice_start_header_addr = pframe->buf.iova[CAM_BUF_IOMMUDEV_ISP];
+	in_pitch = pyrdec_node_cal_pitch(node->src.w, node->in_fmt);
+	out_pitch = pyrdec_node_cal_pitch(node->src.w, node->pyr_out_fmt);
+	in_size = in_pitch * node->src.h;
+	out_size = out_pitch * node->src.h;
+	node->fetch_path_sel = pframe->common.is_compressed;
+	node->fetch_addr[0].addr_ch0 = pframe->common.buf.iova[CAM_BUF_IOMMUDEV_ISP];
+	node->fetch_addr[0].addr_ch1 = pframe->common.buf.iova[CAM_BUF_IOMMUDEV_ISP] + in_size;
+	node->store_addr[0].addr_ch0 = out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP];
+	node->store_addr[0].addr_ch1 = node->store_addr[0].addr_ch0 + out_size;
+	node->yuv_afbd_info.frame_header_base_addr = pframe->common.buf.iova[CAM_BUF_IOMMUDEV_ISP];
+	node->yuv_afbd_info.slice_start_header_addr = pframe->common.buf.iova[CAM_BUF_IOMMUDEV_ISP];
 	node->dec_layer_size[0].w = pyrdec_layer0_width(node->src.w, layer_num);
 	node->dec_layer_size[0].h = pyrdec_layer0_heigh(node->src.h, layer_num);
 	node->dec_padding_size.w = node->dec_layer_size[0].w - node->src.w;
@@ -589,13 +609,13 @@ static int pyrdec_node_calc_base_info(struct pyr_dec_node *node, struct camera_f
 		node->fetch_addr[0].addr_ch0, node->fetch_addr[0].addr_ch1,
 		node->store_addr[0].addr_ch0, node->store_addr[0].addr_ch1);
 	for (i = 1; i < layer_num + 1; i++) {
-		offset += (size * 3 / 2);
+		offset += (out_size * 3 / 2);
 		node->dec_layer_size[i].w = node->dec_layer_size[i - 1].w / 2;
 		node->dec_layer_size[i].h = node->dec_layer_size[i - 1].h / 2;
-		pitch = pyrdec_node_cal_pitch(node->dec_layer_size[i].w, node->pyr_out_fmt);
-		size = pitch * node->dec_layer_size[i].h;
-		node->store_addr[i].addr_ch0 = node->buf_out->buf.iova[CAM_BUF_IOMMUDEV_ISP] + offset;
-		node->store_addr[i].addr_ch1 = node->store_addr[i].addr_ch0 + size;
+		out_pitch = pyrdec_node_cal_pitch(node->dec_layer_size[i].w, node->pyr_out_fmt);
+		out_size = out_pitch * node->dec_layer_size[i].h;
+		node->store_addr[i].addr_ch0 = out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP] + offset;
+		node->store_addr[i].addr_ch1 = node->store_addr[i].addr_ch0 + out_size;
 		if (i < layer_num) {
 			node->fetch_addr[i].addr_ch0 = node->store_addr[i].addr_ch0;
 			node->fetch_addr[i].addr_ch1 = node->store_addr[i].addr_ch1;
@@ -787,20 +807,16 @@ static int pyrdec_node_blkparam_size_cfg(struct pyr_dec_node *node, struct dcam_
 	return 0;
 }
 
-static int pyrdec_node_dct_blkparam_update(struct pyr_dec_node *node, struct camera_frame *out_frame,
-		struct camera_frame *pframe)
+static int pyrdec_node_dct_blkparam_update(struct pyr_dec_node *node, struct dcam_isp_k_block *dct_param)
 {
 	int ret = 0;
-	struct dcam_isp_k_block *dct_param = NULL;
 	struct pyrdec_hw_k_blk_func dct_update_func = {0};
 
-	if (!node || !out_frame || !pframe) {
-		pr_err("fail to get valid inptr %p %p %p\n", node, out_frame, pframe);
+	if (!node || !dct_param) {
+		pr_err("fail to get valid inptr %p %p.\n", node, dct_param);
 		return -EFAULT;
 	}
 
-	out_frame->blkparam_info = pframe->blkparam_info;
-	dct_param = out_frame->blkparam_info.param_block;
 	node->dct_ynr_info.dct = &dct_param->dct_info;
 	node->dct_ynr_info.old_width = dct_param->blkparam_info.old_width;
 	node->dct_ynr_info.old_height = dct_param->blkparam_info.old_height;
@@ -864,9 +880,9 @@ static int pyrdec_node_ts_cal(struct pyr_dec_node *node, struct pyrdec_pipe_dev 
 	uint32_t sec = 0, usec = 0;
 	timespec consume_ts = {0};
 
-	ktime_get_ts(&node->end_ts);
+	os_adapt_time_get_ts(&node->end_ts);
 	dec_dev->hw_start_ts = node->end_ts;
-	consume_ts = cam_kernel_adapt_timespec_sub(node->end_ts, node->start_ts);
+	consume_ts = os_adapt_time_timespec_sub(node->end_ts, node->start_ts);
 	sec = consume_ts.tv_sec;
 	usec = consume_ts.tv_nsec / NSEC_PER_USEC;
 	if ((sec * USEC_PER_SEC + usec) > DEC_NODE_TIME)
@@ -888,8 +904,8 @@ static int pyrdec_node_hw_ts_cal(struct pyr_dec_node *node)
 	struct pyrdec_pipe_dev *dec_dev = NULL;
 
 	dec_dev = node->pyrdec_dev;
-	ktime_get_ts(&cur_ts);
-	consume_ts = cam_kernel_adapt_timespec_sub(cur_ts, dec_dev->hw_start_ts);
+	os_adapt_time_get_ts(&cur_ts);
+	consume_ts = os_adapt_time_timespec_sub(cur_ts, dec_dev->hw_start_ts);
 	sec = consume_ts.tv_sec;
 	usec = consume_ts.tv_nsec / NSEC_PER_USEC;
 	size = node->src.w * node->src.h;
@@ -977,10 +993,10 @@ static int pyrdec_node_irq_proc(void *handle)
 	uint32_t in_queue_cnt = 0, proc_queue_cnt = 0;
 	struct pyrdec_pipe_dev *pyrdec = NULL;
 	struct pyr_dec_node *node = NULL;
-	struct camera_frame *pframe = NULL;
-	struct camera_frame *pframe1 = NULL;
+	struct cam_frame *out_frame = NULL;
+	struct cam_frame *pframe = NULL;
+	struct cam_node_cfg_param node_param = {0};
 	struct camera_buf_get_desc buf_desc = {0};
-	struct cam_buf_pool_id pool_id = {0};
 	if (!handle) {
 		pr_err("fail to get invalid ptr\n");
 		return -EFAULT;
@@ -996,72 +1012,53 @@ static int pyrdec_node_irq_proc(void *handle)
 
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
-	pframe = cam_buf_manager_buf_dequeue(&node->fetch_result_pool, &buf_desc);
+	pframe = cam_buf_manager_buf_dequeue(&node->fetch_result_pool, &buf_desc, node->buf_manager_handle);
 	if (pframe && node->data_cb_func) {
-		if (!node->buf_out) {
-			pr_err("fail to get node->buf_out:%x\n", node->buf_out);
-			return -EFAULT;
-		}
-		/* return buffer to cam channel shared buffer queue. */
-		node->buf_out->fid = pframe->fid;
-		node->buf_out->sensor_time = pframe->sensor_time;
-		node->buf_out->boot_sensor_time = pframe->boot_sensor_time;
-		node->buf_out->pyr_status = pframe->pyr_status;
-		node->buf_out->cam_fmt = pframe->cam_fmt;
-		node->buf_out->zoom_data = pframe->zoom_data;
-		if (node->hw->ip_isp->pyr_rec_lay0_support)
-			pframe1 = pframe;
-		else {
-			if (node->data_cb_func)
+		node_param.port_id = PORT_DEC_OUT;
+		node->port_cfg_cb_func(&node_param, PORT_BUFFER_CFG_GET, node->port_cfg_cb_handle);
+		out_frame = (struct cam_frame *)node_param.param;
+		if (out_frame) {
+			out_frame->common.fid = pframe->common.fid;
+			out_frame->common.sensor_time = pframe->common.sensor_time;
+			out_frame->common.boot_sensor_time = pframe->common.boot_sensor_time;
+			out_frame->common.pyr_status = pframe->common.pyr_status;
+			out_frame->common.cam_fmt = pframe->common.cam_fmt;
+			out_frame->common.zoom_data = pframe->common.zoom_data;
+			if (node->hw->ip_isp->isphw_abt->pyr_rec_lay0_support)
+				out_frame->common.pframe_data = pframe;
+			else
 				node->data_cb_func(CAM_CB_PYRDEC_RET_SRC_BUF, pframe, node->data_cb_handle);
+			/* return buffer to cam core for start pyrrec proc */
+			cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
+			if (node->is_fast_stop) {
+				node_param.port_id = PORT_DEC_OUT;
+				node_param.param = out_frame;
+				out_frame->common.pframe_data = NULL;
+				node->port_cfg_cb_func(&node_param, PORT_BUFFER_CFG_SET, node->port_cfg_cb_handle);
+				if (node->hw->ip_isp->isphw_abt->pyr_rec_lay0_support)
+					node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
+
+				in_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_unprocess_pool, node->buf_manager_handle);
+				proc_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_result_pool, node->buf_manager_handle);
+				if (in_queue_cnt == 0 && proc_queue_cnt == 0) {
+					node->is_fast_stop = 0;
+					complete(node->fast_stop_done);
+				}
+				return ret;
+			}
+			out_frame->common.link_from.node_type = CAM_NODE_TYPE_PYR_DEC;
+			out_frame->common.link_from.node_id = PYR_DEC_NODE_ID;
+			out_frame->common.link_from.port_id = PORT_DEC_OUT;
+			if (node->data_cb_func)
+				node->data_cb_func(CAM_CB_ISP_RET_PYR_DEC_BUF, out_frame, node->data_cb_handle);
 			else
-				pr_err("fail to get data_cb_func ptr at ret src\n");
+				pr_err("fail to get data_cb_func ptr at ret pyr dec\n");
+		} else {
+			node->data_cb_func(CAM_CB_PYRDEC_RET_SRC_BUF, pframe, node->data_cb_handle);
+			pr_err("fail to get out frame\n");
 		}
-	} else
+	}else
 		pr_err("fail to get src frame 0x%x\n",pframe);
-
-	pframe = node->buf_out;
-	if (node->hw->ip_isp->pyr_rec_lay0_support)
-		pframe->pframe_data = pframe1;
-	node->buf_out = NULL;
-	if (pframe) {
-		/* return buffer to cam core for start pyrrec proc */
-		cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
-		if (node->is_fast_stop) {
-			if (node->isp_node) {
-				struct isp_node *inode = (struct isp_node *)node->isp_node;
-				cam_queue_blk_param_unbind(&inode->param_share_queue, pframe);
-			}
-
-			if (node->share_buffer)
-				pool_id.tag_id = CAM_BUF_POOL_SHARE_DEC_BUF;
-			else
-				pool_id = node->store_result_pool;
-			buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
-			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc);
-
-			if (node->hw->ip_isp->pyr_rec_lay0_support)
-				node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe1, node->data_cb_handle);
-
-			in_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_unprocess_pool);
-			proc_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_result_pool);
-			if (in_queue_cnt == 0 && proc_queue_cnt == 0) {
-				node->is_fast_stop = 0;
-				complete(node->fast_stop_done);
-			}
-			return ret;
-		}
-		pframe->link_from.node_type = CAM_NODE_TYPE_PYR_DEC;
-		pframe->link_from.node_id = PYR_DEC_NODE_ID;
-		pframe->link_to.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
-		pframe->link_to.node_id = ISP_NODE_MODE_CAP_ID;
-		pframe->need_pyr_rec = 1;
-		if (node->data_cb_func)
-			node->data_cb_func(CAM_CB_ISP_RET_PYR_DEC_BUF, pframe, node->data_cb_handle);
-		else
-			pr_err("fail to get data_cb_func ptr at ret pyr dec\n");
-	} else
-		pr_err("fail to get src frame\n");
 
 	pyrdec->in_irq_handler = 0;
 
@@ -1073,12 +1070,13 @@ static int pyrdec_node_start_proc(void *handle)
 	int ret = 0;
 	uint32_t loop = 0, in_queue_cnt = 0, proc_queue_cnt = 0;
 	struct pyr_dec_node *node = NULL;
-	struct camera_frame *pframe = NULL;
-	struct camera_frame *out_frame = NULL;
+	struct cam_frame *pframe = NULL;
+	struct cam_frame *out_frame = NULL;
+	struct cam_node_cfg_param node_param = {0};
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct pyrdec_pipe_dev *dec_dev = NULL;
-	struct isp_node *isp_node = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
+	struct dcam_isp_k_block *decblk_param = NULL;
 
 	if (!handle) {
 		pr_err("fail to get valid input handle\n");
@@ -1087,7 +1085,6 @@ static int pyrdec_node_start_proc(void *handle)
 
 	node = (struct pyr_dec_node *)handle;
 	dec_dev = node->pyrdec_dev;
-	isp_node = VOID_PTR_TO(node->isp_node, struct isp_node);
 	if (!dec_dev) {
 		pr_err("fail to get dec_dev %p\n", dec_dev);
 		return -EFAULT;
@@ -1099,13 +1096,12 @@ static int pyrdec_node_start_proc(void *handle)
 		goto exit;
 	}
 
-	ktime_get_ts(&node->start_ts);
+	os_adapt_time_get_ts(&node->start_ts);
 	PERFORMANCE_DEBUG("node_start_time %d.%06d", node->start_ts.tv_sec, node->start_ts.tv_nsec / NSEC_PER_USEC);
 
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
 	buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
-	pframe = cam_buf_manager_buf_dequeue(&node->fetch_unprocess_pool, &buf_desc);
-
+	pframe = cam_buf_manager_buf_dequeue(&node->fetch_unprocess_pool, &buf_desc, node->buf_manager_handle);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame %p\n", pframe);
 		goto exit;
@@ -1113,8 +1109,8 @@ static int pyrdec_node_start_proc(void *handle)
 
 	if (node->is_fast_stop) {
 		pyrdec_node_src_frame_ret(pframe);
-		in_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_unprocess_pool);
-		proc_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_result_pool);
+		in_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_unprocess_pool, node->buf_manager_handle);
+		proc_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_result_pool, node->buf_manager_handle);
 		if (in_queue_cnt == 0 && proc_queue_cnt == 0) {
 			node->is_fast_stop = 0;
 			complete(node->fast_stop_done);
@@ -1122,13 +1118,13 @@ static int pyrdec_node_start_proc(void *handle)
 		return 0;
 	}
 
-	isp_node_prepare_blk_param(isp_node, pframe->fid, &pframe->blkparam_info);
-	pyrdec_node_blkparam_size_cfg(node, pframe->blkparam_info.param_block);
+	decblk_param = pyrdecnode_blk_param_get(node, pframe->common.fid);
+	pyrdec_node_blkparam_size_cfg(node, decblk_param);
 	do {
 		dec_dev = (struct pyrdec_pipe_dev *)pyrdec_node_dev_bind(node);
 		if (!dec_dev) {
 			pr_info_ratelimited("pnode wait for dec. loop %d\n", loop);
-			usleep_range(600, 800);
+			os_adapt_time_usleep_range(600, 800);
 		} else
 			break;
 	} while (loop++ < 5000);
@@ -1140,11 +1136,11 @@ static int pyrdec_node_start_proc(void *handle)
 
 	loop = 0;
 	do {
-		ret = cam_buf_manager_buf_enqueue(&node->fetch_result_pool, pframe, NULL);
+		ret = cam_buf_manager_buf_enqueue(&node->fetch_result_pool, pframe, NULL, node->buf_manager_handle);
 		if (ret == 0)
 			break;
 		pr_debug("wait for proc queue. loop %d\n", loop);
-		usleep_range(600, 2000);
+		os_adapt_time_usleep_range(600, 2000);
 	} while (loop++ < 500);
 	if (ret) {
 		pr_err("fail to input frame queue, timeout.\n");
@@ -1152,45 +1148,36 @@ static int pyrdec_node_start_proc(void *handle)
 		goto inq_overflow;
 	}
 
-	if (!pframe->blkparam_info.param_block) {
-		pr_err("fail to get dec param, fid %d\n", pframe->fid);
-		goto out_err;
-	}
-
 	loop = 0;
 	do {
-		if(node->buf_cb_func == NULL) {
+		if(node->port_cfg_cb_func == NULL) {
 			pr_err("fail to get buf_cb_func\n");
 			return -EINVAL;
 		}
-		node->buf_cb_func((void *)&out_frame, node);
+
+		node_param.port_id = PORT_DEC_OUT;
+		node->port_cfg_cb_func(&node_param, PORT_BUFFER_CFG_CYCLE, node->port_cfg_cb_handle);
+		out_frame = (struct cam_frame *)node_param.param;
 		if (out_frame)
 			break;
 		pr_debug("wait for out buf. loop %d\n", loop);
-		usleep_range(600, 2000);
+		os_adapt_time_usleep_range(600, 2000);
 	} while (loop++ < 500);
-	if (!out_frame) {
-		pr_err("fail to get outframe loop cnt %d\n", loop);
+	if (!out_frame || ret) {
+		pr_err("fail to get outframe loop cnt %d ret %d\n", loop, ret);
 		goto out_err;
 	}
 
-	ret = pyrdec_node_dct_blkparam_update(node, out_frame, pframe);
+	ret = pyrdec_node_dct_blkparam_update(node, decblk_param);
 	if (ret) {
 		pr_err("fail to update dct blkparam.\n");
 		goto out_err;
 	}
 
-	node->buf_out = out_frame;
-	ret = cam_buf_manager_buf_status_cfg(&node->buf_out->buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-	if (ret) {
-		pr_err("fail to map buf to ISP iommu.\n");
-		goto map_err;
-	}
-
-	if (pframe->is_compressed)
+	if (pframe->common.is_compressed)
 		ret = pyrdec_node_afbd_get(node->in_fmt, &node->yuv_afbd_info, pframe);
 
-	ret = pyrdec_node_calc_base_info(node, pframe);
+	ret = pyrdec_node_calc_base_info(node, pframe, out_frame);
 	if (ret) {
 		pr_err("fail to cal pyrdec base info\n");
 		ret = -EINVAL;
@@ -1213,17 +1200,12 @@ static int pyrdec_node_start_proc(void *handle)
 		goto calc_err;
 	}
 
-	ret = wait_for_completion_timeout(&node->frm_done,
-			ISP_CONTEXT_TIMEOUT);
+	ret = wait_for_completion_timeout(&node->frm_done, ISP_CONTEXT_TIMEOUT);
 	if (ret == 0) {
 		pr_err("fail to wait isp dec context, timeout.\n");
 		ret = -EFAULT;
 		goto calc_err;
 	}
-
-	pframe->blkparam_info.update = 0;
-	pframe->blkparam_info.param_block = NULL;
-	pframe->blkparam_info.blk_param_node = NULL;
 
 	dec_dev->cur_node_id = node->node_idx;
 	/* start pyr dec fmcu */
@@ -1235,12 +1217,16 @@ static int pyrdec_node_start_proc(void *handle)
 	return 0;
 
 calc_err:
-	if (node->buf_out)
-		ret = cam_buf_manager_buf_status_cfg(&node->buf_out->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
+	if (out_frame) {
+		ret = cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
+		node_param.port_id = PORT_DEC_OUT;
+		node_param.param = out_frame;
+		node->port_cfg_cb_func(&node_param, PORT_BUFFER_CFG_SET, node->port_cfg_cb_handle);
+	}
 out_err:
-map_err:
 	buf_desc.q_ops_cmd = CAM_QUEUE_TAIL;
-	pframe = cam_buf_manager_buf_dequeue(&node->fetch_result_pool, &buf_desc);
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
+	pframe = cam_buf_manager_buf_dequeue(&node->fetch_result_pool, &buf_desc, node->buf_manager_handle);
 inq_overflow:
 	if (pframe)
 		pyrdec_node_src_frame_ret(pframe);
@@ -1251,9 +1237,10 @@ exit:
 static int pyrdec_node_proc_init(void *handle)
 {
 	int ret = 0;
+	uint32_t i = 0;
 	struct pyr_dec_node *node = NULL;
 	struct cam_thread_info *thrd = NULL;
-	struct pyrdec_pipe_dev *dec_dev = NULL;
+	struct cam_frame *decblk_frame = NULL;
 
 	if (!handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -1261,24 +1248,40 @@ static int pyrdec_node_proc_init(void *handle)
 	}
 
 	node = (struct pyr_dec_node *)handle;
-	dec_dev = node->pyrdec_dev;
+	mutex_init(&node->blkpm_q_lock);
+	cam_queue_init(&node->param_share_queue, node->blkparam_buf_num, cam_queue_empty_frame_put);
+	cam_queue_init(&node->param_buf_queue, node->blkparam_buf_num, cam_queue_empty_frame_put);
+	for (i = 0; i < node->blkparam_buf_num; i++) {
+		decblk_frame = cam_queue_empty_frame_get(CAM_FRAME_DEC_BLK);
+		if (!decblk_frame) {
+			pr_err("fail to get frame.\n");
+			goto alloc_err;
+		}
+		decblk_frame->dec_blk.decblk_pm = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_isp_k_block));
+		if (!decblk_frame->dec_blk.decblk_pm) {
+			pr_err("fail to alloc memory.\n");
+			goto alloc_err;
+		}
+		ret = cam_queue_enqueue(&node->param_share_queue, &decblk_frame->list);
+		if (ret) {
+			pr_err("fail to enqueue shared buf: %d node id %d\n", i, node->node_id);
+			goto alloc_err;
+		}
+	}
 
-	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_BUF_Q_LEN);
+	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_BUF_Q_LEN, node->buf_manager_handle);
 	if (ret < 0) {
 		pr_err("fail to reg pool for node_id %d\n", node->node_id);
-		cam_buf_kernel_sys_vfree(node);
-		return -EFAULT;
+		goto alloc_err;
 	}
-	node->fetch_unprocess_pool.private_pool_idx = ret;
+	node->fetch_unprocess_pool.private_pool_id = ret;
 
-	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_BUF_Q_LEN);
+	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_BUF_Q_LEN, node->buf_manager_handle);
 	if (ret < 0) {
 		pr_err("fail to reg pool for node_id %d\n", node->node_id);
-		cam_buf_manager_pool_unreg(&node->fetch_unprocess_pool);
-		cam_buf_kernel_sys_vfree(node);
-		return -EFAULT;
+		goto result_pool_err;
 	}
-	node->fetch_result_pool.private_pool_idx = ret;
+	node->fetch_result_pool.private_pool_id = ret;
 
 	/* create pyr dec thread */
 	thrd = &node->thread;
@@ -1289,16 +1292,24 @@ static int pyrdec_node_proc_init(void *handle)
 	ret = camthread_create(node, thrd, pyrdec_node_start_proc);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to create offline thread for pyr dec\n");
-		return -EFAULT;
+		goto proc_thrd_err;
 	}
 
+	return ret;
+proc_thrd_err:
+	cam_buf_manager_pool_unreg(&node->fetch_result_pool, node->buf_manager_handle);
+result_pool_err:
+	cam_buf_manager_pool_unreg(&node->fetch_unprocess_pool, node->buf_manager_handle);
+alloc_err:
+	cam_queue_clear(&node->param_share_queue, struct cam_frame, list);
 	return ret;
 }
 
 int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param)
 {
 	int ret = 0;
-	struct camera_frame *pframe = NULL;
+	uint32_t layer_num = PYR_DEC_LAYER_NUM;
+	struct cam_frame *pframe = NULL;
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_pipeline *pipeline = NULL;
 	struct cam_node *cam_node = NULL;
@@ -1308,29 +1319,38 @@ int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param)
 		return -EFAULT;
 	}
 
-	pframe = (struct camera_frame *)param;
-	if (!pframe->need_pyr_dec) {
-		pframe->link_to.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
-		pframe->link_to.node_id = ISP_NODE_MODE_CAP_ID;
-		pframe->need_pyr_rec = 0;
+	pframe = (struct cam_frame *)param;
+	while (isp_rec_small_layer_w(pframe->common.width, layer_num) < MIN_PYR_WIDTH ||
+		isp_rec_small_layer_h(pframe->common.height, layer_num) < MIN_PYR_HEIGHT) {
+		pr_debug("layer num need decrease based on small input %d %d\n",
+			pframe->common.width, pframe->common.height);
+		if (--layer_num == 0)
+			break;
+	}
+	if (!layer_num || !node->hw->ip_isp->isphw_abt->pyr_dec_support) {
+		pframe->common.pyr_status = DISABLE;
+		pframe->common.link_to.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+		pframe->common.link_to.node_id = ISP_NODE_MODE_CAP_ID;
 		if (node->data_cb_func)
 			node->data_cb_func(CAM_CB_ISP_RET_PYR_DEC_BUF, pframe, node->data_cb_handle);
 		return 0;
-	}
-	pframe->priv_data = node;
+	} else
+		pframe->common.pyr_status = ENABLE;
+
+	pframe->common.priv_data = node;
 	dev = node->dev;
 	cam_node = (struct cam_node *)node->data_cb_handle;
 	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 
 	if (pipeline->debug_log_switch)
-		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
-			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
-			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->common.is_reserved %d, compress_en %d\n",
+			pipeline->pipeline_graph->name, pframe->common.fid, pframe->common.channel_id, pframe->common.buf.mfd,
+			pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
-	node->src.w = pframe->width;
-	node->src.h = pframe->height;
+	node->src.w = pframe->common.width;
+	node->src.h = pframe->common.height;
 
-	ret = cam_buf_manager_buf_enqueue(&node->fetch_unprocess_pool, pframe, NULL);
+	ret = cam_buf_manager_buf_enqueue(&node->fetch_unprocess_pool, pframe, NULL, node->buf_manager_handle);
 	if (ret == 0)
 		complete(&node->thread.thread_com);
 	else
@@ -1343,7 +1363,6 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 {
 	int ret = 0, index = 0;
 	struct pyr_dec_node *node = NULL;
-	struct isp_node *isp_node = NULL;
 	struct isp_io_param *blk_param = NULL;
 	func_cam_cfg_param cfg_fun_ptr = NULL;
 	struct cam_hw_block_func_get fucarg = {0};
@@ -1359,7 +1378,6 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 	blk_param = (struct isp_io_param *)param;
 	hw = node->hw;
 	dev = node->dev;
-	isp_node = (struct isp_node *)node->isp_node;
 
 	mutex_lock(&dev->path_mutex);
 	if (atomic_read(&node->user_cnt) < 1) {
@@ -1384,7 +1402,7 @@ int pyr_dec_node_blk_param_set(void *handle, void *param)
 		goto exit;
 	}
 
-	ret = cfg_fun_ptr(blk_param, &isp_node->isp_k_param);
+	ret = cfg_fun_ptr(blk_param, &node->decblk_param);
 
 	mutex_unlock(&node->blkpm_lock);
 	mutex_unlock(&dev->path_mutex);
@@ -1395,6 +1413,7 @@ exit:
 int pyr_dec_node_ctxid_cfg(void *handle, void *param)
 {
 	int ret = 0;
+	struct isp_node *inode = NULL;
 	struct pyr_dec_node *node = NULL;
 
 	if (!handle || !param) {
@@ -1403,115 +1422,46 @@ int pyr_dec_node_ctxid_cfg(void *handle, void *param)
 	}
 
 	node = (struct pyr_dec_node *)handle;
-	node->isp_node = param;
-	node->isp_node_cfg_id = ((struct isp_node *)node->isp_node)->cfg_id;
+	inode = (struct isp_node *)param;
+	node->isp_node_cfg_id = inode->cfg_id;
 	return ret;
 }
 
-int pyr_dec_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
-{
-	int ret = 0;
-	uint32_t buffer_size = 0;
-	struct pyr_dec_node *node = NULL;
-	struct camera_frame *pframe = NULL;
-	struct cam_buf_pool_id pool_id = {0};
-
-	if(!handle || !param) {
-		pr_err("fail to get valid inptr %p, %p\n", handle, param);
-		return -EFAULT;
-	}
-
-	if (!param->is_pyr_dec || param->ch_id != CAM_CH_CAP)
-		return 0;
-
-	node = (struct pyr_dec_node *)handle;
-
-	if (param->share_buffer) {
-		mutex_lock(&node->dev->pyr_mulshare_dec_lock);
-		if (atomic_inc_return(&node->dev->pyr_mulshare_dec_alloced) > 1)
-			goto exit;
-		pool_id.tag_id = CAM_BUF_POOL_SHARE_DEC_BUF;
-	} else
-		pool_id = node->store_result_pool;
-
-	buffer_size = dcam_if_cal_pyramid_size(param->width, param->height, cam_data_bits(param->pyr_out_fmt),
-			cam_is_pack(param->pyr_out_fmt), 0, ISP_PYR_DEC_LAYER_NUM);
-	buffer_size = ALIGN(buffer_size, CAM_BUF_ALIGN_SIZE);
-
-	pframe = cam_queue_empty_frame_get();
-	pframe->width = param->width;
-	pframe->height = param->height;
-	pframe->channel_id = param->ch_id;
-	pframe->is_compressed = 0;
-	ret = cam_buf_alloc(&pframe->buf, buffer_size, param->iommu_enable);
-	if (ret) {
-		pr_err("fail to alloc dec buf\n");
-		cam_queue_empty_frame_put(pframe);
-	}
-
-	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL);
-	if (ret) {
-		pr_err("fail to enq pyrdec buffer\n");
-		cam_buf_destory(pframe);
-	}
-
-exit:
-	if (param->share_buffer)
-		mutex_unlock(&node->dev->pyr_mulshare_dec_lock);
-	return ret;
-}
-
-int pyr_dec_node_buffer_cfg(void *handle, void *param)
+int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 {
 	int ret = 0;
 	struct pyr_dec_node *node = NULL;
-	struct camera_frame *pframe = NULL;
-	struct cam_buf_pool_id pool_id = {0};
+	struct cfg_param_status *param_status = NULL;
+	struct cam_frame *decblk_frame = NULL;
 
-	if(!handle || !param) {
-		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+	if (!handle || !param) {
+		pr_err("fail to get valid param %px %px\n", handle, param);
 		return -EFAULT;
 	}
 
 	node = (struct pyr_dec_node *)handle;
-	pframe = (struct camera_frame *)param;
+	param_status = (struct cfg_param_status *)param;
+	if (param_status->status) {
+		decblk_frame = cam_queue_dequeue(&node->param_share_queue, struct cam_frame, list);
+		if (!decblk_frame) {
+			mutex_lock(&node->blkpm_q_lock);
+			decblk_frame = cam_queue_dequeue(&node->param_buf_queue, struct cam_frame, list);
+			mutex_unlock(&node->blkpm_q_lock);
+			if (!ret)
+				pr_debug("pyr dec node deq param fid %d\n", decblk_frame->dec_blk.fid);
+		}
 
-	if (node->share_buffer)
-		pool_id.tag_id = CAM_BUF_POOL_SHARE_DEC_BUF;
-	else
-		pool_id = node->store_result_pool;
-
-	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL);
-	if (ret) {
-		pr_err("fail to enqueue pyrdec buffer\n");
-		goto exit;
+		decblk_frame->dec_blk.fid = param_status->frame_id;
+		if (decblk_frame->dec_blk.decblk_pm)
+			memcpy(decblk_frame->dec_blk.decblk_pm, &node->decblk_param, sizeof(struct dcam_isp_k_block));
+		else
+			pr_warn("warning:get decblk frame, but not decblk_pm.\n");
+		ret = cam_queue_enqueue(&node->param_buf_queue, &decblk_frame->list);
+		if (ret) {
+			pr_err("fail to enquene dec param_buf_queue:state:%d, cnt:%d\n", node->param_buf_queue.state, node->param_buf_queue.cnt);
+			cam_queue_enqueue(&node->param_share_queue, &decblk_frame->list);
+		}
 	}
-
-exit:
-	return ret;
-}
-
-int pyr_dec_node_outbuf_get(void *param, void *priv_data)
-{
-	int ret = 0;
-	struct camera_frame **frame = NULL;
-	struct pyr_dec_node *node = NULL;
-	struct cam_buf_pool_id pool_id = {0};
-
-	if (!priv_data) {
-		pr_err("fail to get valid param %p\n", priv_data);
-		return -EFAULT;
-	}
-
-	node = (struct pyr_dec_node *)priv_data;
-	frame = (struct camera_frame **)param;
-
-	if (node->share_buffer)
-		pool_id.tag_id = CAM_BUF_POOL_SHARE_DEC_BUF;
-	else
-		pool_id = node->store_result_pool;
-
-	*frame = cam_buf_manager_buf_dequeue(&pool_id, NULL);
 
 	return ret;
 }
@@ -1523,8 +1473,8 @@ int pyr_dec_node_fast_stop_cfg(void *handle, void *param)
 
 	node = VOID_PTR_TO(handle, struct pyr_dec_node);
 	node->fast_stop_done = VOID_PTR_TO(param, struct completion);
-	in_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_unprocess_pool);
-	proc_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_result_pool);
+	in_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_unprocess_pool, node->buf_manager_handle);
+	proc_queue_cnt = cam_buf_manager_pool_cnt(&node->fetch_result_pool, node->buf_manager_handle);
 	if (in_queue_cnt == 0 && proc_queue_cnt == 0) {
 		node->is_fast_stop = 0;
 		complete(node->fast_stop_done);
@@ -1549,8 +1499,7 @@ int pyr_dec_node_close(void *handle)
 
 	camthread_stop(&node->thread);
 
-	ret = wait_for_completion_timeout(
-		&node->frm_done, ISP_CONTEXT_TIMEOUT);
+	ret = wait_for_completion_timeout(&node->frm_done, ISP_CONTEXT_TIMEOUT);
 	if (ret == 0)
 		pr_err("fail to wait pyr dec, timeout.\n");
 	else
@@ -1560,14 +1509,19 @@ int pyr_dec_node_close(void *handle)
 	while (dec_dev->in_irq_handler && (loop < 1000)) {
 		pr_debug("ctx %d in irq. wait %d", node->node_id, loop);
 		loop++;
-		udelay(500);
+		os_adapt_time_udelay(500);
 	};
 	if (loop == 1000)
 		pr_warn("warning: pyrdec node close wait irq timeout\n");
 	pyrdec_node_dev_unbind(node);
 
-	cam_buf_manager_pool_unreg(&node->fetch_unprocess_pool);
-	cam_buf_manager_pool_unreg(&node->fetch_result_pool);
+	cam_buf_manager_pool_unreg(&node->fetch_unprocess_pool, node->buf_manager_handle);
+	cam_buf_manager_pool_unreg(&node->fetch_result_pool, node->buf_manager_handle);
+	mutex_lock(&node->blkpm_q_lock);
+	cam_queue_clear(&node->param_share_queue, struct cam_frame, list);
+	cam_queue_clear(&node->param_buf_queue, struct cam_frame, list);
+	mutex_unlock(&node->blkpm_q_lock);
+
 	return ret;
 }
 
@@ -1605,33 +1559,28 @@ void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param)
 	node->layer_num = param->layer_num;
 	node->in_fmt = param->in_fmt;
 	node->pyr_out_fmt = param->pyr_out_fmt;
-	node->share_buffer = param->share_buffer;
 	node->hw = param->hw;
 	node->dev = param->dev;
 	node->pyrdec_dev = param->pyrdec_dev;
+	node->buf_manager_handle = param->buf_manager_handle;
+	node->blkparam_buf_num = param->blkparam_buf_num;
 
 	if (node->data_cb_func == NULL) {
 		node->data_cb_func = param->data_cb_func;
 		node->data_cb_handle = param->data_cb_handle;
 	}
 
-	if (node->buf_cb_func == NULL)
-		node->buf_cb_func = param->buf_cb_func;
-
-	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_REC_BUF_Q_LEN);
-	if (ret < 0) {
-		pr_err("fail to reg pool for node_id %d\n", node->node_id);
-		cam_buf_kernel_sys_vfree(node);
-		return NULL;
+	if (node->port_cfg_cb_func == NULL) {
+		node->port_cfg_cb_func = param->port_cfg_cb_func;
+		node->port_cfg_cb_handle = param->port_cfg_cb_handle;
 	}
-	node->store_result_pool.private_pool_idx = ret;
 
 	mutex_init(&node->blkpm_lock);
 
 	ret = pyrdec_node_proc_init(node);
 	if (unlikely(ret != 0)) {
 		pr_err("fail to proc init for pyr dec\n");
-		return NULL;
+		goto init_dec_err;
 	}
 
 	*param->node_dev = node;
@@ -1646,6 +1595,11 @@ exit:
 	atomic_inc(&node->user_cnt);
 	pr_info("node id %d, node_idx %d\n", node->node_id, node->node_idx);
 	return node;
+
+init_dec_err:
+	cam_buf_kernel_sys_vfree(node);
+	return NULL;
+
 }
 
 void pyr_dec_node_put(struct pyr_dec_node *node)
@@ -1655,10 +1609,8 @@ void pyr_dec_node_put(struct pyr_dec_node *node)
 		return;
 	}
 
-	cam_buf_manager_pool_unreg(&node->store_result_pool);
 	node->data_cb_func = NULL;
 	node->data_cb_handle = NULL;
-	node->buf_cb_func = NULL;
 
 	if (node)
 		cam_buf_kernel_sys_vfree(node);

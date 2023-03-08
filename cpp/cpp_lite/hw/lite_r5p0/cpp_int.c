@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 

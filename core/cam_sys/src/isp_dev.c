@@ -27,9 +27,7 @@
 
 unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_NUM];
 static DEFINE_MUTEX(isp_pipe_dev_mutex);
-struct isp_pipe_dev *s_isp_dev;
 uint32_t s_dbg_linebuf_len = ISP_LINE_BUFFER_W;
-extern int s_dbg_work_mode;
 
 static int ispdev_sec_cfg(struct isp_pipe_dev *dev, void *param)
 {
@@ -107,7 +105,7 @@ static int ispdev_context_init(struct isp_pipe_dev *dev)
 				continue;
 			}
 			bind_fmcu = 1;
-		} else if (*(hw->ip_isp->ctx_fmcu_support + i)) {
+		} else if (*(hw->ip_isp->isphw_abt->ctx_fmcu_support + i)) {
 			bind_fmcu = 1;
 		}
 
@@ -211,10 +209,10 @@ static int ispdev_open(void *isp_handle, void *param)
 		else
 			g_camctrl.isp_linebuf_len = ISP_LINE_BUFFER_W;
 
-		if (dev->sec_mode == SEC_SPACE_PRIORITY)
+		if (dev->sec_mode == SEC_TIME_PRIORITY)
 			dev->wmode = ISP_AP_MODE;
 		else
-			dev->wmode = s_dbg_work_mode;
+			dev->wmode = ISP_CFG_MODE;
 		g_camctrl.isp_wmode = dev->wmode;
 
 		dev->isp_hw = hw;
@@ -227,7 +225,7 @@ static int ispdev_open(void *isp_handle, void *param)
 
 		ret = isp_drv_hw_init(dev);
 		atomic_set(&dev->pd_clk_rdy, 1);
-		if (dev->pyr_dec_handle == NULL && hw->ip_isp->pyr_dec_support) {
+		if (dev->pyr_dec_handle == NULL && hw->ip_isp->isphw_abt->pyr_dec_support) {
 			dev->pyr_dec_handle = pyr_dec_dev_get(dev, hw);
 			if (!dev->pyr_dec_handle) {
 				pr_err("fail to get memory for dec_dev.\n");
@@ -247,7 +245,7 @@ static int ispdev_open(void *isp_handle, void *param)
 	return 0;
 
 dec_err:
-	if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
+	if (dev->pyr_dec_handle && hw->ip_isp->isphw_abt->pyr_dec_support) {
 		pyr_dec_dev_put(dev->pyr_dec_handle);
 		dev->pyr_dec_handle = NULL;
 	}
@@ -280,7 +278,7 @@ static int ispdev_close(void *isp_handle)
 	if (atomic_dec_return(&dev->enable) == 0 && atomic_read(&dev->pd_clk_rdy)) {
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
 		ret = ispdev_context_deinit(dev);
-		if (dev->pyr_dec_handle && hw->ip_isp->pyr_dec_support) {
+		if (dev->pyr_dec_handle && hw->ip_isp->isphw_abt->pyr_dec_support) {
 			pyr_dec_dev_put(dev->pyr_dec_handle);
 			dev->pyr_dec_handle = NULL;
 		}
@@ -416,6 +414,7 @@ exit:
 	pctx_hw->cfg_id = inode->cfg_id;
 	pctx_hw->postproc_func = postproc_func;
 	inode->is_bind = 1;
+	inode->pctx_hw_id = hw_ctx_id;
 	pr_debug("sw %d, hw %d %d, fmcu_need %d ptr 0x%lx\n",
 		inode->node_id, hw_ctx_id, pctx_hw->hw_ctx_id,
 		use_fmcu, (unsigned long)pctx_hw->fmcu_handle);
@@ -452,6 +451,7 @@ static uint32_t ispnode_context_unbind(void *node)
 			pctx_hw->node = NULL;
 			pctx_hw->postproc_func = NULL;
 			inode->is_bind = 0;
+			inode->pctx_hw_id = ISP_CONTEXT_HW_NUM;
 			goto exit;
 		}
 
@@ -514,17 +514,18 @@ static struct isp_pipe_ops isp_ops = {
 	.unbind = ispnode_context_unbind,
 };
 
-void *isp_core_pipe_dev_get(void)
+void *isp_core_pipe_dev_get(struct cam_hw_info *hw, void *s_isp_dev)
 {
 	struct isp_pipe_dev *dev = NULL;
+	struct isp_pipe_dev **s_isp = (struct isp_pipe_dev **)s_isp_dev;
 
 	mutex_lock(&isp_pipe_dev_mutex);
 
-	if (s_isp_dev) {
-		atomic_inc(&s_isp_dev->user_cnt);
-		dev = s_isp_dev;
+	if (*s_isp) {
+		atomic_inc(&(*s_isp)->user_cnt);
+		dev = *s_isp;
 		pr_info("s_isp_dev is already exist=%p, user_cnt=%d",
-			s_isp_dev, atomic_read(&s_isp_dev->user_cnt));
+			*s_isp, atomic_read(&(*s_isp)->user_cnt));
 		goto exit;
 	}
 
@@ -538,7 +539,9 @@ void *isp_core_pipe_dev_get(void)
 	complete(&dev->frm_done);
 	dev->isp_ops = &isp_ops;
 
-	s_isp_dev = dev;
+	hw->s_isp_dev_debug = dev;
+	*s_isp = dev;
+	s_isp_dev = (void *)(*s_isp);
 	if (dev)
 		pr_info("get isp pipe dev: %p\n", dev);
 exit:
@@ -547,10 +550,11 @@ exit:
 	return dev;
 }
 
-int isp_core_pipe_dev_put(void *isp_handle)
+int isp_core_pipe_dev_put(void *isp_handle, void *s_isp_dev)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
+	struct isp_pipe_dev *s_isp = (struct isp_pipe_dev *)s_isp_dev;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -559,14 +563,14 @@ int isp_core_pipe_dev_put(void *isp_handle)
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pr_info("put isp pipe dev:%p, s_isp_dev:%p,  users: %d\n",
-		dev, s_isp_dev, atomic_read(&dev->user_cnt));
+		dev, s_isp, atomic_read(&dev->user_cnt));
 
 	mutex_lock(&isp_pipe_dev_mutex);
 
-	if (dev != s_isp_dev) {
+	if (dev != s_isp) {
 		mutex_unlock(&isp_pipe_dev_mutex);
 		pr_err("fail to match dev: %p, %p\n",
-					dev, s_isp_dev);
+					dev, s_isp);
 		return -EINVAL;
 	}
 
@@ -576,7 +580,7 @@ int isp_core_pipe_dev_put(void *isp_handle)
 		pr_info("free isp pipe dev %p\n", dev);
 		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
-		s_isp_dev = NULL;
+		s_isp = NULL;
 	}
 	mutex_unlock(&isp_pipe_dev_mutex);
 

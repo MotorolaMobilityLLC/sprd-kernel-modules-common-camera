@@ -14,10 +14,10 @@
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/version.h>
+#include <os_adapt_common.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_vsp_pw_domain.h>
 #endif
@@ -138,7 +138,7 @@ static int cpphw_module_reset(void *cpp_soc_handle)
 		soc_cpp->syscon_regs[CPP_RST].reg,
 		soc_cpp->syscon_regs[CPP_RST].mask,
 		soc_cpp->syscon_regs[CPP_RST].mask);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->syscon_regs[CPP_RST].gpr,
 		soc_cpp->syscon_regs[CPP_RST].reg,
 		soc_cpp->syscon_regs[CPP_RST].mask,
@@ -161,7 +161,7 @@ static int cpphw_scale_reset(void *cpp_soc_handle)
 		soc_cpp->syscon_regs[CPP_PATH0_RST].reg,
 		soc_cpp->syscon_regs[CPP_PATH0_RST].mask,
 		soc_cpp->syscon_regs[CPP_PATH0_RST].mask);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->syscon_regs[CPP_PATH0_RST].gpr,
 		soc_cpp->syscon_regs[CPP_PATH0_RST].reg,
 		soc_cpp->syscon_regs[CPP_PATH0_RST].mask,
@@ -184,7 +184,7 @@ static int cpphw_rot_reset(void *cpp_soc_handle)
 		soc_cpp->syscon_regs[CPP_PATH1_RST].reg,
 		soc_cpp->syscon_regs[CPP_PATH1_RST].mask,
 		soc_cpp->syscon_regs[CPP_PATH1_RST].mask);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->syscon_regs[CPP_PATH1_RST].gpr,
 		soc_cpp->syscon_regs[CPP_PATH1_RST].reg,
 		soc_cpp->syscon_regs[CPP_PATH1_RST].mask,

@@ -35,7 +35,7 @@ enum cam_buf_map_type {
 struct cam_buf_alloc_info {
 	void *addr;
 	timeval time;
-	struct list_head list;
+	struct cam_q_head list;
 };
 
 struct cam_buf_map_info {
@@ -46,7 +46,7 @@ struct cam_buf_map_info {
 	timeval buf_time;
 	timeval map_time;
 	struct camera_buf *buf_info;
-	struct list_head list;
+	struct cam_q_head list;
 };
 
 void cam_buf_monitor_memory_queue_init(void);

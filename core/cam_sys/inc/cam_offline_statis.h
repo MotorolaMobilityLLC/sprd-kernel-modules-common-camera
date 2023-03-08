@@ -22,14 +22,13 @@
 
 struct offlinestatis_port_buf_info {
 	enum cam_port_dcam_offline_out_id port_id;
+	enum isp_statis_buf_type buf_type;
 	size_t buf_size;
 	size_t buf_cnt;
-	uint32_t buf_type;
 };
 
 /* dcam offline */
-int camoffline_statis_dcam_port_bufferq_init(void *dcam_handle);
-int camoffline_statis_dcam_port_bufferq_deinit(void *dcam_handle);
-int camoffline_statis_dcam_port_buffer_cfg(void *dcam_handle, struct isp_statis_buf_input *input);
+int cam_offline_statis_dcam_port_bufferq_deinit(void *dcam_handle);
+int cam_offline_statis_dcam_port_buffer_cfg(void *dcam_handle, void *param);
 
 #endif

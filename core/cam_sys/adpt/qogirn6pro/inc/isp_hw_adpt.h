@@ -21,7 +21,6 @@
 #define ISP_HEIGHT_MAX                  9054
 #define ISP_SCALER_UP_MAX               10
 #define ISP_SLCIE_HEIGHT_MAX            8192
-
 #define ISP_SC_COEFF_COEF_SIZE          (2 << 12)
 #define ISP_SC_COEFF_TMP_SIZE           (21 << 12)
 
@@ -35,6 +34,10 @@
 #define ISP_SC_COEFF_V_CHROMA_NUM       (ISP_SC_V_CHROM_COEF_SIZE / 4)
 
 #define ISP_SC_COEFF_BUF_SIZE           (24 << 12)
+
+#define ISP_THUMB_SCL_UP_MAX            1
+#define ISP_THUMB_SCL_WIDTH_MAX         640
+#define ISP_THUMB_SCL_HEIGHT_MAX        480
 
 #define ISP_FBD_TILE_WIDTH              32
 #define ISP_FBD_TILE_HEIGHT             8

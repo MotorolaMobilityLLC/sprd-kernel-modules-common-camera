@@ -14,9 +14,9 @@
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <os_adapt_common.h>
 
 #include "cpp_drv.h"
 #include "cpp_reg.h"
@@ -137,7 +137,7 @@ static int cpphw_module_reset(void *cpp_soc_handle)
 		 soc_cpp->syscon.path1_soft_rst_mask | soc_cpp->syscon.dma_soft_rst_mask);
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
 			cpp_module_reset_mask, cpp_module_reset_mask);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
 			cpp_module_reset_mask, ~cpp_module_reset_mask);
 	return 0;
@@ -154,7 +154,7 @@ static int cpphw_scale_reset(void *cpp_soc_handle)
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
 			soc_cpp->syscon.path0_soft_rst_mask, soc_cpp->syscon.path0_soft_rst_mask);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
 			soc_cpp->syscon.path0_soft_rst_mask, ~soc_cpp->syscon.path0_soft_rst_mask);
 	return 0;
@@ -171,7 +171,7 @@ static int cpphw_rot_reset(void *cpp_soc_handle)
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
 			soc_cpp->syscon.path1_soft_rst_mask, soc_cpp->syscon.path1_soft_rst_mask);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, soc_cpp->syscon.ahb_rst,
 			soc_cpp->syscon.path1_soft_rst_mask, ~soc_cpp->syscon.path1_soft_rst_mask);
 	return 0;

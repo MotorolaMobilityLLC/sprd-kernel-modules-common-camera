@@ -39,8 +39,7 @@ int isp_k_dct_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	return ret;
 }
 
-int isp_k_cfg_dct(struct isp_io_param *param,
-	struct dcam_isp_k_block *isp_k_param)
+int isp_k_cfg_dct(struct isp_io_param *param, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	struct isp_dev_dct_info *dct = NULL;

@@ -14,19 +14,7 @@
 #ifndef _ISP_REG_H_
 #define _ISP_REG_H_
 
-#define ISP_MAX_COUNT                           1
-#define ISP_LOGICAL_COUNT                       2
-#define ISP_CONTEXT_MAX                         4
-#define ISP_CONTEXT_SW_MAX                      9
-
-extern uint32_t s_isp_irq_no[ISP_LOGICAL_COUNT];
-extern unsigned long s_isp_regbase[ISP_MAX_COUNT];
-extern unsigned long isp_phys_base[ISP_MAX_COUNT];
-extern unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_MAX];
-extern unsigned long s_isp_mmubase;
-
-#define ISP_PHYS_ADDR(idx)                      (isp_phys_base[idx])
-
+#define ISP_LOGICAL_COUNT               2
 
 #define ISP_P0_INT_BASE                         (0x0000UL)
 #define ISP_P1_INT_BASE                         (0x0D00UL)
@@ -765,51 +753,10 @@ extern unsigned long s_isp_mmubase;
 #define ISP_AXI_CHK_SUM_CTRL                    (0x052CUL)
 #define ISP_AXI_TIMEOUT_PARAM                   (0x0558UL)
 
-#define ISP_MMU_VERSION                         (0x0000UL)
-#define ISP_MMU_EN                              (0x0004UL)
+#define ISP_MMU_EN                              (0x0000UL)
 #define ISP_MMU_INT_EN                          (0x00A0UL)
 #define ISP_MMU_INT_CLR                         (0x00A4UL)
 #define ISP_MMU_INT_STS                         (0x00A8UL)
 #define ISP_MMU_INT_RAW                         (0x00ACUL)
-
-/******************************************************************************/
-
-#define ISP_BASE_ADDR(idx)                      (*(isp_cfg_poll_addr[idx]))
-#define ISP_GET_REG(reg)                        (ISP_PHYS_ADDR(0) + (reg))
-
-#define ISP_REG_WR(idx, reg, val)               (REG_WR(ISP_BASE_ADDR(idx) + (reg), (val)))
-#define ISP_REG_RD(idx, reg)                    (REG_RD(ISP_BASE_ADDR(idx) + (reg)))
-
-#define ISP_REG_MWR(idx, reg, msk, val)         (ISP_REG_WR((idx), (reg), \
-	((val) & (msk)) |                       \
-	(ISP_REG_RD((idx), (reg)) & (~(msk)))))
-
-#define ISP_REG_OWR(idx, reg, val)              \
-	(ISP_REG_WR((idx), (reg),               \
-	(ISP_REG_RD((idx), (reg)) | (val))))
-
-/* won't access CFG buffers */
-#define ISP_HREG_WR(reg, val)                   \
-	(REG_WR(s_isp_regbase[0] + (reg), (val)))
-
-#define ISP_HREG_RD(reg)                        \
-	(REG_RD(s_isp_regbase[0] + (reg)))
-
-#define ISP_HREG_MWR(reg, msk, val)             \
-	(REG_WR(s_isp_regbase[0] + (reg),       \
-	((val) & (msk)) |                       \
-	(REG_RD(s_isp_regbase[0] + (reg)) &     \
-	(~(msk)))))
-
-#define ISP_HREG_OWR(reg, val)                  \
-	(REG_WR(s_isp_regbase[0] + (reg),       \
-	(REG_RD(s_isp_regbase[0] + (reg)) | (val))))
-
-/* To access ISP IOMMU  Registers*/
-#define ISP_MMU_BASE s_isp_mmubase
-#define ISP_MMU_WR(reg, val)                    (REG_WR(ISP_MMU_BASE+(reg), (val)))
-#define ISP_MMU_RD(reg)                          (REG_RD(ISP_MMU_BASE+(reg)))
-#define ISP_MMU_MWR(reg, msk, val)              \
-	ISP_MMU_WR((reg), ((val) & (msk)) | (ISP_MMU_RD(reg) & (~(msk))))
 
 #endif

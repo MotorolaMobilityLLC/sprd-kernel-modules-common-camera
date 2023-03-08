@@ -18,6 +18,8 @@
 #include <linux/device.h>
 #include "cam_types.h"
 
+typedef void (*dcam_int_isr)(void *param);
+
 /* interrupt bits for DCAM0 or DCAM1 */
 enum {
 	DCAM_SENSOR_SOF         = 0,
@@ -29,8 +31,8 @@ enum {
 	DCAM_PREVIEW_SOF        = 5,
 	DCAM_ISP_ENABLE_PULSE   = 6,
 	DCAM_FETCH_SOF_INT      = 7,
-	DCAM_AFL_LAST_SOF       = 8,
 
+	DCAM_AFL_LAST_SOF       = 8,
 	DCAM_BPC_MEM_ERR        = 9,
 	DCAM_CAP_LINE_ERR       = 10,
 	DCAM_CAP_FRM_ERR        = 11,
@@ -40,19 +42,23 @@ enum {
 	/* reserved */
 	/* reserved */
 
+	/* reserved */
+	/* reserved */
 	DCAM_FULL_PATH_TX_DONE  = 18,
 	DCAM_PREV_PATH_TX_DONE  = 19,
+
 	DCAM_AEM_TX_DONE        = 20,
 	DCAM_PDAF_PATH_TX_DONE  = 21,
 	DCAM_VCH2_PATH_TX_DONE  = 22,
 	DCAM_VCH3_PATH_TX_DONE  = 23,
+
 	DCAM_BPC_MAP_DONE       = 24,
 	DCAM_BPC_POS_DONE       = 25,
 	DCAM_AFM_INTREQ0        = 26,
 	DCAM_AFM_INTREQ1        = 27,
+
 	DCAM_AFL_TX_DONE        = 28,
 	DCAM_NR3_TX_DONE        = 29,
-	/* reserved */
 	/* reserved */
 	DCAM_MMU_INT            = 31,
 
@@ -180,18 +186,24 @@ struct nr3_done {
 	uint32_t out1;
 };
 
+struct dcam_sequences{
+	size_t count;
+	const int *bits;
+};
+
 struct dcam_irq_info {
 	uint32_t irq_num;
 	uint32_t status;
 	uint32_t status1;
+	const dcam_int_isr (*_DCAM_ISR_IRQ)[DCAM_IRQ_NUMBER];
+	const struct dcam_sequences (*DCAM_SEQUENCES)[1];
 };
 
-int dcam_int_irq_request(struct device *pdev, int irq, void *param);
-void dcam_int_irq_free(struct device *pdev, void *param);
 int dcam_int_irq_desc_get(uint32_t index, void *param);
-void dcam_int_tracker_reset(uint32_t idx);
-void dcam_int_tracker_dump(uint32_t idx);
-irqreturn_t dcamint_error_handler(void *dcam_hw_ctx, uint32_t status);
-void dcamint_dcam_status_rw(struct dcam_irq_info irq_info, void *priv);
+struct nr3_done dcam_int_nr3_done_rd(void *param, uint32_t idx);
+void dcam_int_iommu_regs_dump(void *param);
+void dcam_int_status_warning(void *param, uint32_t status, uint32_t status1);
+struct dcam_irq_info dcam_int_isr_handle(void *param);
+struct dcam_irq_info dcam_int_mask_clr(uint32_t idx);
 
 #endif

@@ -31,10 +31,13 @@
 #define RAW_OVERLAP_RIGHT              138
 #define DCAM_SW_SLICE_HEIGHT_MAX       8192
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
-#define CAM_FACEID_SEC
 #define DCAM_SCALE_DOWN_MAX            4
 #define DCAM_SCALER_MAX_WIDTH          0xFFFFFFFF
 #define DCAM_SCALER_DECI_MAX_WIDTH     0xFFFFFFFF
+#define DCAM_RDS_UP_MAX                1
+#define DCAM_RDS_DOWN_MAX              4
+#define DCAM_RDS_MAX_IN_WIDTH          5664
+#define DCAM_RDS_MAX_OUT_WIDTH         2160
 
 #define DCAM_PATH_CROP_ALIGN           8
 #define DCAM_FBC_TILE_WIDTH            64
@@ -44,8 +47,11 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 #define GTM_HIST_ITEM_NUM              128
 #define GTM_HIST_VALUE_SIZE            129
-#define CAL_PACK_PITCH(w)              (((w) * 10 + 127) / 128 * 128 / 8)
-#define CAL_UNPACK_PITCH(w)            (((w) * 16 + 127) / 128 * 128 / 8)
+#define GTM_HIST_XPTS_CNT              256
+#define CAL_HW_PACK_PITCH(w)           (((w) * 10 + 127) / 128)
+#define CAL_HW_UNPACK_PITCH(w)         (((w) * 16 + 127) / 128)
+#define CAL_PACK_PITCH(w)              (CAL_HW_PACK_PITCH(w) * 128 / 8)
+#define CAL_UNPACK_PITCH(w)            (CAL_HW_UNPACK_PITCH(w) * 128 / 8)
 #define CAL_FULLRGB14_PITCH(w)         (0)
 
  /* dcamoffline limit hw: 1500us(2.0ms)/M, node:3ms*/
@@ -97,16 +103,6 @@ static inline uint32_t dcamonline_dec_align_width(uint32_t w, uint32_t layer_num
 static inline uint32_t dcamonline_dec_align_heigh(uint32_t h, uint32_t layer_num)
 {
 	return 0;
-}
-
-static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
-{
-	if (pack_bits == CAM_RAW_PACK_10)
-		w = (w * 10 + 127) / 128 * 128 / 8;
-	else
-		w = (w * 16 + 127) / 128 * 128 / 8;
-
-	return w;
 }
 
 static inline uint32_t dcam_if_cal_compressed_size(struct dcam_compress_cal_para *para)

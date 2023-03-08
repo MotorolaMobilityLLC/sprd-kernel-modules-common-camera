@@ -12,6 +12,7 @@
  */
 
 #include "cam_hw.h"
+#include "cam_buf_manager.h"
 #include "isp_fmcu.h"
 #include "isp_reg.h"
 
@@ -198,22 +199,13 @@ static int ispfmcu_ctx_init(void *handle)
 	}
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		ret = cam_buf_kmap(ion_buf);
-		if (ret) {
-			pr_err("fail to kmap fmcu buffer\n");
-			ret = -EFAULT;
-			goto err_kmap_fmcu;
-		}
-		fmcu_ctx->cmd_buf[i] = (uint32_t *)ion_buf->addr_k;
-	}
-	for (i = 0; i < MAX_BUF; i++) {
-		ion_buf = &fmcu_ctx->ion_pool[i];
-		ret = cam_buf_iommu_map(ion_buf, CAM_BUF_IOMMUDEV_ISP);
+		ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
 		if (ret) {
 			pr_err("fail to map fmcu buffer\n");
 			ret = -EFAULT;
-			goto err_hwmap_fmcu;
+			goto err_map_fmcu;
 		}
+		fmcu_ctx->cmd_buf[i] = (uint32_t *)ion_buf->addr_k;
 		fmcu_ctx->hw_addr[i] = ion_buf->iova[CAM_BUF_IOMMUDEV_ISP];
 		fmcu_ctx->cmdq_pos[i] = 0;
 		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
@@ -222,18 +214,11 @@ static int ispfmcu_ctx_init(void *handle)
 	}
 
 	return 0;
-
-err_hwmap_fmcu:
+err_map_fmcu:
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
-			cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
-	}
-err_kmap_fmcu:
-	for (i = 0; i < MAX_BUF; i++) {
-		ion_buf = &fmcu_ctx->ion_pool[i];
-		if (ion_buf)
-			cam_buf_kunmap(ion_buf);
+			cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_PUT_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
 	}
 err_alloc_fmcu:
 	for (i = 0; i < MAX_BUF; i++) {
@@ -259,8 +244,7 @@ static int ispfmcu_ctx_deinit(void *handle)
 	fmcu_ctx = (struct isp_fmcu_ctx_desc *)handle;
 	for (i = 0; i < MAX_BUF; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_ISP);
-		cam_buf_kunmap(ion_buf);
+		cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_ISP);
 		cam_buf_free(ion_buf);
 	}
 

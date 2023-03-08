@@ -14,11 +14,18 @@
 #ifndef _DCAM_ONLINE_NODE_H_
 #define _DCAM_ONLINE_NODE_H_
 
+#include <os_adapt_common.h>
 #include "cam_types.h"
 #include "dcam_online_port.h"
 #include "cam_hw.h"
 #include "dcam_interface.h"
 #include "cam_block.h"
+
+enum dcam_csi_state {
+	DCAM_CSI_IDLE,
+	DCAM_CSI_PAUSE,
+	DCAM_CSI_RESUME,
+};
 
 enum dcam_online_node_id {
 	DCAM_ONLINE_PRE_NODE_ID,
@@ -40,29 +47,29 @@ enum dcam_slowmotion_type {
 
 enum dcam_statis_ioctl_cmd {
 	DCAM_IOCTL_CFG_STATIS_BUF,
-	DCAM_IOCTL_INIT_STATIS_Q,
 	DCAM_IOCTL_DEINIT_STATIS_Q,
-	DCAM_IOCTL_CFG_STATIS_BUF_SKIP,
 };
 
 struct dcam_statis_param {
 	enum dcam_statis_ioctl_cmd statis_cmd;
 	void *param;
+	uint32_t *buf_size;
 };
 
 struct dcam_online_node_desc {
-	uint32_t node_type;
-	uint32_t offline;
+	enum cam_node_type node_type;
+	enum en_status offline;
 	uint32_t slowmotion_count;
-	uint32_t enable_3dnr;
-	uint32_t is_raw;
-	uint32_t raw_cap;
-	uint32_t is_4in1;
+	uint32_t pattern;
+	enum cam_data_endian endian;
+	enum en_status enable_3dnr;
+	enum en_status is_4in1;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	void **node_dev;
 	struct dcam_mipi_info cap_info;
 	struct dcam_online_port_desc port_desc[PORT_DCAM_OUT_MAX];
@@ -73,9 +80,9 @@ struct dcam_online_node_desc {
 	void *port_cfg_cb_handle;
 	shutoff_cfg_cb shutoff_cfg_cb_func;
 	void *shutoff_cfg_cb_handle;
-	uint32_t is_pyr_rec;
+	enum en_status is_pyr_rec;
 	uint32_t dcam_idx;
-	uint32_t raw_alg_type;
+	enum raw_alg_types raw_alg_type;
 	uint32_t param_frame_sync;
 	struct dcam_isp_k_block *blk_pm;
 };
@@ -86,18 +93,19 @@ struct dcam_online_node {
 	atomic_t state;/* TODO: use mutex to protect */
 	atomic_t ch_enable_cnt;
 	bool need_fix;
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	uint32_t node_id;
-	uint32_t is_3dnr;
-	uint32_t is_4in1;
+	enum en_status is_3dnr;
+	enum en_status is_4in1;
 	uint32_t slowmotion_count;
-	uint32_t is_pyr_rec;
-	uint32_t csi_connect_stat;
+	enum en_status is_pyr_rec;
+	enum dcam_csi_state csi_connect_stat;
 	uint32_t in_irq_proc;
 	enum dcam_slowmotion_type slw_type;
 
 	struct camera_queue port_queue;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	cam_data_cb data_cb_func;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
@@ -116,7 +124,7 @@ struct dcam_online_node {
 	timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
 	struct dcam_isp_k_block blk_pm;
-	uint32_t raw_alg_type;
+	enum raw_alg_types raw_alg_type;
 	uint32_t param_frame_sync;
 
 	shutoff_cfg_cb shutoff_cfg_cb_func;
@@ -149,6 +157,6 @@ int dcam_online_node_stop_proc(struct dcam_online_node *node, void *param);
 int dcam_online_set_shutoff(void *handle, void *param, uint32_t port_id);
 void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param);
 void dcam_online_node_put(struct dcam_online_node *node);
-int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct camera_frame *frame);
+int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct cam_frame *frame);
 
 #endif

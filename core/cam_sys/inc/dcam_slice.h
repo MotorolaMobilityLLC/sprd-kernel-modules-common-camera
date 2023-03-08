@@ -19,6 +19,6 @@
 uint32_t dcamslice_needed_info_get(struct dcam_hw_context *pctx, uint32_t *dev_lbuf, uint32_t in_width);
 int dcamslice_num_info_get(struct img_size *src, struct img_size *dst);
 int dcamslice_trim_info_get(uint32_t width, uint32_t heigth, uint32_t slice_num, uint32_t slice_no, struct img_trim *slice_trim);
-int dcam_slice_info_cal(struct dcam_offline_slice_info *slice, struct camera_frame *pframe, uint32_t lbuf_width);
+int dcam_slice_info_cal(struct dcam_offline_slice_info *slice, struct cam_frame *pframe, uint32_t lbuf_width);
 
 #endif

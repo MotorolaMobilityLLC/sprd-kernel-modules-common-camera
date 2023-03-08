@@ -371,6 +371,7 @@ normal_reg_trace:
 			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
 	}
 
+	/* full tee faceid need shield */
 	pr_info("dcam axim\n");
 	for (addr = AXIM_CTRL; addr <= DCAM_PORT_CFG;
 			addr += 16) {
@@ -479,7 +480,7 @@ static int isphw_reset(void *handle, void *arg)
 		/* bit3: 1 - axi idle;  0 - axi busy */
 		if  (ISP_HREG_RD(ISP_INT_STATUS) & BIT_3)
 			break;
-		udelay(1000);
+		os_adapt_time_udelay(1000);
 	}
 
 	if (time_out >= ISP_AXI_STOP_TIMEOUT) {
@@ -490,7 +491,7 @@ static int isphw_reset(void *handle, void *arg)
 			| ip->syscon.rst_vau_mask;
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, flag, flag);
-		udelay(10);
+		os_adapt_time_udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, flag, ~flag);
 	}
@@ -884,12 +885,16 @@ static int isphw_path_store(void *handle, void *arg)
 	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_SIZE, val);
 
 	ISP_REG_WR(idx, addr + ISP_STORE_BORDER, 0);
-	ISP_REG_WR(idx, addr + ISP_STORE_Y_PITCH, store_info->pitch.pitch_ch0);
-	ISP_REG_WR(idx, addr + ISP_STORE_U_PITCH, store_info->pitch.pitch_ch1);
-	ISP_REG_WR(idx, addr + ISP_STORE_V_PITCH, store_info->pitch.pitch_ch2);
 
-	pr_debug("set_store size %d %d\n",
-		store_info->size.w, store_info->size.h);
+	if (path_store->sec_mode == SEC_TIME_PRIORITY)
+		cam_trusty_isp_store_pitch_set(store_info->pitch.pitch_ch0,
+			store_info->pitch.pitch_ch1,
+			store_info->pitch.pitch_ch2);
+	else {
+		ISP_REG_WR(idx, addr + ISP_STORE_Y_PITCH, store_info->pitch.pitch_ch0);
+		ISP_REG_WR(idx, addr + ISP_STORE_U_PITCH, store_info->pitch.pitch_ch1);
+		ISP_REG_WR(idx, addr + ISP_STORE_V_PITCH, store_info->pitch.pitch_ch2);
+	}
 
 	ISP_REG_MWR(idx, addr + ISP_STORE_READ_CTRL,
 		0x3, store_info->rd_ctrl);
@@ -1456,7 +1461,6 @@ static int isphw_fetch_set(void *handle, void *arg)
 	uint32_t bwu_val = 0, val = 0;
 	uint32_t idx = 0;
 	struct isp_hw_fetch_info *fetch = NULL;
-	uint32_t pack_bits = 0;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -1465,7 +1469,6 @@ static int isphw_fetch_set(void *handle, void *arg)
 
 	fetch = (struct isp_hw_fetch_info *)arg;
 	idx = fetch->ctx_id;
-	pack_bits = cam_pack_bits(fetch->fetch_fmt);
 
 	pr_debug("enter: fmt:%s, w:%d, h:%d\n", camport_fmt_name_get(fetch->fetch_fmt),
 			fetch->in_trim.size_x, fetch->in_trim.size_y);
@@ -1482,7 +1485,7 @@ static int isphw_fetch_set(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_COMMON_SCL_PATH_SEL, BIT_6, 1 << 6);
 
 	ISP_REG_MWR(idx, ISP_FBD_RAW_SEL, BIT(0), 0x1);
-	if (pack_bits == CAM_RAW_14)
+	if (fetch->fetch_fmt == CAM_RAW_14)
 		bwu_val = 0x40001;
 	else
 		bwu_val = 0x40000;
@@ -1557,11 +1560,11 @@ static int isphw_fetch_set(void *handle, void *arg)
 		ISP_REG_MWR(idx, ISP_DISPATCH_LINE_DLY1, BIT_30, 1 << 30);
 	ISP_REG_WR(idx, ISP_FETCH_MEM_SLICE_SIZE,
 			fetch->in_trim.size_x | (fetch->in_trim.size_y << 16));
-	if (fetch->sec_mode == SEC_SPACE_PRIORITY) {
+	if (fetch->sec_mode == SEC_TIME_PRIORITY)
 		cam_trusty_isp_pitch_set(fetch->pitch.pitch_ch0,
 			fetch->pitch.pitch_ch1,
 			fetch->pitch.pitch_ch2);
-	} else {
+	else {
 		ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_PITCH, fetch->pitch.pitch_ch0);
 		ISP_REG_WR(idx, ISP_FETCH_SLICE_U_PITCH, fetch->pitch.pitch_ch1);
 		ISP_REG_WR(idx, ISP_FETCH_SLICE_V_PITCH, fetch->pitch.pitch_ch2);
@@ -2465,7 +2468,7 @@ static int isphw_stop(void *handle, void *arg)
 		ISP_HREG_RD(ISP_C0_INT_BASE + ISP_INT_STATUS),
 		ISP_HREG_RD(ISP_P1_INT_BASE + ISP_INT_STATUS),
 		ISP_HREG_RD(ISP_C1_INT_BASE + ISP_INT_STATUS));
-	udelay(10);
+	os_adapt_time_udelay(10);
 
 	for (cid = 0; cid < 4; cid++)
 		hw->isp_ioctl(hw, ISP_HW_CFG_CLEAR_IRQ, &cid);
@@ -2485,9 +2488,15 @@ static int isphw_frame_addr_store(void *handle, void *arg)
 	store_info = &path_store->store;
 	addr = store_base[path_store->spath_id];
 
-	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_Y_ADDR, store_info->addr.addr_ch0);
-	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_U_ADDR, store_info->addr.addr_ch1);
-	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_V_ADDR, store_info->addr.addr_ch2);
+	if (path_store->sec_mode == SEC_TIME_PRIORITY)
+		cam_trusty_isp_store_set(store_info->addr.addr_ch0,
+			store_info->addr.addr_ch1,
+			store_info->addr.addr_ch2);
+	else {
+		ISP_REG_WR(idx, addr + ISP_STORE_SLICE_Y_ADDR, store_info->addr.addr_ch0);
+		ISP_REG_WR(idx, addr + ISP_STORE_SLICE_U_ADDR, store_info->addr.addr_ch1);
+		ISP_REG_WR(idx, addr + ISP_STORE_SLICE_V_ADDR, store_info->addr.addr_ch2);
+	}
 
 	return 0;
 }
@@ -2505,13 +2514,14 @@ static int isphw_frame_addr_fetch(void *handle, void *arg)
 	fetch = (struct isp_hw_fetch_info *)arg;
 	idx = fetch->ctx_id;
 
-	if (fetch->sec_mode == SEC_SPACE_PRIORITY)
+	if (fetch->sec_mode == SEC_TIME_PRIORITY)
 		cam_trusty_isp_fetch_addr_set(fetch->addr_hw.addr_ch0,
 			fetch->addr_hw.addr_ch1, fetch->addr_hw.addr_ch2);
-	ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, fetch->addr_hw.addr_ch0);
-	ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR, fetch->addr_hw.addr_ch1);
-	ISP_REG_WR(idx, ISP_FETCH_SLICE_V_ADDR, fetch->addr_hw.addr_ch2);
-
+	else {
+		ISP_REG_WR(idx, ISP_FETCH_SLICE_Y_ADDR, fetch->addr_hw.addr_ch0);
+		ISP_REG_WR(idx, ISP_FETCH_SLICE_U_ADDR, fetch->addr_hw.addr_ch1);
+		ISP_REG_WR(idx, ISP_FETCH_SLICE_V_ADDR, fetch->addr_hw.addr_ch2);
+	}
 	return 0;
 }
 
@@ -2982,6 +2992,13 @@ static int isphw_gtmhist_get(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_cfg_mmu_wbypass(void *handle, void *arg)
+{
+	/* bypass mmu vaor, record the addr and not generate abnormal interrupt for fd buf */
+	ISP_MMU_MWR(ISP_MMU_EN, BIT_4, 1 << 4);
+	return 0;
+}
+
 static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
@@ -3038,6 +3055,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 	{ISP_HW_CFG_HIST_GET,                isphw_hist_get},
 	{ISP_HW_CFG_GTMHIST_GET,             isphw_gtmhist_get},
+	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
 };
 
 static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)

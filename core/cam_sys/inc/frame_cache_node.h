@@ -23,12 +23,13 @@ enum frame_cache_node_id {
 };
 
 struct frame_cache_node_desc {
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	uint32_t cache_real_num;
 	uint32_t cache_skip_num;
-	uint32_t is_share_buf;
-	uint32_t need_dual_sync;
+	enum en_status is_share_buf;
+	enum en_status need_dual_sync;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	cam_data_cb data_cb_func;
 	dual_frame_sync_cb dual_sync_func;
 	dual_slave_frame_set_cb dual_slave_frame_set;
@@ -37,24 +38,25 @@ struct frame_cache_node_desc {
 };
 
 struct frame_cache_node {
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	uint32_t cur_cache_skip_num;
 	uint32_t cache_real_num;
 	uint32_t cache_skip_num;
-	uint32_t is_share_buf;
-	uint32_t need_dual_sync;
+	enum en_status is_share_buf;
+	enum en_status need_dual_sync;
 	enum pre_raw_status pre_raw_flag;
 	uint32_t opt_frame_fid;
 	atomic_t opt_frame_done;
 	atomic_t user_cnt;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	cam_data_cb data_cb_func;
 	dual_frame_sync_cb dual_sync_func;
 	dual_slave_frame_set_cb dual_slave_frame_set;
 	cap_frame_status_cb cap_frame_status;
 	void *dual_sync_cb_data;
 
-	struct cam_linkage link_info;
+	struct cam_port_linkage link_info;
 	struct cam_capture_param cap_param;
 	struct camera_queue cache_buf_queue;
 };

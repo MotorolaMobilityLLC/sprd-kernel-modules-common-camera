@@ -16,6 +16,7 @@
 
 #include "cam_buf.h"
 #include "dcam_blkparam.h"
+#include "isp_interface.h"
 
 #if defined (PROJ_QOGIRN6L)
 #define FORMAT_FRGB_PITCH              6
@@ -34,23 +35,17 @@ struct isp_blkparam_adapt {
 	uint32_t sensor_height;
 };
 
-struct isp_k_block_param {
-	uint32_t cfg_id;
-	struct dcam_isp_k_block *isp_k_param;
-	struct dcam_isp_k_block *isp_using_param;
-};
-
 struct dcam_isp_k_block {
 	struct mutex param_lock;
 	struct img_trim in_size;
 	uint32_t idx;/* dcam dev idx */
 	void *dev;/* dcam_pipe_dev dev */
 	uint32_t cfg_id;/*isp cfg idx*/
-	uint32_t dcam_slice_mode;
+	enum camera_slice_mode dcam_slice_mode;
 	uint32_t raw_fetch_count;
-	uint32_t offline;
-	uint32_t frm_idx;
-	uint32_t is_high_fps;
+	enum en_status offline;
+	uint32_t recovery_fid;
+	enum en_status is_high_fps;
 	uint32_t seed0_for_mode1;
 	uint32_t yrandom_mode;
 	uint32_t gtm_calc_mode;
@@ -144,6 +139,12 @@ struct dcam_isp_k_block {
 	struct isp_dev_ygamma_info_v1 ygamma_info_v1;
 	struct isp_dev_yrandom_info yrandom_info;
 	struct isp_dev_noise_filter_info nf_info;
+};
+
+struct isp_k_block_param {
+	uint32_t cfg_id;
+	struct dcam_isp_k_block *isp_k_param;
+	struct dcam_isp_k_block *isp_using_param;
 };
 
 int dcam_init_lsc_slice(void *param, uint32_t online);
@@ -328,8 +329,8 @@ int isp_k_update_3dnr(uint32_t idx,
 	uint32_t new_height, uint32_t old_height);
 int isp_k_update_imbalance(void *handle);
 
-int init_dcam_pm(struct dcam_isp_k_block *blk_pm_ctx);
-int init_isp_pm(struct dcam_isp_k_block *isp_k_param);
+int cam_block_dcam_init(struct dcam_isp_k_block *blk_pm_ctx);
+int cam_block_isp_init(struct dcam_isp_k_block *isp_k_param);
 
 int isp_ltm_config_param(void *handle);
 int isp_pyr_rec_bypass(void *handle);

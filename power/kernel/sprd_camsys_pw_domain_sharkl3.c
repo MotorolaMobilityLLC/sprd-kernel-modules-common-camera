@@ -12,7 +12,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
@@ -22,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/pm_domain.h>
+#include <os_adapt_common.h>
 
 #include "sprd_camsys_domain.h"
 
@@ -92,7 +92,7 @@ static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 	clk_disable_unprepare(pw_info->u.l3.cam_mm_eb);
 
 	while (read_count++ < 10) {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		preg_gpr = &pw_info->u.l3.syscon_regs[CAMSYS_BUS_STATUS0];
 
 		ret = regmap_read(preg_gpr->gpr, preg_gpr->reg, &val);
@@ -141,7 +141,7 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	pmu_mm_state = 0x1f;
 	mm_off = 0x38000000;
 
-	usleep_range(300, 350);
+	os_adapt_time_usleep_range(300, 350);
 
 	preg_gpr = &pw_info->u.l3.syscon_regs[CAMSYS_SHUTDOWN_EN];
 	regmap_update_bits(preg_gpr->gpr,
@@ -155,7 +155,7 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 			preg_gpr->mask);
 
 	do {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		read_count++;
 		preg_gpr = &pw_info->u.l3.syscon_regs[CAMSYS_PWR_STATUS0];
 
@@ -209,7 +209,7 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 			~preg_gpr->mask);
 
 	for (i = 0; i < 30; i++) {
-		usleep_range(300, 350);
+		os_adapt_time_usleep_range(300, 350);
 		preg_gpr = &pw_info->u.l3.syscon_regs[CAMSYS_PWR_STATUS0];
 		cnt = 0;
 

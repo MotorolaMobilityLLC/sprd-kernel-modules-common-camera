@@ -11,10 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
-
 #include "dcam_core.h"
 #include "dcam_dummy.h"
+#include "dcam_int_common.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -22,7 +21,6 @@
 #define pr_fmt(fmt) "DCAM_CORE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 static DEFINE_MUTEX(s_dcam_dev_mutex);
-struct dcam_pipe_dev *s_dcam_dev;
 
 static void dcamcore_get_fmcu(struct dcam_hw_context *pctx_hw)
 {
@@ -38,10 +36,9 @@ static void dcamcore_get_fmcu(struct dcam_hw_context *pctx_hw)
 	hw = pctx_hw->hw;
 	hw_ctx_id = pctx_hw->hw_ctx_id;
 
-	if(hw->ip_dcam[hw_ctx_id]->fmcu_support) {
+	if(hw->ip_dcam[hw_ctx_id]->dcamhw_abt->fmcu_support) {
 		fmcu_info = dcam_fmcu_ctx_desc_get(hw, hw_ctx_id);
 		if (fmcu_info && fmcu_info->ops) {
-			fmcu_info->hw = hw;
 			ret = fmcu_info->ops->ctx_init(fmcu_info);
 			if (ret) {
 				pr_err("fail to init fmcu ctx\n");
@@ -81,7 +78,7 @@ static void dcamcore_get_dummy_slave(struct dcam_hw_context *pctx_hw)
 		return;
 	}
 
-	if(pctx_hw->hw->ip_dcam[hw_ctx_id]->dummy_slave_support) {
+	if(pctx_hw->hw->ip_dcam[hw_ctx_id]->dcamhw_abt->dummy_slave_support) {
 		dummy_slave = dcam_dummy_ctx_desc_get(pctx_hw->hw, DCAM_DUMMY_0);
 		if (dummy_slave && dummy_slave->dummy_ops) {
 			pctx_hw->dummy_slave = dummy_slave;
@@ -118,7 +115,7 @@ static int dcamcore_dummy_config(void *ctx, void *para)
 	dummy_slave = dcam_hw_ctx->dummy_slave;
 	param = DCAM_DUMMY_MODE_HW_AUTO;
 	dummy_slave->dummy_ops->cfg_param(dummy_slave, DCAM_DUMMY_CFG_HW_MODE, &param);
-	param = dcam_hw_ctx->hw->ip_dcam[dcam_hw_ctx->hw_ctx_id]->dummy_slave_support;
+	param = dcam_hw_ctx->hw->ip_dcam[dcam_hw_ctx->hw_ctx_id]->dcamhw_abt->dummy_slave_support;
 	dummy_slave->dummy_ops->cfg_param(dummy_slave, DCAM_DUMMY_CFG_SW_MODE, &param);
 	param = DCAM_DUMMY_SLAVE_SKIP_NUM;
 	dummy_slave->dummy_ops->cfg_param(dummy_slave, DCAM_DUMMY_CFG_SKIP_NUM, &param);
@@ -145,16 +142,16 @@ static int dcamcore_context_init(struct dcam_pipe_dev *dev)
 		pctx_hw->hw_ctx_id = i;
 		pctx_hw->node_id = 0xFFFFFFFF;
 		pctx_hw->node = NULL;
+		pctx_hw->fid = 0;
 		pctx_hw->hw = dev->hw;
 		atomic_set(&pctx_hw->user_cnt, 0);
 		atomic_set(&pctx_hw->shadow_done_cnt, 0);
 		atomic_set(&pctx_hw->shadow_config_cnt, 0);
 		spin_lock_init(&pctx_hw->glb_reg_lock);
 		spin_lock_init(&pctx_hw->fbc_lock);
-		spin_lock_init(&pctx_hw->ghist_read_lock);
 
 		pr_debug("register irq for dcam %d. irq_no %d\n", i, dev->hw->ip_dcam[i]->irq_no);
-		ret = dcam_int_irq_request(&dev->hw->pdev->dev, dev->hw->ip_dcam[i]->irq_no, pctx_hw);
+		ret = dcam_int_common_irq_request(&dev->hw->pdev->dev, dev->hw->ip_dcam[i]->irq_no, pctx_hw);
 		if (ret)
 			pr_err("fail to register irq for hw_ctx %d\n", i);
 
@@ -182,7 +179,7 @@ static int dcamcore_context_deinit(struct dcam_pipe_dev *dev)
 		pctx_hw = &dev->hw_ctx[i];
 		dcamcore_put_dummy_slave(pctx_hw);
 		dcamcore_put_fmcu(pctx_hw);
-		dcam_int_irq_free(&dev->hw->pdev->dev, pctx_hw);
+		dcam_int_common_irq_free(&dev->hw->pdev->dev, pctx_hw);
 		atomic_set(&pctx_hw->user_cnt, 0);
 	}
 	pr_debug("dcam contexts deinit done!\n");
@@ -203,18 +200,13 @@ static int dcamcore_dev_open(void *dcam_handle)
 
 	mutex_lock(&dev->ctx_mutex);
 	if (atomic_inc_return(&dev->enable) == 1) {
-		ret = dcam_drv_hw_init(dev);
-		if (ret) {
-			pr_err("fail to init hw. ret: %d\n", ret);
-			goto exit;
-		}
 		dev->hw->dcam_ioctl(dev->hw, DCAM_HW_CFG_INIT_AXI, &hw_ctx_id);
 
 		ret = dcamcore_context_init(dev);
 		if (ret) {
 			pr_err("fail to init dcam context.\n");
 			ret = -EFAULT;
-			goto hw_init_fail;
+			goto exit;
 		}
 
 		mutex_init(&dev->path_mutex);
@@ -223,9 +215,6 @@ static int dcamcore_dev_open(void *dcam_handle)
 	mutex_unlock(&dev->ctx_mutex);
 	pr_info("open dcam pipe dev done! enable %d\n",atomic_read(&dev->enable));
 	return 0;
-
-hw_init_fail:
-	dcam_drv_hw_deinit(dev);
 
 exit:
 	atomic_dec(&dev->enable);
@@ -247,7 +236,6 @@ static int dcamcore_dev_close(void *dcam_handle)
 	if (atomic_dec_return(&dev->enable) == 0) {
 		mutex_destroy(&dev->path_mutex);
 		ret = dcamcore_context_deinit(dev);
-		ret = dcam_drv_hw_deinit(dev);
 	}
 	mutex_unlock(&dev->ctx_mutex);
 	pr_info("dcam dev disable done enable %d\n",atomic_read(&dev->enable));
@@ -308,7 +296,7 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 			pctx_hw = &dev->hw_ctx[i];
 			if (atomic_inc_return(&pctx_hw->user_cnt) == 1) {
 				hw_ctx_id = pctx_hw->hw_ctx_id;
-				if (slw_cnt && dev->hw->ip_dcam[i]->fmcu_support) {
+				if (slw_cnt && dev->hw->ip_dcam[i]->dcamhw_abt->fmcu_support) {
 					*slw_type = DCAM_SLW_FMCU;
 					if (!pctx_hw->fmcu)
 						continue;
@@ -367,7 +355,7 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 				while (pctx_hw->in_irq_proc && loop < 2000) {
 					pr_debug("ctx % in irq. wait %d\n", pctx_hw->hw_ctx_id, loop);
 					loop++;
-					udelay(500);
+					os_adapt_time_udelay(500);
 				};
 				if (loop == 2000)
 					pr_warn("warning: dcam node unind wait irq timeout\n");
@@ -433,8 +421,8 @@ void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 		/* record SOF timestamp for current frame */
 		struct dcam_offline_node *node = NULL;
 		node = (struct dcam_offline_node *)dcam_hw_ctx->dcam_irq_cb_handle;
-		node->frame_ts_boot[tsid(dcam_hw_ctx->frame_index)] = ktime_get_boottime();
-		ktime_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->frame_index)]);
+		node->frame_ts_boot[tsid(dcam_hw_ctx->fid)] = os_adapt_time_get_boottime();
+		os_adapt_time_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->fid)]);
 	}
 	if (dcam_hw_ctx->dummy_slave) {
 		dummy_status = atomic_read(&dcam_hw_ctx->dummy_slave->status);
@@ -458,17 +446,18 @@ void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 	}
 }
 
-void *dcam_core_pipe_dev_get(struct cam_hw_info *hw)
+void *dcam_core_pipe_dev_get(struct cam_hw_info *hw, void *s_dcam_dev)
 {
 	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_pipe_dev **s_dcam = (struct dcam_pipe_dev **)s_dcam_dev;
 
 	mutex_lock(&s_dcam_dev_mutex);
 
-	if (s_dcam_dev) {
-		atomic_inc(&s_dcam_dev->user_cnt);
-		dev = s_dcam_dev;
+	if (*s_dcam) {
+		atomic_inc(&(*s_dcam)->user_cnt);
+		dev = *s_dcam;
 		pr_info("s_dcam_dev_new is already exist=%px, user_cnt=%d",
-			s_dcam_dev, atomic_read(&s_dcam_dev->user_cnt));
+			*s_dcam, atomic_read(&(*s_dcam)->user_cnt));
 		goto exit;
 	}
 
@@ -482,7 +471,9 @@ void *dcam_core_pipe_dev_get(struct cam_hw_info *hw)
 
 	dev->dcam_pipe_ops = &s_dcam_pipe_ops;
 	dev->hw = hw;
-	s_dcam_dev = dev;
+	hw->s_dcam_dev_debug = dev;
+	*s_dcam = dev;
+	s_dcam_dev = (void *)(*s_dcam);
 	if (dev)
 		pr_info("get dcam pipe dev: %px\n", dev);
 exit:
@@ -491,10 +482,11 @@ exit:
 	return dev;
 }
 
-int dcam_core_pipe_dev_put(void *dcam_handle)
+int dcam_core_pipe_dev_put(void *dcam_handle, void *s_dcam_dev)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)dcam_handle;
+	struct dcam_pipe_dev *s_dcam = (struct dcam_pipe_dev *)s_dcam_dev;
 
 	if (!dev) {
 		pr_err("fail to get valid input ptr\n");
@@ -502,13 +494,13 @@ int dcam_core_pipe_dev_put(void *dcam_handle)
 	}
 
 	pr_info("put dcam pipe dev:%px, s_dcam_dev:%px,  users: %d, enable: %d\n",
-		dev, s_dcam_dev, atomic_read(&dev->user_cnt), atomic_read(&dev->enable));
+		dev, s_dcam, atomic_read(&dev->user_cnt), atomic_read(&dev->enable));
 
 	mutex_lock(&s_dcam_dev_mutex);
 
-	if (dev != s_dcam_dev) {
+	if (dev != s_dcam) {
 		mutex_unlock(&s_dcam_dev_mutex);
-		pr_err("fail to match dev: %px, %px\n", dev, s_dcam_dev);
+		pr_err("fail to match dev: %px, %px\n", dev, s_dcam);
 		return -EINVAL;
 	}
 
@@ -517,7 +509,7 @@ int dcam_core_pipe_dev_put(void *dcam_handle)
 		mutex_destroy(&dev->ctx_mutex);
 		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
-		s_dcam_dev = NULL;
+		s_dcam = NULL;
 	}
 	mutex_unlock(&s_dcam_dev_mutex);
 

@@ -115,7 +115,7 @@ static void isppyrrec_cfg_ynr(uint32_t idx, struct isp_rec_ynr_info *rec_ynr)
 		return;
 
 	ISP_REG_MWR(idx, ISP_YUV_REC_YNR_CONTRL0, BIT_0, rec_ynr->rec_ynr_bypass);
-	for(i = 0; i < 5; i ++) {
+	for(i = 0; i < ISP_PYR_DEC_LAYER_NUM; i ++) {
 		val = ((rec_ynr->ynr_cfg_layer[i].gf_rnr_offset & 0x3ff) << 8) |
 			((rec_ynr->ynr_cfg_layer[i].gf_radius & 0x3) << 1) |
 			(rec_ynr->ynr_cfg_layer[i].gf_enable & 0x1);

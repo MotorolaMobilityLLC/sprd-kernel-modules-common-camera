@@ -147,7 +147,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
 		if (0 == (DCAM_AXIM_RD(AXIM_DBG_STS) & 0x1F00F))
 			break;
-		udelay(1000);
+		os_adapt_time_udelay(1000);
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
@@ -157,7 +157,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 		/* reset dcam all (0/1/2/bus) */
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			ip->syscon.all_rst_mask, ip->syscon.all_rst_mask);
-		udelay(10);
+		os_adapt_time_udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
 	}
@@ -233,7 +233,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
 		if (0 == (DCAM_AXIM_RD(AXIM_DBG_STS) & 0x1F00F))
 			break;
-		udelay(1000);
+		os_adapt_time_udelay(1000);
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
@@ -248,7 +248,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 		/* reset dcam all (0/1/2/bus) */
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			ip->syscon.all_rst_mask, ip->syscon.all_rst_mask);
-		udelay(10);
+		os_adapt_time_udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
 	}
@@ -346,7 +346,7 @@ static int dcamhw_stop(void *handle, void *arg)
 		ret = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x2FFF;
 		if (!ret)
 			break;
-		udelay(1000);
+		os_adapt_time_udelay(1000);
 		time_out--;
 	}
 
@@ -537,7 +537,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
 		if (0 == (DCAM_AXIM_RD(AXIM_DBG_STS) & sts_bit[idx]))
 			break;
-		udelay(1000);
+		os_adapt_time_udelay(1000);
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
@@ -549,7 +549,7 @@ static int dcamhw_reset(void *handle, void *arg)
 			idx, ip->syscon.rst, ip->syscon.rst_mask, flag);
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, ip->syscon.rst_mask, ip->syscon.rst_mask);
-		udelay(10);
+		os_adapt_time_udelay(10);
 		regmap_update_bits(soc->cam_ahb_gpr,
 			ip->syscon.rst, ip->syscon.rst_mask, ~(ip->syscon.rst_mask));
 	}
@@ -618,7 +618,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	int ret = 0;
 	uint32_t fetch_pitch;
 	struct dcam_hw_fetch_set *fetch = NULL;
-	uint32_t pack_bits = 0;
+	uint32_t val = 0;
 
 	pr_debug("enter.\n");
 
@@ -628,20 +628,24 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	}
 
 	fetch = (struct dcam_hw_fetch_set *)arg;
-	pack_bits = cam_pack_bits(fetch->fetch_info->fmt);
-
-	/* !0 is loose */
-	if (pack_bits != 0) {
-		fetch_pitch = fetch->fetch_info->size.w * 2;
-	} else {
-		/* to bytes */
-		fetch_pitch = (fetch->fetch_info->size.w + 3) / 4 * 5;
-		/* bytes align 32b */
-		fetch_pitch = (fetch_pitch + 3) & (~0x3);
-	}
+	fetch_pitch = cam_cal_hw_pitch(fetch->fetch_info->size.w, fetch->fetch_info->fmt);
 	pr_info("size [%d %d], start %d, pitch %d, 0x%x fmt %s\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
 		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, camport_fmt_name_get(fetch->fetch_info->fmt));
+
+	switch (fetch->fetch_info->fmt) {
+	case CAM_RAW_PACK_10:
+	case CAM_RAW_8:
+		val = 0;
+		break;
+	case CAM_RAW_HALFWORD_10:
+	case CAM_RAW_14:
+		val = 1;
+		break;
+	default:
+		pr_err("fail to get valid fmt ,not support\n");
+		break;
+	}
 
 	/* (bitfile)unit 32b,(spec)64b */
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_CLR,
@@ -655,7 +659,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG,
 		BIT_17 | BIT_16, (fetch->fetch_info->pattern & 3) << 16);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, pack_bits << 1);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, val << 1);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->fetch_info->endian << 2);
 	DCAM_AXIM_WR(IMG_FETCH_SIZE,
 		(fetch->fetch_info->trim.size_y << 16) | (fetch->fetch_info->trim.size_x & 0xffff));
@@ -677,7 +681,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	struct dcam_fetch_info *fetch = NULL;
 	struct img_trim *cur_slice;
 	uint32_t reg_val;
-	uint32_t pack_bits = 0;
+	uint32_t val = 0;
 
 	if (!arg) {
 		pr_err("fail to check param");
@@ -686,17 +690,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	slicearg = (struct dcam_hw_slice_fetch *)arg;
 	fetch = slicearg->fetch;
 	cur_slice = slicearg->cur_slice;
-	pack_bits = cam_pack_bits(fetch->fmt);
-
-	/* !0 is loose */
-	if (pack_bits != 0) {
-		fetch_pitch = fetch->size.w * 2;
-	} else {
-		/* to bytes */
-		fetch_pitch = (fetch->size.w + 3) / 4 * 5;
-		/* bytes align 32b */
-		fetch_pitch = (fetch_pitch + 3) & (~0x3);
-	}
+	fetch_pitch = cam_cal_hw_pitch(fetch->size.w, fetch->fmt);
 	pr_debug("size [%d %d], start [%d %d], pitch %d, 0x%x\n",
 		fetch->trim.size_x, fetch->trim.size_y,
 		fetch->trim.start_x, fetch->trim.start_y,
@@ -706,7 +700,21 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	DCAM_REG_MWR(slicearg->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
 	DCAM_REG_MWR(slicearg->idx, DCAM_MIPI_CAP_CFG, BIT_17 | BIT_16, (fetch->pattern & 3) << 16);
 
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, pack_bits << 1);
+	switch (fetch->fmt) {
+	case CAM_RAW_PACK_10:
+	case CAM_RAW_8:
+		val = 0;
+		break;
+	case CAM_RAW_HALFWORD_10:
+	case CAM_RAW_14:
+		val = 1;
+		break;
+	default:
+		pr_err("fail to get valid fmt ,not support\n");
+		break;
+	}
+
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1, val << 1);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 8, 0x01 << 8);
 	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0x0F << 12, 0x01 << 12);
@@ -841,7 +849,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 	struct dcam_hw_path_start *patharg = NULL;
 	struct isp_img_rect rect; /* for 3dnr */
 	uint32_t image_data_type = IMG_TYPE_RAW10;
-	uint32_t data_bits = 0, pack_bits = 0;
+	uint32_t data_bits = 0;
+	uint32_t val = 0;
 
 	pr_debug("enter.");
 
@@ -852,7 +861,19 @@ static int dcamhw_path_start(void *handle, void *arg)
 
 	patharg = (struct dcam_hw_path_start *)arg;
 	data_bits = cam_data_bits(patharg->out_fmt);
-	pack_bits = cam_pack_bits(patharg->out_fmt);
+
+	switch (patharg->out_fmt) {
+	case CAM_RAW_PACK_10:
+		val = 0;
+		break;
+	case CAM_RAW_HALFWORD_10:
+	case CAM_RAW_14:
+		val = 1;
+		break;
+	default:
+		pr_err("fail to get valid fmt ,not support\n");
+		break;
+	}
 
 	if (data_bits == CAM_8_BITS)
 		image_data_type = IMG_TYPE_RAW8;
@@ -862,7 +883,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_17 |  BIT_16, patharg->endian << 16);
 
-		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, pack_bits);
+		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, val);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_2, patharg->src_sel << 2);
 
 		/* full_path_en */
@@ -876,7 +897,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			BIT_19 |  BIT_18, patharg->endian << 18);
 
 		DCAM_REG_MWR(patharg->idx,
-			DCAM_CAM_BIN_CFG, BIT_0, pack_bits);
+			DCAM_CAM_BIN_CFG, BIT_0, val);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
 				BIT_16, !!patharg->slowmotion_count << 16);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
@@ -1271,6 +1292,9 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 		pr_err("fail to get ptr %p\n", arg);
 		return -EFAULT;
 	}
+
+	if (p->idx == DCAM_HW_CONTEXT_MAX)
+		return 0;
 
 	p->aem.update = 0xff;
 	dcam_k_aem_bypass(p);

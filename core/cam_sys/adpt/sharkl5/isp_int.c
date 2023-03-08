@@ -87,22 +87,22 @@ int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 
 void  ispint_iommu_regs_dump(void)
 {
-	pr_err("fetch y %08x u %08x v %08x\n",
+	pr_err("fail to handle, fetch y %08x u %08x v %08x\n",
 		ISP_HREG_RD(ISP_FETCH_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_V_ADDR));
 
-	pr_err("store pre cap y %08x u %08x v %08x\n",
+	pr_err("fail to handle, store pre cap y %08x u %08x v %08x\n",
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_V_ADDR));
 
-	pr_err("store vid y %08x u %08x v %08x\n",
+	pr_err("fail to handle, store vid y %08x u %08x v %08x\n",
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_V_ADDR));
 
-	pr_err("store thumb y %08x u %08x v %08x\n",
+	pr_err("fail to handle, store thumb y %08x u %08x v %08x\n",
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_V_ADDR));

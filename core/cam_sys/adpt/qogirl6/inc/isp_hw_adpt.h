@@ -36,11 +36,16 @@
 
 #define ISP_SC_COEFF_BUF_SIZE           (24 << 12)
 
+#define ISP_THUMB_SCL_UP_MAX            1
+#define ISP_THUMB_SCL_WIDTH_MAX         640
+#define ISP_THUMB_SCL_HEIGHT_MAX        480
+
 #define ISP_FBD_TILE_WIDTH              64
 #define ISP_FBD_TILE_HEIGHT             4
 
 #define ISP_LTM_ALIGNMENT               2
 #define GTM_HIST_ITEM_NUM               128
+#define GTM_HIST_XPTS_CNT               256
 
  /* isp limit hw: 30ms, && 2500us(2.5ms)/M, node:5ms*/
 #define ISP_HW_TIME_RATIO               2500

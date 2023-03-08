@@ -16,8 +16,7 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "CAM_THREAD: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "CAM_THREAD: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 int camthread_loop(void *arg)
 {

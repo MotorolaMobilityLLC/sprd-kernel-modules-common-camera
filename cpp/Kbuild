@@ -27,6 +27,7 @@ ISP_ADAPT_VERSION := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
 ccflags-y += -I$(KO_MODULE_PATH)/../core/cam_sys/inc/
 ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
+ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
 ccflags-y += -I$(KO_MODULE_PATH)/$(CPP_DIR)/inc
 ccflags-y += -I$(KO_MODULE_PATH)/$(CPP_DIR)/hw/$(ADAPT_DIR)
 ccflags-y += -I$(srctree)/drivers/staging/android/ion

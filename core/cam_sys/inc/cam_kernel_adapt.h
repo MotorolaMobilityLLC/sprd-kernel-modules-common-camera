@@ -29,15 +29,6 @@
 /* #include "ion_priv.h" */
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-typedef struct timespec64 timespec;
-#define ktime_get_ts ktime_get_ts64
-typedef struct __kernel_old_timeval timeval;
-#else
-typedef struct timespec timespec;
-typedef struct timeval timeval;
-#endif
-
 #include "cam_buf.h"
 
 struct camera_buf;
@@ -49,7 +40,5 @@ ssize_t cam_kernel_adapt_write(struct file *, void *, size_t, loff_t *);
 void cam_kernel_adapt_kproperty_get(const char *key, char *value, const char *default_value);
 int cam_kernel_adapt_syscon_get_args_by_name(struct device_node *np, const char *name, int arg_count, unsigned int *out_args);
 struct regmap *cam_kernel_adapt_syscon_regmap_lookup_by_name(struct device_node *np, const char *name);
-timespec cam_kernel_adapt_timespec_sub(timespec lhs, timespec rhs);
-timeval cam_kernel_adapt_ktime_to_timeval(const ktime_t kt);
 
 #endif

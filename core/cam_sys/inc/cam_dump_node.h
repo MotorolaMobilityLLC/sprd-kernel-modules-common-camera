@@ -30,12 +30,12 @@ extern uint32_t g_dbg_dumpcount;
 
 struct cam_dbg_dump {
 	uint32_t dump_id;
-	uint32_t dump_en;
-	uint32_t dump_pipeline_type;
-	uint32_t dump_node_type;
+	enum en_status dump_en;
+	enum cam_pipeline_type dump_pipeline_type;
+	enum cam_node_type dump_node_type;
 	uint32_t dump_port_id;
 	uint32_t dump_count;
-	uint32_t dump_ongoing;
+	enum en_status dump_ongoing;
 };
 extern struct cam_dbg_dump g_dbg_dump[DUMP_NUM_MAX];
 
@@ -58,7 +58,7 @@ struct cam_dump_msg {
 	uint32_t align_w;
 	uint32_t align_h;
 	uint32_t offset;
-	uint32_t is_compressed;
+	enum en_status is_compressed;
 	int layer_num;
 };
 

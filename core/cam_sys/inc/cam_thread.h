@@ -57,6 +57,7 @@ struct cam_thread_info {
 	struct task_struct *thread_task;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	uint32_t error_type;
 };
 

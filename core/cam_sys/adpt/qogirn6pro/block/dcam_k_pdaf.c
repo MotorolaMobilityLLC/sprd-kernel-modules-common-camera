@@ -301,6 +301,8 @@ static int isp_k_pdaf_type3_set_skip_num(
 	int ret = 0;
 	uint32_t idx = p->idx;
 	uint32_t skip_num = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	ret = copy_from_user((void *)&skip_num,
 			param->property_param, sizeof(skip_num));
@@ -308,9 +310,14 @@ static int isp_k_pdaf_type3_set_skip_num(
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.skip_num = skip_num;
+
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
+	dev = p->dev;
+	hw_ctx = &dev->hw_ctx[idx];
+	if (p->is_high_fps)
+		skip_num = hw_ctx->slowmotion_count - 1;
+	p->pdaf.skip_num = skip_num;
 
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xFF0, skip_num << 4);
 	DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL1, BIT_1, BIT_1);
@@ -360,9 +367,13 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 	struct pdaf_ppi_info *ppi_info = &p->pdaf.ppi_info;
 	struct pdaf_roi_info *roi_info = &p->pdaf.roi_info;
 	struct dcam_ppe_ppc_info *ppe_ppc_info = &(p->pdaf.ppe_ppc_info);
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+	dev = p->dev;
+	hw_ctx = &dev->hw_ctx[idx];
 
 	if (g_dcam_bypass[idx] & (1 << _E_PDAF)) {
 		bypass = 1;
@@ -388,8 +399,13 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, BIT_3, mode << 3);
 
 		/* skip num */
+		if (p->is_high_fps) {
+			p->pdaf.skip_num = hw_ctx->slowmotion_count - 1;
+			skip_num = p->pdaf.skip_num;
+		}
 		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL0, 0xFF0, skip_num << 4);
 		DCAM_REG_MWR(idx, DCAM_PPE_FRM_CTRL1, BIT_1, BIT_1);
+		dcam_online_port_skip_num_set(p->dev, idx, DCAM_PATH_PDAF, skip_num);
 
 		/* phase extrac en */
 		val = !bypass;
