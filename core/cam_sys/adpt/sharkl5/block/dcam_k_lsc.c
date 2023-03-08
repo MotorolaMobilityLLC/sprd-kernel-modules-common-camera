@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <sprd_mm.h>
@@ -300,7 +299,7 @@ int dcam_update_lsc(void *in)
 	buf_sel = !((val & BIT_1) >> 1);
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_1, buf_sel << 1);
 
-	pr_debug("sof %d, buf_sel %d\n", hw_ctx->frame_index, buf_sel);
+	pr_debug("sof %d, buf_sel %d\n", hw_ctx->fid, buf_sel);
 
 	/*  auto cpy lens registers next sof */
 	copyarg.id = DCAM_CTRL_BIN;

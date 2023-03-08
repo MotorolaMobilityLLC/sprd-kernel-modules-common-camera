@@ -17,8 +17,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-#include "cam_hw.h"
-#include "cam_types.h"
+#include "dcam_hw_adpt.h"
 
 #define ISP_MAX_LINE_WIDTH              2592
 #define ISP_NR3_BUF_NUM                 2
@@ -35,19 +34,14 @@
 #define ISP_GTMHIST_BUF_Q_LEN           16
 #define ISP_HIST2_BUF_Q_LEN             16
 #define ISP_CONTEXT_TIMEOUT             msecs_to_jiffies(2000)
+#define ISP_MAX_COUNT                   1
+#define ISP_CONTEXT_MAX                 4
+#define ISP_CONTEXT_SW_NUM              13
 
-enum isp_context_id {
-	ISP_CONTEXT_P0,
-	ISP_CONTEXT_P1,
-	ISP_CONTEXT_C0,
-	ISP_CONTEXT_C1,
-	ISP_CONTEXT_P2,
-	ISP_CONTEXT_C2,
-	ISP_CONTEXT_P3,
-	ISP_CONTEXT_C3,
-	ISP_CONTEXT_SUPERZOOM,
-	ISP_CONTEXT_SW_NUM
-};
+extern unsigned long s_isp_regbase[ISP_MAX_COUNT];
+extern unsigned long isp_phys_base[ISP_MAX_COUNT];
+extern unsigned long *isp_cfg_poll_addr[ISP_CONTEXT_SW_NUM];
+extern unsigned long s_isp_mmubase;
 
 enum isp_context_hw_id {
 	ISP_CONTEXT_HW_P0,
@@ -90,12 +84,6 @@ enum isp_gtm_mode {
 	MODE_GTM_MAX
 };
 
-enum isp_path_binding_type {
-	ISP_PATH_ALONE = 0,
-	ISP_PATH_MASTER,
-	ISP_PATH_SLAVE,
-};
-
 enum isp_ioctrl_cmd {
 	ISP_IOCTL_CFG_SEC,
 	ISP_IOCTL_INIT_NODE_HW,
@@ -129,11 +117,9 @@ struct isp_ctx_compress_desc {
 
 struct isp_path_base_desc {
 	uint32_t port_id;
-	uint32_t out_fmt;
-	uint32_t slave_type;
-	uint32_t slave_path_id;
+	enum cam_format out_fmt;
 	uint32_t regular_mode;
-	uint32_t endian;
+	enum cam_data_endian endian;
 	uint32_t is_work;
 	struct img_size output_size;
 };
@@ -239,5 +225,25 @@ static inline uint32_t isp_rec_small_layer_h(uint32_t h, uint32_t layer_num)
 
 	return height;
 }
+
+/******************************************************************************/
+#define ISP_PHYS_ADDR(idx)                      (isp_phys_base[idx])
+#define ISP_BASE_ADDR(idx)                      (*(isp_cfg_poll_addr[idx]))
+#define ISP_GET_REG(reg)                        (ISP_PHYS_ADDR(0) + (reg))
+
+#define ISP_REG_WR(idx, reg, val)               (REG_WR(ISP_BASE_ADDR(idx) + (reg), (val)))
+#define ISP_REG_RD(idx, reg)                    (REG_RD(ISP_BASE_ADDR(idx) + (reg)))
+#define ISP_REG_MWR(idx, reg, msk, val)         (ISP_REG_WR((idx), (reg), ((val) & (msk)) |(ISP_REG_RD((idx), (reg)) & (~(msk)))))
+#define ISP_REG_OWR(idx, reg, val)              (ISP_REG_WR((idx), (reg), (ISP_REG_RD((idx), (reg)) | (val))))
+
+#define ISP_HREG_WR(reg, val)                   (REG_WR(s_isp_regbase[0] + (reg), (val)))
+#define ISP_HREG_RD(reg)                        (REG_RD(s_isp_regbase[0] + (reg)))
+#define ISP_HREG_MWR(reg, msk, val)             (REG_WR(s_isp_regbase[0] + (reg), ((val) & (msk)) | (REG_RD(s_isp_regbase[0] + (reg)) & (~(msk)))))
+#define ISP_HREG_OWR(reg, val)                  (REG_WR(s_isp_regbase[0] + (reg), (REG_RD(s_isp_regbase[0] + (reg)) | (val))))
+
+#define ISP_MMU_BASE s_isp_mmubase
+#define ISP_MMU_WR(reg, val)                    (REG_WR(ISP_MMU_BASE+(reg), (val)))
+#define ISP_MMU_RD(reg)                         (REG_RD(ISP_MMU_BASE+(reg)))
+#define ISP_MMU_MWR(reg, msk, val)              ISP_MMU_WR((reg), ((val) & (msk)) | (ISP_MMU_RD(reg) & (~(msk))))
 
 #endif

@@ -29,10 +29,9 @@ enum cam_command {
 	TA_FACEID_EXIT_TEMODE ,
 
 	TA_IMG_ISP_YUV_ADDR_SET ,
+	TA_IMG_ISP_STORE_ADDR_SET,
+	TA_IMG_ISP_STORE_PITCH_SET,
 	TA_IMG_ISP_PITCH_SET ,
-
-	TA_IMG_3DNR_FETCH_ADDR_SET ,
-	TA_IMG_3DNR_PITCH_SET ,
 
 	TA_IMG_DCAM_YUV_ADDR_SET ,
 	TA_IMG_DCAM_PITCH_SET ,
@@ -62,13 +61,6 @@ struct img_pitch_reg_msg {
 	uint32_t y_pitch;
 	uint32_t u_pitch;
 	uint32_t v_pitch;
-};
-
-struct isp_3dnr_reg_msg {
-	uint32_t msg_cmd;
-	uint32_t  ft_luma_addr;
-	unsigned long  ft_chroma_addr;
-	unsigned long  ft_pitch;
 };
 
 struct csi_switch_ctrl_msg {
@@ -123,16 +115,18 @@ struct cam_ca_ctrl {
 	struct list_head rx_msg_queue;
 };
 
-bool cam_trusty_connect(void);
+int cam_trusty_connect(void);
 void cam_trusty_disconnect(void);
-bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr,
-	unsigned long u_addr, unsigned long v_addr);
-bool  cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch,
+int cam_trusty_isp_store_pitch_set(uint32_t y_pitch, uint32_t u_pitch,
 	uint32_t v_pitch);
-bool  cam_trusty_isp_3dnr_fetch_set(unsigned long chroma, unsigned long luma,
-	uint32_t pitch);
-bool  cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl);
-bool  cam_trusty_security_set(struct  sprd_cam_sec_cfg *camsec_cfg,
+int cam_trusty_isp_store_set(unsigned long y_addr,
+	unsigned long u_addr, unsigned long v_addr);
+int cam_trusty_isp_fetch_addr_set(unsigned long y_addr,
+	unsigned long u_addr, unsigned long v_addr);
+int cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch,
+	uint32_t v_pitch);
+int cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl);
+int cam_trusty_security_set(struct  sprd_cam_sec_cfg *camsec_cfg,
 	enum cam_trusty_mode mode);
 
 #endif

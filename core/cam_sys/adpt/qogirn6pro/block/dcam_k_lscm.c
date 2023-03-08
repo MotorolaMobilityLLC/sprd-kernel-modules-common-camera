@@ -46,6 +46,8 @@ int dcam_k_lscm_monitor(struct dcam_isp_k_block *param)
 	uint32_t idx = 0;
 	uint32_t mode = 0;
 	uint32_t val = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	if (param == NULL)
 		return -1;
@@ -53,6 +55,12 @@ int dcam_k_lscm_monitor(struct dcam_isp_k_block *param)
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+	dev = param->dev;
+	hw_ctx = &dev->hw_ctx[idx];
+
+	if (param->is_high_fps)
+		param->lscm.skip_num = hw_ctx->slowmotion_count - 1;
+
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0, 0);
 
 	mode = param->lscm.mode;

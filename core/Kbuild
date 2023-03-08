@@ -69,6 +69,7 @@ ccflags-y += -I$(KO_MODULE_PATH)/../sensor
 ccflags-y += -I$(KO_MODULE_PATH)/../sensor/csi2/sprd/$(CSI_DIR)
 ccflags-y += -I$(KO_MODULE_PATH)/../flash/flash_drv
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/inc
+ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
 ccflags-y += -I$(srctree)/drivers/staging/android/ion
 
 ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)

@@ -14,36 +14,20 @@
 #ifndef _CAM_NODE_H_
 #define _CAM_NODE_H_
 
+#include "cam_copy_node.h"
+#include "cam_dump_node.h"
 #include "cam_port.h"
 #include "dcam_online_node.h"
 #include "dcam_fetch_node.h"
 #include "isp_node.h"
+#include "isp_scaler_node.h"
 #include "frame_cache_node.h"
 #include "dcam_offline_node.h"
 #include "pyr_dec_node.h"
-#include "isp_scaler_node.h"
+#include "cam_replace_node.h"
 
 #define CAM_NODE_PORT_IN_NUM       4
 #define CAM_NODE_PORT_OUT_NUM      PORT_DCAM_OUT_MAX
-
-/* description of all node types */
-enum cam_node_type {
-	CAM_NODE_TYPE_DCAM_ONLINE,
-	CAM_NODE_TYPE_DCAM_OFFLINE,
-	CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW,
-	CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB,
-	CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV,
-	CAM_NODE_TYPE_ISP_OFFLINE,
-	CAM_NODE_TYPE_FRAME_CACHE,
-	CAM_NODE_TYPE_ISP_YUV_SCALER,
-	CAM_NODE_TYPE_PYR_DEC,
-	CAM_NODE_TYPE_PYR_REC,
-	CAM_NODE_TYPE_DUMP,
-	CAM_NODE_TYPE_DATA_COPY,
-	CAM_NODE_TYPE_USER,
-	CAM_NODE_TYPE_REPLACE,
-	CAM_NODE_TYPE_MAX,
-};
 
 enum cam_node_state {
 	CAM_NODE_STATE_IDLE,
@@ -54,7 +38,6 @@ enum cam_node_state {
 enum cam_node_cfg_cmd {
 	CAM_NODE_CFG_BUF,
 	CAM_NODE_CFG_CAP_PARAM,
-	CAM_NODE_CFG_SIZE,
 	CAM_NODE_CFG_ZOOM,
 	CAM_NODE_CFG_BASE,
 	CAM_NODE_CLR_CACHE_BUF,
@@ -73,7 +56,6 @@ enum cam_node_cfg_cmd {
 	/*TEMP:for cfg isp cur_ctx_id to pyrdecnode*/
 	CAM_NODE_CFG_CTXID,
 	CAM_NODE_CFG_3DNR_MODE,
-	CAM_NODE_CFG_REC_LEYER_NUM,
 	CAM_NODE_CFG_GTM,
 	CAM_NODE_CFG_PARAM_SWITCH,
 	CAM_NODE_CFG_PARAM_Q_CLEAR,
@@ -89,12 +71,6 @@ enum cam_node_cfg_cmd {
 enum cam_node_status_rd_cmd {
 	CAM_NODE_STATUS_OUT_FRM_PARAM,
 	CAM_NODE_STATUS_CMD_MAX,
-};
-
-enum cam_node_buf_type {
-	CAM_NODE_BUF_KERNEL,
-	CAM_NODE_BUF_USER,
-	CAM_NODE_BUF_TYPE_MAX,
 };
 
 struct cam_node_cfg_param {
@@ -148,10 +124,10 @@ struct cam_node_shutoff_ctrl {
 struct cam_node_topology {
 	enum cam_node_type type;
 	enum cam_node_state state;
-	uint32_t dump_en;
+	enum en_status dump_en;
 	uint32_t dump_node_id;
 	uint32_t id;
-	uint32_t buf_type;
+	enum cam_node_buf_type buf_type;
 	uint32_t replace_en;
 	uint32_t replace_node_id;
 	struct cam_port_topology inport[CAM_NODE_PORT_IN_NUM];
@@ -164,6 +140,7 @@ struct cam_node_desc {
 	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	struct dcam_online_node_desc *dcam_online_desc;
 	struct dcam_offline_node_desc *dcam_offline_desc;
 	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc;
@@ -194,6 +171,7 @@ struct cam_node {
 	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	struct cam_port *inport_list[CAM_NODE_PORT_IN_NUM];
 	struct cam_port *outport_list[CAM_NODE_PORT_OUT_NUM];
 	struct cam_node_ops ops;
@@ -201,7 +179,7 @@ struct cam_node {
 	struct cam_capture_param cap_param;
 	struct cam_node_shutoff_ctrl node_shutoff;
 
-	uint32_t need_fetch;
+	enum en_status need_fetch;
 };
 
 /* the global all main node/port index for different
@@ -224,6 +202,7 @@ struct cam_nodes_dev {
 	struct isp_port *isp_in_port_dev[ISP_NODE_MODE_MAX_ID][PORT_ISP_IN_MAX];
 	struct isp_yuv_scaler_node *isp_yuv_scaler_node_dev[ISP_YUV_SCALER_MAX_NODE_ID];
 	struct isp_scaler_port *isp_scaler_out_port_dev[PORT_ISP_YUV_SCALER_OUT_MAX];
+	struct pyr_dec_port *pyr_dec_out_port_dev[PORT_DEC_OUT_MAX];
 	struct pyr_dec_node *pyr_dec_node_dev;
 };
 

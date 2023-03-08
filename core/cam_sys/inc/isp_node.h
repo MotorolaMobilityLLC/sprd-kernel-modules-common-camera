@@ -14,6 +14,7 @@
 #ifndef _ISP_NODE_H_
 #define _ISP_NODE_H_
 
+#include <os_adapt_common.h>
 #include "cam_types.h"
 #include "isp_port.h"
 #include "isp_ltm.h"
@@ -37,12 +38,10 @@ enum isp_node_cfg_cmd {
 	ISP_NODE_CFG_STATIS,
 	ISP_NODE_CFG_RESERVE_BUF,
 	ISP_NODE_CFG_3DNR_MODE,
-	ISP_NODE_CFG_REC_LEYER_NUM,
 	ISP_NODE_CFG_GTM,
 	ISP_NODE_CFG_PARAM_SWITCH,
 	ISP_NODE_CFG_PARAM_Q_CLEAR,
 	ISP_NODE_CFG_FAST_STOP,
-	ISP_NODE_CFG_RECYCLE_BLK_PARAM,
 	ISP_NODE_CFG_CMD_MAX,
 };
 
@@ -58,13 +57,13 @@ struct isp_node_slwm960fps_frame_num {
 };
 
 struct isp_node_uinfo {
-	uint32_t ltm_rgb;
-	uint32_t mode_ltm;
-	uint32_t gtm_rgb;
-	uint32_t mode_gtm;
-	uint32_t mode_3dnr;
-	uint32_t slw_state;
-	uint32_t enable_slowmotion;
+	enum en_status ltm_rgb;
+	enum isp_ltm_mode mode_ltm;
+	enum en_status gtm_rgb;
+	enum isp_gtm_mode mode_gtm;
+	enum isp_3dnr_mode mode_3dnr;
+	enum cam_slw_state slw_state;
+	enum en_status enable_slowmotion;
 	uint32_t slowmotion_240fp_count;
 	uint32_t slowmotion_count;
 	struct slowmotion_960fps_info slw_960desc;
@@ -73,34 +72,36 @@ struct isp_node_uinfo {
 	uint32_t uframe_sync;
 	uint32_t scaler_coeff_ex;
 	uint32_t pyr_layer_num;
-	uint32_t nr3_fbc_fbd;
+	enum en_status nr3_fbc_fbd;
 	enum isp_fetch_path_select fetch_path_sel;
 };
 
 struct isp_node_desc {
-	uint32_t is_dual;
-	uint32_t node_type;
-	uint32_t mode_3dnr;
-	uint32_t mode_ltm;
-	uint32_t ltm_rgb;
-	uint32_t mode_gtm;
-	uint32_t gtm_rgb;
-	uint32_t in_fmt;
+	enum en_status is_dual;
+	enum cam_node_type node_type;
+	enum isp_3dnr_mode mode_3dnr;
+	enum isp_ltm_mode mode_ltm;
+	enum en_status ltm_rgb;
+	enum isp_gtm_mode mode_gtm;
+	enum en_status gtm_rgb;
+	enum cam_format in_fmt;
 	uint32_t bayer_pattern;
-	uint32_t enable_slowmotion;
-	uint32_t slw_state;
+	enum en_status enable_slowmotion;
+	enum cam_slw_state slw_state;
 	uint32_t slowmotion_count;
-	uint32_t pyr_out_fmt;
-	uint32_t store_3dnr_fmt;
-	uint32_t nr3_fbc_fbd;
+	enum cam_format pyr_out_fmt;
+	enum cam_format store_3dnr_fmt;
+	enum en_status nr3_fbc_fbd;
 	uint32_t share_buffer;
+	uint32_t pyr_layer_num;
 	enum isp_fetch_path_select fetch_path_sel;
 	enum cam_ch_id ch_id;
 	struct img_size sn_size;
-	uint32_t is_high_fps;
+	enum en_status is_high_fps;
 	uint32_t cam_id;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	void **node_dev;
 	struct isp_port_desc port_desc;
 	reserved_buf_get_cb resbuf_get_cb;
@@ -114,13 +115,14 @@ struct isp_node_desc {
 
 struct isp_node {
 	uint32_t cfg_id;
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	uint32_t node_id;
 	atomic_t user_cnt;
-	uint32_t is_bind;
-	uint32_t is_dual;
+	enum en_status is_bind;
+	enum en_status is_dual;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	uint32_t pctx_hw_id;
 	uint32_t in_irq_postproc;
 	atomic_t state_user_cnt;
@@ -140,8 +142,9 @@ struct isp_node {
 	struct camera_queue port_queue;
 	struct isp_pipe_dev *dev;
 	struct dcam_isp_k_block isp_k_param;
-	struct camera_frame *isp_receive_param;
+	struct cam_frame *isp_receive_param;
 	struct dcam_isp_k_block *isp_using_param;
+	struct cam_frame *blk_param_node;
 
 	struct cam_thread_info thread;
 	struct completion frm_done;
@@ -163,7 +166,7 @@ struct isp_node {
 	void *rec_handle;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
-	struct camera_frame *postproc_buf;
+	struct cam_frame *postproc_buf;
 	uint32_t nr3_blend_cnt;
 };
 
@@ -173,6 +176,5 @@ void isp_node_close(struct isp_node *node);
 int isp_node_request_proc(struct isp_node *node, void *param);
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param);
 int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, struct blk_param_info *out);
-void isp_node_param_buf_destroy(void *param);
 int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param);
 #endif

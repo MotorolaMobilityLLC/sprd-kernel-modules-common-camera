@@ -20,7 +20,6 @@
 
 #include "cam_block.h"
 #include "cam_buf.h"
-#include "cam_link.h"
 #include "cam_types.h"
 #include "dcam_interface.h"
 #include "isp_interface.h"
@@ -32,7 +31,9 @@
 #define CAM_INT_EMP_Q_LEN_MAX           256
 #define NODE_ZOOM_CNT_MAX               5
 #define PORT_ZOOM_CNT_MAX               5
-
+#define CAM_EMP_ARRAY_LEN_MAX           1200
+#define CAM_EMP_ARRAY_INIT_LEN          120
+#define CAM_EMP_ARRAT_LEN_PER(type)     (4096 * 4 / sizeof(type))
 enum {
 	CAM_Q_INIT,
 	CAM_Q_EMPTY,
@@ -40,59 +41,90 @@ enum {
 	CAM_Q_CLEAR
 };
 
-enum pyr_status {
-	PYR_OFF,
-	ONLINE_DEC_ON,
-	OFFLINE_DEC_ON
+enum cam_pipeline_type {
+	CAM_PIPELINE_PREVIEW,
+	CAM_PIPELINE_VIDEO,
+	CAM_PIPELINE_CAPTURE,
+	CAM_PIPELINE_ZSL_CAPTURE,
+	CAM_PIPELINE_SENSOR_RAW,
+	CAM_PIPELINE_SCALER_YUV,
+	CAM_PIPELINE_OFFLINE_RAW2YUV,
+	CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV,
+	CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV,
+	CAM_PIPELINE_ONLINERAW_2_BPCRAW_2_USER_2_OFFLINEYUV,
+	CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV,
+	CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV,
+	CAM_PIPELINE_VCH_SENSOR_RAW,
+	CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV,
+	CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV,
+	CAM_PIPELINE_TYPE_MAX,
+};
+
+enum cam_node_buf_type {
+	CAM_NODE_BUF_KERNEL,
+	CAM_NODE_BUF_USER,
+	CAM_NODE_BUF_TYPE_MAX,
+};
+
+enum cam_port_transfer_type {
+	PORT_TRANSFER_IN,
+	PORT_TRANSFER_OUT,
+	PORT_TRANSFER_MAX,
+};
+
+/* description of all node types */
+enum cam_node_type {
+	CAM_NODE_TYPE_DCAM_ONLINE,
+	CAM_NODE_TYPE_DCAM_OFFLINE,
+	CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW,
+	CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB,
+	CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV,
+	CAM_NODE_TYPE_ISP_OFFLINE,
+	CAM_NODE_TYPE_FRAME_CACHE,
+	CAM_NODE_TYPE_ISP_YUV_SCALER,
+	CAM_NODE_TYPE_PYR_DEC,
+	CAM_NODE_TYPE_PYR_REC,
+	CAM_NODE_TYPE_DUMP,
+	CAM_NODE_TYPE_DATA_COPY,
+	CAM_NODE_TYPE_USER,
+	CAM_NODE_TYPE_REPLACE,
+	CAM_NODE_TYPE_MAX,
+};
+
+/*queue_out check in stream off, all check in camcore_release*/
+enum cam_frame_check {
+	CAM_FRAME_CHECK_QUEUE_OUT,
+	CAM_FRAME_CHECK_ALL,
 };
 
 struct cam_zoom_base {
 	uint32_t ratio_width;
 	uint32_t total_crop_width;
+	uint32_t need_post_proc;
 	struct img_size src;
 	struct img_trim crop;
 	struct img_size dst;
 };
 
 struct cam_zoom_port {
-	uint32_t port_type;
+	enum cam_port_transfer_type port_type;
 	uint32_t port_id;
 	struct cam_zoom_base zoom_base;
 };
 
-/* zoom mode devide 2 kind for online & offline,
-it work by zoom_data state, zoom data change from
-pointer to struct,  add zoom mode to ensure it, it should
-delete after offline take zoom_data */
-enum cam_zoom_mode {
-	CAM_ZOOM_MODE_NEW,
-	CAM_ZOOM_MODE_OLD,
-	CAM_ZOOM_MODE_MAX,
-};
-
 struct cam_zoom_node {
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	uint32_t node_id;
 	struct cam_zoom_port zoom_port[PORT_ZOOM_CNT_MAX];
 };
 
 struct cam_zoom_frame {
-	struct list_head list;
-	enum cam_zoom_mode zoom_mode;
 	struct cam_zoom_node zoom_node[NODE_ZOOM_CNT_MAX];
 };
 
 struct blk_param_info {
 	uint32_t update;
 	struct dcam_isp_k_block *param_block;
-	void *blk_param_node;
-};
-
-struct camera_interrupt {
-	struct list_head list;
-	uint32_t irq_num;
-	uint32_t int_status;
-	uint32_t int_status1;
 };
 
 struct isp_xtm_conflict_info {
@@ -104,46 +136,54 @@ struct isp_xtm_conflict_info {
 };
 
 struct camera_zoom_frame {
-	struct list_head list;
 	struct sprd_img_rect zoom_crop;
 	struct sprd_img_rect total_zoom_crop;
 };
 
+struct cam_decblk_frame {
+	uint32_t fid;
+	struct dcam_isp_k_block *decblk_pm;
+};
+
+struct cam_ispblk_frame {
+	uint32_t fid;
+	uint32_t update;
+	struct dcam_isp_k_block *param_block;
+};
+
+struct cam_port_linkage {
+	enum cam_node_type node_type;
+	uint32_t node_id;
+	uint32_t port_id;
+};
+
 struct camera_frame {
-	struct list_head list;
-	struct cam_linkage link_from;
-	struct cam_linkage link_to;
-	uint32_t dump_en;
+	struct cam_port_linkage link_from;
+	struct cam_port_linkage link_to;
+	enum en_status dump_en;
 	uint32_t dump_node_id;
-	uint32_t replace_en;
+	enum en_status replace_en;
 	uint32_t replace_node_id;
-	uint32_t copy_en;
+	enum en_status copy_en;
 	uint32_t copy_node_id;
 	uint32_t fid;
 	uint32_t width;
 	uint32_t height;
 	uint32_t img_fmt;
 	enum cam_format cam_fmt;
-	uint16_t pattern;
-	uint16_t endian;
 	uint32_t evt;
-	uint32_t channel_id;
+	enum cam_ch_id channel_id;
 	uint32_t irq_type;
 	uint32_t irq_property;
-	uint32_t is_reserved;
-	uint32_t is_compressed;
-	enum pyr_status pyr_status;
-	/* use for dcam dec & isp rec */
-	uint32_t need_pyr_rec;
-	/* use for isp dec */
-	uint32_t need_pyr_dec;
+	enum cam_reserved_buf_type is_reserved;
+	enum en_status is_compressed;
+	enum en_status pyr_status;
 	/*use for isp ltm ctrl*/
 	struct isp_xtm_conflict_info xtm_conflict;
 	uint32_t not_use_isp_reserved_buf;
 	uint32_t user_fid;
 	uint32_t zoom_ratio;
 	uint32_t total_zoom;
-	uint32_t bpc_raw_flag;
 	struct dcam_compress_info fbc_info;
 	void *priv_data;
 	timeval sensor_time;/* time without suspend @SOF */
@@ -152,40 +192,33 @@ struct camera_frame {
 	struct blk_param_info blkparam_info;
 	struct camera_buf buf;
 	struct nr3_me_data nr3_me;
-	uint32_t nr3_blend_cnt;
+	/*need to delete after scaler buffer opt.*/
 	enum isp_stream_state state;
 	enum isp_stream_buf_type buf_type;
-	struct img_size in;
-	struct img_trim in_crop;
-	struct img_size out[ISP_SPATH_NUM];
-	struct img_trim out_crop[ISP_SPATH_NUM];
-	uint32_t in_fmt;
 	void *pframe_data;
 	struct cam_zoom_frame zoom_data;
 	uint32_t is_flash_status;
 };
 
-/**
- * @list: for support en/dequeue operation
- * @state: current stream state
- * @buf_type: isp output buffer source
- * @data_src: isp input frame source
- * @in @in_crop @out @out_crop: size info
- *.@cur_cnt: current frame cout in one complete stream
- * @max_cnt: one complete stream total frame count
- * @in_fmt: input frame format
- */
-struct isp_stream_ctrl {
-	struct list_head list;
-	enum isp_stream_state state;
-	enum isp_stream_buf_type buf_type[ISP_SPATH_NUM];
-	struct img_size in;
-	struct img_trim in_crop;
-	struct img_size out[ISP_SPATH_NUM];
-	struct img_trim out_crop[ISP_SPATH_NUM];
-	uint32_t cur_cnt;
-	uint32_t max_cnt;
-	uint32_t in_fmt;
+enum camera_frame_type {
+	CAM_FRAME_GENERAL = 1,
+	CAM_FRMAE_USER_ZOOM,
+	CAM_FRAME_NODE_ZOOM,
+	CAM_FRAME_ISP_BLK,
+	CAM_FRAME_DEC_BLK,
+	CAM_FRAME_MAX,
+};
+
+struct cam_frame {
+	struct cam_q_head list;
+	enum camera_frame_type type;
+	union {
+		struct camera_frame common;
+		struct camera_zoom_frame user_zoom;
+		struct cam_zoom_frame node_zoom;
+		struct cam_ispblk_frame isp_blk;
+		struct cam_decblk_frame dec_blk;
+	};
 };
 
 struct camera_queue {
@@ -201,6 +234,40 @@ struct camera_queue {
 	void (*destroy)(void *param);
 };
 
+struct cam_queue_frame_manager {
+	uint32_t array_num;
+	struct cam_frame *frame_array[CAM_EMP_ARRAY_LEN_MAX];
+	struct camera_queue empty_frame_q;
+	spinlock_t frame_lock;
+	struct rw_semaphore check_lock;
+};
+
+#define cam_queue_list_add(_list, head, is_tail) ({ \
+	struct cam_q_head *__list = (_list); \
+	bool __is_tail = (is_tail); \
+	uint32_t ret = -1; \
+	if (atomic_cmpxchg(&__list->status, CAM_Q_FREE, CAM_Q_USED) == CAM_Q_FREE) { \
+		if (__is_tail) \
+			list_add_tail(&__list->list, head); \
+		else \
+			list_add(&__list->list, head); \
+		ret = 0; \
+	} else \
+		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0));\
+	ret;\
+})
+
+#define cam_queue_list_del(_list) ({ \
+	struct cam_q_head *__list = (_list);\
+	uint32_t ret = -1; \
+	if (atomic_cmpxchg(&__list->status, CAM_Q_USED, CAM_Q_FREE) == CAM_Q_USED) { \
+		list_del(&__list->list);\
+		ret = 0; \
+	} else \
+		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0));\
+	ret; \
+})
+
 #define cam_queue_init(queue, queue_max, data_cb_func) ( { \
 	struct camera_queue *__q = (queue); \
 	if (__q != NULL) { \
@@ -213,49 +280,21 @@ struct camera_queue {
 	} \
 })
 
-#define cam_queue_init_new(queue, type, queue_max, data_cb_func) ( { \
-	int ret = -1; \
-	struct camera_queue *__q = (queue); \
-	if (__q != NULL) { \
-		__q->cnt = 0; \
-		__q->max = (queue_max); \
-		__q->state = CAM_Q_INIT; \
-		__q->destroy = (data_cb_func); \
-		spin_lock_init(&__q->lock); \
-		INIT_LIST_HEAD(&__q->head); \
-		__q->node_size = sizeof(type); \
-		__q->node = cam_buf_kernel_sys_vzalloc(__q->node_size * queue_max); \
-		if (__q->node) { \
-			ret = 0; \
-			__q->node_head = __q->node; \
-			__q->node_tail = __q->node + ((queue_max) * __q->node_size); \
-		} \
-	} \
-	ret; \
-})
-
-#define cam_queue_clear_new(queue) ( { \
-	struct camera_queue *__q = (queue); \
-	if (__q != NULL) { \
-		__q->cnt = 0; \
-		__q->node = __q->node_head; \
-		INIT_LIST_HEAD(&__q->head); \
-	} \
-})
-
 #define cam_queue_deinit(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
+	struct cam_q_head *_list = NULL; \
 	if (__q != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		do { \
 			if ((list_empty(&__q->head)) || (__q->cnt == 0)) \
 				break; \
-			__node = list_first_entry(&__q->head, type, member); \
-			if (__node == NULL) \
+			_list = list_first_entry(&__q->head, struct cam_q_head, list); \
+			if (_list == NULL) \
 				break; \
-			list_del(&__node->member); \
+			cam_queue_list_del(_list); \
+			__node = container_of(_list, type, member); \
 			__q->cnt--; \
 			if (__q->destroy) { \
 				spin_unlock_irqrestore(&__q->lock, __flags); \
@@ -290,36 +329,13 @@ struct camera_queue {
 	int ret = -1; \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
-	if (__q != NULL && (list) != NULL) { \
+	struct cam_q_head *_list = (list); \
+	if (__q != NULL && (_list) != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		if ((__q->state != CAM_Q_CLEAR) && (__q->cnt < __q->max)) { \
-			__q->cnt++; \
-			list_add_tail((list), &__q->head); \
-			ret = 0; \
-		} \
-		spin_unlock_irqrestore(&__q->lock, __flags); \
-	} \
-	ret; \
-})
-
-#define cam_queue_enqueue_new(queue, type, param) ( { \
-	int ret = -1; \
-	unsigned long __flags = 0; \
-	struct camera_queue *__q = (queue); \
-	type *__src_node = param; \
-	type *__dst_node = NULL; \
-	if (__q != NULL) { \
-		spin_lock_irqsave(&__q->lock, __flags); \
-		__dst_node = (type *)__q->node; \
-		if ((__q->state != CAM_Q_CLEAR) && (__dst_node != NULL) \
-			&& (__q->cnt < __q->max)) { \
-			__q->cnt++; \
-			memcpy(__dst_node, __src_node, __q->node_size); \
-			list_add_tail((&__dst_node->list), &__q->head); \
-			__q->node += __q->node_size; \
-			if (__q->node == __q->node_tail) \
-				__q->node = __q->node_head; \
-			ret = 0; \
+			ret = cam_queue_list_add(_list, &__q->head, true); \
+			if (!ret) \
+				__q->cnt++; \
 		} \
 		spin_unlock_irqrestore(&__q->lock, __flags); \
 	} \
@@ -330,12 +346,13 @@ struct camera_queue {
 	int ret = -1; \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
-	if (__q != NULL && (list) != NULL) { \
+	struct cam_q_head *_list = (list); \
+	if (__q != NULL && (_list) != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		if ((__q->state != CAM_Q_CLEAR) && (__q->cnt < __q->max)) { \
-			__q->cnt++; \
-			list_add((list), &__q->head); \
-			ret = 0; \
+			ret = cam_queue_list_add(_list, &__q->head, false); \
+			if (!ret) \
+				__q->cnt++; \
 		} \
 		spin_unlock_irqrestore(&__q->lock, __flags); \
 	} \
@@ -346,55 +363,38 @@ struct camera_queue {
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
+	struct cam_q_head *_list = NULL; \
 	if (__q != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		if ((!list_empty(&__q->head)) && (__q->cnt) \
 			&& (__q->state != CAM_Q_CLEAR)) { \
-			__node = list_first_entry(&__q->head, type, member); \
-			if (__node) \
-				list_del(&__node->member); \
-			__q->cnt--; \
+			_list = list_first_entry(&__q->head, struct cam_q_head, list); \
+			if (_list) { \
+				cam_queue_list_del(_list); \
+				__node = container_of(_list, type, member); \
+				__q->cnt--; \
+			} \
 		} \
 		spin_unlock_irqrestore(&__q->lock, __flags); \
 	} \
 	__node; \
 })
 
-#define cam_queue_dequeue_new(queue, type, member, node) ({ \
-	int ret = -1; \
-	unsigned long __flags = 0; \
-	struct camera_queue *__q = (queue); \
-	type *__frame = (node); \
-	type *__node = NULL; \
-	if (__q != NULL) { \
-		spin_lock_irqsave(&__q->lock, __flags); \
-		if ((!list_empty(&__q->head)) && (__q->cnt) \
-			&& (__q->state != CAM_Q_CLEAR)) { \
-			__node = list_first_entry(&__q->head, type, member); \
-			if (__node) { \
-				ret = 0; \
-				list_del(&__node->member); \
-				memcpy(__frame, __node, __q->node_size); \
-			} \
-			__q->cnt--; \
-		} \
-		spin_unlock_irqrestore(&__q->lock, __flags); \
-	} \
-	ret; \
-})
-
 #define cam_queue_dequeue_tail(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
+	struct cam_q_head *_list = NULL; \
 	if (__q != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		if ((!list_empty(&__q->head)) && (__q->cnt) \
 			&& (__q->state != CAM_Q_CLEAR)) { \
-			__node = list_last_entry(&__q->head, type, member); \
-			if (__node) \
-				list_del(&__node->member); \
-			__q->cnt--; \
+			_list = list_last_entry(&__q->head, struct cam_q_head, list); \
+			if (_list) { \
+				cam_queue_list_del(_list); \
+				__node = container_of(_list, type, member); \
+				__q->cnt--; \
+			} \
 		} \
 		spin_unlock_irqrestore(&__q->lock, __flags); \
 	} \
@@ -405,11 +405,15 @@ struct camera_queue {
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
+	struct cam_q_head *_list = NULL; \
 	if (__q != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		if ((!list_empty(&__q->head)) && (__q->cnt) \
 			&& (__q->state != CAM_Q_CLEAR)) { \
-			__node = list_first_entry(&__q->head, type, member); \
+			_list = list_first_entry(&__q->head, struct cam_q_head, list); \
+			if (_list) { \
+				__node = container_of(_list, type, member); \
+			} \
 		} \
 		spin_unlock_irqrestore(&__q->lock, __flags); \
 	} \
@@ -420,16 +424,18 @@ struct camera_queue {
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
+	struct cam_q_head *_list = NULL; \
 	if (__q != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		do { \
 			if ((list_empty(&__q->head)) || (__q->cnt == 0)) \
 				break; \
-			__node = list_first_entry(&__q->head, type, member); \
-			if (__node == NULL) \
+			_list = list_first_entry(&__q->head, struct cam_q_head, list); \
+			if (_list == NULL) \
 				break; \
-			list_del(&__node->member); \
+			cam_queue_list_del(_list); \
 			__q->cnt--; \
+			__node = container_of(_list, type, member); \
 			if (__q->destroy) { \
 				spin_unlock_irqrestore(&__q->lock, __flags); \
 				__q->destroy(__node); \
@@ -445,67 +451,62 @@ struct camera_queue {
 	} \
 })
 
-#define cam_queue_del_tail(queue, type, member) ({                           \
-	unsigned long __flags;                                               \
-	struct camera_queue *__q = (queue);                                  \
-	type *__node = NULL;                                                 \
-	if (__q != NULL) {                                                   \
-		spin_lock_irqsave(&__q->lock, __flags);                      \
-		if ((!list_empty(&__q->head)) && (__q->cnt)                  \
-			&& (__q->state != CAM_Q_CLEAR)) {                    \
-			__node = list_last_entry(&__q->head, type, member);  \
-			if (__node)                                          \
-				list_del(&__node->member);                   \
-			__q->cnt--;                                          \
-		}                                                            \
-		spin_unlock_irqrestore(&__q->lock, __flags);                 \
-	}                                                                    \
-	__node;                                                              \
+#define cam_queue_tail_peek(queue, type, member) ({ \
+	unsigned long __flags; \
+	struct camera_queue *__q = (queue); \
+	struct cam_q_head *_list = NULL; \
+	type *__node = NULL; \
+	if (__q != NULL) { \
+		spin_lock_irqsave(&__q->lock, __flags); \
+		if ((!list_empty(&__q->head)) && (__q->cnt) \
+			&& (__q->state != CAM_Q_CLEAR)) { \
+			_list = list_last_entry(&__q->head, struct cam_q_head, list); \
+			if (_list) { \
+				__node = container_of(_list, type, member); \
+			} \
+		} \
+		spin_unlock_irqrestore(&__q->lock, __flags); \
+	} \
+	__node; \
 })
 
-#define cam_queue_tail_peek(queue, type, member) ({                          \
-	unsigned long __flags;                                               \
-	struct camera_queue *__q = (queue);                                  \
-	type *__node = NULL;                                                 \
-	if (__q != NULL) {                                                   \
-		spin_lock_irqsave(&__q->lock, __flags);                      \
-		if ((!list_empty(&__q->head)) && (__q->cnt)                  \
-			&& (__q->state != CAM_Q_CLEAR)) {                    \
-			__node = list_last_entry(&__q->head, type, member);  \
-		}                                                            \
-		spin_unlock_irqrestore(&__q->lock, __flags);                 \
-	}                                                                    \
-	__node;                                                              \
+#define cam_queue_frame_flag_reset(frame) ({ \
+	struct camera_frame *__p = (frame); \
+	if (__p != NULL) { \
+		__p->xtm_conflict.need_gtm_hist = 1; \
+		__p->xtm_conflict.need_gtm_map = 1; \
+		__p->xtm_conflict.gtm_mod_en = 1; \
+		__p->xtm_conflict.need_ltm_hist = 1; \
+		__p->xtm_conflict.need_ltm_map = 1; \
+		__p->not_use_isp_reserved_buf = 0; \
+	} \
 })
 
-#define cam_queue_frame_flag_reset(frame) ({                                 \
-	struct camera_frame *__p = (frame);                                  \
-	if (__p != NULL) {                                                   \
-		__p->xtm_conflict.need_gtm_hist = 1;                         \
-		__p->xtm_conflict.need_gtm_map = 1;                          \
-		__p->xtm_conflict.gtm_mod_en = 1;                            \
-		__p->xtm_conflict.need_ltm_hist = 1;                         \
-		__p->xtm_conflict.need_ltm_map = 1;                          \
-		__p->not_use_isp_reserved_buf = 0;                           \
-	}                                                                    \
-})
+/*list_for_each_entry*/
+#define cam_queue_for_each_entry(param, head, node) \
+	for (param = container_of(list_first_entry(head, struct cam_q_head, list), typeof(*param), node); \
+		!list_entry_is_head((&param->node), head, list); \
+		param = container_of(list_next_entry(&param->node, list), typeof(*param), node))
 
-int cam_queue_enqueue_front(struct camera_queue *q, struct list_head *list);
-struct camera_frame *cam_queue_dequeue_if(struct camera_queue *q,
-	bool (*filter)(struct camera_frame *, void *), void *data);
-int cam_queue_same_frame_get(struct camera_queue *q0,
-	struct camera_frame **pf0, int64_t t_sec, int64_t t_usec);
-struct camera_frame *cam_queue_empty_frame_get(void);
-int cam_queue_empty_frame_put(struct camera_frame *pframe);
-void cam_queue_empty_frame_free(void *param);
+/*list_for_each_entry_safe*/
+#define cam_queue_for_each_entry_safe(param, param_next, head, node) \
+	for (param = container_of(list_first_entry(head, struct cam_q_head, list), typeof(*param), node), \
+		param_next = container_of(list_next_entry(&param->node, list), typeof(*param), node); \
+		!list_entry_is_head((&param->node), head, list); \
+		param = param_next, \
+		param_next = container_of(list_next_entry(&param_next->node, list), typeof(*param), node))
 
+int cam_queue_enqueue_front(struct camera_queue *q, struct cam_q_head *list);
+struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, bool (*filter)(struct cam_frame *, void *), void *data);
+int cam_queue_same_frame_get(struct camera_queue *q0, struct cam_frame **pf0, int64_t t_sec, int64_t t_usec);
 void cam_queue_ioninfo_free(void *param);
-struct cam_zoom_frame *cam_queue_empty_zoom_get(void);
-int cam_queue_empty_zoom_put(struct cam_zoom_frame *pframe);
-void cam_queue_empty_zoom_free(void *param);
-
-int cam_queue_recycle_blk_param(struct camera_queue *q, struct camera_frame *param_pframe);
-struct camera_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
-int cam_queue_blk_param_unbind(struct camera_queue *param_share_queue, struct camera_frame *pframe);
-
+int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe);
+struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
+void cam_queue_empty_frame_put(void *pframe);
+struct cam_frame *cam_queue_empty_frame_get(enum camera_frame_type type);
+int cam_queue_empty_frame_init(void);
+int cam_queue_empty_frame_deinit(void);
+int cam_queue_frame_array_check(uint32_t mode);
+void cam_queue_frame_check_lock(void);
+void cam_queue_frame_check_unlock(void);
 #endif/* _CAM_QUEUE_H_ */

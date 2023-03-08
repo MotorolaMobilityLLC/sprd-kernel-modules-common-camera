@@ -31,7 +31,6 @@
 #define RAW_OVERLAP_RIGHT              138
 #define DCAM_SW_SLICE_HEIGHT_MAX       8192
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
-#define CAM_FACEID_SEC
 #define DCAM_OFFSET_RANGE              0x3E103E0
 
 #define DCAM_PATH_CROP_ALIGN           8
@@ -41,6 +40,7 @@
 #define DCAM_FRAME_TIMESTAMP_COUNT     0x100
 #define GTM_HIST_ITEM_NUM              128
 #define GTM_HIST_VALUE_SIZE            174
+#define GTM_HIST_XPTS_CNT              256
 
 /*Total lbuf DCAM0+DCAM1: 5184+5184 */
 #define DCAM_TOTAL_LBUF                10368
@@ -67,8 +67,10 @@
 
 #define FBC_HEADER_REDUNDANT           0
 #define FBC_TILE_ADDR_ALIGN            1
-#define CAL_PACK_PITCH(w)              (((w) * 10 + 127) / 128 * 128 / 8)
-#define CAL_UNPACK_PITCH(w)            (((w) * 16 + 127) / 128 * 128 / 8)
+#define CAL_HW_PACK_PITCH(w)           (((w) * 10 + 127) / 128)
+#define CAL_HW_UNPACK_PITCH(w)         (((w) * 16 + 127) / 128)
+#define CAL_PACK_PITCH(w)              (CAL_HW_PACK_PITCH(w) * 128 / 8)
+#define CAL_UNPACK_PITCH(w)            (CAL_HW_UNPACK_PITCH(w) * 128 / 8)
 #if defined (PROJ_QOGIRN6L)
 #define CAL_FULLRGB14_PITCH(w)         ((w) * 6)
 #else
@@ -133,23 +135,6 @@ static inline uint32_t dcamonline_dec_align_heigh(uint32_t h, uint32_t layer_num
 
 	height = ALIGN(h, h_align);
 	return height;
-}
-
-static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t pack_bits)
-{
-	if (pack_bits == CAM_RAW_PACK_10)
-		w = (w * 10 + 127) / 128 * 128 / 8;
-	else
-		w = (w * 16 + 127) / 128 * 128 / 8;
-
-	return w;
-}
-
-static inline int dcamhw_valid_fmt_get(uint32_t fmt)
-{
-	if (fmt >= CAM_RAW_PACK_10 && fmt <= CAM_RAW_8)
-		return 1;
-	return 0;
 }
 
 static inline uint32_t dcam_if_cal_compressed_size(struct dcam_compress_cal_para *para)

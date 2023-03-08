@@ -344,8 +344,7 @@ static int isp3dnr_memctrl_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	mem_ctrl->first_line_mode = 0;
 	mem_ctrl->last_line_mode = 0;
 
-	if (ctx->type == NR3_FUNC_PRE || ctx->type == NR3_FUNC_CAP)
-		alg_nr3_memctrl_base_on_mv_update(ctx);
+	alg_nr3_memctrl_base_on_mv_update(ctx);
 
 	/*configuration param 8~11*/
 	mem_ctrl->blend_y_en_start_row = 0;
@@ -687,6 +686,7 @@ static int isp3dnr_config_gen(struct isp_3dnr_ctx_desc *ctx)
 	}
 
 	ctx->blending_cnt++;
+	pr_debug("ctx id %d mode %d blending_cnt %d\n", ctx->ctx_id, ctx->mode, ctx->blending_cnt);
 
 	return ret;
 }
@@ -721,10 +721,47 @@ static int isp3dnr_conversion_mv(struct isp_3dnr_ctx_desc *nr3_ctx)
 	return ret;
 }
 
-static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
+static int isp3dnr_blend_ctrl(struct isp_3dnr_ctx_desc *nr3_ctx)
 {
 	int ret = 0;
 	uint32_t curblend_bypass = 0;
+
+	if (!nr3_ctx) {
+		pr_err("fail to get valid nr3_ctx\n");
+		return -EINVAL;
+	}
+
+	/*determine wheather the first frame after hdr*/
+	if (nr3_ctx->nr3_mv_version == ALG_NR3_MV_VER_0)
+		curblend_bypass = nr3_ctx->isp_block->nr3_info_base.blend.bypass;
+	else
+		curblend_bypass = nr3_ctx->isp_block->nr3_info_base_v1.blend.bypass;
+	if (nr3_ctx->preblend_bypass == 1 && curblend_bypass == 0) {
+		nr3_ctx->blending_cnt = 0;
+		nr3_ctx->mv.mv_x = 0;
+		nr3_ctx->mv.mv_y = 0;
+		pr_debug("the first frame after hdr, set 0\n");
+	}
+
+	if (curblend_bypass) {
+		/* blending  trun on/off by ref_pic_flag, not blend bypass, on L5pro/L6
+		 * on N6p/N6L blending trun on when (ref_pic_flag=1 && blend bypass=0)
+		 * trun off when (ref_pic_flag=0 || blend bypass=1)
+		 */
+			nr3_ctx->blending_cnt = 0;
+			nr3_ctx->mv.mv_x = 0;
+			nr3_ctx->mv.mv_y = 0;
+			nr3_ctx->isp_block->nr3_info_base.blend.bypass = 0;
+			nr3_ctx->isp_block->nr3_info_base_v1.blend.bypass = 0;
+		}
+		nr3_ctx->preblend_bypass = curblend_bypass;
+
+	return ret;
+}
+
+static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
+{
+	int ret = 0;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct nr3_me_data *nr3_me = NULL;
 
@@ -737,83 +774,36 @@ static int isp3dnr_pipe_proc(void *handle, void *param, uint32_t mode)
 	nr3_me = (struct nr3_me_data *)param;
 
 	if ((g_isp_bypass[nr3_ctx->ctx_id] >> _EISP_NR3) & 1)
-		mode = NR3_FUNC_OFF;
+		mode = MODE_3DNR_OFF;
 
 	switch (mode) {
 	case MODE_3DNR_PRE:
-		nr3_ctx->type = NR3_FUNC_PRE;
-
-		if (nr3_me->valid) {
-			nr3_ctx->mv.mv_x = nr3_me->mv_x;
-			nr3_ctx->mv.mv_y = nr3_me->mv_y;
-			nr3_ctx->mvinfo = nr3_me;
-			isp3dnr_conversion_mv(nr3_ctx);
-		} else {
-			pr_err("fail to get binning path mv, set default 0\n");
-			nr3_ctx->mv.mv_x = 0;
-			nr3_ctx->mv.mv_y = 0;
-			nr3_ctx->mvinfo = NULL;
-		}
-
-		/*determine wheather the first frame after hdr*/
-		if (nr3_ctx->nr3_mv_version == ALG_NR3_MV_VER_0)
-			curblend_bypass = nr3_ctx->isp_block->nr3_info_base.blend.bypass;
-		else
-			curblend_bypass = nr3_ctx->isp_block->nr3_info_base_v1.blend.bypass;
-		if (nr3_ctx->preblend_bypass == 1 && curblend_bypass == 0) {
-			nr3_ctx->blending_cnt = 0;
-			nr3_ctx->mv.mv_x = 0;
-			nr3_ctx->mv.mv_y = 0;
-			pr_debug("the first frame after hdr, set 0\n");
-		}
-
-		if (curblend_bypass) {
-			/* blending  trun on/off by ref_pic_flag, not blend bypass, on L5pro
-			 * on N6p/N6L blending trun on when (ref_pic_flag=1 && blend bypass=0)
-			 * trun off when (ref_pic_flag=0 || blend bypass=1)
-			*/
-			nr3_ctx->blending_cnt = 0;
-			nr3_ctx->mv.mv_x = 0;
-			nr3_ctx->mv.mv_y = 0;
-			nr3_ctx->isp_block->nr3_info_base.blend.bypass = 0;
-			nr3_ctx->isp_block->nr3_info_base_v1.blend.bypass = 0;
-		}
-		nr3_ctx->preblend_bypass = curblend_bypass;
-
-		isp3dnr_config_gen(nr3_ctx);
-		isp_3dnr_config_param(nr3_ctx);
-
-		pr_debug("3DNR_PRE path mv[%d, %d]!\n",
-			nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
-		break;
 	case MODE_3DNR_CAP:
-		nr3_ctx->type = NR3_FUNC_CAP;
-		if (nr3_ctx->mode == MODE_3DNR_OFF)
-			return 0;
+		nr3_ctx->mode = mode;
 
 		if (nr3_me->valid) {
 			nr3_ctx->mv.mv_x = nr3_me->mv_x;
 			nr3_ctx->mv.mv_y = nr3_me->mv_y;
 			nr3_ctx->mvinfo = nr3_me;
 			if (nr3_ctx->mvinfo->src_width != nr3_ctx->width ||
-				nr3_ctx->mvinfo->src_height != nr3_ctx->height) {
+				nr3_ctx->mvinfo->src_height != nr3_ctx->height)
 				isp3dnr_conversion_mv(nr3_ctx);
-			}
 		} else {
-			pr_err("fail to get full path mv, set default 0\n");
+			pr_err("fail to get  mv, set default 0\n");
 			nr3_ctx->mv.mv_x = 0;
 			nr3_ctx->mv.mv_y = 0;
+			nr3_ctx->mvinfo = NULL;
 		}
-
+		if (mode == MODE_3DNR_PRE)
+			isp3dnr_blend_ctrl(nr3_ctx);
 		isp3dnr_config_gen(nr3_ctx);
 		isp_3dnr_config_param(nr3_ctx);
 
-		pr_debug("3DNR_CAP path mv[%d, %d]!\n",
-			nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
+		pr_debug("mode %d path mv[%d, %d]!\n",mode, nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
 		break;
 	default:
 		/* default: bypass 3dnr */
-		nr3_ctx->type = NR3_FUNC_OFF;
+		nr3_ctx->mode = MODE_3DNR_OFF;
 		isp_3dnr_bypass_config(nr3_ctx->ctx_id);
 		pr_debug("ispcore_offline_frame_start default\n");
 		break;
@@ -838,16 +828,9 @@ static int isp3dnr_cfg_param(void *handle,
 
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)handle;
 	switch (cmd) {
-	case ISP_3DNR_CFG_MODE:
-		nr3_ctx->mode = *(uint32_t *)param;
-		pr_debug("3DNR mode %d\n", nr3_ctx->mode);
-		break;
-	case ISP_3DNR_CFG_BLEND_CNT:
-		nr3_ctx->blending_cnt = *(uint32_t *)param;
-		pr_debug("3DNR blending cnt %d\n", nr3_ctx->blending_cnt);
-		break;
 	case ISP_3DNR_CFG_FBC_FBD_INFO:
 		nr3_compress_eb = *(uint32_t *)param;
+		pr_debug("3DNR fbc/fbd enable %d\n", nr3_compress_eb);
 		if (nr3_compress_eb) {
 			nr3_ctx->mem_ctrl.bypass = 1;
 			nr3_ctx->nr3_store.st_bypass = 1;
@@ -876,7 +859,6 @@ static int isp3dnr_cfg_param(void *handle,
 	case ISP_3DNR_CFG_MEMCTL_STORE_INFO:
 		fetch_info = (struct isp_hw_fetch_info *)param;
 		nr3_ctx->mem_ctrl.yuv_8bits_flag = (cam_data_bits(fetch_info->fetch_3dnr_fmt) == 8) ? 1 : 0;
-		nr3_ctx->nr3_sec_mode = fetch_info->sec_mode;
 		nr3_ctx->mem_ctrl.ft_pitch = isp3dnr_calc_img_pitch(fetch_info->fetch_3dnr_fmt, nr3_ctx->width);
 		nr3_ctx->nr3_store.st_pitch = nr3_ctx->mem_ctrl.ft_pitch;
 		nr3_ctx->nr3_store.y_pitch_mem = nr3_ctx->mem_ctrl.ft_pitch;
@@ -925,7 +907,7 @@ void isp_3dnr_ctx_put(void *nr3_handle)
 	nr3_ctx = (struct isp_3dnr_ctx_desc *)nr3_handle;
 	for (i = 0; i < ISP_NR3_BUF_NUM; i++) {
 		if (nr3_ctx->nr3_frame[i].buf.mapping_state & CAM_BUF_MAPPING_ISP) {
-			cam_buf_iommu_unmap(&nr3_ctx->nr3_frame[i].buf, CAM_BUF_IOMMUDEV_ISP);
+			cam_buf_manager_buf_status_cfg(&nr3_ctx->nr3_frame[i].buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_ISP);
 			cam_buf_free(&nr3_ctx->nr3_frame[i].buf);
 		}
 	}

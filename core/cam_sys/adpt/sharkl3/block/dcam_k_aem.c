@@ -101,12 +101,18 @@ int dcam_k_aem_skip_num(struct dcam_isp_k_block *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	if (param == NULL)
 		return -1;
 
 	idx = param->idx;
+	dev = param->dev;
+	hw_ctx = &dev->hw_ctx[idx];
 
+	if (param->is_high_fps)
+		param->aem.skip_num = hw_ctx->slowmotion_count - 1;
 	pr_info("DCAM%u AEM set skip_num %u\n", idx, param->aem.skip_num);
 
 	val = (param->aem.skip_num & 0xF) << 4;
@@ -114,6 +120,7 @@ int dcam_k_aem_skip_num(struct dcam_isp_k_block *param)
 
 	/* It is better to set aem_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL1, BIT_1, 1 << 1);
+	dcam_online_port_skip_num_set(param->dev, idx, DCAM_PATH_AEM, param->aem.skip_num);
 
 	return ret;
 }

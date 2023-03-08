@@ -21,7 +21,8 @@
 #include "isp_dev.h"
 #include "isp_interface.h"
 
-inline void isp_int_common_record(uint32_t cfg_id, enum isp_context_hw_id c_id, uint32_t irq_line);
+#define ISP_INT_LOGICAL_COUNT 2
+
 void isp_int_common_all_done(enum isp_context_hw_id hw_idx, void *isp_handle);
 void isp_int_common_shadow_done(enum isp_context_hw_id idx, void *isp_handle);
 void isp_int_common_dispatch_done(enum isp_context_hw_id idx, void *isp_handle);

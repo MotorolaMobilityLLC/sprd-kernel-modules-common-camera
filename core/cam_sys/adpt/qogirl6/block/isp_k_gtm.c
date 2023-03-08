@@ -282,9 +282,9 @@ int isp_k_gtm_block(void *pctx, void *param)
 	val = ((p->tm_rgb2y_b_coeff & 0x7FF) << 0);
 	ISP_REG_MWR(idx, ISP_GTM_TM_RGB2TCOEFF1, 0x7FF, val);
 
-	for (i = 0; i < 128; i+=2) {
-		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i+1] & 0x3FFF);
-		ISP_REG_WR(idx, ISP_GTM_HIST_XPTS_0 + i*2, val);
+	for (i = 0; i < GTM_HIST_XPTS_CNT / 2; i += 2) {
+		val = ((p->tm_hist_xpts[i] & 0x3FFF) << 16) | (p->tm_hist_xpts[i + 1] & 0x3FFF);
+		ISP_REG_WR(idx, ISP_GTM_HIST_XPTS_0 + i * 2, val);
 	}
 
 	return ret;

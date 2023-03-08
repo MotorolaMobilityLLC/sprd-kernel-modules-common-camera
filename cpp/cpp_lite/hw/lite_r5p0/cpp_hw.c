@@ -14,9 +14,9 @@
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <os_adapt_common.h>
 
 #include "cpp_drv.h"
 #include "cpp_reg.h"
@@ -138,7 +138,7 @@ static int cpphw_module_reset(void *cpp_soc_handle)
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
 			CPP_PATH_RESET_MASK,
 			(unsigned int)CPP_PATH_RESET_MASK);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
 			CPP_PATH_RESET_MASK,
 			~(unsigned int)CPP_PATH_RESET_MASK);
@@ -160,7 +160,7 @@ static int cpphw_scale_reset(void *cpp_soc_handle)
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, (unsigned int)MM_AHB_RESET,
 			(unsigned int)CPP_PATH0_AHB_RESET_BIT,
 			(unsigned int)CPP_PATH0_AHB_RESET_BIT);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, (unsigned int)MM_AHB_RESET,
 			(unsigned int)CPP_PATH0_AHB_RESET_BIT,
 			~(unsigned int)CPP_PATH0_AHB_RESET_BIT);
@@ -182,7 +182,7 @@ static int cpphw_rot_reset(void *cpp_soc_handle)
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
 			CPP_PATH1_AHB_RESET_BIT,
 			(unsigned int)CPP_PATH1_AHB_RESET_BIT);
-	udelay(2);
+	os_adapt_time_udelay(2);
 	regmap_update_bits(soc_cpp->mm_ahb_gpr, MM_AHB_RESET,
 			CPP_PATH1_AHB_RESET_BIT,
 			~(unsigned int)CPP_PATH1_AHB_RESET_BIT);

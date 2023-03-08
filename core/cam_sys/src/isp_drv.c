@@ -13,7 +13,6 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -202,11 +201,13 @@ int isp_drv_dt_parse(struct device_node *dn,
 			ARRAY_SIZE(args), args))
 			ip_isp->syscon.rst_vau_mask = args[1];
 
+#if defined (PROJ_QOGIRN6PRO)
 		if (!cam_kernel_adapt_syscon_get_args_by_name(isp_node, "sys_h2p_db_soft_rst",
 			ARRAY_SIZE(args), args)) {
 			ip_isp->syscon.sys_soft_rst = args[0];
 			ip_isp->syscon.sys_h2p_db_soft_rst = args[1];
 		}
+#endif
 
 		if (of_address_to_resource(isp_node, i, &res))
 			pr_err("fail to get isp phys addr\n");
@@ -256,23 +257,6 @@ int isp_drv_hw_init(void *arg)
 
 	dev = (struct isp_pipe_dev *)arg;
 	hw = dev->isp_hw;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	ret = sprd_cam_pw_on();
-	if (ret)
-		goto exit;
-	ret = sprd_cam_domain_eb();
-	if (ret)
-		goto power_eb_fail;
-#else
-	if (ret)
-		goto exit;
-#endif
-
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_ENABLE_CLK, NULL);
-	if (ret)
-		goto clk_fail;
-
 	reset_flag = ISP_RESET_AFTER_POWER_ON;
 	ret = hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 	if (ret)
@@ -284,18 +268,7 @@ int isp_drv_hw_init(void *arg)
 
 	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, NULL);
 
-	sprd_iommu_restore(&hw->soc_isp->pdev->dev);
-	return 0;
-
 reset_fail:
-	hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
-clk_fail:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	sprd_cam_domain_disable();
-power_eb_fail:
-	sprd_cam_pw_off();
-#endif
-exit:
 	return ret;
 }
 
@@ -321,13 +294,6 @@ int isp_drv_hw_deinit(void *arg)
 	ret = isp_int_common_irq_free(&hw->pdev->dev, arg);
 	if (ret)
 		pr_err("fail to free isp irq\n");
-	ret = hw->isp_ioctl(hw, ISP_HW_CFG_DISABLE_CLK, NULL);
-	if (ret)
-		pr_err("fail to disable isp clk\n");
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	sprd_cam_domain_disable();
-	sprd_cam_pw_off();
-#endif
 	return ret;
 }

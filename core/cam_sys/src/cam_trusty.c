@@ -27,8 +27,6 @@
 #define pr_fmt(fmt) "CAM_CA: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
-#ifdef CAM_FACEID_SEC
 #include <linux/device.h>
 #include <linux/trusty/trusty_ipc.h>
 
@@ -118,11 +116,11 @@ static void cam_ca_free_msg_buf_list(struct list_head *list)
 	}
 }
 
-bool cam_trusty_connect(void)
+int cam_trusty_connect(void)
 {
 	struct cam_ca_ctrl *ca = &cam_ca;
 	int chan_conn_ret = 0;
-	bool ret = false;
+	int ret = 0;
 
 	pr_info("chanel_state =%d\n", ca->chanel_state);
 
@@ -150,19 +148,17 @@ bool cam_trusty_connect(void)
 
 	chan_conn_ret = tipc_chan_connect(ca->chan, CAM_TA_PORT_NAME);
 	if (chan_conn_ret) {
-		ret = false;
 		pr_err("fail to connect channel\n");
-		return ret;
-	} else {
-		ret = true;
-		pr_info("cam connect channel done\n");
+		return -EFAULT;
 	}
+
+	pr_info("cam connect channel done\n");
 
 	if (!wait_event_interruptible_timeout(ca->readq,
 			(ca->chanel_state == TIPC_CHANNEL_CONNECTED),
 			msecs_to_jiffies(CA_CONN_TIMEOUT))) {
 		pr_err("fail to wait read response, time out!\n");
-		ret = false;
+		ret = -EFAULT;
 	}
 
 	pr_info("ret =%d\n", ret);
@@ -183,21 +179,25 @@ void cam_trusty_disconnect(void)
 	ca->con_init = false;
 	ca->chanel_state = TIPC_CHANNEL_DISCONNECTED;
 
-	pr_info("disconnect\n");
+	/* todo for Stability test
+	 * tipc_chan_destroy(ca->chan);
+	 */
+
+	pr_info("cam_trusty ca disconnect\n");
 }
 
-bool cam_ca_write(void *buf, size_t len)
+static int cam_ca_write(void *buf, size_t len)
 {
-	bool ret = true;
+	int ret = 0;
 	int avail;
 	struct tipc_msg_buf *txbuf = NULL;
 	struct cam_ca_ctrl *ca = &cam_ca;
-	int  msg_ret = 0;
+	int msg_ret = 0;
 
-	pr_info("ca write enter");
+	pr_info("cam_trusty ca write enter\n");
 
 	if (ca->chanel_state != TIPC_CHANNEL_CONNECTED)
-		return false;
+		return -EFAULT;
 
 	txbuf = tipc_chan_get_txbuf_timeout(ca->chan, GET_TXBUF_TIMEOUT);
 	if (IS_ERR(txbuf))
@@ -232,10 +232,10 @@ ssize_t cam_ca_read(void *buf, size_t max_len)
 	unsigned long flag = 0;
 	int ret = 0;
 
-	pr_info("ca read enter");
+	pr_info("ca read enter\n");
 
 	if (ca->chanel_state != TIPC_CHANNEL_CONNECTED)
-		return false;
+		return -EFAULT;
 
 	ret = wait_event_interruptible_timeout(ca->readq, !list_empty(&ca->rx_msg_queue), msecs_to_jiffies(CA_READ_TIMEOUT));
 	if (ret <= 0) {
@@ -259,108 +259,103 @@ ssize_t cam_ca_read(void *buf, size_t max_len)
 	return len;
 }
 
-
-bool cam_ca_wait_response(uint32_t cmd)
+static int cam_ca_wait_ack(uint32_t cmd)
 {
 	ssize_t size = 0;
-	bool ret = true;
-	struct status_message status_msg;
-
-	pr_info("wait resp enter");
-
-	size = cam_ca_read(&status_msg, sizeof(struct status_message));
-	if (size != sizeof(struct status_message)) {
-		pr_err("fail to get remote response size\n");
-		return false;
-	}
-
-	if (status_msg.cmd == (cmd | TA_RESP_BIT)) {
-		pr_err("fail to get remote ack_msg.cmd\n");
-		return false;
-	}
-
-	if (status_msg.status ==  CAM_SECURITY) {
-		pr_err("fail to get remote ack_msg.ack\n");
-		return false;
-	}
-
-	pr_info("response ret = %d\n", ret);
-	return true;
-}
-
-
-bool cam_ca_wait_ack(uint32_t cmd)
-{
-	ssize_t size = 0;
-	bool ret = true;
 	struct ack_message ack_msg = {0};
 
-	pr_info("wait ack enter");
+	pr_info("wait ack enter\n");
 
 	size = cam_ca_read(&ack_msg, sizeof(struct ack_message));
 
 	if (size != sizeof(struct ack_message)) {
 		pr_err("fail to get remote response size, size= %zd\n", size);
-		return false;
+		return -EFAULT;
 	}
 
 	if (ack_msg.cmd != (cmd | TA_RESP_BIT)) {
 		pr_err("fail to get remote ack_msg.cmd, ack_msg.cmd=0x%x, cmd=0x%x\n",
 			ack_msg.cmd, cmd);
-		return false;
+		return -EFAULT;
 	}
 
 	if (ack_msg.ack ==  TA_CMD_ERR) {
 		pr_err("fail to get remote ack_msg.ack, ack=0x%x\n", ack_msg.ack);
-		return false;
+		return -EFAULT;
 	}
 
-	return ret;
-
+	return 0;
 }
 
-bool camca_get_status(void)
+int cam_trusty_isp_store_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
 {
-	struct faceid_info_msg cam_trusty_status = {0};
-
-	bool ret = true;
+	struct img_pitch_reg_msg store_pitch_set = {0};
+	int ret = 0;
 	struct cam_ca_ctrl *ca = &cam_ca;
 
-	pr_info("get status enter\n");
+	pr_info("cam_trusty store pitch enter\n");
 
 	mutex_lock(&ca->wlock);
-	cam_trusty_status.msg_cmd = TA_GET_CAM_STATUS;
-	ret = cam_ca_write(&cam_trusty_status, sizeof(struct faceid_info_msg));
+
+	store_pitch_set.msg_cmd = TA_IMG_ISP_STORE_PITCH_SET;
+
+	store_pitch_set.y_pitch = y_pitch;
+	store_pitch_set.u_pitch = u_pitch;
+	store_pitch_set.v_pitch = v_pitch;
+
+	ret = cam_ca_write(&store_pitch_set, sizeof(struct img_pitch_reg_msg));
 	if (!ret) {
-		pr_err("fail to write cam_ca ret =%d\n", ret);
+		pr_err("fail to write cam_ca, ret = %d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
 	}
 
-	ret =  cam_ca_wait_response(cam_trusty_status.msg_cmd);
-	if (!ret) {
-		pr_err("fail to wait cam_ca response ret =%d\n", ret);
-		mutex_unlock(&ca->wlock);
-		return ret;
-	}
-
-	cam_ca.cam_temode = cam_trusty_status.sec_attr;
+	ret = cam_ca_wait_ack(store_pitch_set.msg_cmd);
 	mutex_unlock(&ca->wlock);
 
-	pr_info("cam_temode=%d, ret =%d\n", cam_ca.cam_temode, ret);
-
-	return cam_ca.cam_temode;
+	pr_info("exit, ret =%d\n", ret);
+	return ret;
 }
 
+int cam_trusty_isp_store_set(unsigned long y_addr, unsigned long u_addr,
+	unsigned long v_addr)
+{
+	struct img_yuv_reg_msg yuv_store_addr_set = {0};
+	int ret = 0;
+	struct cam_ca_ctrl *ca = &cam_ca;
 
-bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
+	pr_info("ca set isp store addr\n");
+
+	mutex_lock(&ca->wlock);
+
+	yuv_store_addr_set.msg_cmd = TA_IMG_ISP_STORE_ADDR_SET;
+
+	yuv_store_addr_set.y_addr = y_addr;
+	yuv_store_addr_set.u_addr = u_addr;
+	yuv_store_addr_set.v_addr = v_addr;
+
+	ret = cam_ca_write(&yuv_store_addr_set, sizeof(struct img_yuv_reg_msg));
+	if (!ret) {
+		pr_err("fail to write cam_ca, ret =%d\n", ret);
+		mutex_unlock(&ca->wlock);
+		return ret;
+	}
+
+	ret = cam_ca_wait_ack(yuv_store_addr_set.msg_cmd);
+	mutex_unlock(&ca->wlock);
+
+	pr_info("ca set isp store addr ret =%d\n", ret);
+	return ret;
+}
+
+int cam_trusty_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
 	unsigned long v_addr)
 {
 	struct img_yuv_reg_msg yuv_addr_set = {0};
-	bool ret = true;
+	int ret = 0;
 	struct cam_ca_ctrl *ca = &cam_ca;
 
-	pr_info("ca set isp fetch addr");
+	pr_info("ca set isp fetch addr enter\n");
 
 	mutex_lock(&ca->wlock);
 
@@ -377,7 +372,7 @@ bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
 		return ret;
 	}
 
-	ret =  cam_ca_wait_ack(yuv_addr_set.msg_cmd);
+	ret = cam_ca_wait_ack(yuv_addr_set.msg_cmd);
 	mutex_unlock(&ca->wlock);
 
 	pr_info("ca set isp fetch addr ret =%d\n", ret);
@@ -385,13 +380,13 @@ bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
 
 }
 
-bool cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
+int cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitch)
 {
 	struct img_pitch_reg_msg pitch_set = {0};
-	bool ret = true;
+	int ret = 0;
 	struct cam_ca_ctrl *ca = &cam_ca;
 
-	pr_info("enter\n");
+	pr_info("ca isp_fetch pitch enter\n");
 
 	mutex_lock(&ca->wlock);
 
@@ -408,49 +403,17 @@ bool cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pit
 		return ret;
 	}
 
-	ret =  cam_ca_wait_ack(pitch_set.msg_cmd);
+	ret = cam_ca_wait_ack(pitch_set.msg_cmd);
 	mutex_unlock(&ca->wlock);
 
 	pr_info("exit, ret =%d\n", ret);
 	return ret;
 }
 
-bool cam_trusty_isp_3dnr_fetch_set(unsigned long chroma, unsigned long luma, uint32_t pitch)
-{
-	struct isp_3dnr_reg_msg isp_3dnr_pitch_set = {0};
-	bool ret = true;
-	struct cam_ca_ctrl *ca = &cam_ca;
-
-	pr_info("isp_3dnr_fetch_set");
-
-	mutex_lock(&ca->wlock);
-
-	isp_3dnr_pitch_set.msg_cmd = TA_IMG_3DNR_PITCH_SET;
-
-	isp_3dnr_pitch_set.ft_chroma_addr = chroma;
-	isp_3dnr_pitch_set.ft_luma_addr = luma;
-	isp_3dnr_pitch_set.ft_pitch = pitch;
-
-	ret = cam_ca_write(&isp_3dnr_pitch_set, sizeof(struct
-		isp_3dnr_reg_msg));
-	if (!ret) {
-		pr_err("fail to write cam_ca, ret =%d\n", ret);
-		mutex_unlock(&ca->wlock);
-		return ret;
-	}
-
-	ret =  cam_ca_wait_ack(isp_3dnr_pitch_set.msg_cmd);
-	mutex_unlock(&ca->wlock);
-
-	pr_info("isp_3dnr_fetch_set, ret =%d\n", ret);
-
-	return ret;
-}
-
-bool cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
+int cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
 {
 	struct csi_switch_ctrl_msg switch_ctrl = {0};
-	bool ret = true;
+	int ret = 0;
 	struct cam_ca_ctrl *ca = &cam_ca;
 
 	pr_info("enter\n");
@@ -467,7 +430,7 @@ bool cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
 		return ret;
 	}
 
-	ret =  cam_ca_wait_ack(switch_ctrl.msg_cmd);
+	ret = cam_ca_wait_ack(switch_ctrl.msg_cmd);
 	mutex_unlock(&ca->wlock);
 
 	pr_info("ret =%d\n", ret);
@@ -476,13 +439,13 @@ bool cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
 }
 
 
-bool camca_enter_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
+static int camca_enter_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 {
-	bool ret = true;
+	int ret = 0;
 	struct faceid_cfg_msg faceid_msg = {0};
 	struct cam_ca_ctrl *ca = &cam_ca;
 
-	pr_info("ca chanel_state =%d, camsec_mode=%d, work_mode=%d",
+	pr_info("ca chanel_state =%d, camsec_mode=%d, work_mode=%d\n",
 		ca->chanel_state, camsec_cfg->camsec_mode,
 		camsec_cfg->work_mode);
 
@@ -504,7 +467,7 @@ bool camca_enter_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 		return ret;
 	}
 
-	ret =  cam_ca_wait_ack(faceid_msg.msg_cmd);
+	ret = cam_ca_wait_ack(faceid_msg.msg_cmd);
 
 	mutex_unlock(&ca->wlock);
 
@@ -514,13 +477,13 @@ bool camca_enter_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 
 }
 
-bool camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
+static int camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 {
-	bool ret = true;
+	int ret = 0;
 	struct cam_ca_ctrl *ca = &cam_ca;
 	struct faceid_cfg_msg faceid_msg = {0};
 
-	pr_info("ca chanel_state =%d, camsec_mode=%d, work_mode=%d",
+	pr_info("ca chanel_state =%d, camsec_mode=%d, work_mode=%d\n",
 		ca->chanel_state, camsec_cfg->camsec_mode, camsec_cfg->work_mode);
 
 	mutex_lock(&ca->wlock);
@@ -536,7 +499,7 @@ bool camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 		return ret;
 	}
 
-	ret =  cam_ca_wait_ack(faceid_msg.msg_cmd);
+	ret = cam_ca_wait_ack(faceid_msg.msg_cmd);
 	mutex_unlock(&ca->wlock);
 
 	pr_info("ret =%d\n", ret);
@@ -545,12 +508,12 @@ bool camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 
 }
 
-bool cam_trusty_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
+int cam_trusty_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
 	enum cam_trusty_mode mode)
 {
-	bool ret = true;
+	int ret = 0;
 
-	pr_info("camca security set enter");
+	pr_info("camca security set enter\n");
 
 	switch (mode) {
 	case CAM_TRUSTY_ENTER:
@@ -564,54 +527,7 @@ bool cam_trusty_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
 		break;
 	}
 
-	pr_info("camca security set, ret=%d",  ret);
+	pr_info("camca security set, ret=%d\n",  ret);
 	return ret;
 }
-#else
 
-/* add dummy fun for un trusty version */
-bool cam_trusty_connect(void)
-{
-	pr_info("no trusty version\n");
-	return 1;
-}
-
-void cam_trusty_disconnect(void)
-{
-	pr_info("no trusty version\n");
-}
-
-bool cam_trusty_isp_fetch_addr_set(unsigned long y_addr,
-	unsigned long u_addr, unsigned long v_addr)
-{
-	pr_info("no trusty version\n");
-	return 1;
-}
-
-bool cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch,
-	uint32_t v_pitch)
-{
-	pr_info("no trusty version\n");
-	return 1;
-}
-
-bool cam_trusty_isp_3dnr_fetch_set(unsigned long chroma, unsigned long luma,
-	uint32_t pitch)
-{
-	pr_info("no trusty version\n");
-	return 1;
-}
-
-bool cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
-{
-	pr_info("no trusty version\n");
-	return 1;
-}
-
-bool cam_trusty_security_set(struct sprd_cam_sec_cfg *camsec_cfg,
-	enum cam_trusty_mode mode)
-{
-	pr_info("no trusty version\n");
-	return 1;
-}
-#endif

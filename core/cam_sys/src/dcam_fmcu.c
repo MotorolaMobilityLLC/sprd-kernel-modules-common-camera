@@ -14,6 +14,7 @@
 #include "cam_hw.h"
 #include "dcam_fmcu.h"
 #include "dcam_reg.h"
+#include "cam_buf_manager.h"
 
 #define DCAM_FMCU_STOP_TIMEOUT             2000
 
@@ -147,6 +148,7 @@ static int dcamfmcu_start(void *handle)
 		return -EFAULT;
 	}
 
+	spin_lock(&fmcu_ctx->lock);
 	dcam_fmcu_cmd_agined(fmcu_ctx);
 	cmd_num = (int) fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
 
@@ -159,6 +161,7 @@ static int dcamfmcu_start(void *handle)
 		fmcu_ctx->fid, (uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
 
 	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);
+	spin_unlock(&fmcu_ctx->lock);
 
 	return ret;
 }
@@ -180,68 +183,6 @@ static int dcamfmcu_ctx_reset(void *handle)
 	return ret;
 }
 
-static int dcamfmcu_buf_map(void *handle)
-{
-	int ret = 0, i = 0;
-	struct camera_buf *ion_buf = NULL;
-	struct dcam_fmcu_ctx_desc *fmcu_ctx = NULL;
-
-	if (!handle) {
-		pr_err("fail to get fmcu_ctx pointer\n");
-		return -EFAULT;
-	}
-
-	fmcu_ctx = (struct dcam_fmcu_ctx_desc *)handle;
-
-	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
-		ion_buf = &fmcu_ctx->ion_pool[i];
-
-		ret = cam_buf_iommu_map(ion_buf, CAM_BUF_IOMMUDEV_DCAM);
-		if (ret) {
-			pr_err("fail to map fmcu buffer\n");
-			ret = -EFAULT;
-			goto err_hwmap_fmcu;
-		}
-
-		fmcu_ctx->hw_addr[i] = ion_buf->iova[CAM_BUF_IOMMUDEV_DCAM];
-		fmcu_ctx->cmdq_pos[i] = 0;
-
-		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
-			i, fmcu_ctx->hw_addr[i], fmcu_ctx->cmd_buf[i], ion_buf->size);
-	}
-
-	return 0;
-
-err_hwmap_fmcu:
-	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
-		ion_buf = &fmcu_ctx->ion_pool[i];
-		if (ion_buf)
-			cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_DCAM);
-	}
-	pr_err("fail to map fmcu%d.\n", fmcu_ctx->fid);
-	return ret;
-}
-
-static int dcamfmcu_buf_unmap(void *handle)
-{
-	int ret = 0, i = 0;
-	struct camera_buf *ion_buf = NULL;
-	struct dcam_fmcu_ctx_desc *fmcu_ctx = NULL;
-
-	if (!handle) {
-		pr_err("fail to get fmcu_ctx pointer\n");
-		return -EFAULT;
-	}
-
-	fmcu_ctx = (struct dcam_fmcu_ctx_desc *)handle;
-	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
-		ion_buf = &fmcu_ctx->ion_pool[i];
-		cam_buf_iommu_unmap(ion_buf, CAM_BUF_IOMMUDEV_DCAM);
-	}
-	pr_debug("fmcu buf unmap done\n");
-	return ret;
-}
-
 static int dcamfmcu_ctx_init(void *handle)
 {
 	int ret = 0, i = 0, iommu_enable = 0;
@@ -255,6 +196,7 @@ static int dcamfmcu_ctx_init(void *handle)
 
 	fmcu_ctx = (struct dcam_fmcu_ctx_desc *)handle;
 	fmcu_ctx->cmdq_size = DCAM_FMCU_CMDQ_SIZE;
+	fmcu_ctx->lock = __SPIN_LOCK_UNLOCKED(&fmcu_ctx->lock);
 
 	/* alloc cmd queue buffer */
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
@@ -277,23 +219,27 @@ static int dcamfmcu_ctx_init(void *handle)
 	}
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		ret = cam_buf_kmap(ion_buf);
+		ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 		if (ret) {
-			pr_err("fail to kmap fmcu buffer\n");
+			pr_err("fail to map fmcu buffer\n");
 			ret = -EFAULT;
-			goto err_kmap_fmcu;
+			goto err_map_fmcu;
 		}
 
 		fmcu_ctx->cmd_buf[i] = (uint32_t *)ion_buf->addr_k;
+		fmcu_ctx->hw_addr[i] = ion_buf->iova[CAM_BUF_IOMMUDEV_DCAM];
+		fmcu_ctx->cmdq_pos[i] = 0;
+
+		pr_info("fmcu%d cmd buf hw_addr:0x%lx, sw_addr:%p, size:%zd\n",
+			i, fmcu_ctx->hw_addr[i], fmcu_ctx->cmd_buf[i], ion_buf->size);
 	}
 
 	return 0;
-
-err_kmap_fmcu:
+err_map_fmcu:
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
 		if (ion_buf)
-			cam_buf_kunmap(ion_buf);
+			cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_PUT_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 	}
 
 err_alloc_fmcu:
@@ -320,7 +266,7 @@ static int dcamfmcu_ctx_deinit(void *handle)
 	fmcu_ctx = (struct dcam_fmcu_ctx_desc *)handle;
 	for (i = 0; i < DCAM_FMCU_BUF_MAX; i++) {
 		ion_buf = &fmcu_ctx->ion_pool[i];
-		cam_buf_kunmap(ion_buf);
+		cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_PUT_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 		cam_buf_free(ion_buf);
 	}
 
@@ -335,8 +281,6 @@ static struct dcam_fmcu_ops fmcu_ops = {
 	.push_cmdq = dcamfmcu_cmd_push,
 	.hw_start = dcamfmcu_start,
 	.cmd_ready = dcamfmcu_cmd_ready,
-	.buf_map = dcamfmcu_buf_map,
-	.buf_unmap = dcamfmcu_buf_unmap,
 };
 
 static struct dcam_fmcu_ctx_desc s_fmcu_desc[DCAM_FMCU_NUM] = {

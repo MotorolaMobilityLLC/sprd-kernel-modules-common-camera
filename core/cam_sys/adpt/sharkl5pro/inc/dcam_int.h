@@ -19,7 +19,9 @@
 
 #include "cam_types.h"
 
-/* interrupt bits for DCAM0 or DCAM1 */
+typedef void (*dcam_int_isr)(void *param);
+
+/* interrupt bits for DCAM0 DCAM1 DCAM2 */
 enum {
 	DCAM_SENSOR_SOF         = 0,
 	DCAM_SENSOR_EOF         = 1,
@@ -40,6 +42,7 @@ enum {
 	DCAM_AFL_SOF            = 13,//DCAM_BIN_PATH_END
 	DCAM_AFM_SOF            = 14,
 	DCAM_LSCM_SOF           = 15,
+
 	DCAM_FULL_PATH_TX_DONE  = 16,//DCAM_FULL_PATH_TX_DONE
 	DCAM_PREV_PATH_TX_DONE  = 17,//DCAM_PREV_PATH_TX_DONE
 	DCAM_PDAF_PATH_TX_DONE  = 18,//DCAM_PDAF_PATH_TX_DONE
@@ -63,48 +66,9 @@ enum {
 	DCAM_IRQ_NUMBER         = 32,//DCAM_IRQ_NUMBER
 };
 
-/* interrupt bits for DCAM2 */
-enum {
-	DCAM2_SENSOR_SOF        = 0,
-	DCAM2_SENSOR_EOF        = 1,
-	/* reserved */
-	/* reserved */
-
-	DCAM2_DCAM_OVF          = 4,
-	/* reserved */
-	/* reserved */
-	/* reserved */
-
-	/* reserved */
-	/* reserved */
-	DCAM2_CAP_LINE_ERR      = 10,
-	DCAM2_CAP_FRM_ERR       = 11,
-
-	DCAM2_FULL_PATH0_END    = 12,
-	DCAM2_FULL_PATH1_END    = 13,
-	/* reserved */
-	/* reserved */
-
-	/* reserved */
-	/* reserved */
-	DCAM2_FULL_PATH_TX_DONE = 18,
-	/* reserved */
-
-	/* reserved */
-	/* reserved */
-	/* reserved */
-	/* reserved */
-
-	DCAM2_MMU_INT           = 24,
-	/* reserved */
-	/* reserved */
-	/* reserved */
-
-	/* reserved */
-	/* reserved */
-	/* reserved */
-	/* reserved */
-};
+/* only for dcam_test.c */
+#define DCAM2_SENSOR_EOF          DCAM_SENSOR_EOF
+#define DCAM2_FULL_PATH_TX_DONE   DCAM_FULL_PATH_TX_DONE
 
 enum {
 	/* record frame count and addr to determine the source port of the exception
@@ -183,18 +147,24 @@ struct nr3_done {
 	uint32_t out1;
 };
 
+struct dcam_sequences{
+	size_t count;
+	const int *bits;
+};
+
 struct dcam_irq_info {
 	uint32_t irq_num;
 	uint32_t status;
 	uint32_t status1;
+	const dcam_int_isr (*_DCAM_ISR_IRQ)[DCAM_IRQ_NUMBER];
+	const struct dcam_sequences (*DCAM_SEQUENCES)[1];
 };
 
-int dcam_int_irq_request(struct device *pdev, int irq, void *param);
-void dcam_int_irq_free(struct device *pdev, void *param);
 int dcam_int_irq_desc_get(uint32_t index, void *param);
-void dcam_int_tracker_reset(uint32_t idx);
-void dcam_int_tracker_dump(uint32_t idx);
-irqreturn_t dcamint_error_handler(void *dcam_hw_ctx, uint32_t status);
-void dcamint_dcam_status_rw(struct dcam_irq_info irq_info, void *priv);
+struct nr3_done dcam_int_nr3_done_rd(void *param, uint32_t idx);
+void dcam_int_iommu_regs_dump(void *param);
+void dcam_int_status_warning(void *param, uint32_t status, uint32_t status1);
+struct dcam_irq_info dcam_int_isr_handle(void *param);
+struct dcam_irq_info dcam_int_mask_clr(uint32_t idx);
 
 #endif

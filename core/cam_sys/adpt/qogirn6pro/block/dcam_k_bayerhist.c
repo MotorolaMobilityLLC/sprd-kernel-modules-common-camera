@@ -47,10 +47,10 @@ int dcam_k_bayerhist_block(struct dcam_isp_k_block *param)
 
 	dev = param->dev;
 	hw_ctx = &dev->hw_ctx[idx];
-	if (p->hist_skip_num > 0 && hw_ctx->slowmotion_count) {
+	if (hw_ctx->slowmotion_count) {
 		pr_debug("DCAM%u HIST ignore skip_num %u, slowmotion_count %u\n",
 			hw_ctx->hw_ctx_id, p->hist_skip_num, hw_ctx->slowmotion_count);
-		p->hist_skip_num = 0;
+		p->hist_skip_num = hw_ctx->slowmotion_count - 1;
 	}
 
 	DCAM_REG_MWR(idx, DCAM_BAYER_HIST_CTRL0, 0xff6,

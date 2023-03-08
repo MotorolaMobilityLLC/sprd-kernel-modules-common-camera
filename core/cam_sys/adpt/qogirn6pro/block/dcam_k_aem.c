@@ -114,6 +114,8 @@ int dcam_k_aem_skip_num(struct dcam_isp_k_block *param)
 	int ret = 0;
 	uint32_t idx = 0;
 	uint32_t val = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	if (param == NULL)
 		return -1;
@@ -121,10 +123,14 @@ int dcam_k_aem_skip_num(struct dcam_isp_k_block *param)
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+
+	dev = param->dev;
+	hw_ctx = &dev->hw_ctx[idx];
+
 	pr_debug("dcam%d skip_num %d, is high fps %d\n", idx, param->aem.skip_num, param->is_high_fps);
 
 	if (param->is_high_fps)
-		param->aem.skip_num = 0;
+		param->aem.skip_num = hw_ctx->slowmotion_count - 1;
 	val = (param->aem.skip_num & 0xFF) << 4;
 	DCAM_REG_MWR(idx, DCAM_AEM_FRM_CTRL0, 0xFF0, val);
 

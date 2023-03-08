@@ -11,8 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
-
 #include "dcam_core.h"
 #include "isp_cfg.h"
 #include "isp_int.h"
@@ -35,6 +33,8 @@
 #define CAMT_CFG_SIZE			0x40000UL
 #define CAMT_ISP_CFG_BUF_SIZE	\
 	(CAMT_CFG_SIZE * ISP_HW_MAX_COUNT + CAMT_CFG_SIZE)
+
+extern uint32_t s_isp_irq_no[ISP_LOGICAL_COUNT];
 
 unsigned long camt_cfg_addr_reg[ISP_HW_MAX_COUNT] = {
 	ISP_CFG_PRE0_CMD_ADDR,

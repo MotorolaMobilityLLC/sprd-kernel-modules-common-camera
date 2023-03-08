@@ -86,7 +86,7 @@ struct isp_init_param {
 	uint32_t blkparam_node_num;
 };
 
-void *isp_core_pipe_dev_get(void);
-int isp_core_pipe_dev_put(void *isp_handle);
+void *isp_core_pipe_dev_get(struct cam_hw_info *hw, void *s_isp_dev);
+int isp_core_pipe_dev_put(void *isp_handle, void *s_isp_dev);
 
 #endif

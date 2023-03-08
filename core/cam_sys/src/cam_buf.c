@@ -538,10 +538,10 @@ int cam_buf_ionbuf_put(struct camera_buf *buf_info)
 	}
 
 	spin_lock_irqsave(&g_ion_buf_q->lock, flags);
-	list_for_each_entry_safe(ioninfo, ioninfo_next, &g_ion_buf_q->head, list) {
+	cam_queue_for_each_entry_safe(ioninfo, ioninfo_next, &g_ion_buf_q->head, list) {
 		if (ioninfo->ionbuf_copy.mfd != buf_info->mfd)
 			continue;
-		list_del(&ioninfo->list);
+		cam_queue_list_del(&ioninfo->list);
 		g_ion_buf_q->cnt--;
 		spin_unlock_irqrestore(&g_ion_buf_q->lock, flags);
 		cam_buf_kernel_sys_vfree(ioninfo);
@@ -580,7 +580,7 @@ int cam_buf_iommu_map(struct camera_buf *buf_info, enum cam_buf_iommudev_type ty
 		iommu_data.buf = buf_info->ionbuf;
 		iommu_data.iova_size = buf_info->size;
 		iommu_data.ch_type = SPRD_IOMMU_FM_CH_RW;
-		pr_debug("start map buf: %p, size: %d\n", buf_info->ionbuf, (int)iommu_data.iova_size);
+		pr_debug("start map buf: %p, size: %d iommu type:%d space type:%d\n", buf_info->ionbuf, (int)iommu_data.iova_size, type, buf_info->type);
 		ret = sprd_iommu_map(dev_info->dev, &iommu_data);
 		if (ret) {
 			pr_err("fail to get iommu kaddr\n");
@@ -903,7 +903,7 @@ void *cam_buf_kernel_sys_kzalloc(unsigned long size, gfp_t flags)
 					pr_err("fail to deque empty_memory_alloc_queue\n");
 					return mem;
 				}
-				ktime_get_ts(&cur_ts);
+				os_adapt_time_get_ts(&cur_ts);
 				alloc_info->time.tv_sec = cur_ts.tv_sec;
 				alloc_info->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 				alloc_info->addr = mem;
@@ -928,11 +928,11 @@ void cam_buf_kernel_sys_kfree(const void *mem)
 		atomic_dec(&g_mem_dbg->mem_kzalloc_cnt);
 		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
 			spin_lock_irqsave(&g_mem_dbg->memory_alloc_queue->lock, flags);
-			list_for_each_entry_safe(alloc_info, alloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
+			cam_queue_for_each_entry_safe(alloc_info, alloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
 				if (!alloc_info)
 					continue;
 				if (alloc_info->addr == mem) {
-					list_del(&alloc_info->list);
+					cam_queue_list_del(&alloc_info->list);
 					g_mem_dbg->memory_alloc_queue->cnt--;
 					ret = cam_queue_enqueue(g_mem_dbg->empty_memory_alloc_queue, &alloc_info->list);
 					if (ret)
@@ -965,7 +965,7 @@ void *cam_buf_kernel_sys_vzalloc(unsigned long size)
 					pr_err("fail to deque empty_memory_alloc_queue\n");
 					return mem;
 				}
-				ktime_get_ts(&cur_ts);
+				os_adapt_time_get_ts(&cur_ts);
 				alloc_info->time.tv_sec = cur_ts.tv_sec;
 				alloc_info->time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 				alloc_info->addr = mem;
@@ -990,11 +990,11 @@ void cam_buf_kernel_sys_vfree(const void *mem)
 		atomic_dec(&g_mem_dbg->mem_vzalloc_cnt);
 		if (g_mem_dbg->g_dbg_memory_leak_ctrl) {
 			spin_lock_irqsave(&g_mem_dbg->memory_alloc_queue->lock, flags);
-			list_for_each_entry_safe(alloc_info, alloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
+			cam_queue_for_each_entry_safe(alloc_info, alloc_info_next, &g_mem_dbg->memory_alloc_queue->head, list) {
 				if (!alloc_info)
 					continue;
 				if (alloc_info->addr == mem) {
-					list_del(&alloc_info->list);
+					cam_queue_list_del(&alloc_info->list);
 					g_mem_dbg->memory_alloc_queue->cnt--;
 					ret = cam_queue_enqueue(g_mem_dbg->empty_memory_alloc_queue, &alloc_info->list);
 					if (ret)

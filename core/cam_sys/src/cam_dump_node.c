@@ -25,19 +25,6 @@
 #define CAM_DUMP_NODE_PATH "/data/ylog/"
 #define BYTE_PER_ONCE                   4096
 
-static void camdump_frame_put(void *param)
-{
-	struct camera_frame *frame = NULL;
-
-	if (!param) {
-		pr_err("fail to get valid param\n");
-		return;
-	}
-
-	frame = (struct camera_frame *)param;
-	cam_buf_destory(frame);
-}
-
 static void camdump_node_write_data_to_file(uint8_t *buffer,
 		ssize_t size, const char *file)
 {
@@ -208,7 +195,7 @@ static int camdump_node_compress_set(struct camera_frame *pframe, struct cam_dum
 	fbc_hdr.fbc_hdr_buffer[30] = tiled;
 	fbc_hdr.fbc_hdr_buffer[31] = file_message;
 
-	if (cam_buf_kmap(&pframe->buf)) {
+	if (cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
 		pr_err("fail to kmap dump buf\n");
 		return -EFAULT;
 	}
@@ -216,7 +203,7 @@ static int camdump_node_compress_set(struct camera_frame *pframe, struct cam_dum
 	camdump_node_write_data_to_file((char *)&fbc_hdr, sizeof(fbc_hdr), file_name);
 	camdump_node_write_data_to_file((char *)pframe->buf.addr_k, pframe->fbc_info.buffer_size, file_name);
 	msg->offset += pframe->fbc_info.buffer_size;
-	cam_buf_kunmap(&pframe->buf);
+	cam_buf_manager_buf_status_cfg(&pframe->buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
 
 	return 0;
 }
@@ -289,7 +276,7 @@ static void camdump_node_frame_file_write(struct camera_frame *frame,
 	unsigned long addr = 0;
 
 	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT) {
-		if (cam_buf_kmap(&frame->buf)) {
+		if (cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
 			pr_err("fail to kmap dump buf\n");
 			return;
 		}
@@ -312,15 +299,15 @@ static void camdump_node_frame_file_write(struct camera_frame *frame,
 		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name);
 
 	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT)
-		cam_buf_kunmap(&frame->buf);
+		cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
 }
 
 static void camdump_node_param_cfg(struct cam_dump_msg *msg, struct camera_frame *pframe)
 {
 	msg->offset = 0;
 	msg->is_compressed = pframe->is_compressed;
-	if (pframe->need_pyr_rec) {
-		if (pframe->pyr_status == ONLINE_DEC_ON)
+	if (pframe->pyr_status) {
+		if (pframe->link_from.node_type != CAM_NODE_TYPE_PYR_DEC)
 			msg->layer_num = DCAM_PYR_DEC_LAYER_NUM;
 		else
 			msg->layer_num = ISP_PYR_DEC_LAYER_NUM;
@@ -361,7 +348,7 @@ static int camdump_node_frame_start(void *param)
 	uint8_t file_name[256] = { '\0' };
 	uint8_t file_name1[256] = { '\0' };
 	struct cam_dump_node *node = NULL;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 
 	node = (struct cam_dump_node *)param;
 	if (!node) {
@@ -369,34 +356,34 @@ static int camdump_node_frame_start(void *param)
 		return -EFAULT;
 	}
 
-	pframe = cam_queue_dequeue(&node->dump_queue, struct camera_frame, list);
+	pframe = cam_queue_dequeue(&node->dump_queue, struct cam_frame, list);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame for dump node %d\n", node->node_id);
 		return -EFAULT;
 	}
 
-	if (camdump_node_switch(node, pframe)) {
-		camdump_node_param_cfg(&msg, pframe);
+	if (camdump_node_switch(node, &pframe->common)) {
+		camdump_node_param_cfg(&msg, &pframe->common);
 		for (i = 0; i <= msg.layer_num; i++) {
 			if (i > 0) {
 				msg.is_compressed = 0;
 				msg.align_w = msg.align_w / 2;
 				msg.align_h = msg.align_h / 2;
 			}
-			camdump_node_frame_name_get(pframe, &msg, file_name, file_name1, i);
+			camdump_node_frame_name_get(&pframe->common, &msg, file_name, file_name1, i);
 			if (msg.is_compressed == 0) {
-				camdump_node_frame_size_get(pframe, &msg, i);
-				camdump_node_frame_file_write(pframe, &msg, file_name, file_name1);
+				camdump_node_frame_size_get(&pframe->common, &msg, i);
+				camdump_node_frame_file_write(&pframe->common, &msg, file_name, file_name1);
 			}
 			memset(file_name, 0, sizeof(file_name));
 			memset(file_name1, 0, sizeof(file_name1));
 		}
 		node->dump_cnt--;
 	}
-	pframe->dump_en = 0;
+	pframe->common.dump_en = DISABLE;
 	pr_debug("cam dump node %d frame start, count = %d\n", node->node_id, node->dump_cnt);
 
-	if (IS_STATIS_PORT(pframe->link_from.port_id))
+	if (IS_STATIS_PORT(pframe->common.link_from.port_id))
 		node->dump_cb_func(CAM_CB_DUMP_STATIS_DONE, pframe, node->dump_cb_handle);
 	else
 		node->dump_cb_func(CAM_CB_DUMP_DATA_DONE, pframe, node->dump_cb_handle);
@@ -408,7 +395,7 @@ int cam_dump_node_request_proc(struct cam_dump_node *node, void *param)
 {
 	int ret = 0;
 	struct cam_node_cfg_param *node_param = NULL;
-	struct camera_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL;
 	struct cam_pipeline *pipeline = NULL;
 	struct cam_node *cam_node = NULL;
 
@@ -418,15 +405,15 @@ int cam_dump_node_request_proc(struct cam_dump_node *node, void *param)
 	}
 
 	node_param = (struct cam_node_cfg_param *)param;
-	pframe = (struct camera_frame *)node_param->param;
-	pframe->priv_data = node;
+	pframe = (struct cam_frame *)node_param->param;
+	pframe->common.priv_data = node;
 	cam_node = (struct cam_node *)node->dump_cb_handle;
 	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 
 	if (pipeline->debug_log_switch)
-		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->is_reserved %d, compress_en %d\n",
-			cam_pipeline_name_get(pipeline->pipeline_graph->type), pframe->fid, pframe->channel_id, pframe->buf.mfd,
-			pframe->width, pframe->height, pframe->is_reserved, pframe->is_compressed);
+		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->common.is_reserved %d, compress_en %d\n",
+			pipeline->pipeline_graph->name, pframe->common.fid, pframe->common.channel_id, pframe->common.buf.mfd,
+			pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
 	ret = cam_queue_enqueue(&node->dump_queue, &pframe->list);
 	if (ret == 0)
@@ -508,7 +495,7 @@ void *cam_dump_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 		node->dump_cb_handle = priv_data;
 	}
 
-	cam_queue_init(&node->dump_queue, DUMP_NODE_Q_LEN, camdump_frame_put);
+	cam_queue_init(&node->dump_queue, DUMP_NODE_Q_LEN, cam_queue_empty_frame_put);
 	init_completion(&node->dump_com);
 	node->node_id = node_id;
 	node->dump_cnt = 99;
@@ -536,7 +523,7 @@ void cam_dump_node_put(struct cam_dump_node *node)
 	}
 
 	camthread_stop(&node->thread);
-	cam_queue_clear(&node->dump_queue, struct camera_frame, list);
+	cam_queue_clear(&node->dump_queue, struct cam_frame, list);
 	node->dump_cb_func = NULL;
 	node->dump_cb_handle = NULL;
 	pr_info("cam dump node %d put\n", node->node_id);

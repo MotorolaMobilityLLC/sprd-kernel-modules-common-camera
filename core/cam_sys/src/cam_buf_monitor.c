@@ -69,7 +69,7 @@ void cam_buf_monitor_mapinfo_dequeue(struct camera_buf *buf_info)
 	struct cam_buf_map_info *map_info = NULL, *map_info_next = NULL;
 
 	spin_lock_irqsave(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-	list_for_each_entry_safe(map_info, map_info_next, &g_mem_dbg->buf_map_calc_queue->head, list) {
+	cam_queue_for_each_entry_safe(map_info, map_info_next, &g_mem_dbg->buf_map_calc_queue->head, list) {
 		if (!map_info)
 			continue;
 		if (map_info->buf_info == buf_info) {
@@ -77,7 +77,7 @@ void cam_buf_monitor_mapinfo_dequeue(struct camera_buf *buf_info)
 				pr_err("fail to unmap buf_info :%p, kmap_counts %d, dcam_iommumap_counts %d, isp_iommumap_counts %d, buf_time %06d.%06d, map_time %06d.%06d\n",
 					buf_info, map_info->kmap_counts, map_info->dcam_iommumap_counts, map_info->isp_iommumap_counts,
 					(int)map_info->buf_time.tv_sec, (int)map_info->buf_time.tv_usec, (int)map_info->map_time.tv_sec, (int)map_info->map_time.tv_usec);
-			list_del(&map_info->list);
+			cam_queue_list_del(&map_info->list);
 			g_mem_dbg->buf_map_calc_queue->cnt--;
 			cam_buf_kernel_sys_kfree(map_info);
 			map_info = NULL;
@@ -104,7 +104,7 @@ int cam_buf_monitor_mapinfo_enqueue(struct camera_buf *buf_info, enum cam_buf_so
 		cam_buf_monitor_mapinfo_dequeue(buf_info);
 	} else {
 		spin_lock_irqsave(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-		list_for_each_entry(map_info, &g_mem_dbg->buf_map_calc_queue->head, list) {
+		cam_queue_for_each_entry(map_info, &g_mem_dbg->buf_map_calc_queue->head, list) {
 			if (!map_info)
 				continue;
 			if (map_info->buf_info == buf_info) {
@@ -127,7 +127,7 @@ int cam_buf_monitor_mapinfo_enqueue(struct camera_buf *buf_info, enum cam_buf_so
 		map_info->buf_memcyp = 0;
 	map_info->buf_info = buf_info;
 
-	ktime_get_ts(&cur_ts);
+	os_adapt_time_get_ts(&cur_ts);
 	map_info->buf_time.tv_sec = cur_ts.tv_sec;
 	map_info->buf_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 	ret = cam_queue_enqueue(g_mem_dbg->buf_map_calc_queue, &map_info->list);
@@ -147,11 +147,11 @@ void cam_buf_monitor_map_counts_calc(struct camera_buf *buf_info, enum cam_buf_m
 	struct cam_buf_map_info *map_info = NULL;
 
 	spin_lock_irqsave(&g_mem_dbg->buf_map_calc_queue->lock, flags);
-	list_for_each_entry(map_info, &g_mem_dbg->buf_map_calc_queue->head, list) {
+	cam_queue_for_each_entry(map_info, &g_mem_dbg->buf_map_calc_queue->head, list) {
 		if (!map_info)
 			continue;
 		if (map_info->buf_info == buf_info) {
-			ktime_get_ts(&cur_ts);
+			os_adapt_time_get_ts(&cur_ts);
 			map_info->map_time.tv_sec = cur_ts.tv_sec;
 			map_info->map_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 			switch (type) {
@@ -228,7 +228,7 @@ void cam_buf_monitor_memory_queue_check(void)
 	struct cam_buf_map_info *map_info = NULL, *map_info_next = NULL;
 	struct cam_buf_alloc_info *alloc_info = NULL;
 
-	list_for_each_entry_safe(map_info, map_info_next, &g_mem_dbg->buf_map_calc_queue->head, list) {
+	cam_queue_for_each_entry_safe(map_info, map_info_next, &g_mem_dbg->buf_map_calc_queue->head, list) {
 		if (!map_info)
 			continue;
 		if (map_info->buf_memcyp) {
@@ -236,7 +236,7 @@ void cam_buf_monitor_memory_queue_check(void)
 				pr_err("fail to unmap buf_info :%p, kmap_counts %d, dcam_iommumap_counts %d, isp_iommumap_counts %d, buf_time %06d.%06d, map_time %06d.%06d\n",
 					map_info->buf_info, map_info->kmap_counts, map_info->dcam_iommumap_counts, map_info->isp_iommumap_counts,
 					(int)map_info->buf_time.tv_sec, (int)map_info->buf_time.tv_usec, (int)map_info->map_time.tv_sec, (int)map_info->map_time.tv_usec);
-			list_del(&map_info->list);
+			cam_queue_list_del(&map_info->list);
 			g_mem_dbg->buf_map_calc_queue->cnt--;
 			cam_buf_kernel_sys_kfree(map_info);
 			map_info = NULL;
@@ -246,7 +246,7 @@ void cam_buf_monitor_memory_queue_check(void)
 		}
 	}
 
-	list_for_each_entry(alloc_info, &g_mem_dbg->memory_alloc_queue->head, list) {
+	cam_queue_for_each_entry(alloc_info, &g_mem_dbg->memory_alloc_queue->head, list) {
 		if (!map_info)
 			continue;
 		pr_err("fail to free memory addr: %p, alloc_time %06d.%06d\n",

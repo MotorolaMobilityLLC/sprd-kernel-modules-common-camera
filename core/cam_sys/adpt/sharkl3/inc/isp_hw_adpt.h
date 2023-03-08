@@ -36,6 +36,10 @@
 
 #define ISP_SC_COEFF_BUF_SIZE                   (24 << 10)
 
+#define ISP_THUMB_SCL_UP_MAX                    1
+#define ISP_THUMB_SCL_WIDTH_MAX                 640
+#define ISP_THUMB_SCL_HEIGHT_MAX                480
+
 #define ISP_FBD_TILE_WIDTH                      64
 #define ISP_FBD_TILE_HEIGHT                     4
 

@@ -40,6 +40,11 @@ int dcam_k_lscm_monitor(struct dcam_isp_k_block *param)
 	uint32_t idx = param->idx;
 	uint32_t mode = 0;
 	uint32_t val = 0;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
+
+	dev = param->dev;
+	hw_ctx = &dev->hw_ctx[idx];
 
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_0, 0);
 
@@ -54,11 +59,15 @@ int dcam_k_lscm_monitor(struct dcam_isp_k_block *param)
 		/* trigger multi frame works after skip_num */
 		DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, BIT_3, (0x1 << 3));
 
+	if (hw_ctx->slowmotion_count)
+		param->lscm.skip_num = hw_ctx->slowmotion_count - 1;
+
 	val = (param->lscm.skip_num & 0xF) << 4;
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL0, 0xF0, val);
 
 	/* It is better to set lscm_skip_num_clr when new skip_num is set. */
 	DCAM_REG_MWR(idx, DCAM_LSCM_FRM_CTRL1, BIT_1, 1 << 1);
+	dcam_online_port_skip_num_set(param->dev, idx, DCAM_PATH_LSCM, param->lscm.skip_num);
 
 	val = ((param->lscm.offset_y & 0x1FFF) << 16) |
 			(param->lscm.offset_x & 0x1FFF);

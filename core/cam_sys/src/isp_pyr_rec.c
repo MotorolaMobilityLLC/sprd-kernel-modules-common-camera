@@ -435,7 +435,7 @@ static int isppyrrec_ynr_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	ynr_alg_cal.imgCenterY[0] = ctx->pyr_layer_size[0].h / 2;
 	ynr_alg_cal.Radius[0] = ctx->rec_ynr_radius;
 	layer_num_ynr = ctx->layer_num;
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < ISP_PYR_DEC_LAYER_NUM; i++) {
 		/* some ynr param only need cfg once */
 		if (ynr_info->layer_num == ctx->layer_num) {
 			ynr_info->ynr_cfg_layer[i].gf_addback_clip = pyr_ynr->ynr_layer[i].gf_addback_clip;
@@ -622,11 +622,11 @@ static int isppyrrec_block_cfg_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	return ret;
 }
 
-int isp_pyr_rec_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
+int isp_pyr_rec_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param, void *buf_manager_handle)
 {
 	int ret = 0;
 	uint32_t width = 0, height = 0, buffer_size = 0;
-	struct camera_frame * pframe = NULL;
+	struct cam_frame *pframe = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct cam_buf_pool_id pool_id = {0};
 
@@ -648,24 +648,28 @@ int isp_pyr_rec_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	width = isp_rec_layer0_width(param->width, param->pyr_layer_num);
 	height = isp_rec_layer0_heigh(param->height, param->pyr_layer_num);
 	/* rec temp buf max size is equal to layer1 size: w/2 * h/2 */
-	buffer_size = dcam_if_cal_pyramid_size(width, height, cam_data_bits(param->pyr_out_fmt),
-			cam_is_pack(param->pyr_out_fmt), 1, param->pyr_layer_num - 1);
+	buffer_size = dcam_if_cal_pyramid_size(width, height, param->pyr_out_fmt,
+			1, param->pyr_layer_num - 1);
 	buffer_size = ALIGN(buffer_size, CAM_BUF_ALIGN_SIZE);
 
-	pframe = cam_queue_empty_frame_get();
-	pframe->width = width;
-	pframe->height = height;
-	pframe->channel_id = param->ch_id;
-	ret = cam_buf_alloc(&pframe->buf, buffer_size, param->iommu_enable);
+	pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+	pframe->common.width = width;
+	pframe->common.height = height;
+	pframe->common.channel_id = param->ch_id;
+	ret = cam_buf_alloc(&pframe->common.buf, buffer_size, param->iommu_enable);
 	if (ret) {
 		pr_err("fail to alloc rec buf\n");
 		cam_queue_empty_frame_put(pframe);
+		goto exit;
 	}
 
-	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL);
+	cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
+	pframe->common.buf.bypass_iova_ops = 1;
+
+	ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, buf_manager_handle);
 	if (ret) {
 		pr_err("fail to enq pyrrec buffer\n");
-		cam_buf_destory(pframe);
+		cam_queue_empty_frame_put(pframe);
 	}
 
 exit:
@@ -675,11 +679,11 @@ exit:
 	return ret;
 }
 
-static int isppyrrec_outbuf_get(void *handle, void *param)
+static int isppyrrec_outbuf_get(void *handle, void *param, void *buf_manager_handle)
 {
 	int ret = 0;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
-	struct camera_frame **frame = NULL;
+	struct cam_frame **frame = NULL;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
 
@@ -689,7 +693,7 @@ static int isppyrrec_outbuf_get(void *handle, void *param)
 	}
 
 	rec_ctx = (struct isp_rec_ctx_desc *)handle;
-	frame = (struct camera_frame **)param;
+	frame = (struct cam_frame **)param;
 
 	if (rec_ctx->share_buffer)
 		pool_id.tag_id = CAM_BUF_POOL_SHARE_REC_BUF;
@@ -698,7 +702,7 @@ static int isppyrrec_outbuf_get(void *handle, void *param)
 
 	buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
 
-	*frame = cam_buf_manager_buf_dequeue(&pool_id, &buf_desc);
+	*frame = cam_buf_manager_buf_dequeue(&pool_id, &buf_desc, buf_manager_handle);
 
 	return ret;
 }
@@ -743,12 +747,12 @@ static int isppyrrec_cfg_param(void *handle,
 	return ret;
 }
 
-static int isppyrrec_pipe_proc(void *handle, void *param)
+static int isppyrrec_pipe_proc(void *handle, void *param, void *buf_manager_handle)
 {
 	int ret = 0;
 	uint32_t i = 0, j = 0, layer_num = 0;
 	uint32_t offset = 0, offset1 = 0, align = 1, size = 0, pitch = 0;
-	struct camera_frame *out_frame = NULL;
+	struct cam_frame *out_frame = NULL;
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct isp_pyr_rec_in *in_ptr = NULL;
 	struct isp_rec_slice_desc *cur_slc = NULL;
@@ -773,7 +777,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 		layer_num--;
 	}
 
-	rec_ctx->ops.buf_cb_func(rec_ctx, (void *)&out_frame);
+	rec_ctx->ops.buf_cb_func(rec_ctx, (void *)&out_frame, buf_manager_handle);
 	if (!out_frame) {
 		pr_err("fail to get rec outframe\n");
 		return -EFAULT;
@@ -790,10 +794,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	rec_ctx->rec_cnr_radius = in_ptr->pyr_cnr_radius;
 	rec_ctx->in_fmt = in_ptr->in_fmt;
 	rec_ctx->out_fmt = in_ptr->in_fmt;
-	rec_ctx->buf_info = out_frame;
-	ret = cam_buf_manager_buf_status_cfg(&rec_ctx->buf_info->buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-	if (ret)
-		pr_err("fail to map rec buf to ISP iommu.\n");
+	rec_ctx->buf_info = &out_frame->common;
 
 	rec_ctx->fetch_addr[0] = in_ptr->in_addr;
 	if (in_ptr->in_addr_dcam_out.addr_ch0)
@@ -891,7 +892,7 @@ static int isppyrrec_pipe_proc(void *handle, void *param)
 	return ret;
 }
 
-void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw)
+void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw, void *buf_manager_handle)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -915,18 +916,18 @@ void *isp_pyr_rec_ctx_get(uint32_t idx, void *hw)
 	rec_ctx->ops.pipe_proc = isppyrrec_pipe_proc;
 	rec_ctx->ops.buf_cb_func = isppyrrec_outbuf_get;
 
-	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_REC_BUF_Q_LEN);
+	ret = cam_buf_manager_pool_reg(NULL, PYR_DEC_REC_BUF_Q_LEN, buf_manager_handle);
 	if (ret < 0) {
 		pr_err("fail to reg pool for rec ctx id %d\n", rec_ctx->ctx_id);
 		cam_buf_kernel_sys_vfree(rec_ctx);
 		return NULL;
 	}
-	rec_ctx->store_result_pool.private_pool_idx = ret;
+	rec_ctx->store_result_pool.private_pool_id = ret;
 
 	return rec_ctx;
 }
 
-void isp_pyr_rec_ctx_put(void *rec_handle)
+void isp_pyr_rec_ctx_put(void *rec_handle, void *buf_manager_handle)
 {
 	struct isp_rec_ctx_desc *rec_ctx = NULL;
 	struct camera_buf *buf_info = NULL;
@@ -938,7 +939,7 @@ void isp_pyr_rec_ctx_put(void *rec_handle)
 
 	rec_ctx = (struct isp_rec_ctx_desc *)rec_handle;
 
-	cam_buf_manager_pool_unreg(&rec_ctx->store_result_pool);
+	cam_buf_manager_pool_unreg(&rec_ctx->store_result_pool, buf_manager_handle);
 
 	if (rec_ctx->buf_info) {
 		buf_info = &rec_ctx->buf_info->buf;

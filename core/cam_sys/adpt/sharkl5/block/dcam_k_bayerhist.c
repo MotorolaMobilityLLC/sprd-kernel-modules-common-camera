@@ -45,6 +45,10 @@ int dcam_k_bayerhist_block(struct dcam_isp_k_block *param)
 
 	dev = param->dev;
 	hw_ctx = &dev->hw_ctx[idx];
+
+	/* on L5/L5P/L6 when slowmotion,AEM & BAYER_HIST & BIN skip with a special
+	 * register and skip_num no need set or have to set 0 now
+	*/
 	if (p->hist_skip_num > 0 && hw_ctx->slowmotion_count) {
 		pr_debug("DCAM%u HIST ignore skip_num %u, slowmotion_count %u\n",
 			hw_ctx->hw_ctx_id, p->hist_skip_num, hw_ctx->slowmotion_count);
@@ -68,6 +72,8 @@ int dcam_k_bayerhist_block(struct dcam_isp_k_block *param)
 			(p->hist_initial_clear << 2) |
 			(p->hist_skip_num_clr << 1) |
 			(p->hist_sgl_start << 0));
+	dcam_online_port_skip_num_set(param->dev, idx, DCAM_PATH_HIST, p->hist_skip_num);
+
 	return ret;
 }
 

@@ -14,10 +14,9 @@
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
+#include <os_adapt_common.h>
 
 #include "cpp_drv.h"
 #include "cpp_reg.h"
@@ -141,7 +140,7 @@ static int cpphw_module_reset(void *cpp_soc_handle)
 			soc_cpp->syscon_regs[0].reg,
 			soc_cpp->syscon_regs[0].mask,
 			soc_cpp->syscon_regs[0].mask);
-		udelay(2);
+		os_adapt_time_udelay(2);
 		regmap_update_bits(soc_cpp->syscon_regs[0].gpr,
 			soc_cpp->syscon_regs[0].reg,
 			soc_cpp->syscon_regs[0].mask,

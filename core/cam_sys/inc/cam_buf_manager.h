@@ -29,7 +29,7 @@
 struct cam_buf_pool_id {
 	uint32_t tag_id;
 	uint32_t reserved_pool_id;/*for reserved buffer*/
-	uint32_t private_pool_idx;
+	uint32_t private_pool_id;
 };
 
 enum cam_buf_pool_status_type {
@@ -104,12 +104,11 @@ enum cambufmanager_status_cmd {
 };
 
 struct camera_buf_get_desc {
-	uint32_t is_uframe_sync;
 	uint32_t target_fid;
 	enum cambufmanager_status_ops_cmd buf_ops_cmd;
 	enum cam_queue_ops_cmd q_ops_cmd;
 	enum cam_buf_iommudev_type mmu_type;
-	bool (*filter)(struct camera_frame *, void *);
+	bool (*filter)(struct cam_frame *, void *);
 };
 
 struct cam_buf_manager {
@@ -121,28 +120,17 @@ struct cam_buf_manager {
 };
 
 #define CAM_BUF_GET_IOVA_METHOD(pframe)  \
-	(pframe->user_fid == CAMERA_RESERVE_FRAME_NUM) ?  \
+	(pframe->common.user_fid == CAMERA_RESERVE_FRAME_NUM) ?  \
 		CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA : \
 		CAM_BUF_STATUS_GET_IOVA; \
 
-
-#define cam_buf_destory(pframe) { \
-	struct camera_frame *__p = (pframe); \
-	if (__p != NULL) { \
-		cam_buf_manager_buf_status_cfg(&__p->buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX); \
-		if (__p->buf.type == CAM_BUF_KERNEL) \
-			cam_buf_free(&__p->buf); \
-		cam_queue_empty_frame_put(__p); \
-	}\
-}
-
 int cam_buf_manager_buf_status_cfg(struct camera_buf *buf, enum cambufmanager_status_ops_cmd cmd, enum cam_buf_iommudev_type type);
-int cam_buf_manager_pool_cnt(struct cam_buf_pool_id *pool_id);
-int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id);
-int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length);
-void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id);
-int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id, struct camera_frame *pframe, struct camera_buf_get_desc *buf_desc);
-struct camera_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, struct camera_buf_get_desc *buf_desc);
-int cam_buf_manager_init(uint32_t cam_id);
-int cam_buf_manager_deinit(uint32_t cam_id);
+int cam_buf_manager_pool_cnt(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
+int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
+int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length, void *buf_manager_handle);
+void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
+int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id, struct cam_frame *pframe, struct camera_buf_get_desc *buf_desc, void *buf_manager_handle);
+struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, struct camera_buf_get_desc *buf_desc, void *buf_manager_handle);
+int cam_buf_manager_init(uint32_t cam_id, void *buf_manager_handle);
+int cam_buf_manager_deinit(uint32_t cam_id, void *buf_manager_handle);
 #endif

@@ -37,7 +37,6 @@ enum dcam_port_cfg_callback {
 };
 
 struct dcam_port_size_info {
-	uint32_t update;
 	uint32_t out_w;
 	uint32_t out_h;
 	uint32_t out_pitch;
@@ -60,32 +59,33 @@ struct dcam_online_port_desc {
 	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	void *zoom_cb_handle;
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
 	uint32_t dcam_path_id;
-	uint32_t is_raw;
-	uint32_t raw_src;
+	enum en_status is_raw;
+	enum dcam_full_src_sel_type raw_src;
 	uint32_t bayer_pattern;
-	uint32_t dcam_out_fmt;
+	enum cam_format dcam_out_fmt;
 	uint32_t frm_skip;
-	uint32_t endian;
-	uint32_t pyr_out_fmt;
-	uint32_t compress_en;
+	enum cam_data_endian endian;
+	enum cam_format pyr_out_fmt;
+	enum en_status compress_en;
+	enum en_status is_pyr_rec;
 	uint32_t reserved_pool_id;
 	uint32_t share_full_path;
 	void *dev;
 };
 
 struct dcam_online_port {
-	struct list_head list;
+	struct cam_q_head list;
 	atomic_t user_cnt;
 	atomic_t set_frm_cnt;
 	atomic_t is_work; /* dynamic switch counter of port */
 	atomic_t is_shutoff;
-	spinlock_t size_lock;
 	spinlock_t state_lock;
-	uint32_t state_update;
+	enum en_status state_update;
 	enum dcam_port_state port_state;
 	uint32_t share_full_path;
 
@@ -93,15 +93,15 @@ struct dcam_online_port {
 	uint32_t frm_deci_cnt;
 	uint32_t frm_skip;
 	uint32_t frm_cnt;
-	uint32_t endian;
+	enum cam_data_endian endian;
 	uint32_t bayer_pattern;
-	uint32_t pyr_out_fmt;
-	uint32_t compress_en;
-	uint32_t base_update;
+	enum cam_format pyr_out_fmt;
+	enum en_status compress_en;
 	uint32_t src_sel;
-	uint32_t raw_src;
+	enum dcam_full_src_sel_type raw_src;
 	enum cam_format dcamout_fmt;
 	enum cam_port_dcam_online_out_id port_id;
+	enum en_status is_pyr_rec;
 	uint32_t bin_ratio;
 	uint32_t out_pitch;
 	uint32_t scaler_sel;/* 0: bining, 1: RDS, 2&3: bypass */
@@ -123,6 +123,7 @@ struct dcam_online_port {
 	void *zoom_cb_handle;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	port_cfg_cb port_cfg_cb_func;
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
@@ -133,6 +134,6 @@ int dcam_online_port_skip_num_set(void *dcam_ctx_handle, uint32_t hw_id, int por
 int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param);
 void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param);
 void dcam_online_port_put(struct dcam_online_port *port);
-int dcamonline_port_buffer_cfg(void *handle, void *param);
+int dcam_online_port_buffer_cfg(void *handle, void *param);
 
 #endif

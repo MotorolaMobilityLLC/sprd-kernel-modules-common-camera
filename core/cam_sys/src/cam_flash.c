@@ -12,7 +12,6 @@
  */
 
 #include <linux/kthread.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <sprd_mm.h>
 
@@ -26,9 +25,7 @@
 #define pr_fmt(fmt) "FLASH_CORE: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-static int img_opt_flash(void *param);
-
-static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
+static int camflash_ctrl(uint32_t dcam_idx,
 		struct sprd_img_set_flash *set_flash)
 {
 	int ret = 0;
@@ -38,17 +35,17 @@ static int sprd_cam_flash_ctrl(uint32_t dcam_idx,
 	return ret;
 }
 
-static int sprd_cam_flash_open(struct cam_flash_task_info *flash_ctx, void *arg)
+static int camflash_open(struct cam_flash_task_info *flash_ctx, void *arg)
 {
 	return 0;
 }
 
-static int sprd_cam_flash_close(struct cam_flash_task_info *flash_ctx)
+static int camflash_close(struct cam_flash_task_info *flash_ctx)
 {
 	return 0;
 }
 
-static int sprd_cam_flash_cfg(struct cam_flash_task_info *flash_ctx, void *cfg_parm)
+static int camflash_cfg(struct cam_flash_task_info *flash_ctx, void *cfg_parm)
 {
 	int ret = 0;
 	struct sprd_flash_cfg_param *cfg_p = (struct sprd_flash_cfg_param *)cfg_parm;
@@ -71,7 +68,7 @@ exit:
 	return ret;
 }
 
-static int sprd_cam_flash_info_get(struct cam_flash_task_info *flash_ctx, void *arg)
+static int camflash_info_get(struct cam_flash_task_info *flash_ctx, void *arg)
 {
 	sprd_flash_get_info(flash_ctx->set_flash.flash_index,
 		SPRD_FLASH_LED_ALL, (struct sprd_flash_capacity *)arg);
@@ -79,7 +76,7 @@ static int sprd_cam_flash_info_get(struct cam_flash_task_info *flash_ctx, void *
 	return 0;
 }
 
-static int sprd_cam_flash_start(struct cam_flash_task_info *flash_ctx, void *arg)
+static int camflash_start(struct cam_flash_task_info *flash_ctx, void *arg)
 {
 	int ret = 0;
 	uint32_t need_light = 1;
@@ -125,13 +122,13 @@ static int sprd_cam_flash_start(struct cam_flash_task_info *flash_ctx, void *arg
 }
 
 
-static void sprd_cam_flash_set_frame_skip(struct cam_flash_task_info *flash_ctx, int skip_frame)
+static void camflash_set_frame_skip(struct cam_flash_task_info *flash_ctx, int skip_frame)
 {
 	if (flash_ctx)
 		flash_ctx->skip_number = skip_frame;
 }
 
-static int img_opt_flash(void *param)
+static int camflash_img_opt(void *param)
 {
 	struct cam_flash_task_info *flash_ctx = NULL;
 	uint32_t led0_ctrl;
@@ -159,7 +156,7 @@ static int img_opt_flash(void *param)
 				(int)flash_ctx->timestamp.tv_sec,
 				(int)flash_ctx->timestamp.tv_usec);
 		}
-		sprd_cam_flash_ctrl(flash_ctx->cam_idx, &flash_ctx->set_flash);
+		camflash_ctrl(flash_ctx->cam_idx, &flash_ctx->set_flash);
 		flash_ctx->set_flash.led0_ctrl = 0;
 		flash_ctx->set_flash.led1_ctrl = 0;
 		flash_ctx->set_flash.led0_status = FLASH_STATUS_MAX;
@@ -169,7 +166,7 @@ static int img_opt_flash(void *param)
 	return 0;
 }
 
-static int flash_thread_loop(void *arg)
+static int camflash_thread_loop(void *arg)
 {
 	struct cam_flash_task_info *flash_ctx = NULL;
 	struct sprd_img_set_flash set_flash;
@@ -190,15 +187,15 @@ static int flash_thread_loop(void *arg)
 				set_flash.led0_status = FLASH_CLOSE;
 				set_flash.led1_status = FLASH_CLOSE;
 				set_flash.flash_index = 0;
-				sprd_cam_flash_ctrl(flash_ctx->cam_idx,
+				camflash_ctrl(flash_ctx->cam_idx,
 					&set_flash);
 				set_flash.flash_index = 1;
-				sprd_cam_flash_ctrl(flash_ctx->cam_idx,
+				camflash_ctrl(flash_ctx->cam_idx,
 					&set_flash);
 				pr_debug("_flash_thread_loop stop\n");
 				break;
 			}
-			img_opt_flash(arg);
+			camflash_img_opt(arg);
 		} else {
 			pr_debug("flash int!");
 			break;
@@ -209,16 +206,16 @@ static int flash_thread_loop(void *arg)
 	return 0;
 }
 
-static struct cam_flash_ops flash_core_ops = {
-	.open = sprd_cam_flash_open,
-	.close = sprd_cam_flash_close,
-	.cfg_flash = sprd_cam_flash_cfg,
-	.get_flash = sprd_cam_flash_info_get,
-	.start_flash = sprd_cam_flash_start,
-	.set_frame_skip = sprd_cam_flash_set_frame_skip,
+static struct cam_flash_ops flash_ops = {
+	.open = camflash_open,
+	.close = camflash_close,
+	.cfg_flash = camflash_cfg,
+	.get_flash = camflash_info_get,
+	.start_flash = camflash_start,
+	.set_frame_skip = camflash_set_frame_skip,
 };
 
-struct cam_flash_task_info *get_cam_flash_handle(uint32_t cam_idx)
+struct cam_flash_task_info *cam_flash_handle_get(uint32_t cam_idx)
 {
 	struct cam_flash_task_info *flash_ctx = NULL;
 	char thread_name[20] = { 0 };
@@ -238,12 +235,12 @@ struct cam_flash_task_info *get_cam_flash_handle(uint32_t cam_idx)
 
 	flash_ctx->after_af = 0;
 
-	flash_ctx->flash_core_ops = &flash_core_ops;
+	flash_ctx->flash_core_ops = &flash_ops;
 
 	flash_ctx->is_flash_thread_stop = 0;
 	init_completion(&flash_ctx->flash_thread_com);
 	sprintf(thread_name, "cam%d_flash_thread", flash_ctx->cam_idx);
-	flash_ctx->flash_thread = kthread_run(flash_thread_loop,
+	flash_ctx->flash_thread = kthread_run(camflash_thread_loop,
 		flash_ctx, "%s", thread_name);
 	if (IS_ERR_OR_NULL(flash_ctx->flash_thread)) {
 		pr_err("fail to create flash thread\n");
@@ -254,7 +251,7 @@ struct cam_flash_task_info *get_cam_flash_handle(uint32_t cam_idx)
 	return flash_ctx;
 }
 
-int put_cam_flash_handle(struct cam_flash_task_info *flash_ctx)
+int cam_flash_handle_put(struct cam_flash_task_info *flash_ctx)
 {
 	int ret = 0;
 
@@ -268,7 +265,7 @@ int put_cam_flash_handle(struct cam_flash_task_info *flash_ctx)
 		complete(&flash_ctx->flash_thread_com);
 		if (flash_ctx->is_flash_thread_stop != 0) {
 			while (flash_ctx->is_flash_thread_stop)
-				udelay(1000);
+				os_adapt_time_udelay(1000);
 		}
 		flash_ctx->flash_thread = NULL;
 	}

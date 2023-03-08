@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include "cam_buf_manager.h"
 #include "isp_ltm.h"
 
 #ifdef pr_fmt
@@ -874,7 +874,8 @@ static int ispltm_pipe_proc(void *handle, void *param)
 				timeout = wait_for_completion_interruptible_timeout(
 					&sync->share_comp, ISP_LTM_TIMEOUT);
 				if (timeout <= 0) {
-					pr_err("fail to wait completion [%ld]\n", timeout);
+					pr_warn("warning: not wait pre_ctx ltm_hist done, set cap_ctx ltm bypass, may cause this frame ltm effect abnormal.\n");
+					ctx->ltm_ops.sync_ops.do_completion(ctx);
 					ctx->mode = MODE_LTM_OFF;
 					ctx->bypass = 1;
 					ret = -1;
@@ -1048,7 +1049,7 @@ static void ispltm_ctx_deinit(void *handle)
 	if (ltm_ctx->ltm_buf_mod == MODE_LTM_BUF_SET) {
 		for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
 			if (ltm_ctx->ltm_frame[i].buf.mapping_state & CAM_BUF_MAPPING_ISP) {
-				cam_buf_iommu_unmap(&ltm_ctx->ltm_frame[i].buf, CAM_BUF_IOMMUDEV_ISP);
+				cam_buf_manager_buf_status_cfg(&ltm_ctx->ltm_frame[i].buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_ISP);
 				cam_buf_free(&ltm_ctx->ltm_frame[i].buf);
 			}
 		}

@@ -27,7 +27,7 @@ enum cam_copy_node_id {
 
 struct cam_copy_node {
 	uint32_t node_id;
-	uint32_t copy_flag;
+	enum en_status copy_flag;
 	enum pre_raw_status pre_raw_flag;
 	uint32_t opt_buffer_num;
 	atomic_t opt_frame_done;

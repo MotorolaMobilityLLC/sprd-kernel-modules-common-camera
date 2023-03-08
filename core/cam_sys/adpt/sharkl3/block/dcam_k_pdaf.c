@@ -330,6 +330,8 @@ static int isp_k_pdaf_type3_set_skip_num(struct isp_io_param *param, struct dcam
 	int ret = 0;
 	unsigned int skip_num = 0;
 	uint32_t idx = p->idx;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	ret = copy_from_user((void *)&skip_num,
 			param->property_param, sizeof(skip_num));
@@ -337,11 +339,19 @@ static int isp_k_pdaf_type3_set_skip_num(struct isp_io_param *param, struct dcam
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		return -1;
 	}
-	p->pdaf.skip_num = skip_num;
-	if (idx == DCAM_HW_CONTEXT_MAX)
+
+	if (p->idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
+	dev = p->dev;
+	hw_ctx = &dev->hw_ctx[idx];
+
+	if (p->is_high_fps)
+		skip_num = hw_ctx->slowmotion_count - 1;
+	p->pdaf.skip_num = skip_num;
 
 	DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, 0xf0, skip_num << 4);
+	DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM1, BIT_1, BIT_1);
+	dcam_online_port_skip_num_set(p->dev, idx, DCAM_PATH_PDAF, skip_num);
 
 	return ret;
 }
@@ -447,11 +457,17 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 	struct dev_dcam_vc2_control *vch2_info = &p->pdaf.vch2_info;
 	struct pdaf_roi_info *roi_info = &p->pdaf.roi_info;
 	struct pdaf_ppi_info *ppi_info = &p->pdaf.ppi_info;
+	struct dcam_pipe_dev *dev = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
 
 	if (bypass) {
 		pr_debug("dcam%d pdaf bypass\n", idx);
 		return 0;
 	}
+
+	dev = p->dev;
+	hw_ctx = &dev->hw_ctx[idx];
+
 	pr_info("dcam%d reconfigure pdaf param, type %d\n", idx, p->pdaf.pdaf_type);
 
 	DCAM_REG_WR(idx, DCAM_PDAF_CONTROL,
@@ -469,7 +485,14 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 			DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM1, BIT_0, 0x1);
 
 		/* skip num */
+		if (hw_ctx->slowmotion_count) {
+			p->pdaf.skip_num = hw_ctx->slowmotion_count - 1;
+			skip_num = p->pdaf.skip_num;
+		}
+
 		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM, 0xf0, skip_num << 4);
+		DCAM_REG_MWR(idx, DCAM_PDAF_SKIP_FRM1, BIT_1, BIT_1);
+		dcam_online_port_skip_num_set(p->dev, idx, DCAM_PATH_PDAF, skip_num);
 
 		/* pdaf type */
 		DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, 0x1 << 4);

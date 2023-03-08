@@ -40,7 +40,7 @@ uint32_t dcamslice_needed_info_get(struct dcam_hw_context *hw_ctx, uint32_t *dev
 	camarg.width = in_width;
 	camarg.offline_flag = 1;
 	pr_debug("Dcam%d, sw_ctx%d, new width %d old linebuf %d\n", camarg.idx, hw_ctx->node_id, camarg.width, lbufarg.width);
-	if (hw->ip_dcam[hw_ctx->hw_ctx_id]->lbuf_share_support && (lbufarg.width < camarg.width)) {
+	if (hw->ip_dcam[hw_ctx->hw_ctx_id]->dcamhw_abt->lbuf_share_support && (lbufarg.width < camarg.width)) {
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 		lbufarg.idx = hw_ctx->hw_ctx_id;
 		lbufarg.width = 0;
@@ -106,13 +106,13 @@ int dcamslice_num_info_get(struct img_size *src, struct img_size *dst)
 	return slice_num;
 }
 
-int dcamslice_hw_info_set(struct dcam_offline_slice_info *slice, struct camera_frame *pframe, uint32_t slice_wmax)
+int dcamslice_hw_info_set(struct dcam_offline_slice_info *slice, struct cam_frame *pframe, uint32_t slice_wmax)
 {
 	int ret = 0, i = 0;
 	uint32_t w = 0, offset = 0;
 	uint32_t slc_w = 0, f_align = 0;
 
-	w = pframe->width;
+	w = pframe->common.width;
 	if (w <= slice_wmax) {
 		slc_w = w;
 		goto slices;
@@ -127,9 +127,9 @@ int dcamslice_hw_info_set(struct dcam_offline_slice_info *slice, struct camera_f
 
 	/* can not get valid slice w aligned  */
 	if ((slc_w > slice_wmax) ||
-		(slc_w * DCAM_OFFLINE_SLC_MAX) < pframe->width) {
+		(slc_w * DCAM_OFFLINE_SLC_MAX) < pframe->common.width) {
 		pr_err("dcam failed, pic_w %d, slc_limit %d, algin %d\n",
-				pframe->width, slice_wmax, f_align);
+				pframe->common.width, slice_wmax, f_align);
 		return -EFAULT;
 	}
 
@@ -138,7 +138,7 @@ slices:
 		slice->slice_trim[i].start_x = offset;
 		slice->slice_trim[i].start_y = 0;
 		slice->slice_trim[i].size_x = (w > slc_w) ? (slc_w - DCAM_OVERLAP) : w;
-		slice->slice_trim[i].size_y = pframe->height;
+		slice->slice_trim[i].size_y = pframe->common.height;
 		pr_info("slc%d, (%d %d %d %d), limit %d\n", i,
 			slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,
 			slice->slice_trim[i].size_x, slice->slice_trim[i].size_y,
@@ -203,7 +203,7 @@ int dcamslice_trim_info_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
 	return ret;
 }
 
-int dcam_slice_info_cal(struct dcam_offline_slice_info *slice, struct camera_frame *pframe, uint32_t lbuf_width)
+int dcam_slice_info_cal(struct dcam_offline_slice_info *slice, struct cam_frame *pframe, uint32_t lbuf_width)
 {
 	int ret = 0;
 	uint32_t slice_no = 0;
@@ -215,7 +215,7 @@ int dcam_slice_info_cal(struct dcam_offline_slice_info *slice, struct camera_fra
 		ret = dcamslice_hw_info_set(slice, pframe, lbuf_width);
 	if (slice->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
 		for (slice_no = 0; slice_no < slice->slice_num; slice_no++)
-			dcamslice_trim_info_get(pframe->width, pframe->height, slice->slice_num,
+			dcamslice_trim_info_get(pframe->common.width, pframe->common.height, slice->slice_num,
 					slice_no, &slice->slice_trim[slice_no]);
 	}
 	slice->slice_count = slice->slice_num;

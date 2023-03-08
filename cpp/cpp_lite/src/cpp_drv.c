@@ -12,7 +12,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -29,6 +28,7 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <os_adapt_common.h>
 #include <sprd_mm.h>
 #include "cam_kernel_adapt.h"
 #include <linux/dma-mapping.h>
@@ -576,7 +576,7 @@ static int cppdrv_rot_stop(void *arg1, void *arg2)
 		pr_err("fail to stop rot\n");
 		return -EINVAL;
 	}
-	udelay(1);
+	os_adapt_time_udelay(1);
 	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_ROT_DISABLE,p);
 	if (ret) {
 		pr_err("fail to disable rot\n");
@@ -1716,7 +1716,7 @@ static int cppdrv_dma_stop(void *arg1, void *arg2)
 		return -EINVAL;
 	}
 
-	udelay(1);
+	os_adapt_time_udelay(1);
 	ret = hw->cpp_hw_ioctl(CPP_HW_CFG_DMA_DISABLE, p);
 	if (ret) {
 		pr_err("fail to disable dma\n");

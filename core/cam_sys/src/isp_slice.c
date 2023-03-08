@@ -1876,7 +1876,7 @@ static int ispslice_3dnr_memctrl_info_cfg(
 		slc_3dnr_memctrl->ft_uv.h = (end_row - start_row + 1) >> 1;
 		slc_3dnr_memctrl->ft_uv.w = end_col - start_col + 1;
 
-		if (nr3_ctx->type == NR3_FUNC_OFF)
+		if (nr3_ctx->mode == MODE_3DNR_OFF)
 			slc_3dnr_memctrl->bypass = 1;
 		else {
 			/* YUV420_2FRAME */
@@ -2154,7 +2154,7 @@ static int ispslice_3dnr_store_info_cfg(
 	pitch_u = in_ptr->frame_in_size.w;
 
 	cur_slc = &slc_ctx->slices[0];
-	if (nr3_ctx->type == NR3_FUNC_OFF) {
+	if (nr3_ctx->mode == MODE_3DNR_OFF) {
 		for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
 			if (cur_slc->valid == 0)
 				continue;
@@ -2226,7 +2226,7 @@ static int ispslice_3dnr_fbc_store_info_cfg(
 
 	cur_slc = &slc_ctx->slices[0];
 
-	if (nr3_ctx->type == NR3_FUNC_OFF) {
+	if (nr3_ctx->mode == MODE_3DNR_OFF) {
 		for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
 			if (cur_slc->valid == 0)
 				continue;
@@ -2326,7 +2326,7 @@ static int ispslice_3dnr_crop_info_cfg(
 
 	cur_slc = &slc_ctx->slices[0];
 
-	if (nr3_ctx->type == NR3_FUNC_OFF) {
+	if (nr3_ctx->mode == MODE_3DNR_OFF) {
 		for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {
 			if (cur_slc->valid == 0)
 				continue;
@@ -2715,7 +2715,7 @@ static int ispslice_3dnr_memctrl_update_info_cfg(
 
 	cur_slc = &slc_ctx->slices[0];
 
-	if (nr3_ctx->type == NR3_FUNC_OFF)
+	if (nr3_ctx->mode == MODE_3DNR_OFF)
 		return 0;
 
 	for (idx = 0; idx < SLICE_NUM_MAX; idx++, cur_slc++) {

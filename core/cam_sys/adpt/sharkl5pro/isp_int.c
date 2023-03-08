@@ -121,30 +121,30 @@ void ispint_iommu_regs_dump(void)
 		val[1] = ISP_MMU_RD(reg + 4);
 		val[2] = ISP_MMU_RD(reg + 8);
 		val[3] = ISP_MMU_RD(reg + 12);
-		pr_err("offset=0x%04x: %08x %08x %08x %08x\n",
+		pr_err("fail to handle, offset=0x%04x: %08x %08x %08x %08x\n",
 			reg, val[0], val[1], val[2], val[3]);
 	}
 
-	pr_err("fetch y %08x u %08x v %08x \n",
+	pr_err("fail to handle, fetch y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_FETCH_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_FETCH_SLICE_V_ADDR));
 
-	pr_err("fetch 3dnr y %08x uv %08x\n",
+	pr_err("fail to handle, fetch 3dnr y %08x uv %08x\n",
 		ISP_HREG_RD(ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR),
 		ISP_HREG_RD(ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR));
 
-	pr_err("store pre cap y %08x u %08x v %08x \n",
+	pr_err("fail to handle, store pre cap y %08x u %08x v %08x \n",
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_PRE_CAP_BASE + ISP_STORE_SLICE_V_ADDR));
 
-	pr_err("store vid y %08x u %08x v %08x\n",
+	pr_err("fail to handle, store vid y %08x u %08x v %08x\n",
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_VID_BASE + ISP_STORE_SLICE_V_ADDR));
 
-	pr_err("store thumb y %08x u %08x v %08x\n",
+	pr_err("fail to handle, store thumb y %08x u %08x v %08x\n",
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_Y_ADDR),
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_U_ADDR),
 		ISP_HREG_RD(ISP_STORE_THUMB_BASE + ISP_STORE_SLICE_V_ADDR));

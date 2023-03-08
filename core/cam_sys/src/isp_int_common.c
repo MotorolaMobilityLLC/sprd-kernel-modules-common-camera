@@ -34,6 +34,23 @@ uint32_t irq_done_sw[ISP_CONTEXT_SW_NUM][32];
 
 char *isp_dev_name[] = {"isp0", "isp1"};
 
+static int ispint_common_error_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+{
+	struct isp_pipe_dev *dev = NULL;
+	struct isp_hw_context *pctx_hw = NULL;
+	int ret = 0;
+
+	dev = (struct isp_pipe_dev *)isp_handle;
+	pctx_hw = &dev->hw_ctx[hw_idx];
+
+	pr_debug("cxt_id:%d ispint error done.\n", hw_idx);
+	if (pctx_hw->postproc_func)
+		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_ERROR_DONE);
+
+	ret = ispint_err_pre_proc(hw_idx, dev);
+	return ret;
+}
+
 static int ispintcommon_isr_root_unlikely(int c_id, struct isp_int_ctxs_com ctxs_com, void *priv)
 {
 	uint32_t val = 0;
@@ -53,7 +70,7 @@ static int ispintcommon_isr_root_unlikely(int c_id, struct isp_int_ctxs_com ctxs
 		}
 
 		/*handle the error here*/
-		if (ispint_err_pre_proc(c_id, isp_handle)) {
+		if (ispint_common_error_done(c_id, isp_handle)) {
 			pr_err("fail to handle the error here c_id %d irq_line 0x%x\n", c_id, ctxs_com.irq_line);
 			return IRQ_HANDLED;
 		}
@@ -78,6 +95,46 @@ static void ispintcommon_isr_root_handle(int c_id, struct isp_int_ctxs_com ctxs_
 		if (!ctxs_com.irq_line)
 			break;
 	}
+}
+
+static inline void ispintcommon_record(uint32_t cfg_id, enum isp_context_hw_id c_id, uint32_t irq_line)
+{
+	uint32_t k;
+
+	if (cfg_id < 0) {
+		pr_err("fail to get cfg_id:%d", cfg_id);
+		return;
+	}
+
+	for (k = 0; k < 32; k++) {
+		if (irq_line & (1 << k))
+			irq_done[c_id][k]++;
+	}
+
+	for (k = 0; k < 32; k++) {
+		if (irq_line & (1 << k))
+			irq_done_sw[cfg_id][k]++;
+	}
+
+#ifdef ISP_INT_RECORD
+	{
+		uint32_t cnt, time, int_no;
+		struct timespec cur_ts;
+
+		os_adapt_time_get_ts(&cur_ts);
+		time = (uint32_t)(cur_ts.tv_sec & 0xffff);
+		time <<= 16;
+		time |= (uint32_t)((cur_ts.tv_nsec / (NSEC_PER_USEC * 100)) & 0xffff);
+		for (int_no = 0; int_no < 32; int_no++) {
+			if (irq_line & BIT(int_no)) {
+				cnt = int_index[c_id][int_no];
+				isp_int_recorder[c_id][int_no][cnt] = time;
+				cnt++;
+				int_index[c_id][int_no] = (cnt & (INT_RCD_SIZE - 1));
+			}
+		}
+	}
+#endif
 }
 
 static irqreturn_t ispintcommon_isr_root(int irq, void *priv)
@@ -117,7 +174,7 @@ static irqreturn_t ispintcommon_isr_root(int irq, void *priv)
 
 		pr_debug("hw %d, irqno %d, irq_line: 0x%08x 0x%08x\n", pctx_hw_id, iid, ctxs_com.irq_line, ctxs_com.irq_line1);
 		hw_ctx = &isp_handle->hw_ctx[pctx_hw_id];
-		isp_int_common_record(hw_ctx->cfg_id, pctx_hw_id, ctxs_com.irq_line);
+		ispintcommon_record(hw_ctx->cfg_id, pctx_hw_id, ctxs_com.irq_line);
 
 		/* isp interrupt unlikely */
 		ret = ispintcommon_isr_root_unlikely(pctx_hw_id, ctxs_com, isp_handle);
@@ -127,46 +184,6 @@ static irqreturn_t ispintcommon_isr_root(int irq, void *priv)
 		ispintcommon_isr_root_handle(pctx_hw_id, ctxs_com, isp_handle);
 	}
 	return IRQ_HANDLED;
-}
-
-inline void isp_int_common_record(uint32_t cfg_id, enum isp_context_hw_id c_id, uint32_t irq_line)
-{
-	uint32_t k;
-
-	if (cfg_id < 0) {
-		pr_err("fail to get cfg_id:%d", cfg_id);
-		return;
-	}
-
-	for (k = 0; k < 32; k++) {
-		if (irq_line & (1 << k))
-			irq_done[c_id][k]++;
-	}
-
-	for (k = 0; k < 32; k++) {
-		if (irq_line & (1 << k))
-			irq_done_sw[cfg_id][k]++;
-	}
-
-#ifdef ISP_INT_RECORD
-	{
-		uint32_t cnt, time, int_no;
-		struct timespec cur_ts;
-
-		ktime_get_ts(&cur_ts);
-		time = (uint32_t)(cur_ts.tv_sec & 0xffff);
-		time <<= 16;
-		time |= (uint32_t)((cur_ts.tv_nsec / (NSEC_PER_USEC * 100)) & 0xffff);
-		for (int_no = 0; int_no < 32; int_no++) {
-			if (irq_line & BIT(int_no)) {
-				cnt = int_index[c_id][int_no];
-				isp_int_recorder[c_id][int_no][cnt] = time;
-				cnt++;
-				int_index[c_id][int_no] = (cnt & (INT_RCD_SIZE - 1));
-			}
-		}
-	}
-#endif
 }
 
 void isp_int_common_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
@@ -346,11 +363,7 @@ int isp_int_common_irq_request(struct device *p_dev,
 	}
 	ispdev = (struct isp_pipe_dev *)isp_handle;
 
-	for (id = 0; id < ISP_LOGICAL_COUNT; id++) {
-		if (ispdev->isp_hw->ip_isp->pyr_dec_support) {
-			if (id == (ISP_LOGICAL_COUNT - 1))
-				break;
-		}
+	for (id = 0; id < ISP_INT_LOGICAL_COUNT; id++) {
 		ispdev->irq_no[id] = irq_no[id];
 		ret = devm_request_irq(p_dev, ispdev->irq_no[id], ispintcommon_isr_root,
 			IRQF_SHARED, isp_dev_name[id], (void *)ispdev);

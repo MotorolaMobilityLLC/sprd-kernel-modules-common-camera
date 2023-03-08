@@ -14,6 +14,7 @@
 #ifndef _DCAM_OFFLINE_NODE_H_
 #define _DCAM_OFFLINE_NODE_H_
 
+#include "cam_queue.h"
 #include "cam_types.h"
 #include "dcam_offline_port.h"
 #include "dcam_core.h"
@@ -29,20 +30,24 @@ enum dcam_offline_node_id {
 };
 
 struct dcam_offline_node_desc {
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	uint32_t dcam_idx;
-	uint32_t fetch_fmt;
-	uint32_t statis_en;
+	uint32_t pattern;
+	enum cam_data_endian endian;
+	enum cam_format fetch_fmt;
+	enum en_status statis_en;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	port_cfg_cb port_cfg_cb_func;
 	void *port_cfg_cb_handle;
 	void **node_dev;
 	struct dcam_pipe_dev *dev;
 	struct dcam_offline_port_desc port_desc;
+	enum cam_node_buf_type buf_type;
 };
 
 struct dcam_pm_context {
@@ -52,13 +57,14 @@ struct dcam_pm_context {
 };
 
 struct dcam_offline_node {
-	uint32_t node_type;
+	enum cam_node_type node_type;
 	uint32_t node_id;
 	atomic_t user_cnt;
 	atomic_t status;
-	uint32_t statis_en;
+	enum en_status statis_en;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	port_cfg_cb port_cfg_cb_func;
 	void *port_cfg_cb_handle;
 	struct cam_thread_info thread;
@@ -78,7 +84,6 @@ struct dcam_offline_node {
 	struct completion slice_done;
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 
-	uint32_t port_id;
 	uint32_t dcam_idx;
 	uint32_t hw_ctx_id;
 	uint32_t in_irq_proc;

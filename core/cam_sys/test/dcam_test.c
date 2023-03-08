@@ -11,8 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
-
 #include "dcam_core.h"
 #include "dcam_reg.h"
 #include "sprd_cam_test.h"
@@ -640,7 +638,7 @@ int dcamt_start(struct camt_info *info)
 	copyarg.idx = cxt->dcam_idx;
 	copyarg.glb_reg_lock = cxt->glb_reg_lock;
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
-	udelay(500);
+	os_adapt_time_udelay(500);
 
 	/* fetch start */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);

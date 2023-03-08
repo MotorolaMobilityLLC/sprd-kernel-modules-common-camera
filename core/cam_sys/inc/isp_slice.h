@@ -54,9 +54,9 @@ struct slice_dyn_calc_param{
 };
 
 struct slice_cfg_input {
-	uint32_t ltm_rgb_eb;
+	enum en_status ltm_rgb_eb;
 	uint32_t ltm_yuv_eb;
-	uint32_t gtm_rgb_eb;
+	enum en_status gtm_rgb_eb;
 	uint32_t pyr_rec_eb;
 	uint32_t nlm_center_x;
 	uint32_t nlm_center_y;

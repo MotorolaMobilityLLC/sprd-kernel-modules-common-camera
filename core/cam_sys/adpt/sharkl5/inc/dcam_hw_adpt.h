@@ -35,6 +35,10 @@
 #define DCAM_SCALE_DOWN_MAX                     4
 #define DCAM_SCALER_MAX_WIDTH                   0xFFFFFFFF
 #define DCAM_SCALER_DECI_MAX_WIDTH              0xFFFFFFFF
+#define DCAM_RDS_UP_MAX                         1
+#define DCAM_RDS_DOWN_MAX                       4
+#define DCAM_RDS_MAX_IN_WIDTH                   5664
+#define DCAM_RDS_MAX_OUT_WIDTH                  2048
 #define DCAM_FRAME_TIMESTAMP_COUNT              0x40
 #define DCAM_OVERLAP                            0
 #define GTM_HIST_ITEM_NUM                       0
@@ -46,11 +50,12 @@
 })
 #define CAL_UNPACK_PITCH(w)                     ((w) * 2)
 #define CAL_FULLRGB14_PITCH(w)                  (0)
+#define CAL_HW_PACK_PITCH(w)                    (((((w) + 3) / 4 * 5) + 3) & (~0x3))
+#define CAL_HW_UNPACK_PITCH(w)                  ((w) * 2)
 
  /* dcamoffline limit hw: 0xFFFFFFFFus, node:0xFFFFFFFFms*/
 #define DCAMOFFLINE_HW_TIME_RATIO               0xFFFFFFFF
 #define DCAMOFFLINE_NODE_TIME                   0xFFFFFFFF
-
 
 /*
  *DCAM_CONTROL register bit map id
@@ -71,7 +76,6 @@ enum dcam_ctrl_id {
 enum dcam_hw_context_id {
 	DCAM_HW_CONTEXT_0 = 0,
 	DCAM_HW_CONTEXT_1,
-	DCAM_HW_CONTEXT_2,
 	DCAM_HW_CONTEXT_MAX,
 };
 
@@ -101,17 +105,6 @@ static inline uint32_t dcamonline_dec_align_width(uint32_t w, uint32_t layer_num
 static inline uint32_t dcamonline_dec_align_heigh(uint32_t h, uint32_t layer_num)
 {
 	return 0;
-}
-
-static inline uint32_t cal_sprd_raw_pitch(uint32_t w, uint32_t is_loose)
-{
-	uint32_t mod16_len[16] = {0, 8, 8, 8, 8, 12, 12, 12,
-				12, 16, 16, 16, 16, 20, 20, 20};
-
-	if (is_loose == CAM_RAW_PACK_10)
-		return ((w >> 4) * 20 + (mod16_len[w & 0xf]));
-	else
-		return w * 2;
 }
 
 static inline uint32_t dcam_if_cal_compressed_size(struct dcam_compress_cal_para *para)

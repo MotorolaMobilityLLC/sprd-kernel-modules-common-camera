@@ -51,33 +51,32 @@ const char *cam_node_name_get(enum cam_node_type type)
 	return IS_CAM_NODE(type) ? _CAM_NODE_NAMES[type] : "(null)";
 }
 
-static bool camnode_capture_skip_condition(struct camera_frame *pframe,
-	struct cam_capture_param *cap_param)
+static bool camnode_capture_skip_condition(struct cam_frame *pframe, struct cam_capture_param *cap_param)
 {	/* TBD： other scene need cover*/
 	if (((cap_param->cap_scene == CAPTURE_COMMON && !cap_param->need_skip_scene) ||
 		cap_param->cap_scene == CAPTURE_MFSR ||
 		cap_param->cap_scene == CAPTURE_SW3DNR ||
 		cap_param->cap_scene == CAPTURE_HDR) &&
-		(cap_param->cap_user_crop.w != pframe->width ||
-		cap_param->cap_user_crop.h != pframe->height)) {
+		(cap_param->cap_user_crop.w != pframe->common.width ||
+		cap_param->cap_user_crop.h != pframe->common.height)) {
 		pr_info("cap type[%d], fid %d, frame width %d %d, latest user crop %d %d, cap frame %d %d\n",
-			cap_param->cap_scene, pframe->fid, pframe->width, pframe->height,
+			cap_param->cap_scene, pframe->common.fid, pframe->common.width, pframe->common.height,
 			cap_param->cap_user_crop.w, cap_param->cap_user_crop.h, cap_param->cap_cnt);
 		return false;
 	}
 
-	if (cap_param->skip_first_num && pframe->fid < 1)
+	if (cap_param->skip_first_num && pframe->common.fid < 1)
 		return false;
 
 	return true;
 
 }
 
-static int camnode_dynamic_link_update(struct cam_node *node, struct camera_frame *pframe)
+static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *pframe)
 {
 	int ret = 0;
 	uint32_t cur_port_id = 0;
-	struct cam_linkage cap_new_link = {0}, cap_ori_link = {0};
+	struct cam_port_linkage cap_new_link = {0}, cap_ori_link = {0};
 	struct cam_capture_param *cap_param = NULL;
 
 	if (!node || !pframe) {
@@ -85,7 +84,7 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct camera_fram
 		return -EFAULT;
 	}
 
-	cur_port_id = pframe->link_from.port_id;
+	cur_port_id = pframe->common.link_from.port_id;
 	cap_ori_link = node->node_graph->outport[cur_port_id].link;
 	cap_new_link = node->node_graph->outport[cur_port_id].switch_link;
 	cap_param = &node->cap_param;
@@ -93,31 +92,31 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct camera_fram
 	pr_debug("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld cur_port_id %d w %d h %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp,
-			pframe->boot_sensor_time, cur_port_id, pframe->width, pframe->height);
+			pframe->common.boot_sensor_time, cur_port_id, pframe->common.width, pframe->common.height);
 	switch (node->cap_param.cap_type) {
 	case CAM_CAPTURE_START:
 	case CAM_CAPTURE_START_3DNR:
-		if (pframe->boot_sensor_time >= cap_param->cap_timestamp &&
+		if (pframe->common.boot_sensor_time >= cap_param->cap_timestamp &&
 			camnode_capture_skip_condition(pframe, cap_param))
-			pframe->link_to = cap_new_link;
+			pframe->common.link_to = cap_new_link;
 		else
-			pframe->link_to = cap_ori_link;
+			pframe->common.link_to = cap_ori_link;
 		break;
 	case CAM_CAPTURE_START_FROM_NEXT_SOF:
-		if ((pframe->boot_sensor_time >= cap_param->cap_timestamp || cap_param->cap_opt_frame_scene) &&
+		if ((pframe->common.boot_sensor_time >= cap_param->cap_timestamp || cap_param->cap_opt_frame_scene) &&
 			atomic_read(&cap_param->cap_cnt) > 0 &&
 			camnode_capture_skip_condition(pframe, cap_param)) {
-			pframe->link_to = cap_new_link;
+			pframe->common.link_to = cap_new_link;
 			atomic_dec(&cap_param->cap_cnt);
 		} else {
-			pframe->link_to = cap_ori_link;
+			pframe->common.link_to = cap_ori_link;
 		}
 		break;
 	case CAM_CAPTURE_START_WITH_TIMESTAMP:
-		pframe->link_to = cap_new_link;
+		pframe->common.link_to = cap_new_link;
 		break;
 	case CAM_CAPTURE_STOP:
-		pframe->link_to = cap_ori_link;
+		pframe->common.link_to = cap_ori_link;
 		break;
 	default:
 		break;
@@ -126,21 +125,21 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct camera_fram
 	return ret;
 }
 
-static void camnode_frame_flag_update(struct cam_node *node, struct camera_frame *pframe)
+static void camnode_frame_flag_update(struct cam_node *node, struct cam_frame *pframe)
 {
 	if (node->cap_param.cap_scene == CAPTURE_FDR ||
 		node->cap_param.cap_scene == CAPTURE_HW3DNR ||
 		node->cap_param.cap_scene == CAPTURE_FLASH ||
 		node->cap_param.cap_scene == CAPTURE_RAWALG ||
 		node->cap_param.cap_scene == CAPTURE_AI_SFNR) {
-		pframe->xtm_conflict.need_ltm_map = 0;
-		pframe->xtm_conflict.need_ltm_hist = 0;
-		pframe->xtm_conflict.need_gtm_map = 0;
-		pframe->xtm_conflict.need_gtm_hist = 0;
-		pframe->xtm_conflict.gtm_mod_en = 0;
+		pframe->common.xtm_conflict.need_ltm_map = 0;
+		pframe->common.xtm_conflict.need_ltm_hist = 0;
+		pframe->common.xtm_conflict.need_gtm_map = 0;
+		pframe->common.xtm_conflict.need_gtm_hist = 0;
+		pframe->common.xtm_conflict.gtm_mod_en = 0;
 	}
 	if (node->cap_param.cap_type == CAM_CAPTURE_START_FROM_NEXT_SOF)
-		pframe->not_use_isp_reserved_buf = 1;
+		pframe->common.not_use_isp_reserved_buf = 1;
 }
 
 static int camnode_shutoff_callback(void *param, void *priv_data)
@@ -354,9 +353,6 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
 		break;
-	case CAM_NODE_CFG_SIZE:
-		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
-		break;
 	case CAM_NODE_CFG_CAP_PARAM:
 		cap_param = (struct cam_capture_param *)in_param->param;
 		node->cap_param.cap_type = cap_param->cap_type;
@@ -364,9 +360,9 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
+		node->cap_param.need_skip_scene = cap_param->need_skip_scene;
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
-		node->cap_param.need_skip_scene = cap_param->need_skip_scene;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
@@ -418,9 +414,6 @@ static int camnode_cfg_node_param_dcam_offline(void *handle, enum cam_node_cfg_c
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
 		break;
-	case CAM_NODE_CFG_SIZE:
-		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
-		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
 		break;
@@ -463,13 +456,11 @@ static int camnode_cfg_node_param_dcam_offline_bpc(void *handle, enum cam_node_c
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
 		break;
-	case CAM_NODE_CFG_SIZE:
-		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
-		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
 		break;
 	case CAM_NODE_INSERT_PORT:
+		ret = dcam_offline_node_port_insert(node->handle, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -497,9 +488,6 @@ static int camnode_cfg_node_param_dcam_offline_raw2frgb(void *handle, enum cam_n
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
-		break;
-	case CAM_NODE_CFG_SIZE:
-		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
@@ -537,9 +525,6 @@ static int camnode_cfg_node_param_dcam_offline_frgb2yuv(void *handle, enum cam_n
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
 		break;
-	case CAM_NODE_CFG_SIZE:
-		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
-		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_offline_node_blk_param_set(node->handle, in_param->param);
 		break;
@@ -574,9 +559,6 @@ static int camnode_cfg_node_param_dcam_fetch(void *handle, enum cam_node_cfg_cmd
 	in_param = (struct cam_node_cfg_param *)param;
 
 	switch (cmd) {
-	case CAM_NODE_CFG_SIZE:
-		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
-		break;
 	case CAM_NODE_CFG_CAP_PARAM:
 		cap_param = (struct cam_capture_param *)in_param->param;
 		node->cap_param.cap_type = cap_param->cap_type;
@@ -619,7 +601,6 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	int ret = 0;
 	struct cam_node *node = NULL;
 	struct cam_node_cfg_param *in_param = NULL;
-	struct camera_frame *pframe = NULL;
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %px %px\n", handle, param);
 		return -EFAULT;
@@ -631,9 +612,6 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	switch (cmd) {
 	case CAM_NODE_CFG_BUF:
 		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
-		break;
-	case CAM_NODE_CFG_SIZE:
-		ret = node->ops.cfg_port_param(node, PORT_SIZE_CFG_SET, param);
 		break;
 	case CAM_NODE_CFG_BASE:
 		ret = node->ops.cfg_port_param(node, PORT_CFG_BASE, param);
@@ -659,9 +637,6 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_3DNR_MODE:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_3DNR_MODE, in_param->param);
 		break;
-	case CAM_NODE_CFG_REC_LEYER_NUM:
-		ret = isp_node_config(node->handle, ISP_NODE_CFG_REC_LEYER_NUM, in_param->param);
-		break;
 	case CAM_NODE_CFG_GTM:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_GTM, in_param->param);
 		break;
@@ -673,19 +648,6 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_CFG_FAST_STOP:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_FAST_STOP, in_param->param);
-		break;
-	case CAM_NODE_RECYCLE_BLK_PARAM:
-		if (node->handle)
-			ret = isp_node_config(node->handle, ISP_NODE_CFG_RECYCLE_BLK_PARAM, in_param->param);
-		else {
-			pframe = (struct camera_frame *)in_param->param;
-			pframe->blkparam_info.update = 0;
-			pframe->blkparam_info.param_block = NULL;
-			if (pframe->blkparam_info.blk_param_node) {
-				isp_node_param_buf_destroy(pframe->blkparam_info.blk_param_node);
-				pframe->blkparam_info.blk_param_node = NULL;
-			}
-		}
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -711,17 +673,20 @@ static int camnode_cfg_node_param_isp_yuv_scaler(void *handle, enum cam_node_cfg
 	in_param = (struct cam_node_cfg_param *)param;
 
 	switch (cmd) {
+	case CAM_NODE_CFG_BUF:
+		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, param);
+		break;
 	case CAM_NODE_CFG_UFRAME:
-		ret = isp_yuv_scaler_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_PORT_UFRAME, in_param->param);
+		ret = isp_scaler_node_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_PORT_UFRAME, in_param->param);
 		break;
 	case CAM_NODE_INSERT_PORT:
-		ret = isp_yuv_scaler_cfg_param(node->handle,in_param->port_id, ISP_YUV_SCALER_NODE_INSERT_PORT, in_param->param);
+		ret = isp_scaler_node_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_INSERT_PORT, in_param->param);
 		break;
 	case CAM_NODE_CFG_RESERVE_BUF:
-		ret = isp_yuv_scaler_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_RESERVE_BUF, in_param->param);
+		ret = isp_scaler_node_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_RESERVE_BUF, in_param->param);
 		break;
 	case CAM_NODE_CFG_FAST_STOP:
-		ret = isp_yuv_scaler_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_FAST_STOP, in_param->param);
+		ret = isp_scaler_node_cfg_param(node->handle, in_param->port_id, ISP_YUV_SCALER_NODE_CFG_FAST_STOP, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -804,6 +769,9 @@ static int camnode_cfg_node_param_pyr_dec(void *handle, enum cam_node_cfg_cmd cm
 		break;
 	case CAM_NODE_CFG_FAST_STOP:
 		ret = pyr_dec_node_fast_stop_cfg(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_PARAM_SWITCH:
+		ret = pyr_dec_node_param_buf_cfg(node->handle, in_param->param);
 		break;
 	case CAM_NODE_INSERT_PORT:
 		break;
@@ -922,7 +890,9 @@ static int camnode_cfg_port_param(void *handle, enum cam_port_cfg_cmd cmd, void 
 		(node->node_graph->type == CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW) ||
 		(node->node_graph->type == CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB) ||
 		(node->node_graph->type == CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV) ||
-		(node->node_graph->type == CAM_NODE_TYPE_FRAME_CACHE)) {
+		(node->node_graph->type == CAM_NODE_TYPE_FRAME_CACHE) ||
+		(node->node_graph->type == CAM_NODE_TYPE_PYR_DEC) ||
+		(node->node_graph->type == CAM_NODE_TYPE_ISP_YUV_SCALER)) {
 		/* find specific port by port id, now only for out port */
 		if (in_param->port_id >= CAM_NODE_PORT_OUT_NUM) {
 			pr_err("fail to get valid port id %d\n", in_param->port_id);
@@ -1070,7 +1040,7 @@ static int camnode_outbuf_back(void *handle, void *in_param)
 		ret = frame_cache_outbuf_back(node->handle, node_param->param);
 		break;
 	case CAM_NODE_TYPE_PYR_DEC:
-		ret = pyr_dec_node_buffer_cfg(node->handle, node_param->param);
+		ret = node->ops.cfg_port_param(node, PORT_BUFFER_CFG_SET, node_param);
 		break;
 	default:
 		pr_err("fail to support node type %s\n", cam_node_name_get(node->node_graph->type));
@@ -1102,8 +1072,7 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 	int ret = 0;
 	uint32_t cur_port_id = 0;
 	struct cam_node *node = NULL;
-	struct camera_frame *pframe = NULL;
-	struct cam_node_cfg_param cfg_param = {0};
+	struct cam_frame *pframe = NULL;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -1115,8 +1084,8 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 		goto exit;
 	}
 
-	pframe = (struct camera_frame *)param;
-	cur_port_id = pframe->link_from.port_id;
+	pframe = (struct cam_frame *)param;
+	cur_port_id = pframe->common.link_from.port_id;
 	if (cur_port_id >= CAM_NODE_PORT_OUT_NUM) {
 		pr_err("fail to get valid cur port id %d\n", cur_port_id);
 		return -EFAULT;
@@ -1124,51 +1093,40 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 
 	switch (type) {
 	case CAM_CB_DCAM_DATA_DONE:
+	case CAM_CB_ISP_RET_PYR_DEC_BUF:
 	case CAM_CB_FRAME_CACHE_DATA_DONE:
 	case CAM_CB_YUV_SCALER_DATA_DONE:
 		camnode_frame_flag_update(node, pframe);
 		if (node->node_graph->outport[cur_port_id].link_state == PORT_LINK_NORMAL) {
-			pframe->link_to = node->node_graph->outport[cur_port_id].link;
+			pframe->common.link_to = node->node_graph->outport[cur_port_id].link;
 			if (node->node_graph->outport[cur_port_id].dynamic_link_en)
 				camnode_dynamic_link_update(node, pframe);
 			if (node->node_graph->outport[cur_port_id].dump_en) {
-				pframe->dump_en = 1;
-				pframe->dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
+				pframe->common.dump_en = ENABLE;
+				pframe->common.dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
 			}
 			if (node->node_graph->outport[cur_port_id].replace_en) {
-				pframe->replace_en = 1;
-				pframe->replace_node_id = node->node_graph->outport[cur_port_id].replace_node_id;
+				pframe->common.replace_en = ENABLE;
+				pframe->common.replace_node_id = node->node_graph->outport[cur_port_id].replace_node_id;
 			}
 		}
 		break;
 	case CAM_CB_DCAM_STATIS_DONE:
 		if (node->node_graph->outport[cur_port_id].dump_en) {
-			pframe->dump_en = 1;
-			pframe->dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
+			pframe->common.dump_en = ENABLE;
+			pframe->common.dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
 		}
 		break;
 	case CAM_CB_ISP_RET_SRC_BUF:
-		cfg_param.param = pframe;
-		node->ops.cfg_node_param(node, CAM_NODE_RECYCLE_BLK_PARAM, &cfg_param);
 	case CAM_CB_DCAM_RET_SRC_BUF:
 	case CAM_CB_FRAME_CACHE_RET_SRC_BUF:
 	case CAM_CB_PYRDEC_RET_SRC_BUF:
 	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
-		cam_queue_frame_flag_reset(pframe);
-		pframe->link_to = pframe->link_from;
+		cam_queue_frame_flag_reset(&pframe->common);
+		pframe->common.link_to = pframe->common.link_from;
 		if (node->node_graph->inport[PORT_ISP_OFFLINE_IN].copy_en) {
-			pframe->copy_en = 1;
-			pframe->copy_node_id = node->node_graph->inport[PORT_ISP_OFFLINE_IN].copy_node_id;
-		}
-		break;
-	case CAM_CB_ISP_RET_PYR_DEC_BUF:
-		if (node->node_graph->dump_en) {
-			pframe->dump_en = 1;
-			pframe->dump_node_id = node->node_graph->dump_node_id;
-		}
-		if (node->node_graph->replace_en) {
-			pframe->replace_en = 1;
-			pframe->replace_node_id = node->node_graph->replace_node_id;
+			pframe->common.copy_en = 1;
+			pframe->common.copy_node_id = node->node_graph->inport[PORT_ISP_OFFLINE_IN].copy_node_id;
 		}
 		break;
 	default :
@@ -1207,6 +1165,7 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 		}
 		break;
 	case PORT_BUFFER_CFG_SET:
+	case PORT_BUFFER_CFG_ALLOC:
 		node_param = (struct cam_node_cfg_param *)param;
 		port = node->outport_list[node_param->port_id];
 		if (!port) {
@@ -1220,6 +1179,7 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 		}
 		break;
 	case PORT_BUFFER_CFG_GET:
+	case PORT_BUFFER_CFG_CYCLE:
 		node_param = (struct cam_node_cfg_param *)param;
 		port = node->outport_list[node_param->port_id];
 		if (!port) {
@@ -1274,8 +1234,8 @@ int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en,
 
 int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 {
-	int ret = 0;
-	int i = 0;
+	int ret = 0, i = 0;
+	struct pyr_dec_node *dec_node = NULL;
 	struct cam_node *node = (struct cam_node *)handle;
 
 	if (!handle || !param) {
@@ -1291,24 +1251,41 @@ int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
 				continue;
 			ret = cam_port_buffers_alloc(node->outport_list[i], node->node_graph->id, param);
 			if (ret) {
-				pr_err("fail to alloc buf\n");
+				pr_err("fail to alloc buf %d\n", i);
 			}
 		}
 		break;
 	case CAM_NODE_TYPE_PYR_DEC:
-		ret = pyr_dec_node_buffer_alloc(node->handle, param);
-		if (ret)
-			pr_err("fail to alloc pyr dec buf\n");
+		dec_node = (struct pyr_dec_node *)node->handle;
+		if (param->share_buffer) {
+			mutex_lock(&dec_node->dev->pyr_mulshare_dec_lock);
+			if (atomic_inc_return(&dec_node->dev->pyr_mulshare_dec_alloced) > 1) {
+				mutex_unlock(&dec_node->dev->pyr_mulshare_dec_lock);
+				goto exit;
+			}
+		}
+		for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) {
+			if (!node->outport_list[i])
+				continue;
+			ret = cam_port_buffers_alloc(node->outport_list[i], node->node_graph->id, param);
+			if (ret) {
+				pr_err("fail to alloc buf %d\n", i);
+			}
+		}
+		if (param->share_buffer)
+			mutex_unlock(&dec_node->dev->pyr_mulshare_dec_lock);
 		break;
 	case CAM_NODE_TYPE_ISP_OFFLINE:
 		ret = isp_node_buffers_alloc(node->handle, param);
 		if (ret)
-			pr_err("fail to alloc isp node buf\n");
+			pr_err("fail to alloc isp node buf %s\n", cam_node_name_get(node->node_graph->type));
 		break;
 	default:
+		pr_debug("not support node %s\n", cam_node_name_get(node->node_graph->type));
 		break;
 	}
 
+exit:
 	return ret;
 }
 
@@ -1363,6 +1340,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	pr_info("node: %s start creat\n", cam_node_name_get(node->node_graph->type));
 	node->need_fetch = param->dcam_fetch_desc->virtualsensor;
 	node->data_cb_handle = param->data_cb_handle;
+	node->buf_manager_handle = param->buf_manager_handle;
 	node->data_cb_func = param->data_cb_func;
 	node->zoom_cb_func = param->zoom_cb_func;
 	node->ops.cfg_node_param = camnode_cfg_node_param;
@@ -1377,6 +1355,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_DCAM_ONLINE:
 		param->dcam_online_desc->data_cb_func = camnode_data_callback;
 		param->dcam_online_desc->data_cb_handle = node;
+		param->dcam_online_desc->buf_manager_handle = node->buf_manager_handle;
 		param->dcam_online_desc->port_cfg_cb_func = camnode_port_cfg_callback;
 		param->dcam_online_desc->port_cfg_cb_handle = node;
 		param->dcam_online_desc->shutoff_cfg_cb_func = camnode_cfg_shutoff;
@@ -1393,15 +1372,18 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 		param->dcam_offline_desc->data_cb_func = camnode_data_callback;
 		param->dcam_offline_desc->data_cb_handle = node;
+		param->dcam_offline_desc->buf_manager_handle = node->buf_manager_handle;
 		param->dcam_offline_desc->port_cfg_cb_func = camnode_port_cfg_callback;
 		param->dcam_offline_desc->port_cfg_cb_handle = node;
 		param->dcam_offline_desc->node_dev = (void *)&nodes_dev->dcam_offline_node_dev;
 		param->dcam_offline_desc->node_type = node->node_graph->type;
+		node->node_graph->buf_type = param->dcam_offline_desc->buf_type;
 		node->handle = dcam_offline_node_get(node->node_graph->id, param->dcam_offline_desc);
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
 		param->dcam_offline_bpcraw_desc->data_cb_func = camnode_data_callback;
 		param->dcam_offline_bpcraw_desc->data_cb_handle = node;
+		param->dcam_offline_bpcraw_desc->buf_manager_handle = node->buf_manager_handle;
 		param->dcam_offline_bpcraw_desc->port_cfg_cb_func = camnode_port_cfg_callback;
 		param->dcam_offline_bpcraw_desc->port_cfg_cb_handle = node;
 		param->dcam_offline_bpcraw_desc->node_dev = (void *)&nodes_dev->dcam_offline_node_bpcraw_dev;
@@ -1411,6 +1393,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 		param->dcam_offline_raw2frgb_desc->data_cb_func = camnode_data_callback;
 		param->dcam_offline_raw2frgb_desc->data_cb_handle = node;
+		param->dcam_offline_raw2frgb_desc->buf_manager_handle = node->buf_manager_handle;
 		param->dcam_offline_raw2frgb_desc->port_cfg_cb_func = camnode_port_cfg_callback;
 		param->dcam_offline_raw2frgb_desc->port_cfg_cb_handle = node;
 		param->dcam_offline_raw2frgb_desc->node_dev = (void *)&nodes_dev->dcam_offline_node_raw2frgb_dev;
@@ -1420,6 +1403,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		param->dcam_offline_frgb2yuv_desc->data_cb_func = camnode_data_callback;
 		param->dcam_offline_frgb2yuv_desc->data_cb_handle = node;
+		param->dcam_offline_frgb2yuv_desc->buf_manager_handle = node->buf_manager_handle;
 		param->dcam_offline_frgb2yuv_desc->port_cfg_cb_func = camnode_port_cfg_callback;
 		param->dcam_offline_frgb2yuv_desc->port_cfg_cb_handle = node;
 		param->dcam_offline_frgb2yuv_desc->node_dev = (void *)&nodes_dev->dcam_offline_node_frgb2yuv_dev;
@@ -1429,6 +1413,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_ISP_OFFLINE:
 		param->isp_node_description->data_cb_func = camnode_data_callback;
 		param->isp_node_description->data_cb_handle = node;
+		param->isp_node_description->buf_manager_handle = node->buf_manager_handle;
 		param->isp_node_description->node_dev = (void *)&nodes_dev->isp_node_dev[node->node_graph->id];
 		param->isp_node_description->node_type = node->node_graph->type;
 		node->handle = isp_node_get(node->node_graph->id, param->isp_node_description);
@@ -1436,6 +1421,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_ISP_YUV_SCALER:
 		param->isp_yuv_scaler_desc->data_cb_func = camnode_data_callback;
 		param->isp_yuv_scaler_desc->data_cb_handle = node;
+		param->isp_yuv_scaler_desc->buf_manager_handle = node->buf_manager_handle;
 		param->isp_yuv_scaler_desc->node_dev = (void *)&nodes_dev->isp_yuv_scaler_node_dev[node->node_graph->id];
 		param->isp_yuv_scaler_desc->node_type = node->node_graph->type;
 		node->handle = isp_yuv_scaler_node_get(node->node_graph->id, param->isp_yuv_scaler_desc);
@@ -1443,6 +1429,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_FRAME_CACHE:
 		param->frame_cache_desc->data_cb_func = camnode_data_callback;
 		param->frame_cache_desc->data_cb_handle = node;
+		param->frame_cache_desc->buf_manager_handle = node->buf_manager_handle;
 		param->frame_cache_desc->node_type = node->node_graph->type;
 		node->handle = frame_cache_node_get(node->node_graph->id, param->frame_cache_desc);
 		break;
@@ -1455,6 +1442,9 @@ void *cam_node_creat(struct cam_node_desc *param)
 	case CAM_NODE_TYPE_PYR_DEC:
 		param->pyr_dec_desc->data_cb_func = camnode_data_callback;
 		param->pyr_dec_desc->data_cb_handle = node;
+		param->pyr_dec_desc->buf_manager_handle = node->buf_manager_handle;
+		param->pyr_dec_desc->port_cfg_cb_func = camnode_port_cfg_callback;
+		param->pyr_dec_desc->port_cfg_cb_handle = node;
 		param->pyr_dec_desc->node_dev = (void *)&nodes_dev->pyr_dec_node_dev;
 		node->handle = pyr_dec_node_get(node->node_graph->id, param->pyr_dec_desc);
 		break;
@@ -1477,11 +1467,13 @@ void *cam_node_creat(struct cam_node_desc *param)
 	port_desc.dcam_offline_raw2frgb = &param->dcam_offline_raw2frgb_desc->port_desc;
 	port_desc.dcam_offline_frgb2yuv = &param->dcam_offline_frgb2yuv_desc->port_desc;
 	port_desc.isp_offline_scaler = &param->isp_yuv_scaler_desc->port_desc;
+	port_desc.pyr_dec = &param->pyr_dec_desc->port_desc;
 	port_desc.nodes_dev = param->nodes_dev;
 	port_desc.zoom_cb_func = camnode_zoom_callback;
 	port_desc.zoom_cb_handle = node;
 	port_desc.data_cb_func = camnode_data_callback;
 	port_desc.data_cb_handle = node;
+	port_desc.buf_manager_handle = node->buf_manager_handle;
 	port_desc.shutoff_cb_func = camnode_shutoff_callback;
 	port_desc.shutoff_cb_handle = node;
 

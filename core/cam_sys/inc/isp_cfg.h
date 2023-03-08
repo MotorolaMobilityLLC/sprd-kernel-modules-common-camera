@@ -97,7 +97,6 @@ struct isp_cfg_ctx_desc {
 	atomic_t user_cnt;
 	atomic_t map_cnt;
 	atomic_t node_cnt;
-	atomic_t scaler_node_cnt;
 	struct isp_cfg_ops *ops;
 	struct cam_hw_ops *hw_ops;
 	struct cam_hw_info *hw;
@@ -107,10 +106,10 @@ struct isp_cfg_ops {
 	int (*ctx_init)(struct isp_cfg_ctx_desc *cfg_ctx);
 	int (*ctx_deinit)(struct isp_cfg_ctx_desc *cfg_ctx);
 	int (*ctx_reset)(struct isp_cfg_ctx_desc *cfg_ctx,
-			enum isp_context_id ctx_id);
+			uint32_t ctx_id);
 	int (*hw_init)(struct isp_cfg_ctx_desc *cfg_ctx);
 	int (*hw_cfg)(struct isp_cfg_ctx_desc *cfg_ctx,
-			enum isp_context_id sw_ctx_id,
+			uint32_t sw_ctx_id,
 			enum isp_context_hw_id hw_ctx_id,
 			uint32_t fmcu_enable);
 	int (*hw_start)(struct isp_cfg_ctx_desc *cfg_ctx,
@@ -119,6 +118,6 @@ struct isp_cfg_ops {
 
 struct isp_cfg_ctx_desc *isp_cfg_ctx_desc_get(void);
 int isp_cfg_ctx_desc_put(struct isp_cfg_ctx_desc *param);
-int isp_cfg_ctx_reg_buf_debug_show(void *param);
+int isp_cfg_ctx_reg_buf_debug_show(void *param, uint32_t ctx_id);
 
 #endif/* _ISP_CFG_H_ */

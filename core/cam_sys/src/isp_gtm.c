@@ -345,11 +345,11 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 			}
 
 			pr_debug("gtm capture: ctx_id %d, capture fid %d\n", gtm_ctx->ctx_id, gtm_ctx->fid);
-			mapping = &gtm_ctx->sync->mapping;
 			gtm_func.index = ISP_K_GTM_BLOCK_SET;
 			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 			gtm_func.k_blk_func(&gtm_k_block);
 
+			mapping = &gtm_ctx->sync->mapping;
 			mapping->ctx_id = gtm_ctx->ctx_id;
 			mapping->sw_mode = 1;
 			gtm_func.index = ISP_K_GTM_MAPPING_SET;

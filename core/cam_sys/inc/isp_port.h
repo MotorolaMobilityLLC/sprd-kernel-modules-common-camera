@@ -17,8 +17,6 @@
 #include "cam_types.h"
 #include "cam_port.h"
 
-#define ISP_IN_Q_LEN               8
-#define ISP_PROC_Q_LEN             2
 #define ISP_RESULT_Q_LEN           25
 #define ISP_SLW_IN_Q_LEN           50
 #define ISP_SLW_PROC_Q_LEN         50
@@ -65,19 +63,18 @@ struct isp_port_cfg {
 	uint32_t cfg_id;
 	uint32_t in_fmt;
 	uint32_t vid_valid;
-	uint32_t out_buf_clear;
+	enum en_status out_buf_clear;
 	int valid_out_frame;
 	int hw_ctx_id;
 	uint32_t target_fid;
 	struct check_blk_param *blkparam_info;
-	struct camera_frame *src_frame;
-	struct camera_frame *superzoom_frame;
+	struct cam_frame *src_frame;
+	struct cam_frame *superzoom_frame;
 	struct isp_ltm_ctx_desc *rgb_ltm;
 	struct isp_pipe_info *pipe_info;
 	enum sprd_cam_sec_mode sec_mode;
 	struct isp_hw_slw_fmcu_cmds *slw;
 	struct isp_pipe_dev *dev;
-	struct camera_queue *param_share_queue;
 	struct isp_node_uinfo *uinfo;
 	uint32_t *faststop;
 	struct completion *faststop_done;
@@ -90,42 +87,41 @@ struct isp_port_desc {
 	void **port_dev;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	enum cam_port_transfer_type transfer_type;
 	enum export_type depend_type;
 	enum isp_fetch_path_select fetch_path_sel;
-	uint32_t out_fmt;
-	uint32_t slave_type;
-	uint32_t slave_path_id;
-	uint32_t regular_mode;
+	enum cam_format out_fmt;
+	enum dcam_regular_mode regular_mode;
 	uint32_t data_bits;
-	uint32_t endian;
+	enum cam_data_endian endian;
 	struct img_size output_size;
-	uint32_t in_fmt;
-	uint32_t pyr_out_fmt;
-	uint32_t store_3dnr_fmt;
+	enum cam_format in_fmt;
+	enum cam_format pyr_out_fmt;
+	enum cam_format store_3dnr_fmt;
 	uint32_t bayer_pattern;
 	struct img_size sn_size;
-	uint32_t is_high_fps;
+	enum en_status is_high_fps;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
 	struct cam_hw_info *hw;
 };
 
 struct isp_port {
-	struct list_head list;
+	struct cam_q_head list;
 	atomic_t user_cnt;
 	atomic_t is_work;
 	uint32_t port_id;
-	uint32_t type;
+	enum cam_port_transfer_type type;
 	int32_t reserved_buf_fd;
 	size_t reserve_buf_size;
-	uint32_t fmt;
-	uint32_t bind_type;
-	uint32_t regular_mode;
+	enum cam_format fmt;
+	enum dcam_regular_mode regular_mode;
 	uint32_t uframe_sync;
+	uint32_t need_post_proc;
 	uint32_t scaler_coeff_ex;
 	uint32_t scaler_bypass_ctrl;
-	uint32_t data_endian;
+	enum cam_data_endian data_endian;
 	struct img_size size;
 	struct img_trim trim;
 	struct img_size sn_size;/* sensor size */
@@ -138,6 +134,7 @@ struct isp_port {
 	void *resbuf_cb_data;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	void *buf_manager_handle;
 	port_cfg_cb port_cfg_cb_func;
 	struct cam_hw_info *hw;
 	struct cam_buf_pool_id fetch_unprocess_pool;

@@ -20,47 +20,6 @@
 #endif
 #define pr_fmt(fmt) "cam_kernel_adapt: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-timeval cam_kernel_adapt_ktime_to_timeval(const ktime_t kt)
-{
-	timespec temp_timespec = {0};
-	timeval temp_timeval = {0};
-
-	temp_timespec = ktime_to_timespec64(kt);
-	temp_timeval.tv_sec = temp_timespec.tv_sec;
-	temp_timeval.tv_usec = temp_timespec.tv_nsec / 1000L;
-
-	return temp_timeval;
-}
-
-timespec cam_kernel_adapt_timespec_sub(timespec lhs, timespec rhs)
-{
-	return timespec64_sub(lhs,rhs);
-}
-
-#else
-timeval cam_kernel_adapt_ktime_to_timeval(const ktime_t kt)
-{
-	return ktime_to_timeval(kt);
-}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-timespec cam_kernel_adapt_timespec_sub(struct timespec lhs,
-			struct timespec rhs)
-{
-	return timespec64_to_timespec(timespec64_sub(
-			timespec_to_timespec64(lhs),
-			timespec_to_timespec64(rhs)));
-}
-#else
-timespec cam_kernel_adapt_timespec_sub(timespec lhs,
-					timespec rhs)
-{
-	return timespec_sub(lhs, rhs);
-}
-#endif
-
-#endif
-
 /*kernal 5.15 file operation need import namespace*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 #ifdef CONFIG_SPRD_DCAM_DEBUG_RAW

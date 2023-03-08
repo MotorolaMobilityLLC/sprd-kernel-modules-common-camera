@@ -15,9 +15,10 @@
 #define _CAM_TYPES_H_
 
 #include <linux/completion.h>
+#include <linux/spinlock.h>
+#include <os_adapt_common.h>
 #include "sprd_cam.h"
 #include "cam_kernel_adapt.h"
-#include <linux/spinlock.h>
 #include "cam_thread.h"
 
 #ifndef MAX
@@ -63,7 +64,6 @@ extern int g_dbg_iommu_mode;
 extern int g_dbg_set_iommu_mode;
 extern uint32_t g_pyr_dec_online_bypass;
 extern uint32_t g_pyr_dec_offline_bypass;
-extern uint32_t g_dcam_raw_src;
 extern uint32_t g_dbg_fbc_control;
 extern uint32_t g_dbg_recovery;
 #define VOID_PTR_TO(from_param, type) \
@@ -74,6 +74,11 @@ extern uint32_t g_dbg_recovery;
 	} \
 	__a = (type *)(from_param); \
 })
+
+enum en_status {
+	DISABLE,
+	ENABLE,
+};
 
 /* for global camera control */
 struct cam_global_ctrl {
@@ -250,6 +255,7 @@ enum reserved_buf_cb_type {
 };
 
 enum cam_reserved_buf_type {
+	CAM_RESERVED_BUFFER_OFF = 0,
 	CAM_RESERVED_BUFFER_ORI = 1,
 	CAM_RESERVED_BUFFER_COPY,
 };
@@ -282,6 +288,7 @@ struct dcam_compress_cal_para {
 	struct compressed_addr *out;
 };
 
+/* TBD: need move to sprd_camsys.h later */
 /* dev fetch & store data type*/
 enum cam_format {
 	CAM_RAW_BASE = 0x10,
@@ -328,8 +335,8 @@ struct cam_capture_param {
 	uint32_t cap_scene;
 	atomic_t cap_cnt;
 	int64_t cap_timestamp;
-	uint32_t cap_opt_frame_scene;
 	uint32_t need_skip_scene;
+	uint32_t cap_opt_frame_scene;
 	struct sprd_img_rect cap_user_crop;
 	uint32_t skip_first_num;
 };
@@ -339,7 +346,7 @@ struct cam_buf_alloc_desc {
 	uint32_t width;
 	uint32_t is_pack;
 	uint32_t ch_id;
-	uint32_t compress_en;
+	enum en_status compress_en;
 	uint32_t compress_offline;
 	uint32_t dcamonline_out_fmt;
 	uint32_t dcamoffline_out_fmt;
@@ -350,7 +357,6 @@ struct cam_buf_alloc_desc {
 	uint32_t cam_idx;
 	uint32_t dcamonline_buf_alloc_num;
 	uint32_t dcamoffline_buf_alloc_num;
-	uint32_t sensor_img_ptn;
 	uint32_t share_buffer;
 	uint32_t iommu_enable;
 	uint32_t is_super_size;
@@ -386,14 +392,12 @@ enum shutoff_type {
 };
 
 extern struct camera_queue *g_ion_buf_q;
-extern struct camera_queue *g_empty_frm_q;
 
 uint32_t cam_data_bits(uint32_t dcam_out_fmt);
-uint32_t cam_pack_bits(uint32_t raw_out_fmt);
 uint32_t cam_is_pack(uint32_t dcam_out_fmt);
 uint32_t cam_format_get(uint32_t img_pix_fmt);
+uint32_t cam_cal_hw_pitch(uint32_t w, uint32_t format);
 int cam_raw_fmt_get(uint32_t fmt);
-int dcampath_outpitch_get(uint32_t w, uint32_t dcam_out_fmt);
 int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,
 		uint32_t *scaler_sel, uint32_t *bin_ratio);
 int cam_valid_fmt_get(int32_t *fmt, uint32_t default_value);
@@ -407,7 +411,7 @@ uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id);
 typedef int(*pyr_dec_buf_cb)(void *param, void *cb_handle);
 typedef int(*reserved_buf_get_cb)(enum reserved_buf_cb_type type, void *param,
 				void *cb_handle);
-typedef struct camera_frame *(*dual_frame_sync_cb)(void *param, void *cb_handle, int *flag);
+typedef struct cam_frame *(*dual_frame_sync_cb)(void *param, void *cb_handle, int *flag);
 typedef int(*dual_slave_frame_set_cb)(void *param, void *cb_handle);
 typedef int(*cap_frame_status_cb)(uint32_t param, void *cb_handle);
 typedef int(*port_cfg_cb)(void *param, uint32_t cmd, void *cb_handle);
