@@ -2729,6 +2729,12 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 			break;
 		if (param.dcam_raw_fmt == hw->ip_dcam[0]->raw_fmt_support[i]) {
 			channel->ch_uinfo.dcam_raw_fmt = param.dcam_raw_fmt;
+			/* when 4in1 hal according to remosic
+			 * converts sensor raw fmt to dcam raw fmt
+			 * dcam offline fetch fmt use dcam raw fmt config by hal
+			 */
+			if (module->cam_uinfo.is_4in1)
+				module->raw_cap_fetch_fmt = param.dcam_raw_fmt;
 			dcam_raw_update = 1;
 		}
 	}
@@ -2738,7 +2744,8 @@ static int camioctl_dcam_raw_fmt_set(struct camera_module *module,unsigned long 
 			break;
 		if (param.sensor_raw_fmt == hw->ip_dcam[0]->raw_fmt_support[i]) {
 			channel->ch_uinfo.sensor_raw_fmt = param.sensor_raw_fmt;
-			module->raw_cap_fetch_fmt = param.sensor_raw_fmt;
+			if (!module->cam_uinfo.is_4in1)
+				module->raw_cap_fetch_fmt = param.sensor_raw_fmt;
 			sensor_raw_update = 1;
 		}
 	}
