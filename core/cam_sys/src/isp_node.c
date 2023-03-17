@@ -803,8 +803,9 @@ static int ispnode_start_proc(void *node)
 	memcpy(&inode->pipe_src, &inode->uinfo, sizeof(inode->uinfo));
 	ret = ispnode_port_param_cfg(inode, pctx_hw, &port_cfg);
 	if (ret || !port_cfg.valid_out_frame) {
-		pr_info("No available output buffer cam%d, node_id %d, cfg_id %d, hw %d, valid_out_frame %d\n",
-			inode->attach_cam_id, pctx_hw->node_id, inode->cfg_id, pctx_hw->hw_ctx_id, port_cfg.valid_out_frame);
+		pr_info("No available output buffer cam%d, node_id %d, cfg_id %d, hw %d, valid_out_frame %d, fid %d\n",
+			inode->attach_cam_id, pctx_hw->node_id, inode->cfg_id, pctx_hw->hw_ctx_id, port_cfg.valid_out_frame,
+			port_cfg.src_frame->common.fid);
 		goto exit;
 	}
 	if (inode->ch_id == CAM_CH_CAP || (port_cfg.src_frame && (port_cfg.src_frame->common.fid & 0x1f) == 0))

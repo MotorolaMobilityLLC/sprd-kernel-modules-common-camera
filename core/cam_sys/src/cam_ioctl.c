@@ -329,7 +329,8 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	}
 	blk_type.sub_block = param.sub_block;
 	blk_type.property = param.property;
-	pr_debug("cfg param for sub_block %d\n", param.sub_block);
+	pr_debug("scene %d cfg param for sub_block %d property %d\n",
+		param.scene_id, param.sub_block, param.property);
 
 	if (atomic_read(&module->state) == CAM_INIT || param.property_param == NULL
 		|| module->dcam_dev_handle == NULL || module->isp_dev_handle == NULL) {
