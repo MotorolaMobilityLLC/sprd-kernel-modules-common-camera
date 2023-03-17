@@ -108,6 +108,7 @@ static int ispltm_sync_completion_set(void *handle, int frame_idx)
 	sync = ltm_ctx->sync;
 	atomic_set(&sync->wait_completion, frame_idx);
 
+	pr_debug("LTM: set cap_fid %d\n", frame_idx);
 	return 0;
 }
 
@@ -124,8 +125,9 @@ static int ispltm_sync_completion_get(void *handle)
 
 	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
 	sync = ltm_ctx->sync;
-
 	idx = atomic_read(&sync->wait_completion);
+
+	pr_debug("LTM: get cap_fid %d\n", idx);
 	return idx;
 }
 
@@ -144,7 +146,9 @@ static int ispltm_sync_completion_done(void *handle)
 	sync = ltm_ctx->sync;
 
 	idx = atomic_read(&sync->wait_completion);
+	pr_debug("LTM: get cap_fid %d\n", idx);
 	if (idx) {
+		pr_debug("LTM: clear wait_completion & complete share_comp\n");
 		atomic_set(&sync->wait_completion, 0);
 		complete(&sync->share_comp);
 	}
@@ -165,6 +169,8 @@ static void ispltm_sync_fid_set(void *handle)
 	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
 	sync = ltm_ctx->sync;
 	atomic_set(&sync->pre_fid, ltm_ctx->fid);
+
+	pr_debug("LTM: set pre_fid %d\n", ltm_ctx->fid);
 }
 
 static int ispltm_sync_config_set(struct isp_ltm_ctx_desc *ctx,
@@ -874,8 +880,9 @@ static int ispltm_pipe_proc(void *handle, void *param)
 				timeout = wait_for_completion_interruptible_timeout(
 					&sync->share_comp, ISP_LTM_TIMEOUT);
 				if (timeout <= 0) {
-					pr_warn("warning: not wait pre_ctx ltm_hist done, set cap_ctx ltm bypass, may cause this frame ltm effect abnormal.\n");
-					ctx->ltm_ops.sync_ops.do_completion(ctx);
+					pr_warn("warning: not wait pre ltm_hist done, set cap ltm bypass, may cause fid %d ltm effect abnormal\n",
+						ctx->fid);
+					atomic_set(&sync->wait_completion, 0);
 					ctx->mode = MODE_LTM_OFF;
 					ctx->bypass = 1;
 					ret = -1;
@@ -889,7 +896,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 					 * Means context of pre has release
 					 * this complete from isp_core before release
 					 */
-					pr_err("fail to use free pre context\n");
+					pr_err("fail to use free pre context, cap_fid %d, pre_fid %d\n", ctx->fid, pre_fid);
 					ctx->mode = MODE_LTM_OFF;
 					ctx->bypass = 1;
 					ret = -1;
