@@ -579,7 +579,7 @@ static int sprd_dcam_cfg_raw_path(struct camera_path_spec *path,
 	int ret = 0;
 	struct camera_img_buf_addr *cur_node;
 	struct camera_img_buf_queue *queue;
-	struct camera_addr frm_addr;
+	struct camera_addr frm_addr = {0};
 	uint32_t param;
 	struct size_transfer tmp;
 
@@ -640,6 +640,7 @@ static int sprd_dcam_cfg_raw_path(struct camera_path_spec *path,
 		frm_addr.mfd_y = cur_node->frm_addr.mfd_y;
 		frm_addr.mfd_u = cur_node->frm_addr.mfd_u;
 		frm_addr.mfd_v = cur_node->frm_addr.mfd_v;
+		frm_addr.is_secure = cur_node->frm_addr.is_secure;
 		ret = set_dcam_raw_path_cfg(idx, DCAM_PATH_OUTPUT_ADDR,
 			&frm_addr);
 		if (unlikely(ret)) {
@@ -860,7 +861,7 @@ static int set_isp_path_buf_cfg(void *handle, enum isp_cfg_id cfg_id,
 	int ret = 0;
 	int fret = -1;
 	struct camera_img_buf_addr *cur_node;
-	struct camera_addr frm_addr;
+	struct camera_addr frm_addr = {0};
 
 	if (!queue || !handle) {
 		ret = -EINVAL;
@@ -882,6 +883,7 @@ static int set_isp_path_buf_cfg(void *handle, enum isp_cfg_id cfg_id,
 		frm_addr.mfd_u = cur_node->frm_addr.mfd_u;
 		frm_addr.mfd_v = cur_node->frm_addr.mfd_v;
 		frm_addr.user_fid = cur_node->frm_addr.user_fid;
+		frm_addr.is_secure = cur_node->frm_addr.is_secure;
 		ret = set_isp_path_cfg(handle, path_index, cfg_id, &frm_addr);
 		if(unlikely(fret)){
 		    fret=ret;
@@ -3783,8 +3785,8 @@ static int sprd_img_set_frame_addr(struct camera_file *camerafile,
 		get_user(path->frm_reserved_addr.mfd_u, &uparam->fd_array[0]);
 		get_user(path->frm_reserved_addr.mfd_v, &uparam->fd_array[0]);
 	} else {
-		struct camera_addr frame_addr;
-		struct camera_img_buf_addr buf_addr;
+		struct camera_addr frame_addr = {0};
+		struct camera_img_buf_addr buf_addr = {0};;
 
 		if (atomic_read(&dev->stream_on) == 1 &&
 			path->status == PATH_RUN) {
