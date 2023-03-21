@@ -214,13 +214,27 @@ static void set_buffer_queue(struct isp_queue_param *queue_prm,
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+bool is_dma_buf_map_null(const struct dma_buf_map *map)
+{
+	if (map->is_iomem)
+		return !map->vaddr_iomem;
+	return !map->vaddr;
+}
+
 int sprd_isp_release_statis_buf(struct isp_pipe_dev *dev)
 {
 	struct isp_statis_module *statis_module = &dev->statis_module_info;
 
-	pr_info("dma_statis_buf unmap fd = %d, dmabuf_p = %p, kaddr = %p",
-	statis_module->statis_buf.fd, statis_module->statis_buf.dmabuf_p, statis_module->statis_buf.map.vaddr);
-	sprd_dmabuf_unmap_kernel(statis_module->statis_buf.dmabuf_p, &statis_module->statis_buf.map);
+	pr_info("dma_statis_buf cur fd = %d, dmabuf_p = %#x, kaddr = %#x",
+		statis_module->statis_buf.fd, statis_module->statis_buf.dmabuf_p,
+		statis_module->statis_buf.map.vaddr);
+	if (statis_module->statis_buf.map.vaddr &&
+		statis_module->statis_buf.dmabuf_p &&
+		!is_dma_buf_map_null(&statis_module->statis_buf.dmabuf_p->vmap_ptr)) {
+		sprd_dmabuf_unmap_kernel(statis_module->statis_buf.dmabuf_p,
+					&statis_module->statis_buf.map);
+		dma_buf_put(statis_module->statis_buf.dmabuf_p);
+	}
 
 	return 0;
 }
