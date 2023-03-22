@@ -574,6 +574,10 @@ static int camioctl_cam_security_set(struct camera_module *module,
 			pr_err("fail to init cam security set\n");
 			goto exit;
 		}
+
+		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
+			ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
+
 		vaor_bp_en = ENABLE;
 	}
 
@@ -1590,9 +1594,6 @@ check:
 		goto dcam_fail;
 	}
 
-	/* full tee faceid need assign for ioctl_security after ioctl_res_get*/
-	//module->grp->camsec_cfg.camsec_mode = SEC_TIME_PRIORITY;
-
 	isp = module->isp_dev_handle;
 	if (isp == NULL) {
 		isp = isp_core_pipe_dev_get(grp->hw_info, (void *)&grp->s_isp_dev);
@@ -1603,13 +1604,6 @@ check:
 			goto no_isp;
 		}
 		module->isp_dev_handle = isp;
-	}
-
-	ret = module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
-		ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
-	if (ret) {
-		pr_err("fail to set isp sec %d.\n", module->grp->camsec_cfg.camsec_mode);
-		goto wq_fail;
 	}
 
 	ret = module->isp_dev_handle->isp_ops->open(isp, grp->hw_info);
@@ -1633,7 +1627,6 @@ check:
 	return 0;
 
 copy_fail:
-wq_fail:
 	module->isp_dev_handle->isp_ops->close(isp);
 
 isp_fail:
