@@ -31,10 +31,26 @@ uint32_t s_dbg_linebuf_len = ISP_LINE_BUFFER_W;
 
 static int ispdev_sec_cfg(struct isp_pipe_dev *dev, void *param)
 {
-
+	int i = 0;
+	struct cam_hw_info *hw = NULL;
 	enum sprd_cam_sec_mode *sec_mode = (enum sprd_cam_sec_mode *)param;
 
 	dev->sec_mode = *sec_mode;
+	dev->wmode = ISP_AP_MODE;
+	hw = dev->isp_hw;
+
+	/* bypass config mode by default */
+	hw->isp_ioctl(hw, ISP_HW_CFG_DEFAULT_PARA_SET, NULL);
+
+	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++)
+		isp_cfg_poll_addr[i] = &s_isp_regbase[0];
+	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
+		atomic_set(&dev->hw_ctx[i].user_cnt, 0);
+		if (i != ISP_CONTEXT_HW_P0) {
+			atomic_set(&dev->hw_ctx[i].user_cnt, 1);
+			continue;
+		}
+	}
 
 	pr_debug("camca: isp sec_mode=%d\n", dev->sec_mode);
 
