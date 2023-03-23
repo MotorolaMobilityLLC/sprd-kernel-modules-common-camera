@@ -49,7 +49,8 @@ static const char * const syscon_name[] = {
 	"qos_aw",
 	"aon-apb-mm-eb",
 };
-enum  {
+
+enum {
 	_e_force_shutdown,
 	_e_auto_shutdown,
 	_e_power_state,
@@ -58,10 +59,10 @@ enum  {
 	_e_camsys_mm_eb,
 };
 
-#define PD_MM_DOWN_FLAG			0x7
-#define ARQOS_THRESHOLD			0x0D
-#define AWQOS_THRESHOLD			0x0D
-#define SHIFT_MASK(a)			(ffs(a) ? ffs(a) - 1 : 0)
+#define PD_MM_DOWN_FLAG         0x7
+#define ARQOS_THRESHOLD         0x0D
+#define AWQOS_THRESHOLD         0x0D
+#define SHIFT_MASK(a)           (ffs(a) ? ffs(a) - 1 : 0)
 
 static BLOCKING_NOTIFIER_HEAD(mmsys_chain);
 
@@ -155,19 +156,19 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 		ret = regmap_read_mmsys(&pw_info->u.l5.syscon_regs[_e_power_state],
 				&power_state1);
 		if (ret)
-			pr_err("failed, ret: %d, count: %d, cb: %p\n", ret, read_count,
+			pr_err("failed, ret: %d, count: %d, cb: %pS\n", ret, read_count,
 				__builtin_return_address(0));
 
 		ret = regmap_read_mmsys(&pw_info->u.l5.syscon_regs[_e_power_state],
 				&power_state2);
 		if (ret)
-			pr_err("failed, ret: %d, count: %d, cb: %p\n", ret, read_count,
+			pr_err("failed, ret: %d, count: %d, cb: %pS\n", ret, read_count,
 				__builtin_return_address(0));
 
 		ret = regmap_read_mmsys(&pw_info->u.l5.syscon_regs[_e_power_state],
 				&power_state3);
 		if (ret)
-			pr_err("failed, ret: %d, count: %d, cb: %p\n", ret, read_count,
+			pr_err("failed, ret: %d, count: %d, cb: %pS\n", ret, read_count,
 				__builtin_return_address(0));
 
 	} while (((power_state1 != (PD_MM_DOWN_FLAG << shift)) &&
@@ -177,11 +178,11 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	if (power_state1 != (PD_MM_DOWN_FLAG << shift)) {
 		pr_err("failed, power_state1=0x%x\n", power_state1);
 		ret = -1;
-		pr_err("failed, ret: %d, count: %d, cb: %p\n", ret, read_count,
+		pr_err("failed, ret: %d, count: %d, cb: %pS\n", ret, read_count,
 			__builtin_return_address(0));
 
 	}
-	pr_info("Done, read count %d, cb: %p\n",
+	pr_info("Done, read count %d, cb: %pS\n",
 		read_count, __builtin_return_address(0));
 
 	return 0;

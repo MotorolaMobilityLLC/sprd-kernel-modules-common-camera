@@ -479,21 +479,21 @@ int dcam_core_pipe_dev_put(void *dcam_handle, void *s_dcam_dev)
 {
 	int ret = 0;
 	struct dcam_pipe_dev *dev = (struct dcam_pipe_dev *)dcam_handle;
-	struct dcam_pipe_dev *s_dcam = (struct dcam_pipe_dev *)s_dcam_dev;
+	struct dcam_pipe_dev **s_dcam = (struct dcam_pipe_dev **)s_dcam_dev;
 
 	if (!dev) {
 		pr_err("fail to get valid input ptr\n");
 		return -EFAULT;
 	}
 
-	pr_info("put dcam pipe dev:%px, s_dcam_dev:%px,  users: %d, enable: %d\n",
-		dev, s_dcam, atomic_read(&dev->user_cnt), atomic_read(&dev->enable));
+	pr_info("put dcam pipe dev:%px, s_dcam_dev:%px, users: %d, enable: %d\n",
+		dev, *s_dcam, atomic_read(&dev->user_cnt), atomic_read(&dev->enable));
 
 	mutex_lock(&s_dcam_dev_mutex);
 
-	if (dev != s_dcam) {
+	if (dev != *s_dcam) {
 		mutex_unlock(&s_dcam_dev_mutex);
-		pr_err("fail to match dev: %px, %px\n", dev, s_dcam);
+		pr_err("fail to match dev: %px, %px\n", dev, *s_dcam);
 		return -EINVAL;
 	}
 
@@ -502,7 +502,7 @@ int dcam_core_pipe_dev_put(void *dcam_handle, void *s_dcam_dev)
 		mutex_destroy(&dev->ctx_mutex);
 		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
-		s_dcam = NULL;
+		*s_dcam = NULL;
 	}
 	mutex_unlock(&s_dcam_dev_mutex);
 

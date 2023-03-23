@@ -2183,7 +2183,7 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 
 	ret = dcam_online_node_pmctx_init(node);
 	if (ret)
-		goto exit;
+		return NULL;
 
 	dcam_online_node_pmctx_update(&node->blk_pm, param->blk_pm);
 	*param->node_dev = node;

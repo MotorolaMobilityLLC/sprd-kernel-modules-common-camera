@@ -588,7 +588,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 		if (!pipeline->node_list[i]) {
 			pr_err("fail to creat node %s\n", cam_node_name_get(node_desc.node_graph->type));
 			while (i > 0)
-				cam_node_destory(pipeline->node_list[i--]);
+				cam_node_destory(pipeline->node_list[--i]);
 
 			cam_buf_kernel_sys_vfree(pipeline);
 			return NULL;

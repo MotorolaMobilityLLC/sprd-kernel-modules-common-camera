@@ -682,7 +682,7 @@ buf_fail:
 map_fail:
 	cam_buf_free(&blk_pm->lsc.buf);
 alloc_fail:
-	pr_err("failed %d\n", ret);
+	pr_err("fail to init pmctx %d\n", ret);
 	return ret;
 }
 

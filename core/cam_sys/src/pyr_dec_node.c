@@ -1253,11 +1253,13 @@ static int pyrdec_node_proc_init(void *handle)
 		decblk_frame = cam_queue_empty_frame_get(CAM_FRAME_DEC_BLK);
 		if (!decblk_frame) {
 			pr_err("fail to get frame.\n");
+			ret = -EFAULT;
 			goto alloc_err;
 		}
 		decblk_frame->dec_blk.decblk_pm = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_isp_k_block));
 		if (!decblk_frame->dec_blk.decblk_pm) {
 			pr_err("fail to alloc memory.\n");
+			ret = -EFAULT;
 			goto alloc_err;
 		}
 		ret = CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);

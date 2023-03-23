@@ -1630,14 +1630,14 @@ copy_fail:
 	module->isp_dev_handle->isp_ops->close(isp);
 
 isp_fail:
-	isp_core_pipe_dev_put(isp, (void *)grp->s_isp_dev);
+	isp_core_pipe_dev_put(isp, (void *)&grp->s_isp_dev);
 	module->isp_dev_handle = NULL;
 
 no_isp:
 	module->dcam_dev_handle->dcam_pipe_ops->close(dcam);
 
 dcam_fail:
-	dcam_core_pipe_dev_put(dcam, (void *)grp->s_dcam_dev);
+	dcam_core_pipe_dev_put(dcam, (void *)&grp->s_dcam_dev);
 	module->dcam_dev_handle = NULL;
 no_dcam:
 	pr_err("fail to get camera res for sensor: %d\n", res.sensor_id);
@@ -1681,12 +1681,12 @@ static int camioctl_cam_res_put(struct camera_module *module,
 
 	if (module->dcam_dev_handle) {
 		module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
-		dcam_core_pipe_dev_put(module->dcam_dev_handle, (void *)module->grp->s_dcam_dev);
+		dcam_core_pipe_dev_put(module->dcam_dev_handle, (void *)&module->grp->s_dcam_dev);
 		module->dcam_dev_handle = NULL;
 	}
 	if (module->isp_dev_handle) {
 		module->isp_dev_handle->isp_ops->close(module->isp_dev_handle);
-		isp_core_pipe_dev_put(module->isp_dev_handle, (void *)module->grp->s_isp_dev);
+		isp_core_pipe_dev_put(module->isp_dev_handle, (void *)&module->grp->s_isp_dev);
 		module->isp_dev_handle = NULL;
 	}
 

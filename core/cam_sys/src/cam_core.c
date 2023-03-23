@@ -2350,14 +2350,14 @@ static int camcore_release(struct inode *node, struct file *file)
 		if (module->dcam_dev_handle) {
 			pr_info("force close dcam %px\n", module->dcam_dev_handle);
 			module->dcam_dev_handle->dcam_pipe_ops->close(module->dcam_dev_handle);
-			dcam_core_pipe_dev_put(module->dcam_dev_handle, (void *)group->s_dcam_dev);
+			dcam_core_pipe_dev_put(module->dcam_dev_handle, (void *)&group->s_dcam_dev);
 			module->dcam_dev_handle = NULL;
 		}
 
 		if (module->isp_dev_handle) {
 			pr_info("force close isp %px\n", module->isp_dev_handle);
 			module->isp_dev_handle->isp_ops->close(module->isp_dev_handle);
-			isp_core_pipe_dev_put(module->isp_dev_handle, (void *)group->s_isp_dev);
+			isp_core_pipe_dev_put(module->isp_dev_handle, (void *)&group->s_isp_dev);
 			module->isp_dev_handle = NULL;
 		}
 	}

@@ -570,7 +570,7 @@ int isp_core_pipe_dev_put(void *isp_handle, void *s_isp_dev)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
-	struct isp_pipe_dev *s_isp = (struct isp_pipe_dev *)s_isp_dev;
+	struct isp_pipe_dev **s_isp = (struct isp_pipe_dev **)s_isp_dev;
 
 	if (!isp_handle) {
 		pr_err("fail to get valid input ptr\n");
@@ -578,15 +578,14 @@ int isp_core_pipe_dev_put(void *isp_handle, void *s_isp_dev)
 	}
 
 	dev = (struct isp_pipe_dev *)isp_handle;
-	pr_info("put isp pipe dev:%p, s_isp_dev:%p,  users: %d\n",
-		dev, s_isp, atomic_read(&dev->user_cnt));
+	pr_info("put isp pipe dev:%p, s_isp_dev:%p, users: %d\n",
+		dev, *s_isp, atomic_read(&dev->user_cnt));
 
 	mutex_lock(&isp_pipe_dev_mutex);
 
-	if (dev != s_isp) {
+	if (dev != *s_isp) {
 		mutex_unlock(&isp_pipe_dev_mutex);
-		pr_err("fail to match dev: %p, %p\n",
-					dev, s_isp);
+		pr_err("fail to match dev: %p, %p\n", dev, *s_isp);
 		return -EINVAL;
 	}
 
@@ -596,7 +595,7 @@ int isp_core_pipe_dev_put(void *isp_handle, void *s_isp_dev)
 		pr_info("free isp pipe dev %p\n", dev);
 		cam_buf_kernel_sys_vfree(dev);
 		dev = NULL;
-		s_isp = NULL;
+		*s_isp = NULL;
 	}
 	mutex_unlock(&isp_pipe_dev_mutex);
 

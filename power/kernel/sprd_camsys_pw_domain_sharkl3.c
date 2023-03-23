@@ -40,7 +40,7 @@ static const char * const syscon_name[] = {
 	"init-dis-bits"
 };
 
-enum  {
+enum {
 	CAMSYS_SHUTDOWN_EN = 0,
 	CAMSYS_FORCE_SHUTDOWN,
 	CAMSYS_PWR_STATUS0,

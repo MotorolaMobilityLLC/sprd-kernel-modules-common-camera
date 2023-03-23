@@ -41,7 +41,7 @@ static const char * const syscon_name[] = {
 	"aon-apb-mm-eb",
 };
 
-enum  {
+enum {
 	FORCE_SHUTDOWN = 0,
 	SHUTDOWN_EN,
 	PWR_STATUS0,
@@ -71,7 +71,7 @@ static int regmap_read_mmsys(struct register_gpr *p, uint32_t *val)
 
 static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 {
-	pr_info("cb %p\n", __builtin_return_address(0));
+	pr_info("cb %pS\n", __builtin_return_address(0));
 
 	/* mm bus enable */
 	clk_prepare_enable(pw_info->u.qogirl6.cam_mm_eb);
@@ -93,7 +93,7 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 
 static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 {
-	pr_info("cb %p\n", __builtin_return_address(0));
+	pr_info("cb %pS\n", __builtin_return_address(0));
 
 	clk_disable_unprepare(pw_info->u.qogirl6.isppll_clk);
 
@@ -118,11 +118,9 @@ static int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	int shift = 0;
 
 	/* 1:auto shutdown en, shutdown with ap; 0: control by b25 */
-	regmap_update_bits_mmsys(&pw_info->u.qogirl6.regs[SHUTDOWN_EN],
-		0);
+	regmap_update_bits_mmsys(&pw_info->u.qogirl6.regs[SHUTDOWN_EN], 0);
 	/* set 1 to shutdown */
-	regmap_update_bits_mmsys(&pw_info->u.qogirl6.regs[FORCE_SHUTDOWN],
-		~((uint32_t)0));
+	regmap_update_bits_mmsys(&pw_info->u.qogirl6.regs[FORCE_SHUTDOWN], ~((uint32_t)0));
 	/* shift for power off status bits */
 	if (pw_info->u.qogirl6.regs[PWR_STATUS0].gpr != NULL)
 		shift = SHIFT_MASK(pw_info->u.qogirl6.regs[PWR_STATUS0].mask);

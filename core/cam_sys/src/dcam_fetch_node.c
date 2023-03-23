@@ -781,7 +781,7 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 
 	ret = dcam_online_node_pmctx_init(&node->online_node);
 	if (ret)
-		goto exit;
+		return NULL;
 
 	dcam_online_node_pmctx_update(&node->online_node.blk_pm, param->online_node_desc->blk_pm);
 	*param->node_dev = node;

@@ -101,11 +101,6 @@ static inline void ispintcommon_record(uint32_t cfg_id, enum isp_context_hw_id c
 {
 	uint32_t k;
 
-	if (cfg_id < 0) {
-		pr_err("fail to get cfg_id:%d", cfg_id);
-		return;
-	}
-
 	for (k = 0; k < 32; k++) {
 		if (irq_line & (1 << k))
 			irq_done[c_id][k]++;
@@ -118,8 +113,8 @@ static inline void ispintcommon_record(uint32_t cfg_id, enum isp_context_hw_id c
 
 #ifdef ISP_INT_RECORD
 	{
-		uint32_t cnt, time, int_no;
-		struct timespec cur_ts;
+		uint32_t cnt = 0, time = 0, int_no = 0;
+		struct timespec cur_ts = {0};
 
 		os_adapt_time_get_ts(&cur_ts);
 		time = (uint32_t)(cur_ts.tv_sec & 0xffff);
@@ -315,7 +310,7 @@ int isp_int_common_irq_hw_cnt_reset(int ctx_id)
 
 int isp_int_common_irq_hw_cnt_trace(int ctx_id)
 {
-	int i;
+	int i = 0;
 
 	if (ctx_id >= ISP_CONTEXT_HW_NUM)
 		return 0;
@@ -353,7 +348,7 @@ int isp_int_common_irq_request(struct device *p_dev,
 		uint32_t *irq_no, void *isp_handle)
 {
 	int ret = 0;
-	uint32_t  id;
+	uint32_t id = 0;
 	struct isp_pipe_dev *ispdev = NULL;
 
 	if (!p_dev || !isp_handle || !irq_no) {
@@ -370,7 +365,7 @@ int isp_int_common_irq_request(struct device *p_dev,
 		if (ret) {
 			pr_err("fail to install isp%d irq_no %d\n", id, ispdev->irq_no[id]);
 			if (id == 1)
-				free_irq(ispdev->irq_no[0], (void *)ispdev);
+				devm_free_irq(p_dev, ispdev->irq_no[0], (void *)ispdev);
 			return -EFAULT;
 		}
 		pr_info("install isp%d irq_no %d\n", id, ispdev->irq_no[id]);

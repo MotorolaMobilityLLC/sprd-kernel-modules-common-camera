@@ -33,7 +33,6 @@
 #define pr_fmt(fmt) "sprd_campd_r4p0: %d %d %s : "\
 	fmt, current->pid, __LINE__, __func__
 
-
 #define PD_MM_STAT_BIT_SHIFT 28
 #define BIT_PMU_APB_PD_MM_SYS_STATE(x)	(((x) & 0xf) << PD_MM_STAT_BIT_SHIFT)
 #define PD_MM_DOWN_FLAG (0x7 << PD_MM_STAT_BIT_SHIFT)
@@ -89,7 +88,7 @@ static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 	pr_debug("cb %pS\n", __builtin_return_address(0));
 
 	clk_set_parent(pw_info->u.pike2.cam_ahb_clk,
-		       pw_info->u.pike2.cam_ahb_clk_default);
+			pw_info->u.pike2.cam_ahb_clk_default);
 	clk_disable_unprepare(pw_info->u.pike2.cam_ahb_clk);
 
 	clk_disable_unprepare(pw_info->u.pike2.cam_ckg_eb);
@@ -169,7 +168,6 @@ err_exit:
 	pr_err("reg config fail\n");
 }
 
-
 int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
@@ -181,14 +179,14 @@ int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 
 	usleep_range(300, 350);
 	regmap_update_bits(pw_info->u.pike2.pmu_apb_gpr,
-			   REG_PMU_APB_PD_MM_TOP_CFG,
-			   MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN,
-			   ~(unsigned int)
-			   MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN);
+		REG_PMU_APB_PD_MM_TOP_CFG,
+		MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN,
+		~(unsigned int)
+		MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN);
 	regmap_update_bits(pw_info->u.pike2.pmu_apb_gpr,
-			   REG_PMU_APB_PD_MM_TOP_CFG,
-			   MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN,
-			   MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN);
+		REG_PMU_APB_PD_MM_TOP_CFG,
+		MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN,
+		MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN);
 
 	do {
 		cpu_relax();
@@ -196,7 +194,7 @@ int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 		read_count++;
 
 		ret = regmap_read(pw_info->u.pike2.pmu_apb_gpr,
-				  REG_PMU_APB_PWR_STATUS0_DBG, &val);
+				REG_PMU_APB_PWR_STATUS0_DBG, &val);
 		if (ret)
 			goto err_pw_off;
 		power_state1 = val & BIT_PMU_APB_PD_MM_SYS_STATE(0xf);
@@ -213,8 +211,7 @@ int sprd_cam_pw_off(struct camsys_power_info *pw_info)
 	return 0;
 
 err_pw_off:
-	pr_err("cam domain pw off failed, ret: %d, count: %d!\n",
-	       ret, read_count);
+	pr_err("cam domain pw off failed, ret: %d, count: %d!\n", ret, read_count);
 	return ret;
 }
 
@@ -224,18 +221,17 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 	unsigned int power_state = 0;
 	unsigned int i = 0, j = 0, cnt = 0;
 
-
 	/* cam domain power on */
 	regmap_update_bits(pw_info->u.pike2.pmu_apb_gpr,
-			   REG_PMU_APB_PD_MM_TOP_CFG,
-			   MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN,
-			   ~(unsigned int)
-			   MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN);
+		REG_PMU_APB_PD_MM_TOP_CFG,
+		MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN,
+		~(unsigned int)
+		MASK_PMU_APB_PD_MM_TOP_AUTO_SHUTDOWN_EN);
 	regmap_update_bits(pw_info->u.pike2.pmu_apb_gpr,
-			   REG_PMU_APB_PD_MM_TOP_CFG,
-			   MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN,
-			   ~(unsigned int)
-			   MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN);
+		REG_PMU_APB_PD_MM_TOP_CFG,
+		MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN,
+		~(unsigned int)
+		MASK_PMU_APB_PD_MM_TOP_FORCE_SHUTDOWN);
 
 	for (i = 0; i < 30; i++) {
 		cpu_relax();
@@ -309,24 +305,21 @@ static long sprd_cam_pw_domain_init(struct platform_device *pdev, struct camsys_
 		return PTR_ERR(pw_info->u.pike2.cam_ahb_clk_default);
 	}
 
-	cam_ahb_gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						      "sprd,cam-ahb-syscon");
+	cam_ahb_gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "sprd,cam-ahb-syscon");
 	if (IS_ERR(cam_ahb_gpr)) {
 		pr_err("cam pw domain init fail, cam_ahb_gpr\n");
 		return PTR_ERR(cam_ahb_gpr);
 	}
 	pw_info->u.pike2.cam_ahb_gpr = cam_ahb_gpr;
 
-	aon_apb_gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						      "sprd,aon-apb-syscon");
+	aon_apb_gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "sprd,aon-apb-syscon");
 	if (IS_ERR(aon_apb_gpr)) {
 		pr_err("cam pw domain init fail, aon_apb_gpr\n");
 		return PTR_ERR(aon_apb_gpr);
 	}
 	pw_info->u.pike2.aon_apb_gpr = aon_apb_gpr;
 
-	pmu_apb_gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						      "sprd,syscon-pmu-apb");
+	pmu_apb_gpr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "sprd,syscon-pmu-apb");
 	if (IS_ERR(pmu_apb_gpr)) {
 		pr_err("cam pw domain init fail, pmu_apb_gpr\n");
 		return PTR_ERR(pmu_apb_gpr);
