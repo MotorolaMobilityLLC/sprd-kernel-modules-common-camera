@@ -895,8 +895,8 @@ static int isphw_path_scaler_coeff_set(
 			uint32_t spath_id)
 {
 	int i = 0, rtn = 0;
-	uint32_t buf_sel;
-	struct coeff_arg arg;
+	uint32_t buf_sel = 0;
+	struct coeff_arg arg = {0};
 
 	/* ping pong buffer. */
 	buf_sel = ISP_REG_RD(idx, scaler_base + ISP_SCALER_CFG);

@@ -1338,7 +1338,7 @@ static int isphw_path_scaler_coeff_set(
 	int rtn = 0;
 	uint32_t *tmp_h_coeff = NULL;
 	uint32_t *tmp_h_chroma_coeff = NULL;
-	struct coeff_arg arg;
+	struct coeff_arg arg = {0};
 
 	arg.h_coeff = coeff_buf;
 	arg.h_chroma_coeff = coeff_buf + (ISP_SC_COEFF_COEF_SIZE / 4);

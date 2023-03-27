@@ -1016,7 +1016,7 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 
 	if (io_param->sub_block == ISP_BLOCK_3DNR) {
 		if (inode->uinfo.mode_3dnr != MODE_3DNR_OFF) {
-			if (io_param->scene_id == PM_SCENE_PRE || io_param->scene_id == PM_SCENE_VID)
+			if (io_param->scene_id == PM_SCENE_PRE || (io_param->scene_id == PM_SCENE_VID && !inode->isp_receive_param))
 				ret = isp_k_cfg_3dnr(param, inode->isp_receive_param->isp_blk.param_block);
 			else
 				ret = isp_k_cfg_3dnr(param, &inode->isp_k_param);

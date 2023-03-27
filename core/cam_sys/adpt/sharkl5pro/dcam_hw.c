@@ -1593,6 +1593,30 @@ static int dcamhw_set_slw_addr(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_fetch_sts_get(void *handle, void *arg)
+{
+	int time_out = 0;
+	uint32_t hw_ctx_id = 0;
+	uint32_t dbg_sts_reg = 0;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg\n");
+		return -EFAULT;
+	}
+
+	hw_ctx_id = *((uint32_t *)arg);
+	if (hw_ctx_id <= DCAM_ID_1)
+		dbg_sts_reg = AXIM_DBG_STS;
+
+	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
+		if (0 == (DCAM_AXIM_RD(dbg_sts_reg) & BIT(16)))
+			break;
+		os_adapt_time_udelay(1000);
+	}
+
+	return time_out;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1630,6 +1654,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
 	{DCAM_HW_CFG_GTM_HIST_GET,          dcamhw_get_gtm_hist},
 	{DCAM_HW_CFG_SLW_ADDR,              dcamhw_set_slw_addr},
+	{DCAM_HW_CFG_FETCH_STATUS_GET,      dcamhw_fetch_sts_get},
 	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
 	{DCAM_HW_CFG_GTM_HIST_BYPASS_GET,   dcamhw_gtm_hist_bypass_get},

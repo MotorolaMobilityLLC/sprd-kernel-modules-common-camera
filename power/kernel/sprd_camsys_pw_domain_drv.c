@@ -50,14 +50,12 @@ static int mmsys_notifier_call_chain(unsigned long val, void *v)
 
 static int check_drv_init(struct camsys_power_info *pw_info)
 {
-	int ret = 0;
-
 	if (!pw_info)
-		ret = -1;
+		return -1;
 	if (atomic_read(&pw_info->inited) == 0)
-		ret = -2;
+		return -2;
 
-	return ret;
+	return 0;
 }
 
 int sprd_glb_mm_pw_on_cfg(void)

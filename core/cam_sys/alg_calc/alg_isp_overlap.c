@@ -893,26 +893,27 @@ void ltm_rgb_stat_param_init(uint16_t frame_width, uint16_t frame_height,
 	uint16_t ceil_temp;
 	uint8_t strength = param_stat->strength;
 	uint8_t tile_num = param_stat->tile_num_col * param_stat->tile_num_row;
-	uint16_t tile_size_temp = (1<<16) -1;
+	uint16_t tile_size_temp = (1 << 16) - 1;
 	uint32_t tile_size, frame_size;
 	uint8_t calculate_times = 0;
 
 	frame_size = frame_width * frame_height;
-	min_tile_num = (frame_size + (TM_TILE_MAX_SIZE -1)) / TM_TILE_MAX_SIZE;
+	min_tile_num = (frame_size + (TM_TILE_MAX_SIZE - 1)) / TM_TILE_MAX_SIZE;
 
 	if (min_tile_num <= tile_num) {
 		binning_factor = 0;
 		pow_factor = 1;
-	} else if (min_tile_num <= tile_num *4) {
+	} else if (min_tile_num <= tile_num * 4) {
 		binning_factor = 1;
 		pow_factor = 2;
 	} else {
-		pr_debug("warning!frame w %d, h %d, size %d, min_tile_num %d, tile_num %d\n",
+		pr_warn("warning: frame w %d, h %d, size %d, min_tile_num %d, tile_num %d\n",
 			frame_width, frame_height, frame_size, min_tile_num, tile_num);
+		return;
 	}
 
-	frame_width = (uint16_t)(frame_width / (2 * pow_factor) *2);
-	frame_height = (uint16_t)(frame_height / (2 * pow_factor) *2);
+	frame_width = (uint16_t)(frame_width / (2 * pow_factor) * 2);
+	frame_height = (uint16_t)(frame_height / (2 * pow_factor) * 2);
 
 	if (param_stat->tile_num_auto) {
 		max_tile_col = MAX(MIN(frame_width / (TM_TILE_WIDTH_MIN * 2) * 2, TM_TILE_NUM_MAX), TM_TILE_NUM_MIN);
@@ -958,7 +959,7 @@ void ltm_rgb_stat_param_init(uint16_t frame_width, uint16_t frame_height,
 	CLIP(tile_size, tile_size_temp, 0);
 
 	clipLimit_min = tile_size >> TM_BIN_NUM_BIT;
-	clipLimit = clipLimit_min + ((clipLimit_min * strength)>>3);
+	clipLimit = clipLimit_min + ((clipLimit_min * strength) >> 3);
 
 	/* update parameters */
 	param_stat->cropUp_stat = cropUp;
