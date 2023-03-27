@@ -26,12 +26,7 @@
 #else
 #include <video/sprd_mmsys_pw_domain.h>
 #include "ion.h"
-/* #include "ion_priv.h" */
 #endif
-
-#include "cam_buf.h"
-
-struct camera_buf;
 
 struct file *cam_kernel_adapt_filp_open(const char *, int, umode_t);
 int cam_kernel_adapt_filp_close(struct file *, fl_owner_t id);

@@ -112,10 +112,6 @@ int dcam_k_aem_skip_num(struct dcam_isp_k_block *param)
 	if (param == NULL)
 		return -1;
 
-	/*
-	 * use hardware slow motion feature
-	 * TODO: handle skip_num not equal to slowmotion_count - 1
-	 */
 	idx = param->idx;
 	dev = param->dev;
 	hw_ctx = &dev->hw_ctx[idx];

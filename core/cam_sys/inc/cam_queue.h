@@ -242,9 +242,9 @@ struct cam_queue_frame_manager {
 	struct rw_semaphore check_lock;
 };
 
-#define cam_queue_list_add(_list, head, is_tail) ({ \
+#define CAM_QUEUE_LIST_ADD(_list, head, is_tail) ({ \
 	struct cam_q_head *__list = (_list); \
-	bool __is_tail = (is_tail); \
+	enum en_status __is_tail = (is_tail); \
 	uint32_t ret = -1; \
 	if (atomic_cmpxchg(&__list->status, CAM_Q_FREE, CAM_Q_USED) == CAM_Q_FREE) { \
 		if (__is_tail) \
@@ -254,21 +254,21 @@ struct cam_queue_frame_manager {
 		ret = 0; \
 	} else \
 		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0));\
-	ret;\
-})
-
-#define cam_queue_list_del(_list) ({ \
-	struct cam_q_head *__list = (_list);\
-	uint32_t ret = -1; \
-	if (atomic_cmpxchg(&__list->status, CAM_Q_USED, CAM_Q_FREE) == CAM_Q_USED) { \
-		list_del(&__list->list);\
-		ret = 0; \
-	} else \
-		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0));\
 	ret; \
 })
 
-#define cam_queue_init(queue, queue_max, data_cb_func) ( { \
+#define CAM_QUEUE_LIST_DEL(_list) ({ \
+	struct cam_q_head *__list = (_list); \
+	uint32_t ret = -1; \
+	if (atomic_cmpxchg(&__list->status, CAM_Q_USED, CAM_Q_FREE) == CAM_Q_USED) { \
+		list_del(&__list->list); \
+		ret = 0; \
+	} else \
+		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0)); \
+	ret; \
+})
+
+#define CAM_QUEUE_INIT(queue, queue_max, data_cb_func) ( { \
 	struct camera_queue *__q = (queue); \
 	if (__q != NULL) { \
 		__q->cnt = 0; \
@@ -280,7 +280,7 @@ struct cam_queue_frame_manager {
 	} \
 })
 
-#define cam_queue_deinit(queue, type, member) ({ \
+#define CAM_QUEUE_DEINIT(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
@@ -293,7 +293,7 @@ struct cam_queue_frame_manager {
 			_list = list_first_entry(&__q->head, struct cam_q_head, list); \
 			if (_list == NULL) \
 				break; \
-			cam_queue_list_del(_list); \
+			CAM_QUEUE_LIST_DEL(_list); \
 			__node = container_of(_list, type, member); \
 			__q->cnt--; \
 			if (__q->destroy) { \
@@ -308,12 +308,12 @@ struct cam_queue_frame_manager {
 		__q->destroy = NULL; \
 		INIT_LIST_HEAD(&__q->head); \
 		if (__q->node_head) \
-			cam_buf_kernel_sys_vfree(__q->node_head);\
+			cam_buf_kernel_sys_vfree(__q->node_head); \
 		spin_unlock_irqrestore(&__q->lock, __flags); \
 	} \
 })
 
-#define cam_queue_cnt_get(queue) ( { \
+#define CAM_QUEUE_CNT_GET(queue) ( { \
 	unsigned long __flags = 0 ; \
 	uint32_t tmp = 0; \
 	struct camera_queue *__q = (queue); \
@@ -325,7 +325,7 @@ struct cam_queue_frame_manager {
 	tmp; \
 })
 
-#define cam_queue_enqueue(queue, list) ( { \
+#define CAM_QUEUE_ENQUEUE(queue, list) ( { \
 	int ret = -1; \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
@@ -333,7 +333,7 @@ struct cam_queue_frame_manager {
 	if (__q != NULL && (_list) != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		if ((__q->state != CAM_Q_CLEAR) && (__q->cnt < __q->max)) { \
-			ret = cam_queue_list_add(_list, &__q->head, true); \
+			ret = CAM_QUEUE_LIST_ADD(_list, &__q->head, true); \
 			if (!ret) \
 				__q->cnt++; \
 		} \
@@ -342,7 +342,7 @@ struct cam_queue_frame_manager {
 	ret; \
 })
 
-#define cam_queue_enqueue_head(queue, list) ( { \
+#define CAM_QUEUE_ENQUEUE_HEAD(queue, list) ( { \
 	int ret = -1; \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
@@ -350,7 +350,7 @@ struct cam_queue_frame_manager {
 	if (__q != NULL && (_list) != NULL) { \
 		spin_lock_irqsave(&__q->lock, __flags); \
 		if ((__q->state != CAM_Q_CLEAR) && (__q->cnt < __q->max)) { \
-			ret = cam_queue_list_add(_list, &__q->head, false); \
+			ret = CAM_QUEUE_LIST_ADD(_list, &__q->head, false); \
 			if (!ret) \
 				__q->cnt++; \
 		} \
@@ -359,7 +359,7 @@ struct cam_queue_frame_manager {
 	ret; \
 })
 
-#define cam_queue_dequeue(queue, type, member) ({ \
+#define CAM_QUEUE_DEQUEUE(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
@@ -370,7 +370,7 @@ struct cam_queue_frame_manager {
 			&& (__q->state != CAM_Q_CLEAR)) { \
 			_list = list_first_entry(&__q->head, struct cam_q_head, list); \
 			if (_list) { \
-				cam_queue_list_del(_list); \
+				CAM_QUEUE_LIST_DEL(_list); \
 				__node = container_of(_list, type, member); \
 				__q->cnt--; \
 			} \
@@ -380,7 +380,7 @@ struct cam_queue_frame_manager {
 	__node; \
 })
 
-#define cam_queue_dequeue_tail(queue, type, member) ({ \
+#define CAM_QUEUE_DEQUEUE_TAIL(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
@@ -391,7 +391,7 @@ struct cam_queue_frame_manager {
 			&& (__q->state != CAM_Q_CLEAR)) { \
 			_list = list_last_entry(&__q->head, struct cam_q_head, list); \
 			if (_list) { \
-				cam_queue_list_del(_list); \
+				CAM_QUEUE_LIST_DEL(_list); \
 				__node = container_of(_list, type, member); \
 				__q->cnt--; \
 			} \
@@ -401,7 +401,7 @@ struct cam_queue_frame_manager {
 	__node; \
 })
 
-#define cam_queue_dequeue_peek(queue, type, member) ({ \
+#define CAM_QUEUE_DEQUEUE_PEEK(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
@@ -420,7 +420,7 @@ struct cam_queue_frame_manager {
 	__node; \
 })
 
-#define cam_queue_clear(queue, type, member) ({ \
+#define CAM_QUEUE_CLEAN(queue, type, member) ({ \
 	unsigned long __flags = 0; \
 	struct camera_queue *__q = (queue); \
 	type *__node = NULL; \
@@ -433,7 +433,7 @@ struct cam_queue_frame_manager {
 			_list = list_first_entry(&__q->head, struct cam_q_head, list); \
 			if (_list == NULL) \
 				break; \
-			cam_queue_list_del(_list); \
+			CAM_QUEUE_LIST_DEL(_list); \
 			__q->cnt--; \
 			__node = container_of(_list, type, member); \
 			if (__q->destroy) { \
@@ -451,7 +451,7 @@ struct cam_queue_frame_manager {
 	} \
 })
 
-#define cam_queue_tail_peek(queue, type, member) ({ \
+#define CAM_QUEUE_TAIL_PEEK(queue, type, member) ({ \
 	unsigned long __flags; \
 	struct camera_queue *__q = (queue); \
 	struct cam_q_head *_list = NULL; \
@@ -470,7 +470,7 @@ struct cam_queue_frame_manager {
 	__node; \
 })
 
-#define cam_queue_frame_flag_reset(frame) ({ \
+#define CAM_QUEUE_FRAME_FLAG_RESET(frame) ({ \
 	struct camera_frame *__p = (frame); \
 	if (__p != NULL) { \
 		__p->xtm_conflict.need_gtm_hist = 1; \
@@ -483,13 +483,13 @@ struct cam_queue_frame_manager {
 })
 
 /*list_for_each_entry*/
-#define cam_queue_for_each_entry(param, head, node) \
+#define CAM_QUEUE_FOR_EACH_ENTRY(param, head, node) \
 	for (param = container_of(list_first_entry(head, struct cam_q_head, list), typeof(*param), node); \
 		!list_entry_is_head((&param->node), head, list); \
 		param = container_of(list_next_entry(&param->node, list), typeof(*param), node))
 
 /*list_for_each_entry_safe*/
-#define cam_queue_for_each_entry_safe(param, param_next, head, node) \
+#define CAM_QUEUE_FOR_EACH_ENTRY_SAFE(param, param_next, head, node) \
 	for (param = container_of(list_first_entry(head, struct cam_q_head, list), typeof(*param), node), \
 		param_next = container_of(list_next_entry(&param->node, list), typeof(*param), node); \
 		!list_entry_is_head((&param->node), head, list); \
@@ -497,7 +497,7 @@ struct cam_queue_frame_manager {
 		param_next = container_of(list_next_entry(&param_next->node, list), typeof(*param), node))
 
 int cam_queue_enqueue_front(struct camera_queue *q, struct cam_q_head *list);
-struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, bool (*filter)(struct cam_frame *, void *), void *data);
+struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, enum en_status (*filter)(struct cam_frame *, void *), void *data);
 int cam_queue_same_frame_get(struct camera_queue *q0, struct cam_frame **pf0, int64_t t_sec, int64_t t_usec);
 void cam_queue_ioninfo_free(void *param);
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe);

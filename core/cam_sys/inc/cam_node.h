@@ -29,69 +29,7 @@
 #define CAM_NODE_PORT_IN_NUM       4
 #define CAM_NODE_PORT_OUT_NUM      PORT_DCAM_OUT_MAX
 
-enum cam_node_state {
-	CAM_NODE_STATE_IDLE,
-	CAM_NODE_STATE_WORK,
-	CAM_NODE_STATE_MAX,
-};
-
-enum cam_node_cfg_cmd {
-	CAM_NODE_CFG_BUF,
-	CAM_NODE_CFG_CAP_PARAM,
-	CAM_NODE_CFG_ZOOM,
-	CAM_NODE_CFG_BASE,
-	CAM_NODE_CLR_CACHE_BUF,
-	CAM_NODE_DUAL_SYNC_BUF_GET,
-	CAM_NODE_CFG_BLK_PARAM,
-	CAM_NODE_CFG_UFRAME,
-	CAM_NODE_INSERT_PORT,
-	CAM_NODE_CFG_STATIS,
-	CAM_NODE_CFG_RESERVE_BUF,
-	CAM_NODE_CFG_SHARE_BUF,
-	CAM_NODE_RECT_GET,
-	CAM_NODE_CFG_BLK_GTM_LTM,
-	CAM_NODE_RESET,
-	CAM_NODE_CFG_XTM_EN,
-	CAM_NODE_RECYCLE_BLK_PARAM,
-	/*TEMP:for cfg isp cur_ctx_id to pyrdecnode*/
-	CAM_NODE_CFG_CTXID,
-	CAM_NODE_CFG_3DNR_MODE,
-	CAM_NODE_CFG_GTM,
-	CAM_NODE_CFG_PARAM_SWITCH,
-	CAM_NODE_CFG_PARAM_Q_CLEAR,
-	CAM_NODE_CFG_FAST_STOP,
-	CAM_NODE_CFG_PARAM_FID,
-	CAM_NODE_RESET_PARAM_PTR,
-	CAM_NODE_CFG_PRE_RAW_FLAG,
-	CAM_NODE_CFG_OPT_SCENE_SWITCH,
-	CAM_NODE_GET_CAP_FRAME,
-	CAM_NODE_CFG_MAX,
-};
-
-enum cam_node_status_rd_cmd {
-	CAM_NODE_STATUS_OUT_FRM_PARAM,
-	CAM_NODE_STATUS_CMD_MAX,
-};
-
-struct cam_node_cfg_param {
-	enum cam_port_transfer_type port_type;
-	uint32_t port_id;
-	void *param;
-};
-
-enum cam_node_cfg_shutoff_cmd {
-	CAM_NODE_SHUTOFF_INIT,
-	CAM_NODE_SHUTOFF_CONFIG,
-	CAM_NODE_SHUTOFF_RECONFIG,
-	CAM_NODE_SHUTOFF_TYPE_MAX,
-};
-
-struct cam_node_shutoff_ctrl {
-	struct cam_port_shutoff_ctrl inport_shutoff[CAM_NODE_PORT_IN_NUM];
-	struct cam_port_shutoff_ctrl outport_shutoff[CAM_NODE_PORT_OUT_NUM];
-};
-
-#define NODE_SHUTOFF_PARAM_INIT(node_shutoff)  ({ \
+#define CAM_NODE_SHUTOFF_PARAM_INIT(node_shutoff)  ({ \
 	int i = 0, ret = 0; \
 	for (i = 0; i < CAM_NODE_PORT_IN_NUM; i++) { \
 		atomic_set(&(node_shutoff).inport_shutoff[i].cap_cnt, 0); \
@@ -107,6 +45,68 @@ struct cam_node_shutoff_ctrl {
 	} \
 	ret; \
 })
+
+enum cam_node_state {
+	CAM_NODE_STATE_IDLE,
+	CAM_NODE_STATE_WORK,
+	CAM_NODE_STATE_MAX,
+};
+
+enum cam_node_cfg_cmd {
+	CAM_NODE_CFG_BUF,
+	CAM_NODE_CFG_CAP_PARAM,
+	CAM_NODE_CFG_ZOOM,
+	CAM_NODE_CFG_BASE,
+	CAM_NODE_CFG_CLR_CACHE_BUF,
+	CAM_NODE_CFG_DUAL_SYNC_BUF_GET,
+	CAM_NODE_CFG_BLK_PARAM,
+	CAM_NODE_CFG_UFRAME,
+	CAM_NODE_CFG_INSERT_PORT,
+	CAM_NODE_CFG_STATIS,
+	CAM_NODE_CFG_RESERVE_BUF,
+	CAM_NODE_CFG_SHARE_BUF,
+	CAM_NODE_CFG_RECT_GET,
+	CAM_NODE_CFG_BLK_GTM_LTM,
+	CAM_NODE_CFG_RESET,
+	CAM_NODE_CFG_XTM_EN,
+	CAM_NODE_CFG_RECYCLE_BLK_PARAM,
+	/*TEMP:for cfg isp cur_ctx_id to pyrdecnode*/
+	CAM_NODE_CFG_CTXID,
+	CAM_NODE_CFG_3DNR_MODE,
+	CAM_NODE_CFG_GTM,
+	CAM_NODE_CFG_PARAM_SWITCH,
+	CAM_NODE_CFG_PARAM_Q_CLEAR,
+	CAM_NODE_CFG_FAST_STOP,
+	CAM_NODE_CFG_PARAM_FID,
+	CAM_NODE_CFG_RESET_PARAM_PTR,
+	CAM_NODE_CFG_PRE_RAW_FLAG,
+	CAM_NODE_CFG_OPT_SCENE_SWITCH,
+	CAM_NODE_GET_CAP_FRAME,
+	CAM_NODE_CFG_MAX,
+};
+
+enum cam_node_status_rd_cmd {
+	CAM_NODE_STATUS_OUT_FRM_PARAM,
+	CAM_NODE_STATUS_CMD_MAX,
+};
+
+enum cam_node_shutoff_cmd {
+	CAM_NODE_SHUTOFF_INIT,
+	CAM_NODE_SHUTOFF_CONFIG,
+	CAM_NODE_SHUTOFF_RECONFIG,
+	CAM_NODE_SHUTOFF_TYPE_MAX,
+};
+
+struct cam_node_cfg_param {
+	enum cam_port_transfer_type port_type;
+	uint32_t port_id;
+	void *param;
+};
+
+struct cam_node_shutoff_ctrl {
+	struct cam_port_shutoff_ctrl inport_shutoff[CAM_NODE_PORT_IN_NUM];
+	struct cam_port_shutoff_ctrl outport_shutoff[CAM_NODE_PORT_OUT_NUM];
+};
 
 /**
  * struct cam_node_topology - The topology info description of node

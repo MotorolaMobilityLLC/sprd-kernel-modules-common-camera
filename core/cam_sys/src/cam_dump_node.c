@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt) "CAM_DUMP_NODE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 #define IS_STATIS_PORT(port) (((port) > PORT_FULL_OUT) && ((port) < PORT_DCAM_OUT_MAX))
+#define CAM_DUMP_NUM(n, m, k) ((n >> m) & (0xff >> k))
 
 #define CAM_DUMP_NODE_PATH "/data/ylog/"
 #define BYTE_PER_ONCE                   4096
@@ -276,7 +277,7 @@ static void camdump_node_frame_file_write(struct camera_frame *frame,
 	unsigned long addr = 0;
 
 	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT) {
-		if (cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
+		if (cam_buf_kmap(&frame->buf)) {
 			pr_err("fail to kmap dump buf\n");
 			return;
 		}
@@ -299,7 +300,7 @@ static void camdump_node_frame_file_write(struct camera_frame *frame,
 		camdump_node_write_data_to_file((uint8_t *)addr, msg->size, name);
 
 	if (!IS_STATIS_PORT(frame->link_from.port_id) || frame->link_from.port_id == PORT_PDAF_OUT)
-		cam_buf_manager_buf_status_cfg(&frame->buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
+		cam_buf_kunmap(&frame->buf);
 }
 
 static void camdump_node_param_cfg(struct cam_dump_msg *msg, struct camera_frame *pframe)
@@ -356,7 +357,7 @@ static int camdump_node_frame_start(void *param)
 		return -EFAULT;
 	}
 
-	pframe = cam_queue_dequeue(&node->dump_queue, struct cam_frame, list);
+	pframe = CAM_QUEUE_DEQUEUE(&node->dump_queue, struct cam_frame, list);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame for dump node %d\n", node->node_id);
 		return -EFAULT;
@@ -415,7 +416,7 @@ int cam_dump_node_request_proc(struct cam_dump_node *node, void *param)
 			pipeline->pipeline_graph->name, pframe->common.fid, pframe->common.channel_id, pframe->common.buf.mfd,
 			pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
-	ret = cam_queue_enqueue(&node->dump_queue, &pframe->list);
+	ret = CAM_QUEUE_ENQUEUE(&node->dump_queue, &pframe->list);
 	if (ret == 0)
 		complete(&node->thread.thread_com);
 	else
@@ -426,9 +427,8 @@ int cam_dump_node_request_proc(struct cam_dump_node *node, void *param)
 
 void cam_dump_node_set(void *param)
 {
-	uint32_t val = 0;
+	uint32_t val = 0, dump_cmd = 0, port = 0, node = 0, pipeline = 0;
 	int i = 0;
-	uint8_t dump_cmd[4];
 
 	if (!param) {
 		pr_err("fail to get dump info\n");
@@ -436,19 +436,19 @@ void cam_dump_node_set(void *param)
 	}
 
 	val = *(uint32_t *)param;
-	for (i = 0; i < 3; i++) {
-		dump_cmd[i] = val % 10;
-		val = val /10;
-	}
-	dump_cmd[3] = val;
-	if (dump_cmd[0]) {
+	dump_cmd = CAM_DUMP_NUM(val, 0, 4);
+	port = CAM_DUMP_NUM(val, 4, 4);
+	node = CAM_DUMP_NUM(val, 8, 4);
+	pipeline = CAM_DUMP_NUM(val, 12, 0);
+
+	if (dump_cmd) {
 		for (i = 0; i < DUMP_NUM_MAX; i++) {
 			if (g_dbg_dump[i].dump_ongoing)
 				continue;
-			g_dbg_dump[i].dump_en = dump_cmd[0];
-			g_dbg_dump[i].dump_port_id = dump_cmd[1];
-			g_dbg_dump[i].dump_node_type = dump_cmd[2];
-			g_dbg_dump[i].dump_pipeline_type = dump_cmd[3];
+			g_dbg_dump[i].dump_en = dump_cmd;
+			g_dbg_dump[i].dump_port_id = port;
+			g_dbg_dump[i].dump_node_type = node;
+			g_dbg_dump[i].dump_pipeline_type = pipeline;
 			g_dbg_dump[i].dump_id = i;
 			g_dbg_dump[i].dump_ongoing = 1;
 			pr_info("dump_id%d dump pipeline %u node %u port id %u en %u\n",
@@ -460,10 +460,10 @@ void cam_dump_node_set(void *param)
 		for (i = 0; i < DUMP_NUM_MAX; i++) {
 			if (!g_dbg_dump[i].dump_ongoing)
 				continue;
-			if ((g_dbg_dump[i].dump_pipeline_type == dump_cmd[3])
-				&& (g_dbg_dump[i].dump_node_type == dump_cmd[2])
-				&& (g_dbg_dump[i].dump_port_id == dump_cmd[1])) {
-				g_dbg_dump[i].dump_en = dump_cmd[0];
+			if ((g_dbg_dump[i].dump_pipeline_type == pipeline)
+				&& (g_dbg_dump[i].dump_node_type == node)
+				&& (g_dbg_dump[i].dump_port_id == port)) {
+				g_dbg_dump[i].dump_en = dump_cmd;
 				pr_info("dump_id%d dump pipeline %u node %u port id %u en %u\n",
 					i, g_dbg_dump[i].dump_pipeline_type, g_dbg_dump[i].dump_node_type,
 					g_dbg_dump[i].dump_port_id, g_dbg_dump[i].dump_en);
@@ -495,7 +495,7 @@ void *cam_dump_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 		node->dump_cb_handle = priv_data;
 	}
 
-	cam_queue_init(&node->dump_queue, DUMP_NODE_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->dump_queue, DUMP_NODE_Q_LEN, cam_queue_empty_frame_put);
 	init_completion(&node->dump_com);
 	node->node_id = node_id;
 	node->dump_cnt = 99;
@@ -523,7 +523,7 @@ void cam_dump_node_put(struct cam_dump_node *node)
 	}
 
 	camthread_stop(&node->thread);
-	cam_queue_clear(&node->dump_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->dump_queue, struct cam_frame, list);
 	node->dump_cb_func = NULL;
 	node->dump_cb_handle = NULL;
 	pr_info("cam dump node %d put\n", node->node_id);

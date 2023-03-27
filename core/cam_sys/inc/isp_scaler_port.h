@@ -86,11 +86,7 @@ struct isp_scaler_port_desc {
 
 void *isp_scaler_port_get(uint32_t port_id, struct isp_scaler_port_desc *param);
 void isp_scaler_port_put(struct isp_scaler_port *port);
-struct cam_frame *isp_scaler_port_reserved_buf_get(reserved_buf_get_cb resbuf_get_cb, void *cb_data, void *port);
-bool isp_scaler_port_fid_check(struct cam_frame *frame, void *data);
 uint32_t isp_scaler_port_id_switch(uint32_t port_id);
-int isp_scaler_port_hwinfo_get(void *cfg_in, struct isp_hw_path_scaler *path);
-int isp_scaler_thumbport_hwinfo_get(void *cfg_in, struct isp_hw_thumbscaler_info *scalerInfo);
 
 #endif
 

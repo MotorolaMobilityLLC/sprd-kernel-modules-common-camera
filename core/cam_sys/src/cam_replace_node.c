@@ -205,7 +205,7 @@ static int camreplace_node_frame_start(void *param)
 		return -EFAULT;
 	}
 
-	pframe = cam_queue_dequeue(&node->replace_queue, struct cam_frame, list);
+	pframe = CAM_QUEUE_DEQUEUE(&node->replace_queue, struct cam_frame, list);
 	if (pframe == NULL) {
 		pr_err("fail to get input frame for replace node %d\n", node->node_id);
 		return -EFAULT;
@@ -259,7 +259,7 @@ int cam_replace_node_request_proc(struct cam_replace_node *node, void *param)
 			pipeline->pipeline_graph->name, pframe->common.fid, pframe->common.channel_id, pframe->common.buf.mfd,
 			pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
-	ret = cam_queue_enqueue(&node->replace_queue, &pframe->list);
+	ret = CAM_QUEUE_ENQUEUE(&node->replace_queue, &pframe->list);
 	if (ret == 0)
 		complete(&node->thread.thread_com);
 	else
@@ -328,7 +328,7 @@ void *cam_replace_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_dat
 		node->replace_cb_handle = priv_data;
 	}
 
-	cam_queue_init(&node->replace_queue, REPLACE_NODE_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->replace_queue, REPLACE_NODE_Q_LEN, cam_queue_empty_frame_put);
 	init_completion(&node->replace_com);
 	node->node_id = node_id;
 
@@ -353,7 +353,7 @@ void cam_replace_node_put(struct cam_replace_node *node)
 	}
 
 	camthread_stop(&node->thread);
-	cam_queue_clear(&node->replace_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->replace_queue, struct cam_frame, list);
 	node->replace_cb_func = NULL;
 	node->replace_cb_handle = NULL;
 	pr_info("cam replace node %d put\n", node->node_id);

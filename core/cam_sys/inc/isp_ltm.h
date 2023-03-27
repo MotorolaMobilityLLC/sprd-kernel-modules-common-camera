@@ -240,8 +240,7 @@ struct isp_ltm_info {
 	struct isp_ltm_map_info ltm_map;
 };
 
-int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
-			struct isp_ltm_rtl_param *prtl, uint32_t *slice_info);
+int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_rtl_param *prtl, uint32_t *slice_info);
 void *isp_ltm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id, void *hw);
 void isp_ltm_rgb_ctx_put(void *ltm_handle);
 void isp_ltm_sync_init(void);

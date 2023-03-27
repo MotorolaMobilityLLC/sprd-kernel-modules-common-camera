@@ -1180,7 +1180,7 @@ enum isp_alldone_ctrl_int {
 
 struct isp_hw_alldone_ctrl {
 	uint32_t hw_ctx_id;
-	bool wait;
+	enum en_status wait;
 	enum isp_alldone_ctrl_int int_bit;
 };
 

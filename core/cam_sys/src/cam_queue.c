@@ -89,7 +89,7 @@ static int cam_queue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
 	if (frame_array) {
 		spin_lock(&frame_manager->frame_lock);
 		for (j = 0; j < CAM_EMP_ARRAT_LEN_PER(struct cam_frame); ++j) {
-			ret = cam_queue_enqueue(&frame_manager->empty_frame_q, &frame_array[j].list);
+			ret = CAM_QUEUE_ENQUEUE(&frame_manager->empty_frame_q, &frame_array[j].list);
 			if (ret) {
 				pr_err("fail to enqueue empty frame_q\n");
 				break;
@@ -98,7 +98,7 @@ static int cam_queue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
 		if (ret) {
 			while (j > 0) {
 				--j;
-				cam_queue_dequeue_tail(&frame_manager->empty_frame_q, struct cam_frame, list);
+				CAM_QUEUE_DEQUEUE_TAIL(&frame_manager->empty_frame_q, struct cam_frame, list);
 			}
 			cam_buf_kernel_sys_kfree(frame_array);
 			spin_unlock(&frame_manager->frame_lock);
@@ -109,12 +109,12 @@ static int cam_queue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
 		atomic_add(CAM_EMP_ARRAT_LEN_PER(struct cam_frame), &g_mem_dbg->empty_frm_cnt);
 		spin_unlock(&frame_manager->frame_lock);
 	}
-	pr_debug("frame alloc add num:%d, q cnt:%d\n", CAM_EMP_ARRAT_LEN_PER(struct cam_frame), cam_queue_cnt_get(&g_frame_manager->empty_frame_q));
+	pr_debug("frame alloc add num:%d, q cnt:%d\n", CAM_EMP_ARRAT_LEN_PER(struct cam_frame), CAM_QUEUE_CNT_GET(&g_frame_manager->empty_frame_q));
 	return 0;
 }
 
 struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q,
-	bool (*filter)(struct cam_frame *, void *), void *data)
+	enum en_status (*filter)(struct cam_frame *, void *), void *data)
 {
 	int fatal_err = 0;
 	unsigned long flags = 0;
@@ -149,7 +149,7 @@ struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q,
 		goto unlock;
 	}
 
-	cam_queue_list_del(_list);
+	CAM_QUEUE_LIST_DEL(_list);
 	q->cnt--;
 
 unlock:
@@ -182,7 +182,7 @@ int cam_queue_same_frame_get(struct camera_queue *q0,
 	/* get least delta time two frame */
 	t1 = t_sec * 1000000ll;
 	t1 += t_usec;
-	cam_queue_for_each_entry(tmpf0, &q0->head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(tmpf0, &q0->head, list) {
 		t0 = tmpf0->common.sensor_time.tv_sec * 1000000ll;
 		t0 += tmpf0->common.sensor_time.tv_usec;
 		t_diff = t0 - t1;
@@ -201,7 +201,7 @@ int cam_queue_same_frame_get(struct camera_queue *q0,
 		ret = -EFAULT;
 		goto _EXT;
 	}
-	cam_queue_list_del(&((*pf0)->list));
+	CAM_QUEUE_LIST_DEL(&((*pf0)->list));
 	q0->cnt--;
 	ret = 0;
 _EXT:
@@ -258,10 +258,10 @@ struct cam_frame *cam_queue_empty_frame_get(enum camera_frame_type type)
 	struct cam_frame *pframe = NULL;
 
 	pr_debug("Enter.\n");
-	if (cam_queue_cnt_get(&g_frame_manager->empty_frame_q) <= CAM_EMP_ARRAT_LEN_PER(struct cam_frame) && !in_interrupt())
+	if (CAM_QUEUE_CNT_GET(&g_frame_manager->empty_frame_q) <= CAM_EMP_ARRAT_LEN_PER(struct cam_frame) && !in_interrupt())
 		cam_queue_frame_alloc(g_frame_manager);
 	do {
-		pframe = cam_queue_dequeue(&g_frame_manager->empty_frame_q, struct cam_frame, list);
+		pframe = CAM_QUEUE_DEQUEUE(&g_frame_manager->empty_frame_q, struct cam_frame, list);
 		if (pframe == NULL) {
 			ret = cam_queue_frame_alloc(g_frame_manager);
 			if (ret) {
@@ -288,7 +288,7 @@ void cam_queue_empty_frame_put(void *frame)
 	}
 	pframe = (struct cam_frame *)frame;
 	camqueue_frame_state_clear(pframe);
-	ret = cam_queue_enqueue(&g_frame_manager->empty_frame_q, &pframe->list);
+	ret = CAM_QUEUE_ENQUEUE(&g_frame_manager->empty_frame_q, &pframe->list);
 	if (ret) {
 		pr_warn("queue should be enlarged\n");
 	}
@@ -309,7 +309,7 @@ int cam_queue_empty_frame_init()
 			return -1;
 		};
 		frame_manager->array_num = 0;
-		cam_queue_init(&frame_manager->empty_frame_q, CAM_EMP_ARRAY_LEN_MAX * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), NULL);
+		CAM_QUEUE_INIT(&frame_manager->empty_frame_q, CAM_EMP_ARRAY_LEN_MAX * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), NULL);
 		spin_lock_init(&frame_manager->frame_lock);
 		init_rwsem(&frame_manager->check_lock);
 		g_frame_manager = frame_manager;
@@ -325,7 +325,7 @@ int cam_queue_empty_frame_init()
 		if (frame_array[i]) {
 			frame_manager->frame_array[array_index] = frame_array[i];
 			for (j = 0; j < CAM_EMP_ARRAT_LEN_PER(struct cam_frame); ++j)
-				cam_queue_enqueue(&frame_manager->empty_frame_q, &frame_manager->frame_array[array_index][j].list);
+				CAM_QUEUE_ENQUEUE(&frame_manager->empty_frame_q, &frame_manager->frame_array[array_index][j].list);
 			array_index++;
 		}
 	}
@@ -343,7 +343,7 @@ int cam_queue_empty_frame_deinit()
 
 	spin_lock(&frame_manager->frame_lock);
 	cam_queue_frame_array_check(CAM_FRAME_CHECK_ALL);
-	cam_queue_clear(&frame_manager->empty_frame_q, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&frame_manager->empty_frame_q, struct cam_frame, list);
 	while (i <= CAM_EMP_ARRAY_LEN_MAX && frame_manager->frame_array[i]) {
 		cam_buf_kernel_sys_kfree(frame_manager->frame_array[i]);
 		frame_manager->frame_array[i] = NULL;
@@ -401,7 +401,7 @@ int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_
 		return -1;
 	}
 
-	ret = cam_queue_enqueue(q, &param_pframe->list);
+	ret = CAM_QUEUE_ENQUEUE(q, &param_pframe->list);
 	if(ret)
 		pr_err("fail to recycle param node %px, cnt %d\n", param_pframe, q->cnt);
 	return ret;
@@ -416,7 +416,7 @@ struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q)
 		return NULL;
 	}
 
-	param_frame = cam_queue_dequeue(q, struct cam_frame, list);
+	param_frame = CAM_QUEUE_DEQUEUE(q, struct cam_frame, list);
 	if (param_frame)
 		pr_debug("param_frame %px\n",param_frame);
 

@@ -410,7 +410,7 @@ static void cambufmanager_reserve_q_cnt_check(struct camera_queue *reserve_heap)
 	if (reserve_heap->cnt > 1)
 		return;
 
-	ori = cam_queue_dequeue_peek(reserve_heap, struct cam_frame, list);
+	ori = CAM_QUEUE_DEQUEUE_PEEK(reserve_heap, struct cam_frame, list);
 	if (!ori)
 		return;
 
@@ -422,7 +422,7 @@ static void cambufmanager_reserve_q_cnt_check(struct camera_queue *reserve_heap)
 			newfrm->common.user_fid = ori->common.user_fid;
 			memcpy(&newfrm->common.buf, &ori->common.buf, sizeof(struct camera_buf));
 			newfrm->common.buf.type = CAM_BUF_NONE;
-			cam_queue_enqueue(reserve_heap, &newfrm->list);
+			CAM_QUEUE_ENQUEUE(reserve_heap, &newfrm->list);
 			i++;
 		}
 	}
@@ -546,17 +546,17 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 	if (heap) {
 		switch (cmd) {
 		case CAM_QUEUE_DEL_TAIL:
-			tmp = cam_queue_dequeue_tail(heap, struct cam_frame, list);
+			tmp = CAM_QUEUE_DEQUEUE_TAIL(heap, struct cam_frame, list);
 			src = heap;
 			break;
 		case CAM_QUEUE_DEQ_PEEK:
-			tmp = cam_queue_dequeue_peek(heap, struct cam_frame, list);
+			tmp = CAM_QUEUE_DEQUEUE_PEEK(heap, struct cam_frame, list);
 			break;
 		case CAM_QUEUE_TAIL_PEEK:
-			tmp = cam_queue_tail_peek(heap, struct cam_frame, list);
+			tmp = CAM_QUEUE_TAIL_PEEK(heap, struct cam_frame, list);
 			break;
 		case CAM_QUEUE_TAIL:
-			tmp = cam_queue_dequeue_tail(heap, struct cam_frame, list);
+			tmp = CAM_QUEUE_DEQUEUE_TAIL(heap, struct cam_frame, list);
 			src = heap;
 			break;
 		case CAM_QUEUE_IF:
@@ -564,14 +564,14 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 			src = heap;
 			break;
 		default:
-			tmp = cam_queue_dequeue(heap, struct cam_frame, list);
+			tmp = CAM_QUEUE_DEQUEUE(heap, struct cam_frame, list);
 			src = heap;
 		}
 	}
 
 	if (!tmp && resverve_heap) {/* && pool_id->tag_id != isp_blk_param*/
 		cambufmanager_reserve_q_cnt_check(resverve_heap);
-		tmp = cam_queue_dequeue(resverve_heap, struct cam_frame, list);
+		tmp = CAM_QUEUE_DEQUEUE(resverve_heap, struct cam_frame, list);
 		src = resverve_heap;
 		pr_debug("res pool %d %px deq, frame %px, cnt %d, cb:%pS\n\n", pool_id->reserved_pool_id, resverve_heap, tmp, resverve_heap->cnt, __builtin_return_address(0));
 	} else
@@ -586,7 +586,7 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 	if (ret) {
 		pr_err("fail to cfg buf status, (p %d, t %d, r %d), ori %d, cmd %d\n", pool_id->private_pool_id, pool_id->tag_id, pool_id->reserved_pool_id, tmp->common.buf.status, buf_desc->buf_ops_cmd);
 		if (src)
-			cam_queue_enqueue(src, &tmp->list);
+			CAM_QUEUE_ENQUEUE(src, &tmp->list);
 		return NULL;
 	}
 
@@ -624,11 +624,11 @@ int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
 		}
 
 		if (buf_desc->q_ops_cmd == CAM_QUEUE_FRONT)
-			ret = cam_queue_enqueue_head(heap, &pframe->list);
+			ret = CAM_QUEUE_ENQUEUE_HEAD(heap, &pframe->list);
 		else
-			ret = cam_queue_enqueue(heap, &pframe->list);
+			ret = CAM_QUEUE_ENQUEUE(heap, &pframe->list);
 	} else
-		ret = cam_queue_enqueue(heap, &pframe->list);
+		ret = CAM_QUEUE_ENQUEUE(heap, &pframe->list);
 
 	if (ret) {
 		pr_err("fail to enq, (p %d, t %d, r%d) buf cnt %d, frame %px\n", pool_id->private_pool_id, pool_id->tag_id, pool_id->reserved_pool_id, heap->cnt, pframe);
@@ -655,7 +655,7 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id, void *buf_manage
 
 	pr_debug("pool r%d p%d t%d, cnt %d clear\n", pool_id->reserved_pool_id, pool_id->private_pool_id, pool_id->tag_id, heap->cnt);
 	do {
-		pframe = cam_queue_dequeue(heap, struct cam_frame, list);
+		pframe = CAM_QUEUE_DEQUEUE(heap, struct cam_frame, list);
 		if (pframe)
 			cam_queue_empty_frame_put(pframe);
 	} while (pframe);
@@ -683,7 +683,7 @@ int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length, v
 			buf_manager->tag_pool[pool_id->tag_id] = tmp_p;
 			pr_debug("reg tag pool %d %px, cd:%pS\n", pool_id->tag_id, tmp_p, __builtin_return_address(0));
 			mutex_unlock(&buf_manager->pool_lock);
-			cam_queue_init(tmp_p, length, NULL);
+			CAM_QUEUE_INIT(tmp_p, length, NULL);
 			return 0;
 		}
 	} else {
@@ -704,7 +704,7 @@ int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length, v
 			buf_manager->private_buf_pool[idx] = tmp_p;
 			pr_debug("reg pool %d %px, cd:%pS\n", idx, tmp_p, __builtin_return_address(0));
 			mutex_unlock(&buf_manager->pool_lock);
-			cam_queue_init(tmp_p, length, NULL);
+			CAM_QUEUE_INIT(tmp_p, length, NULL);
 			return idx;
 		}
 	}
@@ -793,7 +793,7 @@ int cam_buf_manager_init(uint32_t cam_id, void *buf_manager_handle)
 		}
 		return -1;
 	}
-	cam_queue_init(tmp_q, RESERVE_BUF_Q_LEN, NULL);
+	CAM_QUEUE_INIT(tmp_q, RESERVE_BUF_Q_LEN, NULL);
 	(*buf_manager)->reserve_buf_pool[cam_id + 1] = tmp_q;
 	buf_manager_handle = (void *)(*buf_manager);
 

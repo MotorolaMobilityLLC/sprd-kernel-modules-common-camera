@@ -15,15 +15,14 @@
 #include <linux/slab.h>
 #include <sprd_mm.h>
 
-#include "cam_types.h"
+#include "cam_buf.h"
 #include "flash_drv.h"
 #include "flash_interface.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "FLASH_CORE: %d %d %s : "\
-	fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "FLASH_CORE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 static int camflash_ctrl(uint32_t dcam_idx,
 		struct sprd_img_set_flash *set_flash)

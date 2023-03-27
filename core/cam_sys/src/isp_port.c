@@ -59,7 +59,7 @@ static uint32_t ispport_base_cfg(struct isp_port *port, void *param)
 	port->size = cfg_in->output_size;
 	if (cfg_in->is_work == 1)
 		atomic_set(&port->is_work, 1);
-	pr_info("port_id %d, out fmt %s, size:%d %d", port->port_id, camport_fmt_name_get(port->fmt), port->size.w, port->size.h);
+	pr_info("port_id %d, out fmt %s, size:%d %d\n", port->port_id, camport_fmt_name_get(port->fmt), port->size.w, port->size.h);
 	return 0;
 }
 
@@ -199,7 +199,7 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 	} else {
 		if (pframe->common.buf.mfd == port->reserved_buf_fd) {
 			pframe->common.buf.size = port->reserve_buf_size;
-			pr_debug("pframe->common.buf.size = %d, path->reserve_buf_size = %d",
+			pr_debug("pframe->common.buf.size = %d, path->reserve_buf_size = %d\n",
 				(int)pframe->common.buf.size, (int)port->reserve_buf_size);
 		}
 		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
@@ -218,7 +218,7 @@ static int ispport_port_postproc(struct isp_port *port, void *param)
 	return 0;
 }
 
-static bool ispport_fid_check(struct cam_frame *frame, void *data)
+static enum en_status ispport_fid_check(struct cam_frame *frame, void *data)
 {
 	uint32_t target_fid;
 
@@ -302,9 +302,9 @@ normal_out_put:
 		if (out_frame->common.is_reserved == 0 && (out_frame->common.buf.mapping_state & CAM_BUF_MAPPING_ISP) == 0) {
 			if (out_frame->common.buf.mfd == port->reserved_buf_fd) {
 				out_frame->common.buf.size = port->reserve_buf_size;
-				pr_debug("out_frame->common.buf.size = %d, path->reserve_buf_size = %d", (int)out_frame->common.buf.size, (int)port->reserve_buf_size);
+				pr_debug("out_frame->common.buf.size = %d, path->reserve_buf_size = %d\n", (int)out_frame->common.buf.size, (int)port->reserve_buf_size);
 			} else
-				pr_debug("out_frame->common.buf.size = %d",(int)out_frame->common.buf.size);
+				pr_debug("out_frame->common.buf.size = %d\n",(int)out_frame->common.buf.size);
 		}
 	}
 exit:
@@ -1318,7 +1318,7 @@ static int ispport_video_slowmotion(struct isp_port *port, struct isp_port_cfg *
 	if (out_frame->common.is_reserved == 0) {
 		if (out_frame->common.buf.mfd == port->reserved_buf_fd) {
 			out_frame->common.buf.size = port->reserve_buf_size;
-			pr_debug("out_frame->common.buf.size = %d, path->reserve_buf_size = %d", (int)out_frame->common.buf.size, (int)port->reserve_buf_size);
+			pr_debug("out_frame->common.buf.size = %d, path->reserve_buf_size = %d\n", (int)out_frame->common.buf.size, (int)port->reserve_buf_size);
 		} else
 			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
 	}
@@ -1406,7 +1406,7 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 		if (pframe->common.state != ISP_STREAM_POST_PROC) {
 			if (pframe->common.buf.mfd == port->reserved_buf_fd) {
 				pframe->common.buf.size = port->reserve_buf_size;
-				pr_info("pframe->common.buf.size = %d, path->reserve_buf_size = %d",
+				pr_info("pframe->common.buf.size = %d, path->reserve_buf_size = %d\n",
 					(int)pframe->common.buf.size, (int)port->reserve_buf_size);
 			}
 			buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
@@ -1480,7 +1480,7 @@ uint32_t isp_port_id_switch(uint32_t port_id)
 		hw_path_id = ISP_SPATH_FD;
 		break;
 	default:
-		pr_err("fail to get vaild port_id:%d", port_id);
+		pr_err("fail to get vaild port_id:%d\n", port_id);
 	}
 	return hw_path_id;
 }

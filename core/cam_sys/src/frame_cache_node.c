@@ -50,17 +50,17 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 	struct cam_frame *pftmp = NULL;
 
 	pframe->common.priv_data = node;
-	cam_queue_enqueue(&node->cache_buf_queue, &pframe->list);
+	CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
 	if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
 		if (node->pre_raw_flag)
-			pframe = cam_queue_dequeue_tail(&node->cache_buf_queue, struct cam_frame, list);
+			pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->cache_buf_queue, struct cam_frame, list);
 		else
-			pframe = cam_queue_dequeue(&node->cache_buf_queue, struct cam_frame, list);
+			pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 
 	do {
-		pftmp = cam_queue_dequeue(&node->cache_buf_queue, struct cam_frame, list);
+		pftmp = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		if (!pftmp)
 			return NULL;
 		if (node->opt_frame_fid) {
@@ -111,9 +111,9 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 			else
 				node->cur_cache_skip_num = node->cache_skip_num;
 			pframe->common.priv_data = node;
-			ret = cam_queue_enqueue(&node->cache_buf_queue, &pframe->list);
+			ret = CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
 			if (node->cache_buf_queue.cnt > node->cache_real_num)
-				pframe = cam_queue_dequeue(&node->cache_buf_queue, struct cam_frame, list);
+				pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 			else
 				return ret;
 		} else {
@@ -169,9 +169,9 @@ static int framecache_dual_sync_proc(struct frame_cache_node *node,
 	}
 
 	pframe->common.priv_data = node;
-	ret = cam_queue_enqueue(&node->cache_buf_queue, &pframe->list);
+	ret = CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
 	if (node->cache_buf_queue.cnt > node->cache_real_num) {
-		pframe = cam_queue_dequeue(&node->cache_buf_queue, struct cam_frame, list);
+		pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 
@@ -259,15 +259,15 @@ int frame_cache_cfg_param(void *handle, uint32_t cmd, void *param)
 		pr_info("cap type %d, cnt %d, time %lld\n", node->cap_param.cap_type,
 			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp);
 		break;
-	case CAM_NODE_CLR_CACHE_BUF:
+	case CAM_NODE_CFG_CLR_CACHE_BUF:
 		do {
-			frame = cam_queue_dequeue(&node->cache_buf_queue, struct cam_frame, list);
+			frame = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 			if (frame == NULL)
 				break;
 			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, frame, node->data_cb_handle);
 		} while (frame);
 		break;
-	case CAM_NODE_DUAL_SYNC_BUF_GET:
+	case CAM_NODE_CFG_DUAL_SYNC_BUF_GET:
 		dual_sync_q = (struct camera_queue **)param;
 		*dual_sync_q = &node->cache_buf_queue;
 		break;
@@ -355,7 +355,7 @@ void *frame_cache_node_get(uint32_t node_id, struct frame_cache_node_desc *param
 		node->dual_sync_cb_data = param->dual_sync_cb_data;
 		node->dual_slave_frame_set = param->dual_slave_frame_set;
 	}
-	cam_queue_init(&node->cache_buf_queue, FRAME_CACHE_BUF_NUM, framecache_frame_put);
+	CAM_QUEUE_INIT(&node->cache_buf_queue, FRAME_CACHE_BUF_NUM, framecache_frame_put);
 	pr_debug("cache real num %d\n", node->cache_real_num);
 
 	return node;
@@ -368,7 +368,7 @@ void frame_cache_node_put(struct frame_cache_node *node)
 		return;
 	}
 
-	cam_queue_clear(&node->cache_buf_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->cache_buf_queue, struct cam_frame, list);
 	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 }

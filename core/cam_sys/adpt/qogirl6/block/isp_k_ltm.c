@@ -68,7 +68,7 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 	val = hists->addr;
 	ISP_REG_WR(idx, base + ISP_LTM_ADDR, val);
 
-	val = ((hists->wr_num & 0x1FF) << 16) |
+	val = (((hists->wr_num * 2) & 0x1FF) << 16) |
 		(hists->pitch & 0xFFFF);
 	ISP_REG_WR(idx, base + ISP_LTM_PITCH, val);
 

@@ -27,7 +27,7 @@ static uint32_t ispnode_slice_needed(struct isp_node *node)
 {
 	struct isp_port *port = NULL;
 
-	cam_queue_for_each_entry(port, &node->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0 && port->port_cfg_cb_func(NULL, ISP_PORT_SLICE_NEED, port))
 			return 1;
 	}
@@ -39,7 +39,7 @@ static int ispnode_postproc_frame_return(struct isp_node *inode)
 	struct isp_port *port = NULL;
 	struct isp_node_postproc_param post_param = {0};
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0)
 			port->port_cfg_cb_func(&post_param, ISP_PORT_IRQ_POSTPORC, port);
 	}
@@ -64,7 +64,7 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 	if (gtm_ctx->calc_mode == GTM_SW_CALC) {
 		frame  = cam_buf_manager_buf_dequeue(&inode->gtmhist_pool, NULL, inode->buf_manager_handle);
 		if (!frame) {
-			pr_warn("isp ctx_id[%d] gtmhist_result_queue buffer \n", gtm_ctx->ctx_id);
+			pr_warn("isp ctx_id[%d] gtmhist_result_queue buffer\n", gtm_ctx->ctx_id);
 			return;
 		} else {
 			buf = (uint32_t *)frame->common.buf.addr_k;
@@ -182,7 +182,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 			port_cfg.faststop = &inode->is_fast_stop;
 			port_cfg.faststop_done = inode->fast_stop_done;
 			port_cfg.out_buf_clear = 0;
-			cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 				if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0)
 					port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
 			}
@@ -232,14 +232,14 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		break;
 	case POSTPROC_FRAME_ERROR_DONE:
 		port_cfg.out_buf_clear = 0;
-		cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 			if (atomic_read(&port->user_cnt) > 0)
 				port->port_cfg_cb_func(&port_cfg, ISP_PORT_START_ERROR, port);
 		}
 		if (inode->uinfo.enable_slowmotion) {
 			for (i = 0; i < inode->uinfo.slowmotion_count - 1; i++) {
 				port_cfg.out_buf_clear = 1;
-				cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+				CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 					if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 						port->port_cfg_cb_func(&port_cfg, ISP_PORT_START_ERROR, port);
 				}
@@ -247,7 +247,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		}
 		break;
 	default:
-		pr_err("fail to get type:%d", type);
+		pr_err("fail to get type:%d\n", type);
 	}
 exit:
 	inode->in_irq_postproc = 0;
@@ -264,7 +264,7 @@ static uint32_t ispnode_fid_across_context_get(struct isp_node *inode, enum came
 
 	target_fid = CAMERA_RESERVE_FRAME_NUM;
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) > 0) {
 			port->port_cfg_cb_func(&port_fid, ISP_PORT_UFRAME_FID_GET, port);
 			target_fid = min(target_fid, port_fid);
@@ -284,7 +284,7 @@ static int ispnode_blkparam_adapt(struct isp_node *inode)
 	struct isp_k_block_param block_param = {0};
 
 	size_desc.ch_id = inode->ch_id;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 			port->port_cfg_cb_func(&size_desc, ISP_PORT_BLKSIZE_GET, port);
 	}
@@ -353,7 +353,7 @@ static int ispnode_offline_param_set(struct isp_node *inode, struct isp_hw_conte
 	int hw_path_id = 0;
 
 	if (!inode || !pctx_hw) {
-		pr_err("fail to get input ptr, pctx %p, pctx_hw %p, pframe %p tmp %p\n",
+		pr_err("fail to get input ptr, inode %p, pctx_hw %p\n",
 			inode, pctx_hw);
 		return -EFAULT;
 	}
@@ -362,7 +362,7 @@ static int ispnode_offline_param_set(struct isp_node *inode, struct isp_hw_conte
 	if (inode->uinfo.fetch_path_sel == ISP_FETCH_PATH_FBD)
 		isp_hwctx_fetch_fbd_set(pctx_hw);
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0) {
 			hw_path_id = isp_port_id_switch(port->port_id);
 			if (hw_path_id < 0) {
@@ -383,7 +383,7 @@ static int ispnode_port_param_cfg(struct isp_node *inode, struct isp_hw_context 
 	struct isp_port *port = NULL;
 	struct isp_hw_yuv_block_ctrl blk_ctrl = {0};
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 			ret |= port->port_cfg_cb_func(port_cfg, ISP_PORT_FRAME_CYCLE, port);
 	}
@@ -409,13 +409,13 @@ static int ispnode_port_param_cfg(struct isp_node *inode, struct isp_hw_context 
 	port_cfg->scaler_bypass_ctrl = inode->dev->isp_hw->ip_isp->isphw_abt->scaler_bypass_ctrl;
 	port_cfg->uinfo = &inode->uinfo;
 	port_cfg->superzoom_frame = inode->postproc_buf;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		ret |= port->port_cfg_cb_func(port_cfg, ISP_PORT_PIPEINFO_GET, port);
 	}
 	if (inode->pipe_src.uframe_sync)
 		port_cfg->target_fid = ispnode_fid_across_context_get(inode, inode->attach_cam_id);
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0)
 			ret |= port->port_cfg_cb_func(port_cfg, ISP_PORT_FRAME_CYCLE, port);
 	}
@@ -574,7 +574,7 @@ static int ispnode_rec_frame_process(struct isp_node *inode, struct isp_hw_conte
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_WORK_MODE, &inode->dev->wmode);
 		rec_ctx->ops.cfg_param(rec_ctx, ISP_REC_CFG_HW_CTX_IDX, &pctx_hw->hw_ctx_id);
 		ret = rec_ctx->ops.pipe_proc(rec_ctx, &cfg_in, inode->buf_manager_handle);
-		if (ret == -1)
+		if (ret)
 			pr_err("fail to proc rec frame\n");
 	} else
 		rec_ctx->pyr_rec.reconstruct_bypass = 1;
@@ -596,7 +596,7 @@ static int ispnode_fmcu_slw_queue_set(struct isp_fmcu_ctx_desc *fmcu, struct isp
 	port_cfg.dev = inode->dev;
 	port_cfg.vid_valid = vid_valid;
 	port_cfg.uinfo = &inode->uinfo;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0)
 			ret |= port->port_cfg_cb_func(&port_cfg, ISP_PORT_SLOWMOTION, port);
 	}
@@ -608,7 +608,7 @@ static int ispnode_fmcu_slw_queue_set(struct isp_fmcu_ctx_desc *fmcu, struct isp
 	slw.is_compressed = port_cfg.src_frame->common.is_compressed;
 	ret = inode->dev->isp_hw->isp_ioctl(inode->dev->isp_hw, ISP_HW_CFG_SLW_FMCU_CMDS, &slw);
 
-	pr_debug("fmcu slw queue done!");
+	pr_debug("fmcu slw queue done!\n");
 	return ret;
 }
 
@@ -699,11 +699,11 @@ static int ispnode_stream_state_get(struct isp_node *node, struct camera_frame *
 	struct isp_port *port = NULL;
 
 	if (!node || !pframe) {
-		pr_err("fail to get valid input ptr\n");
+		pr_err("fail to get valid input ptr, node %px pframe %px\n", node, pframe);
 		return -EFAULT;
 	}
 
-	cam_queue_for_each_entry(port, &node->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1 && atomic_read(&port->is_work) > 0) {
 			need_post_proc = port->need_post_proc;
 			hw_path_id = isp_port_id_switch(port->port_id);
@@ -756,7 +756,7 @@ static int ispnode_start_proc(void *node)
 		port_cfg.faststop = &inode->is_fast_stop;
 		port_cfg.faststop_done = inode->fast_stop_done;
 		port_cfg.out_buf_clear = 1;
-		cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 			if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 				port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
 		}
@@ -764,11 +764,11 @@ static int ispnode_start_proc(void *node)
 	}
 	if (inode->ch_id == CAM_CH_CAP) {
 		os_adapt_time_get_ts(&inode->start_ts);
-		PERFORMANCE_DEBUG("node_start_time %03d.%06d", inode->start_ts.tv_sec, inode->start_ts.tv_nsec / NSEC_PER_USEC);
+		PERFORMANCE_DEBUG("node_start_time %03d.%06d\n", inode->start_ts.tv_sec, inode->start_ts.tv_nsec / NSEC_PER_USEC);
 	}
 
 	port_cfg.node_id = inode->node_id;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
 			buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
 			port_cfg.src_frame = cam_buf_manager_buf_dequeue(&port->fetch_unprocess_pool, &buf_desc, inode->buf_manager_handle);
@@ -793,7 +793,7 @@ static int ispnode_start_proc(void *node)
 	} while (loop++ < 5000);
 
 	if (pctx_hw == NULL) {
-		pr_err("fail to get pctx_hw");
+		pr_err("fail to get pctx_hw\n");
 		return EFAULT;
 	}
 	/*TBD: other hw info need to check*/
@@ -853,8 +853,8 @@ static int ispnode_start_proc(void *node)
 	if (inode->uinfo.enable_slowmotion) {
 		uint32_t vid_valid_count = 0, i = 0;
 		vid_valid_count = ispnode_slw_need_vid_num(&inode->uinfo);
-		pr_debug("vid count %d, stage a frm_num %d, stage b frm_num %d, stage c frm_num %d, fps %d",
-			vid_valid_count,inode->uinfo.frame_num.stage_a_frame_num,inode->uinfo.frame_num.stage_b_frame_num,
+		pr_debug("vid count %d, stage a frm_num %d, stage b frm_num %d, stage c frm_num %d, fps %d\n",
+			vid_valid_count, inode->uinfo.frame_num.stage_a_frame_num, inode->uinfo.frame_num.stage_b_frame_num,
 			inode->uinfo.frame_num.stage_c_frame_num, inode->uinfo.slowmotion_count);
 		for (i = 0; i < inode->uinfo.slowmotion_count - 1; i++) {
 			ret = ispnode_fmcu_slw_queue_set(pctx_hw->fmcu_handle, inode, pctx_hw, i < vid_valid_count);
@@ -870,7 +870,7 @@ static int ispnode_start_proc(void *node)
 	}
 
 	loop = 0;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0) {
 			if (port->need_post_proc) {
 				do {
@@ -921,12 +921,12 @@ static int ispnode_start_proc(void *node)
 	if (inode->ch_id == CAM_CH_CAP)
 		ispnode_node_ts_cal(inode, pctx_hw);
 
-	pr_debug("isp start done node:%x", inode);
+	pr_debug("isp start done node:%x\n", inode);
 	return 0;
 
 exit:
 	port_cfg.out_buf_clear = 0;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0)
 			port->port_cfg_cb_func(&port_cfg, ISP_PORT_START_ERROR, port);
 	}
@@ -934,7 +934,7 @@ exit:
 	if (inode->uinfo.enable_slowmotion) {
 		for (i = 0; i < inode->uinfo.slowmotion_count - 1; i++) {
 			port_cfg.out_buf_clear = 1;
-			cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 				if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 					port->port_cfg_cb_func(&port_cfg, ISP_PORT_START_ERROR, port);
 			}
@@ -942,7 +942,7 @@ exit:
 	}
 
 	if (inode->is_fast_stop) {
-		cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 			if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
 				out_buf_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_unprocess_pool, inode->buf_manager_handle);
 				result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, inode->buf_manager_handle);
@@ -1006,7 +1006,7 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 	}
 	/* lock to avoid block param across frame */
 	mutex_lock(&inode->blkpm_lock);
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 			port->port_cfg_cb_func(&size_desc, ISP_PORT_BLKSIZE_GET, port);
 	}
@@ -1056,16 +1056,16 @@ static uint32_t ispnode_insert_port(struct isp_node* node, void *param)
 	uint32_t is_exist = 0;
 
 	new_port = VOID_PTR_TO(param, struct isp_port);
-	pr_debug("node type:%d,id:%d, port type:%d, port type:%d", node->node_type, node->node_id, new_port->type, new_port->port_id);
+	pr_debug("node type:%d,id:%d, port type:%d, port type:%d\n", node->node_type, node->node_id, new_port->type, new_port->port_id);
 
-	cam_queue_for_each_entry(q_port, &node->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(q_port, &node->port_queue.head, list) {
 		if (new_port == q_port) {
 			is_exist = 1;
 			break;
 		}
 	}
 	if (!is_exist)
-		cam_queue_enqueue(&node->port_queue, &new_port->list);
+		CAM_QUEUE_ENQUEUE(&node->port_queue, &new_port->list);
 	return 0;
 }
 
@@ -1091,11 +1091,11 @@ int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, stru
 preview_param:
 	do {
 		mutex_lock(&inode->blkpm_q_lock);
-		param_pframe = cam_queue_dequeue_peek(&inode->param_buf_queue, struct cam_frame, list);
+		param_pframe = CAM_QUEUE_DEQUEUE_PEEK(&inode->param_buf_queue, struct cam_frame, list);
 		if (param_pframe) {
 			pr_debug("pre cam %d inode =%d, param_pframe.id=%d,pframe.id=%d\n",
 				inode->attach_cam_id, inode->cfg_id, param_pframe->isp_blk.fid, target_fid);
-			cam_queue_dequeue(&inode->param_buf_queue, struct cam_frame, list);
+			CAM_QUEUE_DEQUEUE(&inode->param_buf_queue, struct cam_frame, list);
 			mutex_unlock(&inode->blkpm_q_lock);
 			if (param_pframe->isp_blk.fid <= target_fid) {
 				/*update old preview param into inode, cache latest capture param*/
@@ -1131,12 +1131,12 @@ preview_param:
 capture_param:
 	do {
 		mutex_lock(&inode->blkpm_q_lock);
-		param_pframe = cam_queue_dequeue_peek(&inode->param_buf_queue, struct cam_frame, list);
+		param_pframe = CAM_QUEUE_DEQUEUE_PEEK(&inode->param_buf_queue, struct cam_frame, list);
 		if (param_pframe) {
 			pr_debug("cap cam %d cfg_id %d, param_pframe.id %d pframe.id %d\n",
 				inode->attach_cam_id, inode->cfg_id, param_pframe->isp_blk.fid, target_fid);
 			if (param_pframe->isp_blk.fid <= target_fid) {
-				cam_queue_dequeue(&inode->param_buf_queue, struct cam_frame, list);
+				CAM_QUEUE_DEQUEUE(&inode->param_buf_queue, struct cam_frame, list);
 				mutex_unlock(&inode->blkpm_q_lock);
 				/*return old param*/
 				if (last_param)
@@ -1207,10 +1207,10 @@ int isp_node_postproc_buffer_alloc(void *handle, struct cam_buf_alloc_desc *para
 		pr_err("fail to alloc superzoom buf\n");
 	}
 	cam_buf_manager_buf_status_cfg(&inode->postproc_buf->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-	inode->postproc_buf->common.buf.bypass_iova_ops = 1;
+	inode->postproc_buf->common.buf.bypass_iova_ops = ENABLE;
 
 	pr_info("node_id %d, superzoom w %d, h %d, inode->postproc_buf->common.buf.status %d\n",
-		inode->node_id, postproc_w, postproc_h,inode->postproc_buf->common.buf.status);
+		inode->node_id, postproc_w, postproc_h, inode->postproc_buf->common.buf.status);
 
 	return ret;
 }
@@ -1283,7 +1283,7 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 				cam_buf_free(&nr3_ctx->nr3_frame[i].buf);
 				return -1;
 			}
-			nr3_ctx->nr3_frame[i].buf.bypass_iova_ops = 1;
+			nr3_ctx->nr3_frame[i].buf.bypass_iova_ops = ENABLE;
 
 			pr_debug("3DNR CFGB[%d][0x%p] = 0x%lx\n",i, nr3_ctx->nr3_frame[i], nr3_ctx->nr3_frame[i].buf.iova);
 		}
@@ -1321,7 +1321,7 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 						cam_buf_free(&rgb_ltm->ltm_frame[i].buf);
 						return -1;
 					}
-					rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = 1;
+					rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = ENABLE;
 					pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", rgb_ltm->ctx_id, i, rgb_ltm->ltm_frame[i], rgb_ltm->ltm_frame[i].buf.iova);
 				}
 
@@ -1430,7 +1430,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 
 				param_frame->isp_blk.update = param_status->update;
 				param_frame->isp_blk.fid = param_status->frame_id;
-				ret = cam_queue_enqueue(&inode->param_buf_queue, &param_frame->list);
+				ret = CAM_QUEUE_ENQUEUE(&inode->param_buf_queue, &param_frame->list);
 				if (ret) {
 					pr_err("fail to enquene pre param_buf_queue\n");
 					cam_queue_recycle_blk_param(&inode->param_share_queue, param_frame);
@@ -1440,7 +1440,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 				param_frame = cam_queue_empty_blk_param_get(&inode->param_share_queue);
 				if (!param_frame) {
 					mutex_lock(&inode->blkpm_q_lock);
-					param_frame = cam_queue_dequeue(&inode->param_buf_queue, struct cam_frame, list);
+					param_frame = CAM_QUEUE_DEQUEUE(&inode->param_buf_queue, struct cam_frame, list);
 					mutex_unlock(&inode->blkpm_q_lock);
 					if (param_frame)
 						pr_debug("isp deq param node %d cnt %d max %d param_block %px\n",
@@ -1451,7 +1451,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 					memcpy(param_frame->isp_blk.param_block, &inode->isp_k_param, sizeof(struct dcam_isp_k_block));
 					param_frame->isp_blk.update = param_status->update;
 					param_frame->isp_blk.fid = param_status->frame_id;
-					ret = cam_queue_enqueue(&inode->param_buf_queue, &param_frame->list);
+					ret = CAM_QUEUE_ENQUEUE(&inode->param_buf_queue, &param_frame->list);
 					if (ret) {
 						pr_err("fail to enquene cap param_buf_queue\n");
 						cam_queue_recycle_blk_param(&inode->param_share_queue, param_frame);
@@ -1464,23 +1464,23 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 	case ISP_NODE_CFG_PARAM_Q_CLEAR:
 		do {
 			mutex_lock(&inode->blkpm_q_lock);
-			param_frame = cam_queue_dequeue(&inode->param_buf_queue, struct cam_frame, list);
+			param_frame = CAM_QUEUE_DEQUEUE(&inode->param_buf_queue, struct cam_frame, list);
 			mutex_unlock(&inode->blkpm_q_lock);
 			if (param_frame)
 				cam_queue_recycle_blk_param(&inode->param_share_queue, param_frame);
-		} while (cam_queue_cnt_get(&inode->param_buf_queue) > 0);
+		} while (CAM_QUEUE_CNT_GET(&inode->param_buf_queue) > 0);
 		break;
 	case ISP_NODE_CFG_FAST_STOP:
 		inode->fast_stop_done = (struct completion *)param;
 		port_cfg.faststop = &inode->is_fast_stop;
 		port_cfg.faststop_done = inode->fast_stop_done;
-		cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 			if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 				port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
 		}
 		break;
 	default:
-		pr_err("fail to support vaild cmd:%d", cmd);
+		pr_err("fail to support vaild cmd:%d\n", cmd);
 		ret = -EFAULT;
 		break;
 	}
@@ -1511,7 +1511,7 @@ int isp_node_request_proc(struct isp_node *node, void *param)
 			pipeline->pipeline_graph->name, pframe->common.fid, pframe->common.channel_id, pframe->common.buf.mfd,
 			pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
-	cam_queue_for_each_entry(port, &node->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
 			ret = isp_port_param_cfg(port, PORT_BUFFER_CFG_SET, pframe);
 			if (ret) {
@@ -1587,7 +1587,7 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	}
 	node->gtmhist_pool.private_pool_id = ret;
 
-	cam_queue_init(&node->port_queue, PORT_ISP_MAX, NULL);
+	CAM_QUEUE_INIT(&node->port_queue, PORT_ISP_MAX, NULL);
 	if (param->is_high_fps)
 		node->uinfo.enable_slowmotion = node->dev->isp_hw->ip_isp->isphw_abt->slm_cfg_support;
 	if (node->uinfo.enable_slowmotion) {
@@ -1675,8 +1675,8 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	}
 
 	mutex_init(&node->blkpm_q_lock);
-	cam_queue_init(&node->param_share_queue, param->blkparam_node_num, cam_queue_empty_frame_put);
-	cam_queue_init(&node->param_buf_queue, param->blkparam_node_num, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->param_share_queue, param->blkparam_node_num, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->param_buf_queue, param->blkparam_node_num, cam_queue_empty_frame_put);
 	for (i = 0; i < param->blkparam_node_num; i++) {
 		param_frame = cam_queue_empty_frame_get(CAM_FRAME_ISP_BLK);
 		param_frame->isp_blk.param_block = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_isp_k_block));
@@ -1718,9 +1718,9 @@ exit:
 	param->isp_node = node;
 	return node;
 alloc_error:
-	loop = cam_queue_cnt_get(&node->param_share_queue);
+	loop = CAM_QUEUE_CNT_GET(&node->param_share_queue);
 	do {
-		param_frame = cam_queue_dequeue(&node->param_share_queue, struct cam_frame, list);
+		param_frame = CAM_QUEUE_DEQUEUE(&node->param_share_queue, struct cam_frame, list);
 		if (param_frame)
 			cam_queue_empty_frame_put(param_frame);
 	} while (loop-- > 0);
@@ -1789,8 +1789,8 @@ void isp_node_put(struct isp_node *node)
 		}
 		pr_debug("share %d, buf %d\n", node->param_share_queue.cnt, node->param_buf_queue.cnt);
 		mutex_lock(&node->blkpm_q_lock);
-		cam_queue_clear(&node->param_share_queue, struct cam_frame, list);
-		cam_queue_clear(&node->param_buf_queue, struct cam_frame, list);
+		CAM_QUEUE_CLEAN(&node->param_share_queue, struct cam_frame, list);
+		CAM_QUEUE_CLEAN(&node->param_buf_queue, struct cam_frame, list);
 		mutex_unlock(&node->blkpm_q_lock);
 
 		cam_buf_manager_pool_unreg(&node->hist2_pool, node->buf_manager_handle);
@@ -1826,12 +1826,12 @@ void isp_node_close(struct isp_node *node)
 		node->dev->isp_ops->unbind(node);
 		/* make sure irq handler exit to avoid crash */
 		while (node->in_irq_postproc && loop < 1000) {
-			pr_debug("node %d in irq. wait %d", node->node_id, loop);
+			pr_debug("node %d in irq. wait %d\n", node->node_id, loop);
 			loop++;
 			os_adapt_time_udelay(500);
 		};
 		if (loop == 1000)
 			pr_warn("warning: isp node close wait irq timeout\n");
-		cam_queue_clear(&node->port_queue, struct isp_port, list);
+		CAM_QUEUE_CLEAN(&node->port_queue, struct isp_port, list);
 	}
 }

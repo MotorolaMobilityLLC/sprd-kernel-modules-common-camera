@@ -22,7 +22,7 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) "ISP_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
+#define pr_fmt(fmt) "ISP_SCALER_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 static uint32_t ispscaler_port_deci_factor_get(uint32_t src_size, uint32_t dst_size)
 {
@@ -40,6 +40,160 @@ static uint32_t ispscaler_port_deci_factor_get(uint32_t src_size, uint32_t dst_s
 	return factor;
 }
 
+static enum en_status ispscaler_port_fid_check(struct cam_frame *frame, void *data)
+{
+	uint32_t target_fid;
+
+	if (!frame || !data)
+		return false;
+
+	target_fid = *(uint32_t *)data;
+
+	pr_debug("target_fid = %d frame->user_fid = %d\n", target_fid, frame->common.user_fid);
+	return frame->common.user_fid == CAMERA_RESERVE_FRAME_NUM
+		|| frame->common.user_fid == target_fid;
+}
+
+static int ispscaler_port_scaler_param_calc(struct img_trim *in_trim,
+	struct img_size *out_size, struct yuv_scaler_info *scaler,
+	struct img_deci_info *deci)
+{
+	int ret = 0;
+	unsigned int tmp_dstsize = 0;
+	unsigned int align_size = 0;
+	unsigned int d_max = ISP_SC_COEFF_DOWN_MAX;
+	unsigned int u_max = ISP_SC_COEFF_UP_MAX;
+	unsigned int f_max = ISP_PATH_DECI_FAC_MAX;
+
+	CAM_ZOOM_DEBUG("in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d,out_size_h:%d\n",
+		in_trim->size_x, in_trim->size_y, out_size->w, out_size->h);
+	/* check input crop limit with max scale up output size(2 bit aligned) */
+	if (in_trim->size_x > (out_size->w * d_max * (1 << f_max)) ||
+		in_trim->size_y > (out_size->h * d_max * (1 << f_max)) ||
+		in_trim->size_x < ISP_DIV_ALIGN_W(out_size->w, u_max) ||
+		in_trim->size_y < ISP_DIV_ALIGN_H(out_size->h, u_max)) {
+		pr_err("fail to get in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
+				in_trim->size_x, in_trim->size_y,
+				out_size->w, out_size->h, f_max, d_max);
+		ret = -EINVAL;
+	} else {
+		scaler->scaler_factor_in = in_trim->size_x;
+		scaler->scaler_ver_factor_in = in_trim->size_y;
+		if (in_trim->size_x > out_size->w * d_max) {
+			tmp_dstsize = out_size->w * d_max;
+			deci->deci_x = ispscaler_port_deci_factor_get(in_trim->size_x, tmp_dstsize);
+			deci->deci_x_eb = 1;
+			align_size = (1 << (deci->deci_x + 1)) * ISP_PIXEL_ALIGN_WIDTH;
+			in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
+			in_trim->start_x = (in_trim->start_x) & ~(align_size - 1);
+			scaler->scaler_factor_in = in_trim->size_x >> (deci->deci_x + 1);
+		} else {
+			deci->deci_x = 1;
+			deci->deci_x_eb = 0;
+		}
+
+		if (in_trim->size_y > out_size->h * d_max) {
+			tmp_dstsize = out_size->h * d_max;
+			deci->deci_y = ispscaler_port_deci_factor_get(in_trim->size_y, tmp_dstsize);
+			deci->deci_y_eb = 1;
+			align_size = (1 << (deci->deci_y + 1)) * ISP_PIXEL_ALIGN_HEIGHT;
+			in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);
+			in_trim->start_y = (in_trim->start_y) & ~(align_size - 1);
+			scaler->scaler_ver_factor_in = in_trim->size_y >> (deci->deci_y + 1);
+		} else {
+			deci->deci_y = 1;
+			deci->deci_y_eb = 0;
+		}
+		CAM_ZOOM_DEBUG("end out_size  w %d, h %d\n",
+			out_size->w, out_size->h);
+
+		scaler->scaler_factor_out = out_size->w;
+		scaler->scaler_ver_factor_out = out_size->h;
+		scaler->scaler_out_width = out_size->w;
+		scaler->scaler_out_height = out_size->h;
+	}
+
+	return ret;
+}
+
+static int ispscaler_port_hwinfo_get(void *cfg_in, struct isp_hw_path_scaler *path)
+{
+	int ret = 0;
+	uint32_t is_yuv422 = 0, scale2yuv420 = 0;
+	struct yuv_scaler_info *scaler = NULL;
+	struct isp_scaler_port *in_ptr = NULL;
+
+
+	if (!cfg_in || !path) {
+		pr_err("fail to get valid input ptr %p, %p\n", cfg_in, path);
+		return -EFAULT;
+	}
+	in_ptr = (struct isp_scaler_port *)cfg_in;
+
+	scaler = &path->scaler;
+	if (in_ptr->fmt == CAM_UYVY_1FRAME)
+		path->uv_sync_v = 1;
+	else
+		path->uv_sync_v = 0;
+	if (in_ptr->fmt == CAM_FULL_RGB14)
+		path->path_sel = 2;
+	else
+		path->path_sel = 0;
+	path->frm_deci = 0;
+	path->dst = in_ptr->dst;
+	path->out_trim.start_x = 0;
+	path->out_trim.start_y = 0;
+	path->out_trim.size_x = in_ptr->dst.w;
+	path->out_trim.size_y = in_ptr->dst.h;
+	path->regular_info.regular_mode = in_ptr->regular_mode;
+	ret = ispscaler_port_scaler_param_calc(&path->in_trim, &path->dst,
+		&path->scaler, &path->deci);
+	if (ret) {
+		pr_err("fail to calc scaler param.\n");
+		return ret;
+	}
+
+	if ((in_ptr->fmt == CAM_YUV422_2FRAME) || (in_ptr->fmt == CAM_YVU422_2FRAME))
+		is_yuv422 = 1;
+
+	if (((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
+		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
+		&& (is_yuv422 || in_ptr->scaler_bypass_ctrl))
+		|| in_ptr->fmt == CAM_FULL_RGB14) {
+		scaler->scaler_bypass = 1;
+	} else {
+		scaler->scaler_bypass = 0;
+
+		if (in_ptr->scaler_coeff_ex) {
+			/*0:yuv422 to 422 ;1:yuv422 to 420 2:yuv420 to 420*/
+			scaler->work_mode = 2;
+			ret = cam_scaler_coeff_calc_ex(scaler);
+		}  else {
+			scale2yuv420 = is_yuv422 ? 0 : 1;
+			ret = cam_scaler_coeff_calc(scaler, scale2yuv420);
+		}
+
+		if (ret) {
+			pr_err("fail to calc scaler coeff.\n");
+			return ret;
+		}
+	}
+	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
+
+	return ret;
+}
+
+static struct cam_frame *ispscaler_port_reserved_buf_get(reserved_buf_get_cb resbuf_get_cb, void *cb_data, void *port)
+{
+	struct cam_frame *frame = NULL;
+
+	if (resbuf_get_cb)
+		resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, cb_data);
+	if (frame != NULL)
+		frame->common.priv_data = port;
+	return frame;
+}
+
 static struct cam_frame *ispscaler_port_out_frame_get(struct isp_scaler_port *port, struct isp_scaler_port_cfg *port_cfg)
 {
 	int ret = 0;
@@ -55,21 +209,21 @@ static struct cam_frame *ispscaler_port_out_frame_get(struct isp_scaler_port *po
 	pr_debug("port->port_id %d\n", port->port_id);
 
 	if (inode->uinfo.uframe_sync && port_cfg->target_fid != CAMERA_RESERVE_FRAME_NUM)
-		out_frame = cam_queue_dequeue_if(&port->out_buf_queue, isp_scaler_port_fid_check, (void *)&port_cfg->target_fid);
+		out_frame = cam_queue_dequeue_if(&port->out_buf_queue, ispscaler_port_fid_check, (void *)&port_cfg->target_fid);
 	else
-		out_frame = cam_queue_dequeue(&port->out_buf_queue, struct cam_frame, list);
+		out_frame = CAM_QUEUE_DEQUEUE(&port->out_buf_queue, struct cam_frame, list);
 
 	if (out_frame)
 		port_cfg->valid_out_frame = 1;
 	else
-		out_frame = isp_scaler_port_reserved_buf_get(inode->resbuf_get_cb, inode->resbuf_cb_data, port);
+		out_frame = ispscaler_port_reserved_buf_get(inode->resbuf_get_cb, inode->resbuf_cb_data, port);
 
 	if (out_frame != NULL) {
 		if (out_frame->common.is_reserved == 0 && (out_frame->common.buf.mapping_state & CAM_BUF_MAPPING_ISP) == 0) {
 			ret = cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
 			pr_debug("map output buffer %08x\n", (uint32_t)out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
 			if (ret) {
-				cam_queue_enqueue(&port->out_buf_queue, &out_frame->list);
+				CAM_QUEUE_ENQUEUE(&port->out_buf_queue, &out_frame->list);
 				out_frame = NULL;
 				pr_err("fail to map isp iommu buf.\n");
 			}
@@ -175,7 +329,7 @@ static int ispscaler_port_store_frameproc(struct isp_scaler_port *port,
 	}
 
 	do {
-		ret = cam_queue_enqueue(&port->result_queue, &out_frame->list);
+		ret = CAM_QUEUE_ENQUEUE(&port->result_queue, &out_frame->list);
 		if (ret == 0)
 			break;
 		printk_ratelimited(KERN_INFO "wait for output queue. loop %d\n", loop);
@@ -190,7 +344,7 @@ static int ispscaler_port_store_frameproc(struct isp_scaler_port *port,
 			inode->resbuf_get_cb(RESERVED_BUF_SET_CB, out_frame, inode->resbuf_cb_data);
 		} else {
 			cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
-			cam_queue_enqueue(&port->out_buf_queue, &out_frame->list);
+			CAM_QUEUE_ENQUEUE(&port->out_buf_queue, &out_frame->list);
 		}
 		return -EINVAL;
 	}
@@ -262,292 +416,6 @@ static void ispscaler_port_frame_ret(void *param)
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
 		port->data_cb_func(CAM_CB_ISP_RET_DST_BUF, pframe, port->data_cb_handle);
 	}
-}
-
-static int ispscaler_port_scaler_param_calc(struct img_trim *in_trim,
-	struct img_size *out_size, struct yuv_scaler_info *scaler,
-	struct img_deci_info *deci)
-{
-	int ret = 0;
-	unsigned int tmp_dstsize = 0;
-	unsigned int align_size = 0;
-	unsigned int d_max = ISP_SC_COEFF_DOWN_MAX;
-	unsigned int u_max = ISP_SC_COEFF_UP_MAX;
-	unsigned int f_max = ISP_PATH_DECI_FAC_MAX;
-
-	CAM_ZOOM_DEBUG("in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d,out_size_h:%d\n",
-		in_trim->size_x, in_trim->size_y, out_size->w, out_size->h);
-	/* check input crop limit with max scale up output size(2 bit aligned) */
-	if (in_trim->size_x > (out_size->w * d_max * (1 << f_max)) ||
-		in_trim->size_y > (out_size->h * d_max * (1 << f_max)) ||
-		in_trim->size_x < ISP_DIV_ALIGN_W(out_size->w, u_max) ||
-		in_trim->size_y < ISP_DIV_ALIGN_H(out_size->h, u_max)) {
-		pr_err("fail to get in_trim %d %d. out _size %d %d, fmax %d, u_max %d\n",
-				in_trim->size_x, in_trim->size_y,
-				out_size->w, out_size->h, f_max, d_max);
-		ret = -EINVAL;
-	} else {
-		scaler->scaler_factor_in = in_trim->size_x;
-		scaler->scaler_ver_factor_in = in_trim->size_y;
-		if (in_trim->size_x > out_size->w * d_max) {
-			tmp_dstsize = out_size->w * d_max;
-			deci->deci_x = ispscaler_port_deci_factor_get(in_trim->size_x, tmp_dstsize);
-			deci->deci_x_eb = 1;
-			align_size = (1 << (deci->deci_x + 1)) * ISP_PIXEL_ALIGN_WIDTH;
-			in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
-			in_trim->start_x = (in_trim->start_x) & ~(align_size - 1);
-			scaler->scaler_factor_in = in_trim->size_x >> (deci->deci_x + 1);
-		} else {
-			deci->deci_x = 1;
-			deci->deci_x_eb = 0;
-		}
-
-		if (in_trim->size_y > out_size->h * d_max) {
-			tmp_dstsize = out_size->h * d_max;
-			deci->deci_y = ispscaler_port_deci_factor_get(in_trim->size_y, tmp_dstsize);
-			deci->deci_y_eb = 1;
-			align_size = (1 << (deci->deci_y + 1)) * ISP_PIXEL_ALIGN_HEIGHT;
-			in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);
-			in_trim->start_y = (in_trim->start_y) & ~(align_size - 1);
-			scaler->scaler_ver_factor_in = in_trim->size_y >> (deci->deci_y + 1);
-		} else {
-			deci->deci_y = 1;
-			deci->deci_y_eb = 0;
-		}
-		CAM_ZOOM_DEBUG("end out_size  w %d, h %d\n",
-			out_size->w, out_size->h);
-
-		scaler->scaler_factor_out = out_size->w;
-		scaler->scaler_ver_factor_out = out_size->h;
-		scaler->scaler_out_width = out_size->w;
-		scaler->scaler_out_height = out_size->h;
-	}
-
-	return ret;
-}
-
-int isp_scaler_port_hwinfo_get(void *cfg_in, struct isp_hw_path_scaler *path)
-{
-	int ret = 0;
-	uint32_t is_yuv422 = 0, scale2yuv420 = 0;
-	struct yuv_scaler_info *scaler = NULL;
-	struct isp_scaler_port *in_ptr = NULL;
-
-
-	if (!cfg_in || !path) {
-		pr_err("fail to get valid input ptr %p, %p\n", cfg_in, path);
-		return -EFAULT;
-	}
-	in_ptr = (struct isp_scaler_port *)cfg_in;
-
-	scaler = &path->scaler;
-	if (in_ptr->fmt == CAM_UYVY_1FRAME)
-		path->uv_sync_v = 1;
-	else
-		path->uv_sync_v = 0;
-	if (in_ptr->fmt == CAM_FULL_RGB14)
-		path->path_sel = 2;
-	else
-		path->path_sel = 0;
-	path->frm_deci = 0;
-	path->dst = in_ptr->dst;
-	path->out_trim.start_x = 0;
-	path->out_trim.start_y = 0;
-	path->out_trim.size_x = in_ptr->dst.w;
-	path->out_trim.size_y = in_ptr->dst.h;
-	path->regular_info.regular_mode = in_ptr->regular_mode;
-	ret = ispscaler_port_scaler_param_calc(&path->in_trim, &path->dst,
-		&path->scaler, &path->deci);
-	if (ret) {
-		pr_err("fail to calc scaler param.\n");
-		return ret;
-	}
-
-	if ((in_ptr->fmt == CAM_YUV422_2FRAME) || (in_ptr->fmt == CAM_YVU422_2FRAME))
-		is_yuv422 = 1;
-
-	if (((scaler->scaler_ver_factor_in == scaler->scaler_ver_factor_out)
-		&& (scaler->scaler_factor_in == scaler->scaler_factor_out)
-		&& (is_yuv422 || in_ptr->scaler_bypass_ctrl))
-		|| in_ptr->fmt == CAM_FULL_RGB14) {
-		scaler->scaler_bypass = 1;
-	} else {
-		scaler->scaler_bypass = 0;
-
-		if (in_ptr->scaler_coeff_ex) {
-			/*0:yuv422 to 422 ;1:yuv422 to 420 2:yuv420 to 420*/
-			scaler->work_mode = 2;
-			ret = cam_scaler_coeff_calc_ex(scaler);
-		}  else {
-			scale2yuv420 = is_yuv422 ? 0 : 1;
-			ret = cam_scaler_coeff_calc(scaler, scale2yuv420);
-		}
-
-		if (ret) {
-			pr_err("fail to calc scaler coeff.\n");
-			return ret;
-		}
-	}
-	scaler->odata_mode = is_yuv422 ? 0x00 : 0x01;
-
-	return ret;
-}
-
-int isp_scaler_thumbport_hwinfo_get(void *cfg_in, struct isp_hw_thumbscaler_info *scalerInfo)
-{
-	int ret = 0;
-	uint32_t deci_w = 0;
-	uint32_t deci_h = 0;
-	uint32_t trim_w, trim_h, temp_w, temp_h;
-	uint32_t offset, shift, is_yuv422 = 0;
-	struct img_size src, dst;
-	uint32_t align_size = 0;
-	struct isp_scaler_port *in_ptr = NULL;
-
-	if (!cfg_in || !scalerInfo) {
-		pr_err("fail to get valid input ptr %p\n", cfg_in, scalerInfo);
-		return -EFAULT;
-	}
-	in_ptr = (struct isp_scaler_port *)cfg_in;
-
-	scalerInfo->scaler_bypass = 0;
-	scalerInfo->frame_deci = 0;
-	/* y factor & deci */
-	src.w = in_ptr->trim.size_x;
-	src.h = in_ptr->trim.size_y;
-	dst = in_ptr->dst;
-	ret = isp_drv_trim_deci_info_cal(src.w, dst.w, &temp_w, &deci_w);
-	ret |= isp_drv_trim_deci_info_cal(src.h, dst.h, &temp_h, &deci_h);
-	if (deci_w == 0 || deci_h == 0)
-		return -EINVAL;
-	if (ret) {
-		pr_err("fail to set thumbscaler ydeci. src %d %d, dst %d %d\n",
-					src.w, src.h, dst.w, dst.h);
-		return ret;
-	}
-
-	scalerInfo->y_deci.deci_x = deci_w;
-	scalerInfo->y_deci.deci_y = deci_h;
-	if (deci_w > 1)
-		scalerInfo->y_deci.deci_x_eb = 1;
-	else
-		scalerInfo->y_deci.deci_x_eb = 0;
-	if (deci_h > 1)
-		scalerInfo->y_deci.deci_y_eb = 1;
-	else
-		scalerInfo->y_deci.deci_y_eb = 0;
-	align_size = deci_w * ISP_PIXEL_ALIGN_WIDTH;
-	trim_w = (temp_w) & ~(align_size - 1);
-	align_size = deci_h * ISP_PIXEL_ALIGN_HEIGHT;
-	trim_h = (temp_h) & ~(align_size - 1);
-	scalerInfo->y_factor_in.w = trim_w / deci_w;
-	scalerInfo->y_factor_in.h = trim_h / deci_h;
-	scalerInfo->y_factor_out = in_ptr->dst;
-
-	if ((in_ptr->fmt == CAM_YUV422_2FRAME) || (in_ptr->fmt == CAM_YVU422_2FRAME))
-		is_yuv422 = 1;
-
-	/* uv factor & deci, input: yuv422(isp pipeline format) */
-	shift = is_yuv422 ? 0 : 1;
-	scalerInfo->uv_deci.deci_x = deci_w;
-	scalerInfo->uv_deci.deci_y = deci_h;
-	if (deci_w > 1)
-		scalerInfo->uv_deci.deci_x_eb = 1;
-	else
-		scalerInfo->uv_deci.deci_x_eb = 0;
-	if (deci_h > 1)
-		scalerInfo->uv_deci.deci_y_eb = 1;
-	else
-		scalerInfo->uv_deci.deci_y_eb = 0;
-	trim_w >>= 1;
-	scalerInfo->uv_factor_in.w = trim_w / deci_w;
-	scalerInfo->uv_factor_in.h = trim_h / deci_h;
-	scalerInfo->uv_factor_out.w = dst.w / 2;
-	scalerInfo->uv_factor_out.h = dst.h >> shift;
-
-	scalerInfo->src0.w = in_ptr->trim.size_x;
-	scalerInfo->src0.h = in_ptr->trim.size_y;
-
-	/* y trim */
-	trim_w = scalerInfo->y_factor_in.w * scalerInfo->y_deci.deci_x;
-	offset = (in_ptr->trim.size_x - trim_w) / 2;
-	scalerInfo->y_trim.start_x = in_ptr->trim.start_x + offset;
-	scalerInfo->y_trim.size_x = trim_w;
-
-	trim_h = scalerInfo->y_factor_in.h * scalerInfo->y_deci.deci_y;
-	offset = (in_ptr->trim.size_y - trim_h) / 2;
-	scalerInfo->y_trim.start_y = in_ptr->trim.start_y + offset;
-	scalerInfo->y_trim.size_y = trim_h;
-
-	scalerInfo->y_src_after_deci = scalerInfo->y_factor_in;
-	scalerInfo->y_dst_after_scaler = scalerInfo->y_factor_out;
-
-	/* uv trim */
-	trim_w = scalerInfo->uv_factor_in.w * scalerInfo->uv_deci.deci_x;
-	offset = (in_ptr->trim.size_x / 2 - trim_w) / 2;
-	scalerInfo->uv_trim.start_x = in_ptr->trim.start_x / 2 + offset;
-	scalerInfo->uv_trim.size_x = trim_w;
-
-	trim_h = scalerInfo->uv_factor_in.h * scalerInfo->uv_deci.deci_y;
-	offset = (in_ptr->trim.size_y - trim_h) / 2;
-	scalerInfo->uv_trim.start_y = in_ptr->trim.start_y + offset;
-	scalerInfo->uv_trim.size_y = trim_h;
-
-	scalerInfo->uv_src_after_deci = scalerInfo->uv_factor_in;
-	scalerInfo->uv_dst_after_scaler = scalerInfo->uv_factor_out;
-	scalerInfo->odata_mode = is_yuv422 ? 0x00 : 0x01;
-
-	scalerInfo->y_deci.deci_x = isp_drv_deci_factor_cal(scalerInfo->y_deci.deci_x);
-	scalerInfo->y_deci.deci_y = isp_drv_deci_factor_cal(scalerInfo->y_deci.deci_y);
-	scalerInfo->uv_deci.deci_x = isp_drv_deci_factor_cal(scalerInfo->uv_deci.deci_x);
-	scalerInfo->uv_deci.deci_y = isp_drv_deci_factor_cal(scalerInfo->uv_deci.deci_y);
-
-	/* N6pro thumbscaler calculation regulation */
-	if (scalerInfo->thumbscl_cal_version == 1) {
-		scalerInfo->y_init_phase.w = scalerInfo->y_dst_after_scaler.w / 2;
-		scalerInfo->y_init_phase.h = scalerInfo->y_dst_after_scaler.h / 2;
-		scalerInfo->uv_src_after_deci.w = scalerInfo->y_src_after_deci.w / 2;
-		scalerInfo->uv_src_after_deci.h = scalerInfo->y_src_after_deci.h;
-		scalerInfo->uv_dst_after_scaler.w = scalerInfo->y_dst_after_scaler.w / 2;
-		scalerInfo->uv_dst_after_scaler.h = scalerInfo->y_dst_after_scaler.h / 2;
-		scalerInfo->uv_trim.size_x = scalerInfo->y_trim.size_x / 2;
-		scalerInfo->uv_trim.size_y = scalerInfo->y_trim.size_y / 2;
-		scalerInfo->uv_init_phase.w = scalerInfo->uv_dst_after_scaler.w / 2;
-		scalerInfo->uv_init_phase.h = scalerInfo->uv_dst_after_scaler.h / 2;
-		scalerInfo->uv_factor_in.w = scalerInfo->y_factor_in.w / 2;
-		scalerInfo->uv_factor_in.h = scalerInfo->y_factor_in.h / 2;
-		scalerInfo->uv_factor_out.w = scalerInfo->y_factor_out.w / 2;
-		scalerInfo->uv_factor_out.h = scalerInfo->y_factor_out.h / 2;
-	}
-
-	pr_debug("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
-		scalerInfo->y_deci.deci_x, scalerInfo->y_deci.deci_y,
-		scalerInfo->y_factor_in.w, scalerInfo->y_factor_in.h,
-		scalerInfo->y_factor_out.w, scalerInfo->y_factor_out.h,
-		scalerInfo->y_trim.start_x, scalerInfo->y_trim.start_y,
-		scalerInfo->y_trim.size_x, scalerInfo->y_trim.size_y);
-	pr_debug("deciU %d %d, Ufactor (%d %d) => (%d %d), Utrim (%d %d %d %d)\n",
-		scalerInfo->uv_deci.deci_x, scalerInfo->uv_deci.deci_y,
-		scalerInfo->uv_factor_in.w, scalerInfo->uv_factor_in.h,
-		scalerInfo->uv_factor_out.w, scalerInfo->uv_factor_out.h,
-		scalerInfo->uv_trim.start_x, scalerInfo->uv_trim.start_y,
-		scalerInfo->uv_trim.size_x, scalerInfo->uv_trim.size_y);
-
-	pr_debug("my frameY: %d %d %d %d\n",
-		scalerInfo->y_src_after_deci.w, scalerInfo->y_src_after_deci.h,
-		scalerInfo->y_dst_after_scaler.w,
-		scalerInfo->y_dst_after_scaler.h);
-	pr_debug("my frameU: %d %d %d %d\n",
-		scalerInfo->uv_src_after_deci.w,
-		scalerInfo->uv_src_after_deci.h,
-		scalerInfo->uv_dst_after_scaler.w,
-		scalerInfo->uv_dst_after_scaler.h);
-
-	pr_debug("init_phase: Y(%d %d), UV(%d %d)\n",
-		scalerInfo->y_init_phase.w, scalerInfo->y_init_phase.h,
-		scalerInfo->uv_init_phase.w, scalerInfo->uv_init_phase.h);
-
-	return ret;
 }
 
 static int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct cam_frame *frame)
@@ -821,11 +689,168 @@ static int ispscaler_port_store_pipeinfo_get(struct isp_scaler_port *port, struc
 	pipe_in->scaler[path_id].in_trim = port->trim;
 	port->scaler_coeff_ex = port_cfg->scaler_coeff_ex;
 	port->scaler_bypass_ctrl = port_cfg->scaler_bypass_ctrl;
-	ret = isp_scaler_port_hwinfo_get(port, &pipe_in->scaler[path_id]);
+	ret = ispscaler_port_hwinfo_get(port, &pipe_in->scaler[path_id]);
 	if (ret) {
 		pr_err("fail to get pipe path scaler info\n");
 		return -EFAULT;
 	}
+	return ret;
+}
+
+static int ispscaler_thumbport_hwinfo_get(void *cfg_in, struct isp_hw_thumbscaler_info *scalerInfo)
+{
+	int ret = 0;
+	uint32_t deci_w = 0;
+	uint32_t deci_h = 0;
+	uint32_t trim_w, trim_h, temp_w, temp_h;
+	uint32_t offset, shift, is_yuv422 = 0;
+	struct img_size src, dst;
+	uint32_t align_size = 0;
+	struct isp_scaler_port *in_ptr = NULL;
+
+	if (!cfg_in || !scalerInfo) {
+		pr_err("fail to get valid input ptr %p\n", cfg_in, scalerInfo);
+		return -EFAULT;
+	}
+	in_ptr = (struct isp_scaler_port *)cfg_in;
+
+	scalerInfo->scaler_bypass = 0;
+	scalerInfo->frame_deci = 0;
+	/* y factor & deci */
+	src.w = in_ptr->trim.size_x;
+	src.h = in_ptr->trim.size_y;
+	dst = in_ptr->dst;
+	ret = isp_drv_trim_deci_info_cal(src.w, dst.w, &temp_w, &deci_w);
+	ret |= isp_drv_trim_deci_info_cal(src.h, dst.h, &temp_h, &deci_h);
+	if (deci_w == 0 || deci_h == 0)
+		return -EINVAL;
+	if (ret) {
+		pr_err("fail to set thumbscaler ydeci. src %d %d, dst %d %d\n",
+					src.w, src.h, dst.w, dst.h);
+		return ret;
+	}
+
+	scalerInfo->y_deci.deci_x = deci_w;
+	scalerInfo->y_deci.deci_y = deci_h;
+	if (deci_w > 1)
+		scalerInfo->y_deci.deci_x_eb = 1;
+	else
+		scalerInfo->y_deci.deci_x_eb = 0;
+	if (deci_h > 1)
+		scalerInfo->y_deci.deci_y_eb = 1;
+	else
+		scalerInfo->y_deci.deci_y_eb = 0;
+	align_size = deci_w * ISP_PIXEL_ALIGN_WIDTH;
+	trim_w = (temp_w) & ~(align_size - 1);
+	align_size = deci_h * ISP_PIXEL_ALIGN_HEIGHT;
+	trim_h = (temp_h) & ~(align_size - 1);
+	scalerInfo->y_factor_in.w = trim_w / deci_w;
+	scalerInfo->y_factor_in.h = trim_h / deci_h;
+	scalerInfo->y_factor_out = in_ptr->dst;
+
+	if ((in_ptr->fmt == CAM_YUV422_2FRAME) || (in_ptr->fmt == CAM_YVU422_2FRAME))
+		is_yuv422 = 1;
+
+	/* uv factor & deci, input: yuv422(isp pipeline format) */
+	shift = is_yuv422 ? 0 : 1;
+	scalerInfo->uv_deci.deci_x = deci_w;
+	scalerInfo->uv_deci.deci_y = deci_h;
+	if (deci_w > 1)
+		scalerInfo->uv_deci.deci_x_eb = 1;
+	else
+		scalerInfo->uv_deci.deci_x_eb = 0;
+	if (deci_h > 1)
+		scalerInfo->uv_deci.deci_y_eb = 1;
+	else
+		scalerInfo->uv_deci.deci_y_eb = 0;
+	trim_w >>= 1;
+	scalerInfo->uv_factor_in.w = trim_w / deci_w;
+	scalerInfo->uv_factor_in.h = trim_h / deci_h;
+	scalerInfo->uv_factor_out.w = dst.w / 2;
+	scalerInfo->uv_factor_out.h = dst.h >> shift;
+
+	scalerInfo->src0.w = in_ptr->trim.size_x;
+	scalerInfo->src0.h = in_ptr->trim.size_y;
+
+	/* y trim */
+	trim_w = scalerInfo->y_factor_in.w * scalerInfo->y_deci.deci_x;
+	offset = (in_ptr->trim.size_x - trim_w) / 2;
+	scalerInfo->y_trim.start_x = in_ptr->trim.start_x + offset;
+	scalerInfo->y_trim.size_x = trim_w;
+
+	trim_h = scalerInfo->y_factor_in.h * scalerInfo->y_deci.deci_y;
+	offset = (in_ptr->trim.size_y - trim_h) / 2;
+	scalerInfo->y_trim.start_y = in_ptr->trim.start_y + offset;
+	scalerInfo->y_trim.size_y = trim_h;
+
+	scalerInfo->y_src_after_deci = scalerInfo->y_factor_in;
+	scalerInfo->y_dst_after_scaler = scalerInfo->y_factor_out;
+
+	/* uv trim */
+	trim_w = scalerInfo->uv_factor_in.w * scalerInfo->uv_deci.deci_x;
+	offset = (in_ptr->trim.size_x / 2 - trim_w) / 2;
+	scalerInfo->uv_trim.start_x = in_ptr->trim.start_x / 2 + offset;
+	scalerInfo->uv_trim.size_x = trim_w;
+
+	trim_h = scalerInfo->uv_factor_in.h * scalerInfo->uv_deci.deci_y;
+	offset = (in_ptr->trim.size_y - trim_h) / 2;
+	scalerInfo->uv_trim.start_y = in_ptr->trim.start_y + offset;
+	scalerInfo->uv_trim.size_y = trim_h;
+
+	scalerInfo->uv_src_after_deci = scalerInfo->uv_factor_in;
+	scalerInfo->uv_dst_after_scaler = scalerInfo->uv_factor_out;
+	scalerInfo->odata_mode = is_yuv422 ? 0x00 : 0x01;
+
+	scalerInfo->y_deci.deci_x = isp_drv_deci_factor_cal(scalerInfo->y_deci.deci_x);
+	scalerInfo->y_deci.deci_y = isp_drv_deci_factor_cal(scalerInfo->y_deci.deci_y);
+	scalerInfo->uv_deci.deci_x = isp_drv_deci_factor_cal(scalerInfo->uv_deci.deci_x);
+	scalerInfo->uv_deci.deci_y = isp_drv_deci_factor_cal(scalerInfo->uv_deci.deci_y);
+
+	/* N6pro thumbscaler calculation regulation */
+	if (scalerInfo->thumbscl_cal_version == 1) {
+		scalerInfo->y_init_phase.w = scalerInfo->y_dst_after_scaler.w / 2;
+		scalerInfo->y_init_phase.h = scalerInfo->y_dst_after_scaler.h / 2;
+		scalerInfo->uv_src_after_deci.w = scalerInfo->y_src_after_deci.w / 2;
+		scalerInfo->uv_src_after_deci.h = scalerInfo->y_src_after_deci.h;
+		scalerInfo->uv_dst_after_scaler.w = scalerInfo->y_dst_after_scaler.w / 2;
+		scalerInfo->uv_dst_after_scaler.h = scalerInfo->y_dst_after_scaler.h / 2;
+		scalerInfo->uv_trim.size_x = scalerInfo->y_trim.size_x / 2;
+		scalerInfo->uv_trim.size_y = scalerInfo->y_trim.size_y / 2;
+		scalerInfo->uv_init_phase.w = scalerInfo->uv_dst_after_scaler.w / 2;
+		scalerInfo->uv_init_phase.h = scalerInfo->uv_dst_after_scaler.h / 2;
+		scalerInfo->uv_factor_in.w = scalerInfo->y_factor_in.w / 2;
+		scalerInfo->uv_factor_in.h = scalerInfo->y_factor_in.h / 2;
+		scalerInfo->uv_factor_out.w = scalerInfo->y_factor_out.w / 2;
+		scalerInfo->uv_factor_out.h = scalerInfo->y_factor_out.h / 2;
+	}
+
+	pr_debug("deciY %d %d, Yfactor (%d %d) => (%d %d) ytrim (%d %d %d %d)\n",
+		scalerInfo->y_deci.deci_x, scalerInfo->y_deci.deci_y,
+		scalerInfo->y_factor_in.w, scalerInfo->y_factor_in.h,
+		scalerInfo->y_factor_out.w, scalerInfo->y_factor_out.h,
+		scalerInfo->y_trim.start_x, scalerInfo->y_trim.start_y,
+		scalerInfo->y_trim.size_x, scalerInfo->y_trim.size_y);
+	pr_debug("deciU %d %d, Ufactor (%d %d) => (%d %d), Utrim (%d %d %d %d)\n",
+		scalerInfo->uv_deci.deci_x, scalerInfo->uv_deci.deci_y,
+		scalerInfo->uv_factor_in.w, scalerInfo->uv_factor_in.h,
+		scalerInfo->uv_factor_out.w, scalerInfo->uv_factor_out.h,
+		scalerInfo->uv_trim.start_x, scalerInfo->uv_trim.start_y,
+		scalerInfo->uv_trim.size_x, scalerInfo->uv_trim.size_y);
+
+	pr_debug("my frameY: %d %d %d %d\n",
+		scalerInfo->y_src_after_deci.w, scalerInfo->y_src_after_deci.h,
+		scalerInfo->y_dst_after_scaler.w,
+		scalerInfo->y_dst_after_scaler.h);
+	pr_debug("my frameU: %d %d %d %d\n",
+		scalerInfo->uv_src_after_deci.w,
+		scalerInfo->uv_src_after_deci.h,
+		scalerInfo->uv_dst_after_scaler.w,
+		scalerInfo->uv_dst_after_scaler.h);
+
+	pr_debug("init_phase: Y(%d %d), UV(%d %d)\n",
+		scalerInfo->y_init_phase.w, scalerInfo->y_init_phase.h,
+		scalerInfo->uv_init_phase.w, scalerInfo->uv_init_phase.h);
+
 	return ret;
 }
 
@@ -847,7 +872,7 @@ static int ispscaler_thumbport_pipeinfo_get(struct isp_scaler_port *port, struct
 	/*need to confirm*/
 	if (port_cfg->thumb_scaler_cal_version)
 		pipe_in->thumb_scaler.thumbscl_cal_version = 1;
-	ret = isp_scaler_thumbport_hwinfo_get(port, &pipe_in->thumb_scaler);
+	ret = ispscaler_thumbport_hwinfo_get(port, &pipe_in->thumb_scaler);
 	if (ret) {
 		pr_err("fail to get pipe thumb scaler info\n");
 		return -EFAULT;
@@ -956,31 +981,6 @@ uint32_t isp_scaler_port_id_switch(uint32_t port_id)
 	return hw_path_id;
 }
 
-bool isp_scaler_port_fid_check(struct cam_frame *frame, void *data)
-{
-	uint32_t target_fid;
-
-	if (!frame || !data)
-		return false;
-
-	target_fid = *(uint32_t *)data;
-
-	pr_debug("target_fid = %d frame->user_fid = %d\n", target_fid, frame->common.user_fid);
-	return frame->common.user_fid == CAMERA_RESERVE_FRAME_NUM
-		|| frame->common.user_fid == target_fid;
-}
-
-struct cam_frame *isp_scaler_port_reserved_buf_get(reserved_buf_get_cb resbuf_get_cb, void *cb_data, void *port)
-{
-	struct cam_frame *frame = NULL;
-
-	if (resbuf_get_cb)
-		resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, cb_data);
-	if (frame != NULL)
-		frame->common.priv_data = port;
-	return frame;
-}
-
 void *isp_scaler_port_get(uint32_t port_id, struct isp_scaler_port_desc *param)
 {
 	struct isp_scaler_port *port = NULL;
@@ -1002,8 +1002,8 @@ void *isp_scaler_port_get(uint32_t port_id, struct isp_scaler_port_desc *param)
 		pr_info("isp port has been alloc %p %d\n", port, port_id);
 		goto exit;
 	}
-	cam_queue_init(&port->result_queue, ISP_RESULT_Q_LEN, ispscaler_port_frame_ret);
-	cam_queue_init(&port->out_buf_queue, ISP_OUT_BUF_Q_LEN, ispscaler_port_frame_ret);
+	CAM_QUEUE_INIT(&port->result_queue, ISP_RESULT_Q_LEN, ispscaler_port_frame_ret);
+	CAM_QUEUE_INIT(&port->out_buf_queue, ISP_OUT_BUF_Q_LEN, ispscaler_port_frame_ret);
 
 	port->resbuf_get_cb = param->resbuf_get_cb;
 	port->resbuf_cb_data = param->resbuf_cb_data;
@@ -1035,8 +1035,8 @@ void isp_scaler_port_put(struct isp_scaler_port *port)
 		return;
 	}
 
-	cam_queue_clear(&port->out_buf_queue, struct cam_frame, list);
-	cam_queue_clear(&port->result_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&port->out_buf_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&port->result_queue, struct cam_frame, list);
 	atomic_set(&port->user_cnt, 0);
 	port->resbuf_get_cb = NULL;
 	port->data_cb_func = NULL;

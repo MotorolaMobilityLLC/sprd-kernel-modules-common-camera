@@ -108,7 +108,7 @@ struct camera_buf_get_desc {
 	enum cambufmanager_status_ops_cmd buf_ops_cmd;
 	enum cam_queue_ops_cmd q_ops_cmd;
 	enum cam_buf_iommudev_type mmu_type;
-	bool (*filter)(struct cam_frame *, void *);
+	enum en_status (*filter)(struct cam_frame *, void *);
 };
 
 struct cam_buf_manager {

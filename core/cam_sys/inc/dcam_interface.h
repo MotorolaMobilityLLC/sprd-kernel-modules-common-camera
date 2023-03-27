@@ -166,7 +166,6 @@ struct nr3_me_data {
 
 void *dcam_core_pipe_dev_get(struct cam_hw_info *hw, void *s_dcam_dev);
 int dcam_core_pipe_dev_put(void *dcam_handle, void *s_dcam_dev);
-int dcam_drv_dt_parse(struct platform_device *pdev,
-			struct cam_hw_info *hw_info, uint32_t *dcam_count);
+int dcam_drv_dt_parse(struct platform_device *pdev, struct cam_hw_info *hw_info, uint32_t *dcam_count);
 
 #endif

@@ -268,7 +268,7 @@ struct camera_module {
 
 struct camera_group {
 	atomic_t camera_opened;
-	bool ca_conn;
+	enum en_status ca_conn;
 
 	struct mutex module_lock;
 	uint32_t module_used;

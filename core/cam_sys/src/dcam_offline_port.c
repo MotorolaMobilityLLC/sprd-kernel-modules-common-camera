@@ -363,7 +363,7 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			}
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-			pframe->common.buf.bypass_iova_ops = 1;
+			pframe->common.buf.bypass_iova_ops = ENABLE;
 
 			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL, port->buf_manager_handle);
 		} while (0);
@@ -420,7 +420,7 @@ void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *par
 		return NULL;
 	}
 	port->result_pool.private_pool_id = ret;
-	pr_debug("%s reg pool %d %d", cam_port_dcam_offline_out_id_name_get(port_id), port->unprocess_pool.private_pool_id, port->result_pool.private_pool_id);
+	pr_debug("%s reg pool %d %d\n", cam_port_dcam_offline_out_id_name_get(port_id), port->unprocess_pool.private_pool_id, port->result_pool.private_pool_id);
 	dcamoffline_port_base_cfg(port, param);
 	*param->port_dev = port;
 	port->port_id = port_id;

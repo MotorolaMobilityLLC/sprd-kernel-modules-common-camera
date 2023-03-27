@@ -46,7 +46,7 @@ static int dcamonline_port_scaler_param_calc(struct img_trim *in_trim,
 	int ret = 0;
 	uint32_t tmp_dstsize = 0, align_size = 0, d_max = DCAM_SCALE_DOWN_MAX;
 
-	pr_debug("dcam scaler in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d,out_size_h:%d\n",
+	pr_debug("dcam scaler in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d, out_size_h:%d\n",
 		in_trim->size_x, in_trim->size_y, out_size->w, out_size->h);
 
 	scaler->scaler_factor_in = in_trim->size_x;
@@ -161,13 +161,14 @@ static int dcamonline_port_buffer_reset_cfg(void *handle, void *param)
 
 			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, dcam_online_port->buf_manager_handle);
 			if (ret) {
-				pr_err("fail to enqueue frame of online port %d\n", cam_port_name_get(dcam_online_port->port_id));
+				pr_err("fail to enqueue frame of online port %s\n", cam_port_name_get(dcam_online_port->port_id));
 				cam_queue_empty_frame_put(pframe);
 				return ret;
 			}
 
-			pr_debug("out_buf_queue cnt:%d, port id:%d, addr:%x.\n", cam_buf_manager_pool_cnt(&pool_id, dcam_online_port->buf_manager_handle),
-					dcam_online_port->port_id, pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
+			pr_debug("port %s, out_buf_queue cnt:%d, addr:%x.\n", cam_port_name_get(dcam_online_port->port_id),
+				cam_buf_manager_pool_cnt(&pool_id, dcam_online_port->buf_manager_handle),
+				pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
 		}
 		pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc, dcam_online_port->buf_manager_handle);
 	}
@@ -185,7 +186,7 @@ static struct cam_frame *dcamonline_port_reserved_buf_get(struct dcam_online_por
 	frame = cam_buf_manager_buf_dequeue(&dcam_port->reserved_pool, &buf_desc, dcam_port->buf_manager_handle);
 	if (frame != NULL) {
 		frame->common.priv_data = dcam_port;
-		pr_debug("use reserved buffer for port %d\n", dcam_port->port_id);
+		pr_debug("use reserved buffer for port %s\n", cam_port_name_get(dcam_port->port_id));
 		if (dcam_port->compress_en)
 			frame->common.is_compressed = 1;
 	}
@@ -281,7 +282,6 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 				if (dst_size.w > DCAM_SCALER_MAX_WIDTH) {
 					pr_err("fail to support scaler, in width %d, out width %d\n",
 						dcam_port->in_trim.size_x, dst_size.w);
-					ret = -1;
 				}
 				dcam_port->scaler_sel = PORT_SCALER_BY_YUVSCALER;
 				ret = dcamonline_port_scaler_param_calc(&dcam_port->in_trim, &dst_size,
@@ -306,7 +306,7 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 				break;
 
 			default:
-				pr_err("fail to get path->out_fmt :%d\n", dcam_port->dcamout_fmt);
+				pr_err("fail to get path->out_fmt :%s\n", camport_fmt_name_get(dcam_port->dcamout_fmt));
 				break;
 		}
 
@@ -318,7 +318,7 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 			dcam_port->in_trim.size_x, dcam_port->in_trim.size_y);
 		break;
 	default:
-		pr_err("fail to get known path %d\n", dcam_port->port_id);
+		pr_err("fail to get known port %s\n", cam_port_name_get(dcam_port->port_id));
 		ret = -EFAULT;
 		break;
 	}
@@ -351,7 +351,7 @@ static inline struct cam_frame *dcamonline_port_frame_cycle(struct dcam_online_p
 
 	frame = cam_buf_manager_buf_dequeue(&pool_id, &buf_desc, dcam_port->buf_manager_handle);
 	if (unlikely(!frame)) {
-		pr_err("fail to get port%d output buf\n", dcam_port->port_id);
+		pr_err("fail to get port %s output buf\n", cam_port_name_get(dcam_port->port_id));
 		return ERR_PTR(-EPERM);
 	}
 
@@ -434,7 +434,7 @@ static int dcamonline_port_pyr_dec_cfg(struct dcam_online_port *dcam_port,
 	struct dcam_hw_dec_online_cfg dec_online;
 
 	if (!dcam_port || !frame || !hw_ctx) {
-		pr_err("fail to check param, path%px, frame%px\n", dcam_port, frame);
+		pr_err("fail to check param, port%px, frame%px, hw_ctx%px\n", dcam_port, frame, hw_ctx);
 		return -EINVAL;
 	}
 	hw = hw_ctx->hw;
@@ -508,8 +508,8 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_dec_store_cfg *dec_store = NULL;
 
-	if (!dcam_port || !frame) {
-		pr_err("fail to check param, port%px, frame%px\n", dcam_port, frame);
+	if (!dcam_port || !frame || !hw_ctx) {
+		pr_err("fail to check param, port%px, frame%px, hw_ctx%px\n", dcam_port, frame, hw_ctx);
 		return -EINVAL;
 	}
 
@@ -630,7 +630,7 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 			hw_ctx->next_roi = dcam_port->in_trim;
 			hw_ctx->zoom_ratio = ZOOM_RATIO_DEFAULT * dcam_port->zoom_ratio_w / dcam_port->in_trim.size_x;
 			hw_ctx->total_zoom = ZOOM_RATIO_DEFAULT * dcam_port->in_size.w / dcam_port->total_zoom_crop_w;
-			pr_debug("total_zoom %d, zoom_ratio %d\n",hw_ctx->total_zoom, hw_ctx->zoom_ratio);
+			pr_debug("total_zoom %d, zoom_ratio %d\n", hw_ctx->total_zoom, hw_ctx->zoom_ratio);
 		}
 		frame->common.width = dcam_port->out_size.w;
 		frame->common.height = dcam_port->out_size.h;
@@ -914,14 +914,14 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 	case PORT_FULL_OUT:
 		port->compress_en = param->compress_en;
 		port->raw_src = param->is_raw ? ORI_RAW_SRC_SEL : PROCESS_RAW_SRC_SEL;
-		pr_info("full path out fmt %s\n",camport_fmt_name_get(port->dcamout_fmt));
+		pr_info("full path out fmt %s\n", camport_fmt_name_get(port->dcamout_fmt));
 		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_BIN_OUT:
 		port->compress_en = param->compress_en;
 		port->pyr_out_fmt = param->pyr_out_fmt;
 		port->is_pyr_rec = param->is_pyr_rec;
-		pr_info("bin path out fmt %s\n",camport_fmt_name_get(port->dcamout_fmt));
+		pr_info("bin path out fmt %s\n", camport_fmt_name_get(port->dcamout_fmt));
 		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_RAW_OUT:
@@ -1209,12 +1209,13 @@ int dcam_online_port_buffer_cfg(void *handle, void *param)
 		struct cam_buf_pool_id pool_id = {0};
 		pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
 		cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, dcam_online_port->buf_manager_handle);
-		pr_err("fail to enqueue frame of online port %d\n", cam_port_name_get(dcam_online_port->port_id));
+		pr_err("fail to enqueue frame of online port %s\n", cam_port_name_get(dcam_online_port->port_id));
 		return ret;
 	}
 
-	pr_debug("out_buf_queue cnt:%d, port id:%d, addr:%x.\n", cam_buf_manager_pool_cnt(&pool_id, dcam_online_port->buf_manager_handle),
-		dcam_online_port->port_id, pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
+	pr_debug("port %s, out_buf_queue cnt:%d, addr:%x.\n", cam_port_name_get(dcam_online_port->port_id),
+		cam_buf_manager_pool_cnt(&pool_id, dcam_online_port->buf_manager_handle),
+		pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
 
 	return ret;
 }
@@ -1229,10 +1230,6 @@ int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *pa
 		return -EFAULT;
 	}
 	dcam_port = (struct dcam_online_port *)handle;
-	if (!dcam_port) {
-		pr_err("fail to get dcam online port ptr %px\n", dcam_port);
-		return -EFAULT;
-	}
 
 	switch (cmd) {
 	case PORT_BUFFER_CFG_SET:
@@ -1265,7 +1262,7 @@ int dcam_online_port_skip_num_set(void *dcam_ctx_handle, uint32_t hw_id,
 	hw_path->frm_deci = skip_num;
 	hw_path->frm_deci_cnt = 0;
 
-	pr_debug("DCAM%u %d set skip_num %u\n", dcam_hw_ctx->hw_ctx_id, path_id, skip_num);
+	pr_debug("DCAM%u path_id %d set skip_num %u\n", dcam_hw_ctx->hw_ctx_id, path_id, skip_num);
 
 	return 0;
 }
@@ -1312,9 +1309,9 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	/* TBD: need to add buf_desc*/
 	total = param->dcamonline_buf_alloc_num;
 
-	pr_info("port:%d, cam%d, ch_id %d, buffer size: %u (%u x %u), fmt %s, pyr fmt %s, num %d\n",
-		port->port_id, param->cam_idx, ch_id,
-		size, width, height, camport_fmt_name_get(param->dcamonline_out_fmt), camport_fmt_name_get(param->pyr_out_fmt), total);
+	pr_info("port:%s, cam%d, ch_id %d, buffer size: %u (%u x %u), fmt %s, pyr fmt %s, num %d\n",
+		cam_port_name_get(port->port_id), param->cam_idx, ch_id, size, width, height,
+		camport_fmt_name_get(port->dcamout_fmt), camport_fmt_name_get(param->pyr_out_fmt), total);
 
 	if ((total == 0) && param->stream_on_buf_com)
 		complete(param->stream_on_buf_com);
@@ -1325,7 +1322,7 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		pframe->common.width = param->width;
 		pframe->common.height = param->height;
 		pframe->common.fbc_info = fbc_info;
-		cam_queue_frame_flag_reset(&pframe->common);
+		CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
 
 		ret = cam_buf_alloc(&pframe->common.buf, size, iommu_enable);
 		if (ret) {
@@ -1336,7 +1333,7 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 
 		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-		pframe->common.buf.bypass_iova_ops = 1;
+		pframe->common.buf.bypass_iova_ops = ENABLE;
 
 		if (param->share_buffer && (port->port_id == PORT_FULL_OUT)) {
 			share_buffer_q.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
@@ -1345,7 +1342,7 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL, port->buf_manager_handle);
 
 		if (ret) {
-			pr_err("fail to enq, port %d, buffer i=%d\n", port->port_id, i);
+			pr_err("fail to enq, port %s, buffer i=%d\n", cam_port_name_get(port->port_id), i);
 			cam_queue_empty_frame_put(pframe);
 		}
 
@@ -1371,7 +1368,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 	if (*param->port_dev == NULL) {
 		port = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_online_port));
 		if (!port) {
-			pr_err("fail to get valid dcam online port %d\n", port_id);
+			pr_err("fail to get valid dcam online port %s\n", cam_port_name_get(port_id));
 			return NULL;
 		}
 	} else if (param->is_raw && (port_id == PORT_VCH2_OUT)) {
@@ -1402,7 +1399,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 
 	ret = cam_buf_manager_pool_reg(NULL, DCAM_OUT_BUF_Q_LEN, port->buf_manager_handle);
 	if (ret < 0) {
-		pr_err("fail to reg pool for port%d\n", port->port_id);
+		pr_err("fail to reg pool for port %s\n", cam_port_name_get(port_id));
 		cam_buf_kernel_sys_vfree(port);
 		return NULL;
 	}
@@ -1410,7 +1407,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 
 	ret = cam_buf_manager_pool_reg(NULL, DCAM_OUT_BUF_Q_LEN, port->buf_manager_handle);
 	if (ret < 0) {
-		pr_err("fail to reg pool for port%d\n", cam_port_name_get(port->port_id));
+		pr_err("fail to reg pool for port %s\n", cam_port_name_get(port->port_id));
 		cam_buf_manager_pool_unreg(&port->unprocess_pool, port->buf_manager_handle);
 		cam_buf_kernel_sys_vfree(port);
 		return NULL;
