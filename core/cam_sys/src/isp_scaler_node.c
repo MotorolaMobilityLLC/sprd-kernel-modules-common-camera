@@ -174,14 +174,14 @@ static uint32_t ispscaler_node_insert_port(struct isp_yuv_scaler_node* node, voi
 	new_port = VOID_PTR_TO(param, struct isp_scaler_port);
 	pr_debug("node type:%d, id:%d, port type:%d new_port %px\n", node->node_type, node->node_id, new_port->port_id, new_port);
 
-	cam_queue_for_each_entry(q_port, &node->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(q_port, &node->port_queue.head, list) {
 		if (new_port == q_port) {
 			is_exist = 1;
 			break;
 		}
 	}
 	if (!is_exist)
-		cam_queue_enqueue(&node->port_queue, &new_port->list);
+		CAM_QUEUE_ENQUEUE(&node->port_queue, &new_port->list);
 	return 0;
 }
 
@@ -189,7 +189,7 @@ static int ispscaler_node_fast_stop_cfg(void *handle)
 {
 	struct isp_yuv_scaler_node *node = NULL;
 	node = VOID_PTR_TO(handle, struct isp_yuv_scaler_node);
-	if (cam_queue_cnt_get(&node->in_queue) == 0 && cam_queue_cnt_get(&node->proc_queue) == 0) {
+	if (CAM_QUEUE_CNT_GET(&node->in_queue) == 0 && CAM_QUEUE_CNT_GET(&node->proc_queue) == 0) {
 		node->is_fast_stop = 0;
 		complete(node->fast_stop_done);
 	} else
@@ -202,7 +202,7 @@ static struct cam_frame *ispscaler_node_fetch_frame_cycle(struct isp_yuv_scaler_
 	uint32_t ret = 0, loop = 0;
 	struct cam_frame *pframe = NULL;
 
-	pframe = cam_queue_dequeue(&node->in_queue, struct cam_frame, list);
+	pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
 	if (!pframe) {
 		pr_err("fail to get input frame (%p) for node %d\n", pframe, node->node_id);
 		return NULL;
@@ -214,7 +214,7 @@ static struct cam_frame *ispscaler_node_fetch_frame_cycle(struct isp_yuv_scaler_
 
 	loop = 0;
 	do {
-		ret = cam_queue_enqueue(&node->proc_queue, &pframe->list);
+		ret = CAM_QUEUE_ENQUEUE(&node->proc_queue, &pframe->list);
 		if (ret == 0)
 			break;
 		pr_info_ratelimited("wait for proc queue. loop %d\n", loop);
@@ -241,9 +241,9 @@ static uint32_t ispscaler_node_fid_across_context_get(struct isp_yuv_scaler_node
 
 	target_fid = CAMERA_RESERVE_FRAME_NUM;
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1 && inode->uinfo.uframe_sync) {
-			frame = cam_queue_dequeue_peek(&port->out_buf_queue, struct cam_frame, list);
+			frame = CAM_QUEUE_DEQUEUE_PEEK(&port->out_buf_queue, struct cam_frame, list);
 			target_fid = min(target_fid, frame->common.user_fid);
 			pr_debug("node id%d port%d user_fid %u\n",inode->node_id, port->port_id, frame->common.user_fid);
 		}
@@ -316,7 +316,7 @@ static int ispscaler_node_slice_needed(struct isp_yuv_scaler_node *inode)
 {
 	struct isp_scaler_port *port = NULL;
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT) {
 			if (port->size.w > g_camctrl.isp_linebuf_len)
 				return 1;
@@ -381,7 +381,7 @@ static int ispscaler_node_slice_ctx_init(struct isp_yuv_scaler_node *inode, stru
 	pipe_info->fetch_fbd_yuv.fetch_fbd_bypass = 1;
 	slc_cfg_in.frame_fbd_yuv = &pipe_info->fetch_fbd_yuv;
 	slc_cfg_in.thumb_scaler = &pipe_info->thumb_scaler;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1) {
 			hw_path_id = isp_scaler_port_id_switch(port->port_id);
 			slc_cfg_in.frame_out_size[hw_path_id] = &pipe_info->store[hw_path_id].store.size;
@@ -510,7 +510,7 @@ static int ispscaler_node_slice_fmcu(struct isp_yuv_scaler_node *inode,
 	uint32_t ret = 0, hw_path_id = 0;
 	struct isp_scaler_port *port = NULL;
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1) {
 			hw_path_id = isp_scaler_port_id_switch(port->port_id);
 			slc_cfg->frame_store[hw_path_id] = &pctx_hw->pipe_info.store[hw_path_id].store;
@@ -542,7 +542,7 @@ static int ispscaler_node_offline_param_set(struct isp_yuv_scaler_node *inode, s
 
 	isp_hwctx_fetch_set(pctx_hw);
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1) {
 			hw_path_id = isp_scaler_port_id_switch(port->port_id);
 			isp_hwctx_scaler_set(pctx_hw, hw_path_id, NULL);
@@ -570,14 +570,14 @@ static int ispscaler_node_offline_param_cfg(struct isp_yuv_scaler_node *inode,
 	port_cfg->thumb_scaler_cal_version = inode->dev->isp_hw->ip_isp->isphw_abt->thumb_scaler_cal_version;
 	port_cfg->pipe_info = &pctx_hw->pipe_info;
 	port_cfg->target_fid = CAMERA_RESERVE_FRAME_NUM;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		ret |= port->port_cfg_cb_func(port_cfg, ISP_SCALER_PORT_PIPEINFO_GET, port);
 	}
 
 	if (inode->pipe_src.uframe_sync)
 		port_cfg->target_fid = ispscaler_node_fid_across_context_get(inode, inode->attach_cam_id);
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1)
 			ret |= port->port_cfg_cb_func(port_cfg, ISP_SCALER_PORT_FRAME_CYCLE, port);
 	}
@@ -615,17 +615,17 @@ static int ispscaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum isp_p
 	ispscaler_node_context_unbind(inode);
 	complete(&inode->frm_done);
 
-	pframe = cam_queue_dequeue(&inode->proc_queue, struct cam_frame, list);
+	pframe = CAM_QUEUE_DEQUEUE(&inode->proc_queue, struct cam_frame, list);
 	if (pframe)
 		pr_debug("isp cfg_id %d post proc, do not need to return frame\n", inode->cfg_id);
 	else
 		pr_err("fail to get src frame  sw_idx=%d  proc_queue.cnt:%d\n",
 			inode->node_id, inode->proc_queue.cnt);
 
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1) {
 			hw_path_id = isp_scaler_port_id_switch(port->port_id);
-			pframe = cam_queue_dequeue(&port->result_queue, struct cam_frame, list);
+			pframe = CAM_QUEUE_DEQUEUE(&port->result_queue, struct cam_frame, list);
 			if (!pframe) {
 				pr_err("fail to get frame from queue. ctx:%d, path:%d\n",
 					inode->node_id, hw_path_id);
@@ -652,6 +652,7 @@ static int ispscaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum isp_p
 	}
 	return 0;
 }
+
 static int ispscaler_node_hwctx_slices_proc(void *inode, struct isp_hw_context *pctx_hw)
 {
 	int ret = 0;
@@ -732,9 +733,10 @@ static int ispscaler_node_start_proc(void *node)
 	}
 
 	port_cfg.node_id = inode->node_id;
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
-			port_cfg.src_frame = cam_queue_dequeue_peek(&inode->in_queue, struct cam_frame, list);
+			port_cfg.src_frame = CAM_QUEUE_DEQUEUE_PEEK(&inode->in_queue, struct cam_frame, list);
 		}
 		if (atomic_read(&port->user_cnt) > 0)
 			port->port_cfg_cb_func(&port_cfg, ISP_SCALER_PORT_SIZE_UPDATE, port);
@@ -804,14 +806,14 @@ static int ispscaler_node_start_proc(void *node)
 	return 0;
 dequeue:
 	result_ret = 1;
-	pframe = cam_queue_dequeue_tail(&inode->proc_queue, struct cam_frame, list);
+	pframe = CAM_QUEUE_DEQUEUE_TAIL(&inode->proc_queue, struct cam_frame, list);
 input_err:
-	cam_queue_for_each_entry(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1) {
 			if (result_ret)
-				pframe = cam_queue_dequeue_tail(&port->result_queue, struct cam_frame, list);
+				pframe = CAM_QUEUE_DEQUEUE_TAIL(&port->result_queue, struct cam_frame, list);
 			else
-				pframe = cam_queue_dequeue_tail(&port->out_buf_queue, struct cam_frame, list);
+				pframe = CAM_QUEUE_DEQUEUE_TAIL(&port->out_buf_queue, struct cam_frame, list);
 			if (pframe) {
 				if (pframe->common.buf.mapping_state & CAM_BUF_MAPPING_ISP)
 					cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
@@ -882,16 +884,16 @@ int isp_scaler_node_request_proc(struct isp_yuv_scaler_node *node, void *param)
 			pipeline->pipeline_graph->name, pframe->common.fid, pframe->common.channel_id, pframe->common.buf.mfd,
 			pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
-	cam_queue_for_each_entry(port, &node->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) > 0)
-			ret = cam_queue_enqueue(&port->out_buf_queue, &dst_frame->list);
+			ret = CAM_QUEUE_ENQUEUE(&port->out_buf_queue, &dst_frame->list);
 		if (ret) {
 			pr_err("fail to enqueue output buffer, path %d.\n", port->port_id);
 			return ret;
 		}
 	}
 
-	cam_queue_enqueue(&node->in_queue, &pframe->list);
+	CAM_QUEUE_ENQUEUE(&node->in_queue, &pframe->list);
 	if (ret) {
 		pr_err("fail to enqueue scaler node in_queue %d.\n");
 		return ret;
@@ -952,9 +954,9 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 	node->uinfo.uframe_sync = param->uframe_sync;
 	node->buf_manager_handle = param->buf_manager_handle;
 
-	cam_queue_init(&node->in_queue, ISP_SCALER_IN_Q_LEN, ispscaler_node_src_frame_ret);
-	cam_queue_init(&node->proc_queue, ISP_SCALER_PROC_Q_LEN, ispscaler_node_src_frame_ret);
-	cam_queue_init(&node->port_queue, PORT_ISP_MAX, NULL);
+	CAM_QUEUE_INIT(&node->in_queue, ISP_SCALER_IN_Q_LEN, ispscaler_node_src_frame_ret);
+	CAM_QUEUE_INIT(&node->proc_queue, ISP_SCALER_PROC_Q_LEN, ispscaler_node_src_frame_ret);
+	CAM_QUEUE_INIT(&node->port_queue, PORT_ISP_MAX, NULL);
 
 	thrd = &node->thread;
 	thrd->data_cb_func = node->data_cb_func;
@@ -998,9 +1000,9 @@ void isp_yuv_scaler_node_put (struct isp_yuv_scaler_node *node)
 
 		node->started = 0;
 		ispscaler_node_context_unbind(node);
-		cam_queue_clear(&node->in_queue, struct cam_frame, list);
-		cam_queue_clear(&node->proc_queue, struct cam_frame, list);
-		cam_queue_clear(&node->port_queue, struct isp_scaler_port, list);
+		CAM_QUEUE_CLEAN(&node->in_queue, struct cam_frame, list);
+		CAM_QUEUE_CLEAN(&node->proc_queue, struct cam_frame, list);
+		CAM_QUEUE_CLEAN(&node->port_queue, struct isp_scaler_port, list);
 	}
 
 	if (atomic_dec_return(&node->user_cnt) == 0) {

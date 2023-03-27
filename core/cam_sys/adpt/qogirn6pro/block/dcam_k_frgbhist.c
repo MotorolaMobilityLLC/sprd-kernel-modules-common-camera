@@ -50,10 +50,6 @@ int dcam_k_frgbhist_block(struct dcam_isp_k_block *param)
 	if (p->bypass)
 		return 0;
 
-	/*
-	 * use hardware slow motion feature
-	 * TODO: handle skip_num not equal to slowmotion_count - 1
-	 */
 	dev = param->dev;
 	hw_ctx = &dev->hw_ctx[idx];
 	if (hw_ctx && hw_ctx->slowmotion_count) {

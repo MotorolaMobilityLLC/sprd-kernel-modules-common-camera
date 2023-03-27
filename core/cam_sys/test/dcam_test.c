@@ -122,7 +122,7 @@ static int get_dcam_path_id(unsigned int camt_dcam_path_id)
 static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_info, int i)
 {
 	int ret = 0;
-	bool invalid;
+	enum en_status invalid = DISABLE;
 	struct img_size crop_size, dst_size;
 	struct cam_hw_info *hw = NULL;
 	struct dcamt_context_comm *dcamt_comm_info = NULL;
@@ -143,7 +143,6 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 		cxt->in_trim.size_x = test_info->crop_rect.w;
 		cxt->in_trim.size_y = test_info->crop_rect.h;
 
-		invalid = 0;
 		invalid |= ((cxt->in_size.w == 0) || (cxt->in_size.h == 0));
 		invalid |= ((cxt->in_trim.start_x + cxt->in_trim.size_x) > cxt->in_size.w);
 		invalid |= ((cxt->in_trim.start_y + cxt->in_trim.size_y) > cxt->in_size.h);
@@ -182,7 +181,6 @@ static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_
 		dcamt_comm_info->out_size.w = test_info->output_size.w;
 		dcamt_comm_info->out_size.h = test_info->output_size.h;
 
-		invalid = 0;
 		invalid |= ((cxt->in_size.w == 0) || (cxt->in_size.h == 0));
 
 		/* trim should not be out range of source */

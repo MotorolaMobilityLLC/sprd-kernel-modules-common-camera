@@ -67,7 +67,7 @@ static int camcore_dcam_online_buf_cfg(struct channel_context *ch,
 		return -EFAULT;
 	}
 
-	cam_queue_frame_flag_reset(&pframe->common);
+	CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
 	ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, ch->dcam_port_id, CAM_PIPELINE_CFG_BUF, pframe);
 	return ret;
 }
@@ -97,9 +97,8 @@ static int camcore_resframe_set(struct camera_module *module)
 {
 	int ret = 0;
 	struct channel_context *ch = NULL;
-	uint32_t i = 0;
+	uint32_t i = 0, src_w = 0, src_h = 0;
 	uint32_t max_size = 0, out_size = 0, in_size = 0, node_id = 0;
-	uint32_t src_w = 0, src_h = 0;
 	struct cam_frame *pframe = NULL;
 	struct dcam_compress_cal_para cal_fbc = {0};
 
@@ -152,7 +151,7 @@ static int camcore_resframe_set(struct camera_module *module)
 		ret = -EFAULT;
 		return ret;
 	}
-	pframe->common.buf.bypass_iova_ops = 1;
+	pframe->common.buf.bypass_iova_ops = ENABLE;
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable || ch->ch_id == CAM_CH_VIRTUAL)
@@ -262,7 +261,7 @@ static int camcore_buffer_channel_config(
 
 		alloc_buf = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
 		alloc_buf->common.priv_data = (void *)channel;
-		cam_queue_enqueue(&module->alloc_queue, &alloc_buf->list);
+		CAM_QUEUE_ENQUEUE(&module->alloc_queue, &alloc_buf->list);
 		complete(&module->buf_thrd.thread_com);
 	}
 
@@ -310,7 +309,7 @@ static int camcore_faceid_secbuf(uint32_t sec, struct camera_buf *buf, struct ca
 		return -EFAULT;
 
 	if (sec) {
-		buf->buf_sec = 1;
+		buf->buf_sec = ENABLE;
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_MMU_FACEID_RECFG, NULL);
 		if (unlikely(ret)) {
 			pr_err("fail to enable vaor bypass mode, ret %d\n", ret);
@@ -347,7 +346,7 @@ static int camcore_buffers_alloc(void *param)
 	channel_vid = &module->channel[CAM_CH_VID];
 	channel_pre = &module->channel[CAM_CH_PRE];
 
-	alloc_buf = cam_queue_dequeue(&module->alloc_queue, struct cam_frame, list);
+	alloc_buf = CAM_QUEUE_DEQUEUE(&module->alloc_queue, struct cam_frame, list);
 
 	if (alloc_buf) {
 		channel = (struct channel_context *)alloc_buf->common.priv_data;
@@ -605,7 +604,7 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 			continue;
 		if (channel->pipeline_type == pipeline_type) {
 			pr_debug("ch %d type %d\n", channel->ch_id, pipeline_type);
-			zoom_frame = cam_queue_dequeue(&channel->zoom_param_q, struct cam_frame, list);
+			zoom_frame = CAM_QUEUE_DEQUEUE(&channel->zoom_param_q, struct cam_frame, list);
 			if (zoom_frame) {
 				memcpy(zoom_param, &zoom_frame->node_zoom, sizeof(struct cam_zoom_frame));
 				cam_queue_empty_frame_put(zoom_frame);
@@ -703,7 +702,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		if (pframe->common.irq_property == CAM_FRAME_PROCESS_RAW)
 			pframe->common.irq_type = CAMERA_IRQ_RAW_BPC_IMG;
 		pframe->common.priv_data = module;
-		ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+		ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 		if (ret) {
 			pr_err("fail to frm_queue overflow\n");
 			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
@@ -723,7 +722,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		pr_debug("pframe->common.fid %d is_flash_status %d irq_property %d\n", pframe->common.fid, pframe->common.is_flash_status, pframe->common.irq_property);
 		if (atomic_read(&module->state) == CAM_RUNNING) {
 			pframe->common.priv_data = module;
-			ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 			if (ret) {
 				pr_warn("warning: frm_queue overflow\n");
 				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
@@ -759,7 +758,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		}
 
 		if (atomic_read(&module->state) == CAM_RUNNING) {
-			ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 			if (ret)
 				cam_queue_empty_frame_put(pframe);
 			else
@@ -801,7 +800,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			} else {
 				pframe->common.irq_type = CAMERA_IRQ_IMG;
 			}
-			ret = cam_queue_enqueue(&module->frm_queue, &pframe->list);
+			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 			if (ret) {
 				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 			} else {
@@ -1241,7 +1240,7 @@ static void camcore_timer_callback(unsigned long data)
 				frame->common.irq_type = CAMERA_IRQ_IMG;
 				frame->common.irq_property = IRQ_MAX_DONE;
 			}
-			ret = cam_queue_enqueue(&module->frm_queue, &frame->list);
+			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &frame->list);
 			if (ret)
 				pr_err("fail to enqueue frm queue cnt:%d, state:%d.\n",
 					module->frm_queue.cnt, module->frm_queue.state);
@@ -1413,7 +1412,7 @@ static int camcore_shutoff_param_prepare(struct camera_module *module,
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) {
 		dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		pipeline_shutoff->node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-		NODE_SHUTOFF_PARAM_INIT(pipeline_shutoff->node_shutoff);
+		CAM_NODE_SHUTOFF_PARAM_INIT(pipeline_shutoff->node_shutoff);
 		atomic_set(&node_shutoff->outport_shutoff[dcam_port_id].cap_cnt, shutoff_cnt);
 		node_shutoff->outport_shutoff[dcam_port_id].port_id = dcam_port_id;
 		node_shutoff->outport_shutoff[dcam_port_id].shutoff_scene = SHUTOFF_SINGLE_PORT_NONZSL;
@@ -1423,7 +1422,7 @@ static int camcore_shutoff_param_prepare(struct camera_module *module,
 
 	if (module->cap_scene == CAPTURE_AI_SFNR && !module->cam_uinfo.param_frame_sync) {
 		pipeline_shutoff->node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-		NODE_SHUTOFF_PARAM_INIT(pipeline_shutoff->node_shutoff);
+		CAM_NODE_SHUTOFF_PARAM_INIT(pipeline_shutoff->node_shutoff);
 		atomic_set(&node_shutoff->outport_shutoff[PORT_FULL_OUT].cap_cnt, shutoff_cnt + 1);
 		node_shutoff->outport_shutoff[PORT_FULL_OUT].port_id = PORT_FULL_OUT;
 		node_shutoff->outport_shutoff[PORT_FULL_OUT].shutoff_scene = SHUTOFF_MULTI_PORT_SWITCH;
@@ -1478,9 +1477,9 @@ static int camcore_module_init(struct camera_module *module)
 
 	camcore_timer_init(&module->cam_timer, (unsigned long)module);
 	/* no need release buffer, only release camera_frame */
-	cam_queue_init(&module->remosaic_queue, CAM_IRQ_Q_LEN, cam_queue_empty_frame_put);
-	cam_queue_init(&module->frm_queue, CAM_FRAME_Q_LEN, cam_queue_empty_frame_put);
-	cam_queue_init(&module->alloc_queue, CAM_ALLOC_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&module->remosaic_queue, CAM_IRQ_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&module->frm_queue, CAM_FRAME_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&module->alloc_queue, CAM_ALLOC_Q_LEN, cam_queue_empty_frame_put);
 
 	pr_info("module[%d] init OK %px!\n", module->idx, module);
 
@@ -1493,9 +1492,9 @@ static int camcore_module_deinit(struct camera_module *module)
 	struct channel_context *channel = NULL;
 
 	cam_flash_handle_put(module->flash_core_handle);
-	cam_queue_clear(&module->remosaic_queue, struct cam_frame, list);
-	cam_queue_clear(&module->frm_queue, struct cam_frame, list);
-	cam_queue_clear(&module->alloc_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&module->remosaic_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&module->frm_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&module->alloc_queue, struct cam_frame, list);
 
 	for (ch = 0; ch < CAM_CH_MAX; ch++) {
 		channel = &module->channel[ch];
@@ -1826,7 +1825,7 @@ rewait:
 
 		cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
 		cam_queue_frame_check_lock();
-		pframe = cam_queue_dequeue(&module->frm_queue, struct cam_frame, list);
+		pframe = CAM_QUEUE_DEQUEUE(&module->frm_queue, struct cam_frame, list);
 		if (!pframe) {
 			/* any exception happens or user trigger exit. */
 			pr_info("No valid frame buffer. tx stop.\n");
@@ -1914,7 +1913,7 @@ rewait:
 			/* 4in1 report frame for remosaic
 			 * save frame for 4in1_post IOCTL
 			 */
-			ret = cam_queue_enqueue(&module->remosaic_queue, &pframe->list);
+			ret = CAM_QUEUE_ENQUEUE(&module->remosaic_queue, &pframe->list);
 			if (!ret) {
 				cam_queue_frame_check_unlock();
 				break;
@@ -2172,7 +2171,7 @@ static int camcore_open(struct inode *node, struct file *file)
 		pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
 		cam_buf_manager_pool_reg(&pool_id, CAM_FRAME_Q_LEN, (void *)grp->global_buf_manager);
 		g_ion_buf_q = &grp->ion_buf_q;
-		cam_queue_init(g_ion_buf_q, CAM_EMP_Q_LEN_MAX, cam_queue_ioninfo_free);
+		CAM_QUEUE_INIT(g_ion_buf_q, CAM_EMP_Q_LEN_MAX, cam_queue_ioninfo_free);
 
 		pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 		ret = cam_buf_manager_pool_reg(&pool_id, DCAM_OUT_BUF_Q_LEN, (void *)grp->global_buf_manager);
@@ -2252,8 +2251,6 @@ static int camcore_release(struct inode *node, struct file *file)
 	idx = module->idx;
 	mutex_lock(&group->module_lock);
 	if (module->grp->camsec_cfg.camsec_mode  != SEC_UNABLE) {
-		bool ret = 0;
-
 		module->grp->camsec_cfg.camsec_mode = SEC_UNABLE;
 		ret = cam_trusty_security_set(&module->grp->camsec_cfg,
 			CAM_TRUSTY_EXIT);
@@ -2326,7 +2323,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		cam_buf_manager_pool_unreg(&pool_id, (void *)group->global_buf_manager);
 
 		/* g_leak_debug_cnt should be 0 after clr, or else memory leak */
-		cam_queue_clear(g_ion_buf_q, struct camera_buf_ion_info, list);
+		CAM_QUEUE_CLEAN(g_ion_buf_q, struct camera_buf_ion_info, list);
 		g_ion_buf_q = NULL;
 
 		ret = cam_buf_monitor_mdbg_check();

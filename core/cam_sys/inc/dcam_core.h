@@ -108,7 +108,6 @@ struct dcam_hw_context {
 	uint32_t recovery_fid;
 	uint32_t index_to_set;
 	uint32_t slw_idx;
-	bool need_fix;
 	atomic_t user_cnt;
 	uint32_t irq;
 	enum en_status irq_enable;
@@ -275,7 +274,7 @@ static inline uint32_t cal_sprd_size(uint32_t w, uint32_t h, uint32_t fmt)
 }
 struct dcam_dummy_param {
 	uint32_t hw_ctx_id;
-	bool enable;
+	enum en_status enable;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
 };
@@ -291,7 +290,6 @@ static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, ui
 
 	return w;
 }
-void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
-		struct dcam_irq_info *irq_info);
+void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx, struct dcam_irq_info *irq_info);
 inline void dcam_core_offline_reset(struct dcam_hw_context *hw_ctx);
 #endif

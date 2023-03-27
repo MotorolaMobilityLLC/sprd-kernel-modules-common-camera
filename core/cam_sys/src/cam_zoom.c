@@ -905,7 +905,7 @@ next:
 	update_pv = update_c = 0;
 	/* Get node from the preview/video/cap coef queue if exist */
 	if (ch_prev->enable)
-		pre_zoom_coeff = cam_queue_dequeue(&ch_prev->zoom_user_crop_q, struct cam_frame, list);
+		pre_zoom_coeff = CAM_QUEUE_DEQUEUE(&ch_prev->zoom_user_crop_q, struct cam_frame, list);
 	if (pre_zoom_coeff) {
 		ch_prev->ch_uinfo.src_crop = pre_zoom_coeff->user_zoom.zoom_crop;
 		ch_prev->ch_uinfo.total_src_crop = pre_zoom_coeff->user_zoom.total_zoom_crop;
@@ -914,7 +914,7 @@ next:
 	}
 
 	if (ch_vid->enable)
-		vid_zoom_coeff = cam_queue_dequeue(&ch_vid->zoom_user_crop_q, struct cam_frame, list);
+		vid_zoom_coeff = CAM_QUEUE_DEQUEUE(&ch_vid->zoom_user_crop_q, struct cam_frame, list);
 	if (vid_zoom_coeff) {
 		ch_vid->ch_uinfo.src_crop = vid_zoom_coeff->user_zoom.zoom_crop;
 		update_pv |= 1;
@@ -922,7 +922,7 @@ next:
 	}
 
 	if (ch_cap->enable)
-		cap_zoom_coeff = cam_queue_dequeue(&ch_cap->zoom_user_crop_q, struct cam_frame, list);
+		cap_zoom_coeff = CAM_QUEUE_DEQUEUE(&ch_cap->zoom_user_crop_q, struct cam_frame, list);
 	if (cap_zoom_coeff) {
 		ch_cap->ch_uinfo.src_crop = cap_zoom_coeff->user_zoom.zoom_crop;
 		update_c |= 1;
@@ -972,7 +972,7 @@ int cam_zoom_param_set(struct cam_zoom_desc *in_ptr)
 		if (cur_zoom) {
 			camzoom_frame_param_cfg(in_ptr, &cur_zoom->node_zoom);
 			pr_debug("set cur_zoom %px\n", cur_zoom);
-			ret = cam_queue_enqueue(zoom_q, &cur_zoom->list);
+			ret = CAM_QUEUE_ENQUEUE(zoom_q, &cur_zoom->list);
 			if (ret) {
 				pr_err("fail to enq zoom cnt %d, state:%d\n", zoom_q->cnt, zoom_q->state);
 				return ret;

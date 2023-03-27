@@ -497,7 +497,7 @@ static int dcamhw_stop(void *handle, void *arg)
 
 	if (!hw_ctx->is_offline_proc && hw_ctx->dummy_slave) {
 		dummy_param.hw_ctx_id = hw_ctx->hw_ctx_id;
-		dummy_param.enable = 0;
+		dummy_param.enable = DISABLE;
 		hw_ctx->dummy_slave->dummy_ops->dummy_enable(hw_ctx->dummy_slave, &dummy_param);
 	}
 

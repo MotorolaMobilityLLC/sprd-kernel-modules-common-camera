@@ -455,7 +455,6 @@ static int camt_isp_cfg_fetch(struct ispt_context *ctx,
 	case CAM_YUV420_2FRAME:
 	case CAM_YVU420_2FRAME:
 	case CAM_FULL_RGB10:
-		/* TBD */
 		break;
 	case CAM_RAW_PACK_10:
 	{
@@ -566,7 +565,6 @@ static int camt_isp_cfg_store(struct ispt_context *ctx,
 	case CAM_YVU422_2FRAME:
 	case CAM_YUV422_3FRAME:
 	case CAM_YUV420_3FRAME:
-		/* TBD */
 		break;
 	case CAM_YUV420_2FRAME:
 	case CAM_YVU420_2FRAME:
@@ -711,7 +709,6 @@ int ispt_start(struct camt_info *info)
 		path_scaler->out_trim.size_y = info->output_size.h;
 		path_scaler->dst.w = info->output_size.w;
 		path_scaler->dst.h = info->output_size.h;
-		/* TBD just bypass scaler */
 		path_scaler->scaler.scaler_bypass = 1;
 		hw->isp_ioctl(hw, ISP_HW_CFG_SET_PATH_SCALER, path_scaler);
 

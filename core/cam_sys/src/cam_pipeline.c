@@ -234,10 +234,10 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		node_cmd = CAM_NODE_CFG_BASE;
 		break;
 	case CAM_PIPELINE_CFG_CLR_CACHE_BUF:
-		node_cmd = CAM_NODE_CLR_CACHE_BUF;
+		node_cmd = CAM_NODE_CFG_CLR_CACHE_BUF;
 		break;
 	case CAM_PIPELINE_CFG_DUAL_SYNC_BUF_GET:
-		node_cmd = CAM_NODE_DUAL_SYNC_BUF_GET;
+		node_cmd = CAM_NODE_CFG_DUAL_SYNC_BUF_GET;
 		break;
 	case CAM_PIPELINE_CFG_BLK_PARAM:
 		node_cmd = CAM_NODE_CFG_BLK_PARAM;
@@ -270,13 +270,13 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		node_cmd = CAM_NODE_CFG_PARAM_Q_CLEAR;
 		break;
 	case CAM_PIPELINE_CFG_RECT_GET:
-		node_cmd = CAM_NODE_RECT_GET;
+		node_cmd = CAM_NODE_CFG_RECT_GET;
 		break;
 	case CAM_PIPELINE_CFG_GTM_LTM:
 		node_cmd = CAM_NODE_CFG_BLK_GTM_LTM;
 		break;
 	case CAM_PIPELINE_CFG_RESET:
-		node_cmd = CAM_NODE_RESET;
+		node_cmd = CAM_NODE_CFG_RESET;
 		break;
 	case CAM_PIPELINE_CFG_XTM_EN:
 		node_cmd = CAM_NODE_CFG_XTM_EN;
@@ -288,7 +288,7 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		node_cmd = CAM_NODE_CFG_PARAM_FID;
 		break;
 	case CAM_PIPELINE_CFG_RESET_PARAM_PTR:
-		node_cmd = CAM_NODE_RESET_PARAM_PTR;
+		node_cmd = CAM_NODE_CFG_RESET_PARAM_PTR;
 		break;
 	case CAM_PIPELINE_CFG_PRE_RAW_FLAG:
 		node_cmd = CAM_NODE_CFG_PRE_RAW_FLAG;
@@ -531,8 +531,7 @@ int cam_pipeline_buffer_alloc(struct cam_pipeline *pipe, struct cam_buf_alloc_de
 void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 {
 	int i = 0;
-	uint32_t g_dump_en = 0;
-	uint32_t g_replace_en = 0;
+	uint32_t g_dump_en = 0, g_replace_en = 0;
 	struct cam_pipeline *pipeline = NULL;
 	struct cam_node_desc node_desc = {0};
 

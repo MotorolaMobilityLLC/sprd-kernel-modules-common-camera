@@ -129,7 +129,7 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	ch->enable = 1;
 	ch->dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path);
 	ch->pipeline_type = pipeline_type;
-	cam_queue_init(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
+	CAM_QUEUE_INIT(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
 
 	/*TEMP: config ispctxid to pyrdec node*/
 	if (pipeline_desc->pipeline_graph->need_pyr_dec && pyrdec_support)
@@ -244,7 +244,7 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	}
 	mid_frame->common.sensor_time = src_frame->common.sensor_time;
 	mid_frame->common.boot_sensor_time = src_frame->common.boot_sensor_time;
-	cam_queue_frame_flag_reset(&mid_frame->common);
+	CAM_QUEUE_FRAME_FLAG_RESET(&mid_frame->common);
 	ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, ch->dcam_port_id, CAM_PIPELINE_CFG_BUF,
 		mid_frame, CAM_NODE_TYPE_DCAM_OFFLINE);
 	if (ret) {
@@ -460,7 +460,7 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	ch->enable = 1;
 	ch->dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path);
 	ch->pipeline_type = pipeline_type;
-	cam_queue_init(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
+	CAM_QUEUE_INIT(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
 
 	/* config ispctxid to pyrdec node */
 	if (pyr_dec_desc && isp_node_description)
@@ -557,7 +557,7 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 	mid_frgb_frame->common.link_to.node_id = DCAM_OFFLINE_NODE_ID;
 	mid_frgb_frame->common.cam_fmt = CAM_FULL_RGB14;
 
-	cam_queue_frame_flag_reset(&mid_frgb_frame->common);
+	CAM_QUEUE_FRAME_FLAG_RESET(&mid_frgb_frame->common);
 	ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, ch->dcam_port_id, CAM_PIPELINE_CFG_BUF,
 		mid_frgb_frame, CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB);
 	if (ret) {
@@ -592,7 +592,7 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 	mid_frame->common.link_to.node_type = CAM_NODE_TYPE_PYR_DEC;
 	mid_frame->common.link_to.node_id = PYR_DEC_NODE_ID;
 
-	cam_queue_frame_flag_reset(&mid_frame->common);
+	CAM_QUEUE_FRAME_FLAG_RESET(&mid_frame->common);
 	ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, ch->dcam_port_id, CAM_PIPELINE_CFG_BUF,
 		mid_frame, CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV);
 	if (ret) {

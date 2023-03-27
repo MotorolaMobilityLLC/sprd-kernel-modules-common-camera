@@ -343,8 +343,8 @@ struct cam_pipeline {
 	ret; \
 })
 
-void *cam_pipeline_creat(struct cam_pipeline_desc *param);
 int cam_pipeline_buffer_alloc(struct cam_pipeline *pipe, struct cam_buf_alloc_desc *param);
+void *cam_pipeline_creat(struct cam_pipeline_desc *param);
 void cam_pipeline_destory(struct cam_pipeline *pipeline);
 
 #endif

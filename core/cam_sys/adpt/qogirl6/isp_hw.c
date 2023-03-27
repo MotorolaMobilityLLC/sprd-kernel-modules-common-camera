@@ -920,9 +920,6 @@ static void isphw_path_shrink_info_set(
 	ISP_REG_MWR(idx, addr, (BIT_22 | BIT_23),
 		regular_info->regular_mode << 22);
 
-	/*TBD
-	 * the value need to update.
-	 */
 	if (regular_info->regular_mode == DCAM_REGULAR_SHRINK) {
 		regular_info->shrink_y_up_th = SHRINK_Y_UP_TH;
 		regular_info->shrink_y_dn_th = SHRINK_Y_DN_TH;

@@ -346,8 +346,8 @@ static void camdebugger_dump_control_write(struct cam_hw_info *hw, char *name, c
 {
 	uint32_t val = 0;
 
-	val = simple_strtol(param, NULL, 0);
-	pr_info("set dump_control %u\n", val);
+	val = simple_strtol(param, NULL, 16);
+	pr_info("set dump_control %x\n", val);
 
 	cam_dump_node_set(&val);
 }
@@ -365,8 +365,8 @@ static void camdebugger_dump_control_read(struct seq_file *s, uint32_t idx)
 	seq_printf(s, "      echo dump_ctrl:2021 >debug_node\n");
 	seq_printf(s, "  2->cap pipeline, 0->dcam online node, 2->full port, 1->work\n");
 	seq_printf(s, "\nDump Info:\n");
-	seq_printf(s, "      Pipeline_type:        Preview = 0, Video = 1, Capture = 2, Zsl_Capture = 3, Online_normal2yuv_or_raw2user2yuv = 14...\n");
-	seq_printf(s, "      Node_type:            Dcam_online = 0, Dcam_offline = 1, Offline_dec = 6...\n");
+	seq_printf(s, "      Pipeline_type:        Preview = 0, Video = 1, Capture = 2, Zsl_Capture = 3, Online_normal2yuv_or_raw2user2yuv = b...\n");
+	seq_printf(s, "      Node_type:            Dcam_online = 0, Dcam_offline = 1, Offline_dec = 8...\n");
 	seq_printf(s, "      Dcam_online port_id:  Bin = 1, Full = 2...\n");
 	seq_printf(s, "      State:                Bypass = 0, Work = 1.\n");
 	seq_printf(s, "\nPS:\n");

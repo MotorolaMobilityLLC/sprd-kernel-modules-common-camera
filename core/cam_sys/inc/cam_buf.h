@@ -17,9 +17,9 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/sprd_iommu.h>
-#include <os_adapt_common.h>
 
-#include "cam_kernel_adapt.h"
+#include "cam_types.h"
+
 #define CAM_BUF_CAHCED                     (1 << 31)
 #define CAM_BUF_MAP_CALC_Q_LEN              4000
 #define CAM_BUF_MEMORY_ALLOC_Q_LEN          4000
@@ -81,7 +81,7 @@ enum cam_buf_status {
 };
 
 struct camera_buf {
-	bool buf_sec;
+	enum en_status buf_sec;
 	/* user buffer info */
 	uint32_t mfd;
 	struct dma_buf *dmabuf_p;
@@ -96,7 +96,7 @@ struct camera_buf {
 	struct dma_buf_attachment *attachment[CAM_BUF_IOMMUDEV_MAX];
 	struct sg_table *table[CAM_BUF_IOMMUDEV_MAX];
 	enum cam_buf_status status;
-	bool bypass_iova_ops;
+	enum en_status bypass_iova_ops;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	struct dma_buf_map map;/* for k515 dambuf */
 #endif

@@ -36,24 +36,6 @@ enum dcam_port_cfg_callback {
 	DCAM_PORT_BUF_RESET_CFG_SET,
 };
 
-struct dcam_port_size_info {
-	uint32_t out_w;
-	uint32_t out_h;
-	uint32_t out_pitch;
-	uint32_t bin_ratio;
-	uint32_t scaler_sel;
-	struct yuv_scaler_info *scaler_info;
-	struct img_size in_size;
-	struct img_trim in_trim;
-	uint32_t src_sel;
-	void *priv_size_data;
-	struct img_trim next_roi;
-	uint32_t zoom_ratio;
-	uint32_t total_zoom;
-	uint32_t dst_crop_w;
-	struct img_trim total_in_trim;
-};
-
 struct dcam_online_port_desc {
 	void **port_dev;
 	zoom_get_cb zoom_cb_func;

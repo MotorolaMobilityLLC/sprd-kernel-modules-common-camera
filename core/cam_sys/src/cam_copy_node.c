@@ -40,7 +40,7 @@ int cam_copy_node_buffer_cfg(void *handle, void *param)
 		return ret;
 	}
 
-	ret = cam_queue_enqueue(&node->out_queue, &pframe->list);
+	ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
 	if (ret)
 		pr_err("fail to enqueue copy buffer\n");
 
@@ -91,12 +91,12 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 	struct cam_frame *pframe = NULL, *raw_frame = NULL;
 
 	for (i = 0; i < loop_num; i++) {
-		pframe = cam_queue_dequeue(&node->in_queue, struct cam_frame, list);
+		pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
 		if (pframe == NULL) {
 			pr_err("fail to get input frame for dump node %d\n", node->node_id);
 			goto get_pframe_fail;
 		}
-		raw_frame = cam_queue_dequeue(&node->out_queue, struct cam_frame, list);
+		raw_frame = CAM_QUEUE_DEQUEUE(&node->out_queue, struct cam_frame, list);
 		if (raw_frame == NULL) {
 			pr_debug("raw path no get out queue\n");
 			pframe->common.copy_en = 0;
@@ -148,7 +148,7 @@ pframe_kmap_fail:
 raw_buffer_smaller_fail:
 	pframe->common.copy_en = 0;
 	node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-	cam_queue_enqueue(&node->out_queue, &raw_frame->list);
+	CAM_QUEUE_ENQUEUE(&node->out_queue, &raw_frame->list);
 get_pframe_fail:
 
 	return -EFAULT;
@@ -169,7 +169,7 @@ static int camcopy_node_frame_start(void *param)
 	if (node->record_channel_id == CAM_CH_PRE && node->opt_buffer_num) {
 		if (node->pre_raw_flag == PRE_RAW_CACHE) {
 			if (node->in_queue.cnt > node->opt_buffer_num) {
-				pframe = cam_queue_dequeue(&node->in_queue, struct cam_frame, list);
+				pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
 				pframe->common.copy_en = 0;
 				ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
 			}
@@ -180,7 +180,7 @@ static int camcopy_node_frame_start(void *param)
 			atomic_set(&node->opt_frame_done, 1);
 			loop_num = node->opt_buffer_num;
 		} else {
-			pframe = cam_queue_dequeue_tail(&node->in_queue, struct cam_frame, list);
+			pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->in_queue, struct cam_frame, list);
 			pframe->common.copy_en = 0;
 			ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
 			return ret;
@@ -217,7 +217,7 @@ int cam_copy_node_request_proc(struct cam_copy_node *node, void *param)
 				pframe->common.width, pframe->common.height, pframe->common.is_reserved, pframe->common.is_compressed);
 
 		node->record_channel_id = pframe->common.channel_id;
-		ret = cam_queue_enqueue(&node->in_queue, &pframe->list);
+		ret = CAM_QUEUE_ENQUEUE(&node->in_queue, &pframe->list);
 		if (ret == 0)
 			complete(&node->thread.thread_com);
 		else
@@ -252,8 +252,8 @@ void *cam_copy_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 		node->copy_cb_handle = priv_data;
 	}
 
-	cam_queue_init(&node->in_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
-	cam_queue_init(&node->out_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->in_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->out_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
 	node->node_id = node_id;
 	node->copy_flag = DISABLE;
 	node->pre_raw_flag = PRE_RAW_CACHE;
@@ -280,8 +280,8 @@ void cam_copy_node_put(struct cam_copy_node *node)
 	}
 
 	camthread_stop(&node->thread);
-	cam_queue_clear(&node->in_queue, struct cam_frame, list);
-	cam_queue_clear(&node->out_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->in_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->out_queue, struct cam_frame, list);
 	node->copy_cb_func = NULL;
 	node->copy_cb_handle = NULL;
 	pr_info("cam copy node %d put\n", node->node_id);

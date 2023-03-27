@@ -1461,11 +1461,11 @@ int cam_scene_static_linkages_get(struct cam_scene *param, void *hw_info)
 int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0, j = 0;
-	struct cam_frame *pframe = NULL;
+	struct cam_frame *pframe = NULL, *newfrm = NULL;
 	struct cam_frame **frame = NULL;
-	struct cam_frame *newfrm = NULL;
 	struct camera_module *module = NULL;
 	struct cam_buf_pool_id pool_id = {0};
+
 	if (!priv_data) {
 		pr_err("fail to get valid param %p\n", priv_data);
 		return -EFAULT;

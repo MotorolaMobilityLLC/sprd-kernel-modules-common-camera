@@ -440,12 +440,12 @@ struct dcam_isp_k_block *pyrdecnode_blk_param_get(struct pyr_dec_node *node, uin
 
 	do {
 		mutex_lock(&node->blkpm_q_lock);
-		decblk_frame = cam_queue_dequeue_peek(&node->param_buf_queue, struct cam_frame, list);
+		decblk_frame = CAM_QUEUE_DEQUEUE_PEEK(&node->param_buf_queue, struct cam_frame, list);
 		if (decblk_frame) {
 			pr_debug("decblk_frame.fid=%d,pframe.id=%d\n",decblk_frame->dec_blk.fid, target_fid);
-			decblk_frame = cam_queue_dequeue(&node->param_buf_queue, struct cam_frame, list);
+			decblk_frame = CAM_QUEUE_DEQUEUE(&node->param_buf_queue, struct cam_frame, list);
 			mutex_unlock(&node->blkpm_q_lock);
-			cam_queue_enqueue(&node->param_share_queue, &decblk_frame->list);
+			CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);
 			if (decblk_frame->dec_blk.fid == target_fid) {
 				out = decblk_frame->dec_blk.decblk_pm;
 				break;
@@ -1249,8 +1249,8 @@ static int pyrdec_node_proc_init(void *handle)
 
 	node = (struct pyr_dec_node *)handle;
 	mutex_init(&node->blkpm_q_lock);
-	cam_queue_init(&node->param_share_queue, node->blkparam_buf_num, cam_queue_empty_frame_put);
-	cam_queue_init(&node->param_buf_queue, node->blkparam_buf_num, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->param_share_queue, node->blkparam_buf_num, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&node->param_buf_queue, node->blkparam_buf_num, cam_queue_empty_frame_put);
 	for (i = 0; i < node->blkparam_buf_num; i++) {
 		decblk_frame = cam_queue_empty_frame_get(CAM_FRAME_DEC_BLK);
 		if (!decblk_frame) {
@@ -1262,7 +1262,7 @@ static int pyrdec_node_proc_init(void *handle)
 			pr_err("fail to alloc memory.\n");
 			goto alloc_err;
 		}
-		ret = cam_queue_enqueue(&node->param_share_queue, &decblk_frame->list);
+		ret = CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);
 		if (ret) {
 			pr_err("fail to enqueue shared buf: %d node id %d\n", i, node->node_id);
 			goto alloc_err;
@@ -1301,7 +1301,7 @@ proc_thrd_err:
 result_pool_err:
 	cam_buf_manager_pool_unreg(&node->fetch_unprocess_pool, node->buf_manager_handle);
 alloc_err:
-	cam_queue_clear(&node->param_share_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->param_share_queue, struct cam_frame, list);
 	return ret;
 }
 
@@ -1442,10 +1442,10 @@ int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 	node = (struct pyr_dec_node *)handle;
 	param_status = (struct cfg_param_status *)param;
 	if (param_status->status) {
-		decblk_frame = cam_queue_dequeue(&node->param_share_queue, struct cam_frame, list);
+		decblk_frame = CAM_QUEUE_DEQUEUE(&node->param_share_queue, struct cam_frame, list);
 		if (!decblk_frame) {
 			mutex_lock(&node->blkpm_q_lock);
-			decblk_frame = cam_queue_dequeue(&node->param_buf_queue, struct cam_frame, list);
+			decblk_frame = CAM_QUEUE_DEQUEUE(&node->param_buf_queue, struct cam_frame, list);
 			mutex_unlock(&node->blkpm_q_lock);
 			if (!ret)
 				pr_debug("pyr dec node deq param fid %d\n", decblk_frame->dec_blk.fid);
@@ -1456,10 +1456,10 @@ int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 			memcpy(decblk_frame->dec_blk.decblk_pm, &node->decblk_param, sizeof(struct dcam_isp_k_block));
 		else
 			pr_warn("warning:get decblk frame, but not decblk_pm.\n");
-		ret = cam_queue_enqueue(&node->param_buf_queue, &decblk_frame->list);
+		ret = CAM_QUEUE_ENQUEUE(&node->param_buf_queue, &decblk_frame->list);
 		if (ret) {
 			pr_err("fail to enquene dec param_buf_queue:state:%d, cnt:%d\n", node->param_buf_queue.state, node->param_buf_queue.cnt);
-			cam_queue_enqueue(&node->param_share_queue, &decblk_frame->list);
+			CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);
 		}
 	}
 
@@ -1518,8 +1518,8 @@ int pyr_dec_node_close(void *handle)
 	cam_buf_manager_pool_unreg(&node->fetch_unprocess_pool, node->buf_manager_handle);
 	cam_buf_manager_pool_unreg(&node->fetch_result_pool, node->buf_manager_handle);
 	mutex_lock(&node->blkpm_q_lock);
-	cam_queue_clear(&node->param_share_queue, struct cam_frame, list);
-	cam_queue_clear(&node->param_buf_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->param_share_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->param_buf_queue, struct cam_frame, list);
 	mutex_unlock(&node->blkpm_q_lock);
 
 	return ret;

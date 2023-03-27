@@ -12,6 +12,7 @@
  */
 
 #include "alg_slice_calc.h"
+#include "cam_buf.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

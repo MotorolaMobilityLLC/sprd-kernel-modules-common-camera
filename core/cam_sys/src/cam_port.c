@@ -24,7 +24,7 @@
 
 #define IS_CAM_FMT(type) ((type) >= CAM_RAW_PACK_10 && (type) < CAM_FORMAT_MAX)
 
-static const char *_CAMPORT_FMT_NAMES[CAM_FORMAT_MAX] = {
+static const char *CAMPORT_FMT_NAMES[CAM_FORMAT_MAX] = {
 	[CAM_RAW_BASE] = "CAM_RAW_BASE",
 	[CAM_RAW_PACK_10] = "CAM_RAW_PACK_10",
 	[CAM_RAW_HALFWORD_10] = "CAM_RAW_HALFWORD_10",
@@ -52,7 +52,7 @@ static const char *_CAMPORT_FMT_NAMES[CAM_FORMAT_MAX] = {
 
 const char *camport_fmt_name_get(enum cam_format type)
 {
-	return IS_CAM_FMT(type) ? _CAMPORT_FMT_NAMES[type] : "(null)";
+	return IS_CAM_FMT(type) ? CAMPORT_FMT_NAMES[type] : "(null)";
 }
 
 static const char *_DCAM_PORT_NAMES[PORT_DCAM_OUT_MAX] = {

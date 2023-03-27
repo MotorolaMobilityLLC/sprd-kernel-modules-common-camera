@@ -344,12 +344,9 @@ struct cam_capture_param {
 struct cam_buf_alloc_desc {
 	uint32_t height;
 	uint32_t width;
-	uint32_t is_pack;
 	uint32_t ch_id;
 	enum en_status compress_en;
 	uint32_t compress_offline;
-	uint32_t dcamonline_out_fmt;
-	uint32_t dcamoffline_out_fmt;
 	uint32_t is_pyr_rec;
 	uint32_t is_pyr_dec;
 	uint32_t pyr_out_fmt;
@@ -398,8 +395,7 @@ uint32_t cam_is_pack(uint32_t dcam_out_fmt);
 uint32_t cam_format_get(uint32_t img_pix_fmt);
 uint32_t cam_cal_hw_pitch(uint32_t w, uint32_t format);
 int cam_raw_fmt_get(uint32_t fmt);
-int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,
-		uint32_t *scaler_sel, uint32_t *bin_ratio);
+int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst, uint32_t *scaler_sel, uint32_t *bin_ratio);
 int cam_valid_fmt_get(int32_t *fmt, uint32_t default_value);
 
 uint32_t dcamonline_portid_convert_to_pathid(uint32_t port_id);
@@ -409,8 +405,7 @@ uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id);
 
 
 typedef int(*pyr_dec_buf_cb)(void *param, void *cb_handle);
-typedef int(*reserved_buf_get_cb)(enum reserved_buf_cb_type type, void *param,
-				void *cb_handle);
+typedef int(*reserved_buf_get_cb)(enum reserved_buf_cb_type type, void *param, void *cb_handle);
 typedef struct cam_frame *(*dual_frame_sync_cb)(void *param, void *cb_handle, int *flag);
 typedef int(*dual_slave_frame_set_cb)(void *param, void *cb_handle);
 typedef int(*cap_frame_status_cb)(uint32_t param, void *cb_handle);

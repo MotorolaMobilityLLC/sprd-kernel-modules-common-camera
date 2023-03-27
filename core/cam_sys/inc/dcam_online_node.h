@@ -90,9 +90,9 @@ struct dcam_online_node_desc {
 struct dcam_online_node {
 	atomic_t pm_cnt;
 	atomic_t user_cnt;
-	atomic_t state;/* TODO: use mutex to protect */
+	atomic_t state;
 	atomic_t ch_enable_cnt;
-	bool need_fix;
+	enum en_status need_fix;
 	enum cam_node_type node_type;
 	uint32_t node_id;
 	enum en_status is_3dnr;
@@ -130,15 +130,6 @@ struct dcam_online_node {
 	shutoff_cfg_cb shutoff_cfg_cb_func;
 	void *shutoff_cfg_cb_handle;
 };
-
-#define DCAM_ONLINE_NODE_SHUTOFF_CALLBACK(dcam_port)  ({ \
-	int ret = 0; \
-	struct cam_node_cfg_param node_param = {0}; \
-	node_param.port_id = (dcam_port)->port_id; \
-	node_param.param = &(dcam_port)->is_shutoff; \
-	ret = (dcam_port)->shutoff_cb_func(&node_param, (dcam_port)->shutoff_cb_handle); \
-	ret; \
-})
 
 int dcam_online_node_irq_proc(void *param, void *handle);
 int dcam_online_node_pmctx_init(struct dcam_online_node *node);

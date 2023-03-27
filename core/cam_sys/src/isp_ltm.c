@@ -625,7 +625,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx,
 	hists->text_point_thres = param->text_point_thres;
 	hists->addr = ctx->ltm_frame[idx].buf.iova[CAM_BUF_IOMMUDEV_ISP];
 	hists->pitch = param->tile_num_x - 1;
-	hists->wr_num = param->tile_num_x * 32;
+	hists->wr_num = param->tile_num_x * 16;
 
 	memcpy(hists->ltm_hist_table, tuning->ltm_hist_table, sizeof(tuning->ltm_hist_table));
 
