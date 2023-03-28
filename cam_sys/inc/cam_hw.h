@@ -177,6 +177,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_LBUF_SHARE_SET,
 	DCAM_HW_CFG_LBUF_SHARE_GET,
 	DCAM_HW_CFG_SLICE_FETCH_SET,
+	DCAM_HW_CFG_SLICE_STORE_SET,
 	DCAM_HW_CFG_FBC_CTRL,
 	DCAM_HW_CFG_FBC_ADDR_SET,
 	DCAM_HW_CFG_BLOCKS_SETALL,
@@ -575,20 +576,38 @@ struct dcam_hw_gtm_hist {
 	uint32_t *value;
 };
 
-struct dcam_hw_slice_fetch {
+struct dcam_hw_scaler {
+	struct img_size src_size;
+	struct img_size dst_size;
+	struct img_trim im_trim0;
+	struct img_trim im_trim1;
+};
+
+struct dcam_slice_store_param {
+	enum en_status bin_en;
+	uint32_t pitch;
+	uint32_t store_offset[2];
+	struct store_border out_border;
+	struct store_border fbc_border;
+	struct img_trim crop;
+	struct img_size store_size;
+};
+
+struct dcam_hw_slice_param {
 	uint32_t idx;
 	uint32_t is_compress;
 	uint32_t virtualsensor_pre_sof;
 	uint32_t path_id;
-	uint32_t slice_count;
-	uint32_t slice_num;
-	uint32_t dcam_slice_mode;
-	uint32_t st_pack;
 	uint32_t relative_offset;
+	uint32_t fetch_offset;
+	enum en_status is_last_slice;
 	struct dcam_fetch_info *fetch;
 	struct img_trim *cur_slice;
-	struct img_trim slice_trim;
-	struct img_trim store_trim;
+	struct img_size fetch_size;
+	struct dcam_hw_scaler bin_scaler;
+	struct dcam_hw_scaler full_scaler;
+	struct dcam_slice_store_param bin_store;
+	struct dcam_slice_store_param full_store;
 };
 
 struct dcam_hw_sram_ctrl {
@@ -1262,6 +1281,7 @@ struct dcam_hw_abt {
 	uint32_t slm_path;
 	uint32_t aux_dcam_path;
 	uint32_t dcam_raw_path_id;
+	uint32_t sensor_raw_path_id;
 	uint32_t dcam_scaling_path;
 	enum en_status fmcu_support;
 	enum en_status pyramid_support;

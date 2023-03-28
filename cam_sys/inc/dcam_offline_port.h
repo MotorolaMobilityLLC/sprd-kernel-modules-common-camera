@@ -56,6 +56,7 @@ struct dcam_offline_port {
 	void *zoom_cb_handle;
 	cam_data_cb data_cb_func;
 	zoom_get_cb zoom_cb_func;
+	port_param_cfg port_param_cfg_func;
 
 	struct cam_buf_pool_id unprocess_pool;
 	struct cam_buf_pool_id result_pool;

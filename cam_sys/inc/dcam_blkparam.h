@@ -22,6 +22,8 @@ struct dcam_dev_lsc_param {
 	uint32_t weight_tab_size;
 	uint32_t weight_tab_size_x;
 	uint32_t weight_tab_size_y;
+	uint32_t grid_x_index;
+	uint32_t grid_offset;
 	void *weight_tab;
 	void *weight_tab_x;
 	void *weight_tab_y;

@@ -70,6 +70,7 @@ int cam_block_dcam_init(struct dcam_isp_k_block *blk_pm_ctx)
 {
 	/* bypass all blocks by default: based on L3 & L5*/
 	blk_pm_ctx->lsc.lens_info.bypass = 1;
+	blk_pm_ctx->lsc.grid_offset = 0;
 	blk_pm_ctx->blc.blc_info.bypass = 1;
 	blk_pm_ctx->rgb.gain_info.bypass = 1;
 	blk_pm_ctx->rgb.rgb_dither.random_bypass = 1;

@@ -23,7 +23,7 @@
 
 #define ISP_SLICE_OVERLAP_W_MAX         64
 
-uint32_t dcamslice_needed_info_get(struct dcam_hw_context *hw_ctx, uint32_t *dev_lbuf, uint32_t in_width)
+uint32_t dcam_slice_needed_info_get(struct dcam_hw_context *hw_ctx, uint32_t *dev_lbuf, uint32_t in_width)
 {
 	uint32_t out_width = 0;
 	struct cam_hw_info *hw = NULL;
@@ -57,60 +57,42 @@ uint32_t dcamslice_needed_info_get(struct dcam_hw_context *hw_ctx, uint32_t *dev
 		return 0;
 }
 
-int dcamslice_num_info_get(struct img_size *src, struct img_size *dst)
+int dcam_slice_hw_info_set(struct dcam_offline_slice_info *slice, struct cam_frame *pframe,
+	uint32_t slice_wmax, struct dcam_isp_k_block *pm)
 {
-	uint32_t slice_num = 0, slice_w = 0, slice_w_out = 0;
-	uint32_t slice_max_w = 0, max_w = 0;
-	uint32_t linebuf_len = 0;
-	uint32_t input_w = src->w;
-	uint32_t output_w = dst->w;
-
-	/* based input */
-	linebuf_len = g_camctrl.isp_linebuf_len;
-	max_w = input_w;
-	slice_num = 1;
-	slice_max_w = linebuf_len - ISP_SLICE_OVERLAP_W_MAX;
-	if (max_w <= linebuf_len) {
-		slice_w = max_w;
-	} else {
-		do {
-			slice_num++;
-			slice_w = (max_w + slice_num - 1) / slice_num;
-		} while (slice_w >= slice_max_w);
-	}
-	pr_debug("input_w %d, slice_num %d, slice_w %d\n", max_w, slice_num, slice_w);
-
-	/* based output */
-	max_w = output_w;
-	slice_num = 1;
-	slice_max_w = linebuf_len;
-	if (max_w > 0) {
-		if (max_w > linebuf_len) {
-			do {
-				slice_num++;
-				slice_w_out = (max_w + slice_num - 1) / slice_num;
-			} while (slice_w_out >= slice_max_w);
-		}
-		/* set to equivalent input size, because slice size based on input. */
-		slice_w_out = (input_w + slice_num - 1) / slice_num;
-	} else
-		slice_w_out = slice_w;
-	pr_debug("max output w %d, slice_num %d, out limited slice_w %d\n",
-		max_w, slice_num, slice_w_out);
-
-	slice_w = MIN(slice_w, slice_w_out);
-	slice_w = ALIGN(slice_w, 2);
-	slice_num = (input_w + slice_w - 1) / slice_w;
-	if (dst->h > DCAM_SW_SLICE_HEIGHT_MAX)
-		slice_num *= 2;
-	return slice_num;
-}
-
-int dcamslice_hw_info_set(struct dcam_offline_slice_info *slice, struct cam_frame *pframe, uint32_t slice_wmax)
-{
-	int ret = 0, i = 0;
+	int ret = 0, i = 0, j = 0;
 	uint32_t w = 0, offset = 0;
 	uint32_t slc_w = 0, f_align = 0;
+	uint32_t slc_h1 = 0, slc_h2 = 0;
+	uint32_t h_slice_num = 0;
+	uint32_t index = 0;
+	struct dcam_dev_lsc_info *info = NULL;
+
+	info = &pm->lsc.lens_info;
+	if (pframe->common.height > DCAM_SW_SLICE_HEIGHT_MAX)
+		h_slice_num = 2;
+	else
+		h_slice_num = 1;
+
+	if (h_slice_num == 2 && !info->bypass) {
+		/* Cut two graphs up and down according to the lsc table partitioning rules
+		 * index is the height of each cell in the table,
+		 * index = ceil((height/2/2)/grid_width-1); a "2" is half the height,
+		 * other "2" is two channels in the high direction
+		 */
+		index = 2 * 2 * info->grid_width;
+		if (pframe->common.height % index == 0)
+			index = pframe->common.height / index - 1;
+		else
+			index = pframe->common.height / index;
+		index = (index >> 1) << 1;
+		slc_h2 = pframe->common.height - 2 * index * info->grid_width;
+		slc_h1 = pframe->common.height + 3 * info->grid_width - slc_h2;
+		pm->lsc.grid_x_index = index;
+	} else {
+		slc_h1 = slc_h2 = pframe->common.height / h_slice_num;
+		slc_h1 = slc_h2 = ALIGN(slc_h1, 2);
+	}
 
 	w = pframe->common.width;
 	if (w <= slice_wmax) {
@@ -127,98 +109,39 @@ int dcamslice_hw_info_set(struct dcam_offline_slice_info *slice, struct cam_fram
 
 	/* can not get valid slice w aligned  */
 	if ((slc_w > slice_wmax) ||
-		(slc_w * DCAM_OFFLINE_SLC_MAX) < pframe->common.width) {
+		(slc_w * DCAM_OFFLINE_SLC_MAX / 2) < pframe->common.width) {
 		pr_err("dcam failed, pic_w %d, slc_limit %d, algin %d\n",
 				pframe->common.width, slice_wmax, f_align);
 		return -EFAULT;
 	}
 
 slices:
-	while (w > 0) {
-		slice->slice_trim[i].start_x = offset;
-		slice->slice_trim[i].start_y = 0;
-		slice->slice_trim[i].size_x = (w > slc_w) ? (slc_w - DCAM_OVERLAP) : w;
-		slice->slice_trim[i].size_y = pframe->common.height;
-		pr_info("slc%d, (%d %d %d %d), limit %d\n", i,
-			slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,
-			slice->slice_trim[i].size_x, slice->slice_trim[i].size_y,
-			slice_wmax);
+	while (j < h_slice_num) {
+		offset = 0;
+		w = pframe->common.width;
+		while (w > 0) {
+			slice->slice_trim[i].start_x = offset;
+			slice->slice_trim[i].start_y = (pframe->common.height - slc_h2) * j;
+			if ((offset == 0) || ((w + DCAM_OVERLAP) <= slc_w)) /* left slice || right slice*/
+				slice->slice_trim[i].size_x = (w > slc_w) ? (slc_w - DCAM_OVERLAP) : w;
+			else
+				slice->slice_trim[i].size_x = (w > slc_w) ? (slc_w - 2* DCAM_OVERLAP) : w;
+			slice->slice_trim[i].size_y = slc_h1 * (1 - j) + slc_h2 * j;
+			pr_info("slc%d, (%d %d %d %d), limit %d\n", i,
+				slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,
+				slice->slice_trim[i].size_x, slice->slice_trim[i].size_y,
+				slice_wmax);
 
-		w -= slice->slice_trim[i].size_x;
-		offset += slice->slice_trim[i].size_x;
-		i++;
-	}
-	slice->slice_num = i;
-	slice->slice_count = i;
-
-	return ret;
-}
-
-int dcamslice_trim_info_get(uint32_t width, uint32_t heigth, uint32_t slice_num,
-		uint32_t slice_no, struct img_trim *slice_trim)
-{
-	int ret = 0;
-	uint32_t slice_w = 0, slice_h = 0;
-	uint32_t slice_x_num = 0, slice_y_num = 0;
-	uint32_t start_x = 0, size_x = 0;
-	uint32_t start_y = 0, size_y = 0;
-
-	if (!width || !slice_num || !slice_trim) {
-		pr_err("fail to get valid param %d, %d, %p.\n", width, slice_num, slice_trim);
-		return -EFAULT;
-	}
-
-	if (heigth > DCAM_SW_SLICE_HEIGHT_MAX) {
-		slice_x_num = slice_num / 2;
-		slice_y_num = 2;
-	} else {
-		slice_x_num = slice_num;
-		slice_y_num = 1;
-	}
-	slice_w = width / slice_x_num;
-	slice_w = ALIGN(slice_w, 2);
-	slice_h = heigth / slice_y_num;
-	slice_h = ALIGN(slice_h, 2);
-
-	start_x = slice_w * (slice_no % slice_x_num);
-	size_x = slice_w;
-	if (size_x & 0x03) {
-		if (slice_no != 0) {
-			start_x -=  ALIGN(size_x, 4) - size_x;
-			size_x = ALIGN(size_x, 4);
-		} else {
-			start_x -=  ALIGN(size_x, 4);
-			size_x = ALIGN(size_x, 4);
+			w -= slice->slice_trim[i].size_x;
+			offset += slice->slice_trim[i].size_x;
+			i++;
 		}
+		j++;
+		slice->slice_num = i;
+		slice->slice_count = i;
 	}
+	slice->w_slice_num = slice->slice_num / h_slice_num;
+	slice->slice_count = slice->slice_num;
 
-	start_y = (slice_no / slice_x_num) * slice_h;
-	size_y = slice_h;
-
-	slice_trim->start_x = start_x;
-	slice_trim->size_x = size_x;
-	slice_trim->start_y = start_y;
-	slice_trim->size_y = size_y;
-	pr_debug("slice %d [%d, %d, %d, %d].\n", slice_no, start_x, size_x, start_y, size_y);
 	return ret;
 }
-
-int dcam_slice_info_cal(struct dcam_offline_slice_info *slice, struct cam_frame *pframe, uint32_t lbuf_width)
-{
-	int ret = 0;
-	uint32_t slice_no = 0;
-
-	if (slice->dcam_slice_mode != CAM_OFFLINE_SLICE_SW)
-		slice->dcam_slice_mode = CAM_OFFLINE_SLICE_HW;
-
-	if (slice->dcam_slice_mode == CAM_OFFLINE_SLICE_HW)
-		ret = dcamslice_hw_info_set(slice, pframe, lbuf_width);
-	if (slice->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
-		for (slice_no = 0; slice_no < slice->slice_num; slice_no++)
-			dcamslice_trim_info_get(pframe->common.width, pframe->common.height, slice->slice_num,
-					slice_no, &slice->slice_trim[slice_no]);
-	}
-	slice->slice_count = slice->slice_num;
-	return 0;
-}
-

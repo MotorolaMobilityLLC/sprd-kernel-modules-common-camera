@@ -169,6 +169,8 @@ uint32_t cam_cal_hw_pitch(uint32_t w, uint32_t format)
 	case CAM_RAW_8:
 		pitch = w;
 	case CAM_RAW_PACK_10:
+	case CAM_YUV420_2FRAME_MIPI:
+	case CAM_YVU420_2FRAME_MIPI:
 		pitch = CAL_HW_PACK_PITCH(w);
 		break;
 	case CAM_RAW_HALFWORD_10:
@@ -183,6 +185,30 @@ uint32_t cam_cal_hw_pitch(uint32_t w, uint32_t format)
 		break;
 	}
 	return pitch;
+}
+
+uint32_t cam_byte_get(uint32_t format)
+{
+	uint32_t data_byte = 0;
+
+	switch (format) {
+	case CAM_RAW_HALFWORD_10:
+	case CAM_RAW_14:
+		data_byte = 8;
+		break;
+	case CAM_RAW_8:
+		data_byte = 4;
+		break;
+	case CAM_RAW_PACK_10:
+	case CAM_YUV420_2FRAME_MIPI:
+	case CAM_YVU420_2FRAME_MIPI:
+		data_byte = 5;
+		break;
+	default:
+		pr_err("fail to get format : %d\n", format);
+		break;
+	}
+	return data_byte;
 }
 
 int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst,

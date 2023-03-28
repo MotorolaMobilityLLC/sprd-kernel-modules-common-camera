@@ -839,6 +839,8 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		break;
 	case PORT_VCH2_OUT:
 		port->raw_src = param->is_raw ? 1 : 0;
+		if (param->is_raw)
+			atomic_set(&port->is_work, 1);
 		break;
 	default:
 		pr_debug("get known path %s\n", cam_port_name_get(port->port_id));

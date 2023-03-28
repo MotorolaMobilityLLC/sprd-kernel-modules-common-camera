@@ -53,7 +53,7 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	hw_ctx = &dev->hw_ctx[blk_dcam_pm->idx];
 
 	/* need update grid_x_num and more when offline slice*/
-	if (online == 0 && hw_ctx->slice_info.dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
+	if (online == 0) {
 		start_roi = hw_ctx->slice_info.cur_slice ->start_x - DCAM_OVERLAP;
 		grid_x_num_slice = ((hw_ctx->slice_info.cur_slice->size_x + DCAM_OVERLAP) / 2
 				+ info->grid_width_x - 1) / info->grid_width_x + 3;
@@ -138,7 +138,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 		info->grid_num_t, info->grid_x_num, info->grid_y_num);
 
 	/* need update grid_x_num and more when offline slice*/
-	if (online == 0 && hw_ctx->slice_info.dcam_slice_mode == CAM_OFFLINE_SLICE_HW) {
+	if (online == 0) {
 		start_roi = 0;
 		grid_x_num_slice = ((hw_ctx->slice_info.cur_slice->size_x + DCAM_OVERLAP) / 2
 				+ info->grid_width_x - 1) / info->grid_width_x + 3;
@@ -151,8 +151,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 
 	w_buff_x = (uint16_t *)param->weight_tab_x;
 	w_buff_y = (uint16_t *)param->weight_tab_y;
-	gain_tab = (uint16_t *)param->buf.addr_k;
-	hw_addr = (uint32_t)param->buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+	gain_tab = (uint16_t *)param->buf.addr_k + param->grid_offset;
+	hw_addr = (uint32_t)param->buf.iova[CAM_BUF_IOMMUDEV_DCAM] + param->grid_offset;
 	if (!w_buff_x || !w_buff_y || !gain_tab || !hw_addr || info->grid_width_x >= LSC_WEI_TABLE_MAX_NUM || info->grid_width_y >= LSC_WEI_TABLE_MAX_NUM) {
 		pr_err("fail to get buf %px %px %px %x grid_width_x %x grid_width_y %x\n", w_buff_x, w_buff_y, gain_tab, hw_addr, info->grid_width_x, info->grid_width_y);
 		ret = -EPERM;
@@ -305,7 +305,7 @@ int dcam_update_lsc(void *in)
 	}
 
 	hw_ctx = &dev->hw_ctx[blk_dcam_pm->idx];
-	if (idx == 1 && hw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW)
+	if (idx == 1)
 		grid_x_num_slice = info->grid_x_num / 2;
 	else
 		grid_x_num_slice = info->grid_x_num;

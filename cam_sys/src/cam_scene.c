@@ -1562,6 +1562,45 @@ static void camscene_offlinefrgb2yuv_pipeline_get(struct cam_pipeline_topology *
 	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;
 }
 
+static void camscene_onlineraw2offlinepreview_pipeline_get(struct cam_pipeline_topology *param, void *input)
+{
+	int i = 0;
+	uint32_t dcam_offline_port_id = 0;
+	struct cam_node_topology *cur_node = NULL;
+	uint32_t node_list_type[] = {
+		CAM_NODE_TYPE_DCAM_OFFLINE,
+		CAM_NODE_TYPE_DUMP,
+		CAM_NODE_TYPE_ISP_OFFLINE,
+	};
+
+	cur_node = &param->nodes[0];
+	param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
+	for (i = 0; i < param->node_cnt; i++, cur_node++)
+		cam_node_static_nodelist_get(cur_node, node_list_type[i]);
+
+	/* cfg port link between dcam offline & user node */
+	dcam_offline_port_id = PORT_OFFLINE_BIN_OUT;
+	cur_node = &param->nodes[0];
+	cur_node->id = DCAM_OFFLINE_NODE_ID;
+	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_0;
+	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+	cur_node->outport[dcam_offline_port_id].link.node_id = ISP_NODE_MODE_PRE_ID;
+	cur_node->outport[dcam_offline_port_id].link.port_id = PORT_ISP_OFFLINE_IN;
+	cur_node++;
+	cur_node->id = CAM_DUMP_NODE_ID_0;
+
+	cur_node++;
+	cur_node->id = ISP_NODE_MODE_PRE_ID;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = DCAM_OFFLINE_NODE_ID;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = dcam_offline_port_id;
+
+	cur_node->outport[PORT_PRE_OUT].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[PORT_PRE_OUT].link.node_type = CAM_NODE_TYPE_USER;
+}
+
 static int camscene_topology_creat(struct cam_pipeline_topology *param, struct cam_scene_topology_input *in)
 {
 	int ret = 0, index = 0;
@@ -1671,6 +1710,14 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 1,
 		},
+		[CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW] = {
+			.name = "CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW",
+			.type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW,
+			.prev_type = PIPELINE_SCENE_TYPE_MAX,
+			.base_cfg_func = camscene_onlineraw2offlinepreview_pipeline_get,
+			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 0,
+		},
 	};
 
 	index = in->index;
@@ -1702,12 +1749,13 @@ static int camscene_static_pipelinelist_get(struct cam_pipeline_topology *param,
 	}
 
 	hw = (struct cam_hw_info *)hw_info;
-	in.raw_path_id = hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
 	in.raw2yuv_path_id = hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
 	in.pyrdec_support = hw->ip_isp->isphw_abt->pyr_dec_support;
 	in.pyrrec_support = hw->ip_isp->isphw_abt->pyr_rec_support;
 	for (i = 0; i < CAM_PIPELINE_TYPE_MAX; i++, param++) {
 		in.index = i;
+		in.raw_path_id = hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
+
 		camscene_topology_creat(param, &in);
 		(*cnt)++;
 	}
@@ -1941,6 +1989,8 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 				dcam_online_desc->port_desc[i].is_raw = 0;
 				dcam_online_desc->port_desc[i].raw_src = BPC_RAW_SRC_SEL;
 			}
+			if (channel->dcam_port_id == DCAM_PATH_VCH2)
+				dcam_online_desc->port_desc[i].dcam_out_fmt = CAM_RAW_PACK_10;
 			if (module->icap_scene && i == PORT_FULL_OUT)
 				dcam_online_desc->port_desc[i].dcam_out_fmt = module->channel[CAM_CH_DCAM_VCH].ch_uinfo.sensor_raw_fmt;
 		} else if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
@@ -1992,6 +2042,8 @@ int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr,
 	dcam_offline_desc->fetch_fmt = channel->ch_uinfo.sensor_raw_fmt;
 	cam_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->dcampath_abt[rawpath_id]->format[0]);
 	dcam_offline_desc->port_desc.dcam_out_fmt = channel->ch_uinfo.dcam_raw_fmt;
+	if (channel->dcam_port_id == DCAM_PATH_VCH2)
+		dcam_offline_desc->fetch_fmt = CAM_RAW_PACK_10;
 	if (module->icap_scene)
 		dcam_offline_desc->fetch_fmt = module->channel[CAM_CH_DCAM_VCH].ch_uinfo.sensor_raw_fmt;
 	if (module->cam_uinfo.dcam_slice_mode)

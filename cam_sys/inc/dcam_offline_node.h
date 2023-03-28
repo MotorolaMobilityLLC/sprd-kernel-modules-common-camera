@@ -31,6 +31,7 @@ struct dcam_offline_node_desc {
 	enum cam_data_endian endian;
 	enum cam_format fetch_fmt;
 	enum en_status statis_en;
+	enum en_status offline_pre_en;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
@@ -56,7 +57,9 @@ struct dcam_offline_node {
 	uint32_t node_id;
 	atomic_t user_cnt;
 	atomic_t status;
+	atomic_t port_done[PORT_DCAM_OFFLINE_OUT_MAX];
 	enum en_status statis_en;
+	enum en_status offline_pre_en;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;

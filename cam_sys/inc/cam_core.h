@@ -116,6 +116,7 @@ struct camera_uchannel {
 	enum cam_format dcam_out_fmt;
 	enum cam_format pyr_out_fmt;
 
+	uint32_t nonzsl_pre_ratio;
 	struct sprd_img_rect zoom_ratio_base;
 	struct img_size src_size;
 	struct sprd_img_rect src_crop;
@@ -172,6 +173,12 @@ struct sprd_img_flash_info {
 	struct sprd_img_set_flash set_param;
 };
 
+struct nonzsl_pre_info {
+	struct cam_zoom_frame latest_zoom_param;
+	spinlock_t lastest_zoom_lock;
+	struct camera_queue zoom_param_q;
+};
+
 struct channel_context {
 	enum cam_ch_id ch_id;
 	enum en_status enable;
@@ -194,6 +201,7 @@ struct channel_context {
 
 	enum cam_pipeline_type pipeline_type;
 	struct cam_pipeline *pipeline_handle;
+	struct cam_pipeline *nonzsl_pre_pipeline;
 
 	struct camera_uchannel ch_uinfo;
 	struct img_size swap_size;
@@ -219,6 +227,7 @@ struct channel_context {
 	struct camera_queue zoom_user_crop_q;/* channel specific coef queue */
 	struct camera_queue zoom_param_q;
 	struct dcam_isp_k_block blk_pm;
+	struct nonzsl_pre_info nonzsl_pre;
 };
 
 struct camera_module {

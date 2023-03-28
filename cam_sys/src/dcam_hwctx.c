@@ -23,6 +23,156 @@
 #endif
 #define pr_fmt(fmt) "DCAM_HWCTX: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
+static int dcamhwctx_slice_fetch_param_get(struct dcam_hw_context *hw_ctx,
+		struct dcam_fetch_info *fetch, struct dcam_hw_slice_param *slicearg)
+{
+	int ret = 0;
+	uint32_t data_byte = 0, fetch_offset = 0;
+	struct dcam_offline_slice_info *slice = NULL;
+
+	slice = &hw_ctx->slice_info;
+	data_byte = cam_byte_get(fetch->fmt);
+
+	if ((slice->slice_count <= slice->w_slice_num)
+		&& (slice->w_slice_num != slice->slice_num))
+		fetch_offset = fetch->size.w * slice->cur_slice->start_y * data_byte / 4;
+
+	if (slice->slice_count % slice->w_slice_num == 0) {
+		slicearg->is_last_slice = 0;
+		slicearg->fetch_offset = fetch_offset;
+		slicearg->fetch_size.w = slice->cur_slice->size_x + DCAM_OVERLAP;
+		slicearg->fetch_size.h = slice->cur_slice->size_y;
+	} else if (slice->slice_count % slice->w_slice_num == 1) {
+		slicearg->is_last_slice = 1;
+		slicearg->fetch_offset = (slice->cur_slice->start_x - DCAM_OVERLAP) * data_byte / 4 + fetch_offset;
+		slicearg->fetch_size.w = slice->cur_slice->size_x + DCAM_OVERLAP;
+		slicearg->fetch_size.h = slice->cur_slice->size_y;
+	} else {
+		slicearg->is_last_slice = 0;
+		slicearg->fetch_offset = (slice->cur_slice->start_x - DCAM_OVERLAP) * data_byte / 4 + fetch_offset;
+		slicearg->fetch_size.w = slice->cur_slice->size_x + DCAM_OVERLAP * 2;
+		slicearg->fetch_size.h = slice->cur_slice->size_y;
+	}
+	pr_info("fetch fmt %d cur_slice %d, %d, %d, %d, fetch_size %d, %d, offset %d\n",
+		fetch->fmt, slice->cur_slice->start_x, slice->cur_slice->start_y,
+		slice->cur_slice->size_x, slice->cur_slice->size_y,
+		slicearg->fetch_size.w, slicearg->fetch_size.h, slicearg->fetch_offset);
+
+	return ret;
+}
+
+static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struct dcam_hw_slice_param *slicearg,
+		struct dcam_hw_scaler *scaler_p, struct dcam_slice_store_param *store_p, uint32_t ratio)
+{
+	int ret = 0;
+	uint32_t store_offset[2] = {0};
+	uint32_t data_byte = 0, out_fmt = 0, out_w = 0;
+	struct dcam_offline_slice_info *slice = NULL;
+	struct img_trim in_trim = {0};
+	uint32_t relative_offset = 0, trim_y_coef = 0;
+
+	if (slicearg->path_id < DCAM_PATH_FULL || slicearg->path_id > DCAM_PATH_RAW)
+		return 0;
+	relative_offset = hw_ctx->relative_offset[slicearg->path_id];
+	slicearg->relative_offset = relative_offset;
+	slice = &hw_ctx->slice_info;
+	out_fmt = hw_ctx->hw_path[slicearg->path_id].hw_start.out_fmt;
+	out_w = hw_ctx->hw_path[slicearg->path_id].hw_size.out_size.w;
+	in_trim = hw_ctx->hw_path[slicearg->path_id].hw_size.in_trim;
+	data_byte = cam_byte_get(out_fmt);
+	store_p->pitch = cam_cal_hw_pitch(out_w, out_fmt);
+	pr_debug("path %d, out_fmt %d, w %d, in_trim %d, %d, %d, %d\n", slicearg->path_id, out_fmt,
+		out_w, in_trim.start_x, in_trim.start_y, in_trim.size_x, in_trim.size_y);
+
+	if (slice->w_slice_num == slice->slice_num) {
+		scaler_p->im_trim0.start_y = in_trim.start_y;
+		trim_y_coef = 2;
+	} else if ((slice->slice_count > slice->w_slice_num)
+		&& (slice->w_slice_num != slice->slice_num)) {
+		scaler_p->im_trim0.start_y = in_trim.start_y;
+		trim_y_coef = 1;
+	} else {
+		scaler_p->im_trim0.start_y = 0;
+		trim_y_coef = 1;
+		store_offset[0] = cal_sprd_pitch(out_w, out_fmt) * slice->cur_slice->start_y / ratio
+					- (relative_offset - in_trim.start_x) / ratio * data_byte / 4;
+		store_offset[1] = cal_sprd_pitch(out_w, out_fmt) * slice->cur_slice->start_y / ratio / 2
+					- (relative_offset - in_trim.start_x) / ratio * data_byte / 4;
+	}
+
+	scaler_p->src_size.w = slicearg->fetch_size.w;
+	scaler_p->src_size.h = slicearg->fetch_size.h;
+	if (slice->slice_count % slice->w_slice_num == 0) {
+		scaler_p->im_trim0.start_x = in_trim.start_x;
+		scaler_p->im_trim0.size_x = scaler_p->src_size.w - in_trim.start_x;
+		scaler_p->im_trim0.size_y = scaler_p->src_size.h - in_trim.start_y * trim_y_coef;
+		scaler_p->dst_size.w = scaler_p->im_trim0.size_x / ratio;
+		scaler_p->dst_size.h = scaler_p->im_trim0.size_y / ratio;
+		store_p->store_size.w = scaler_p->dst_size.w - DCAM_OVERLAP / ratio;
+		store_p->store_size.h = scaler_p->dst_size.h;
+		if (store_p->store_size.w % 4) {
+			store_p->store_size.w = store_p->store_size.w / 4 * 4;
+			scaler_p->dst_size.w = store_p->store_size.w + DCAM_OVERLAP / ratio;
+		}
+		store_p->store_offset[0] = store_offset[0];
+		store_p->store_offset[1] = store_offset[1];
+		store_p->crop.start_x = 0;
+		store_p->out_border.left_border = 0;
+		store_p->out_border.right_border = DCAM_OVERLAP / ratio;
+		store_p->fbc_border.left_border = 0;
+		hw_ctx->relative_offset[slicearg->path_id] = in_trim.start_x;
+	} else if (slice->slice_count % slice->w_slice_num == 1) {
+		scaler_p->im_trim0.start_x = 0;
+		scaler_p->im_trim0.size_x = scaler_p->src_size.w - in_trim.start_x;
+		scaler_p->im_trim0.size_y = scaler_p->src_size.h - in_trim.start_y * trim_y_coef;
+		scaler_p->dst_size.w = scaler_p->im_trim0.size_x / ratio;
+		scaler_p->dst_size.h = scaler_p->im_trim0.size_y / ratio;
+		store_p->store_size.w = scaler_p->dst_size.w - DCAM_OVERLAP / ratio;
+		store_p->store_size.h = scaler_p->dst_size.h;
+		if (store_p->store_size.w % 4) {
+			store_p->store_size.w = store_p->store_size.w / 4 * 4;
+			scaler_p->dst_size.w = store_p->store_size.w + DCAM_OVERLAP / ratio;
+		}
+		store_p->store_offset[0] = store_p->store_offset[1] = (slice->cur_slice->start_x - relative_offset) / ratio * data_byte / 4;
+		store_p->crop.start_x = DCAM_OVERLAP;
+		store_p->out_border.left_border = DCAM_OVERLAP / ratio;
+		store_p->out_border.right_border = 0;
+		store_p->fbc_border.left_border = DCAM_OVERLAP / ratio;
+		hw_ctx->relative_offset[slicearg->path_id] = slice->cur_slice->start_x;
+	} else {
+		scaler_p->im_trim0.start_x = 0;
+		scaler_p->im_trim0.size_x = scaler_p->src_size.w;
+		scaler_p->im_trim0.size_y = scaler_p->src_size.h - in_trim.start_y * trim_y_coef;
+		scaler_p->dst_size.w = scaler_p->im_trim0.size_x / ratio;
+		scaler_p->dst_size.h = scaler_p->im_trim0.size_y / ratio;
+		store_p->store_size.w = scaler_p->dst_size.w - DCAM_OVERLAP * 2 / ratio;
+		store_p->store_size.h = scaler_p->dst_size.h;
+		store_p->store_offset[0] = store_p->store_offset[1] = (slice->cur_slice->start_x - relative_offset) / ratio * data_byte / 4;
+		store_p->crop.start_x = DCAM_OVERLAP;
+		store_p->out_border.left_border = DCAM_OVERLAP / ratio;
+		store_p->out_border.right_border = DCAM_OVERLAP / ratio;
+		store_p->fbc_border.left_border = DCAM_OVERLAP / ratio;
+		hw_ctx->relative_offset[slicearg->path_id] = slice->cur_slice->start_x;
+	}
+	scaler_p->im_trim1.start_x = 0;
+	scaler_p->im_trim1.start_y = 0;
+	scaler_p->im_trim1.size_x = scaler_p->dst_size.w;
+	scaler_p->im_trim1.size_y = scaler_p->dst_size.h;
+	pr_debug("slice %d/%d, src %d, %d, trim0 %d, %d, %d, %d, dst size %d, %d, trim1 %d, %d, %d, %d,"
+			"store size %d, %d, store_offset %d relative_offset %d\n",
+		(slice->slice_num - slice->slice_count), slice->slice_num,
+		scaler_p->src_size.w, scaler_p->src_size.h,
+		scaler_p->im_trim0.start_x, scaler_p->im_trim0.start_y,
+		scaler_p->im_trim0.size_x, scaler_p->im_trim0.size_y,
+		scaler_p->dst_size.w, scaler_p->dst_size.h,
+		scaler_p->im_trim1.start_x, scaler_p->im_trim1.start_y,
+		scaler_p->im_trim1.size_x, scaler_p->im_trim1.size_y,
+		store_p->store_size.w, store_p->store_size.h,
+		store_p->store_offset[0], relative_offset);
+
+	return ret;
+}
+
 int dcam_hwctx_offline_reset(struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
@@ -97,28 +247,34 @@ int dcam_hwctx_fetch_set(struct dcam_hw_context *hw_ctx)
 	return ret;
 }
 
-void dcam_hwctx_slice_fetch_set(struct dcam_hw_context *hw_ctx, struct dcam_fetch_info *fetch, struct dcam_offline_slice_info *slice)
+void dcam_hwctx_slice_set(struct dcam_hw_context *hw_ctx, struct dcam_fetch_info *fetch, struct dcam_offline_slice_info *slice)
 {
 	struct cam_hw_info *hw = NULL;
-	struct dcam_hw_slice_fetch slicearg = {0};
-	hw = hw_ctx->hw;
+	struct dcam_hw_slice_param slicearg = {0};
+	uint32_t ratio = 1;
 
+	hw = hw_ctx->hw;
 	slicearg.idx = hw_ctx->hw_ctx_id;
 	slicearg.fetch = fetch;
 	slicearg.cur_slice = slice->cur_slice;
-	slicearg.dcam_slice_mode = slice->dcam_slice_mode;
-	slicearg.slice_num = slice->slice_num;
-	slicearg.slice_count = slice->slice_count;
-	slicearg.st_pack = cam_is_pack(hw_ctx->hw_path[DCAM_PATH_FULL].hw_start.out_fmt);
 	if (hw_ctx->slice_proc_mode == OFFLINE_SLICE_PROC) {
 		slicearg.path_id = hw->ip_dcam[hw_ctx->hw_ctx_id]->dcamhw_abt->aux_dcam_path;
-		slicearg.is_compress = hw_ctx->hw_path[DCAM_PATH_FULL].hw_fbc.compress_en;
-		slicearg.store_trim = hw_ctx->hw_path[DCAM_PATH_FULL].hw_size.in_trim;
+		slicearg.is_compress = hw_ctx->hw_path[slicearg.path_id].hw_fbc.compress_en;
 	}else {
 		slicearg.virtualsensor_pre_sof = 1;
 		slicearg.path_id= hw->ip_dcam[1]->dcamhw_abt->aux_dcam_path;
 	}
+
+	dcamhwctx_slice_fetch_param_get(hw_ctx, fetch, &slicearg);
+	dcamhwctx_slice_store_param_get(hw_ctx, &slicearg, &slicearg.full_scaler, &slicearg.full_store, 1);
+	if (hw_ctx->offline_pre_en) {
+		slicearg.bin_store.bin_en = hw_ctx->offline_pre_en;
+		slicearg.path_id = DCAM_PATH_BIN;
+		ratio = fetch->trim.size_x / hw_ctx->hw_path[slicearg.path_id].hw_size.out_size.w;
+		dcamhwctx_slice_store_param_get(hw_ctx, &slicearg, &slicearg.bin_scaler, &slicearg.bin_store, ratio);
+	}
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_STORE_SET, &slicearg);
 }
 
 void dcam_hwctx_slice_force_copy(struct dcam_hw_context *hw_ctx, int x)

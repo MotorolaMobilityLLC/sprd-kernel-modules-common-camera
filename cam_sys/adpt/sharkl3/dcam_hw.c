@@ -637,7 +637,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
 	uint32_t fetch_pitch;
-	struct dcam_hw_slice_fetch *slicearg = NULL;
+	struct dcam_hw_slice_param *slicearg = NULL;
 	struct dcam_fetch_info *fetch = NULL;
 	struct img_trim *cur_slice;
 	uint32_t reg_val;
@@ -648,7 +648,7 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		return -EFAULT;
 	}
 
-	slicearg = (struct dcam_hw_slice_fetch *)arg;
+	slicearg = (struct dcam_hw_slice_param *)arg;
 	fetch = slicearg->fetch;
 	cur_slice = slicearg->cur_slice;
 	fetch_pitch = cam_cal_hw_pitch(fetch->size.w, fetch->fmt);

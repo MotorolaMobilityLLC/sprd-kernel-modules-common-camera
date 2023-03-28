@@ -161,11 +161,14 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 	}
 	node->hw_ctx->is_offline_proc = 0;
 	node->hw_ctx->err_count = 0;
+	node->hw_ctx->offline_pre_en = DISABLE;
 	node->hw_ctx->dcam_irq_cb_func = NULL;
 	node->hw_ctx->dcam_irq_cb_handle = NULL;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
-	for (i = 0; i < DCAM_PATH_MAX; i++)
+	for (i = 0; i < DCAM_PATH_MAX; i++) {
 		node->hw_ctx->hw_path[i].need_update = 0;
+		node->hw_ctx->relative_offset[i] = 0;
+	}
 	node->hw_ctx = NULL;
 	node->pm_ctx.blk_pm.idx = DCAM_HW_CONTEXT_MAX;
 
@@ -174,16 +177,64 @@ exit:
 	return ret;
 }
 
+static int dcamoffline_data_callback(struct dcam_offline_node *node,
+		enum cam_cb_type data_type, uint32_t port_id)
+{
+	int ret = 0;
+	struct cam_frame *frame = NULL, *frame1 = NULL;
+	struct dcam_offline_port *port = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
+	uint32_t is_frm_port = 0;
+
+	port = dcam_offline_node_port_get(node, port_id);
+	is_frm_port = (port_id == PORT_OFFLINE_FULL_OUT || port_id == PORT_OFFLINE_BIN_OUT || port_id == PORT_OFFLINE_RAW_OUT);
+
+	if (!port) {
+		pr_err("fail to get port %s\n", cam_port_dcam_offline_out_id_name_get(port_id));
+		return -EFAULT;
+	}
+
+	frame = cam_buf_manager_buf_dequeue(&port->result_pool, NULL, port->buf_manager_handle);
+	if (frame == NULL) {
+		pr_err("fail to available dcamoffline result buf %s\n", cam_port_dcam_offline_out_id_name_get(port_id));
+		return -EFAULT;
+	}
+
+	frame->common.link_from.node_type = node->node_type;
+	frame->common.link_from.node_id = node->node_id;
+	frame->common.link_from.port_id = port->port_id;
+	if (is_frm_port && port->zoom_cb_func) {
+		cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+		memset(&frame->common.zoom_data, 0 , sizeof(struct cam_zoom_frame));
+		ret = port->zoom_cb_func(port->zoom_cb_handle, &frame->common.zoom_data);
+
+		buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
+		frame1 = cam_buf_manager_buf_dequeue(&node->proc_pool, &buf_desc, node->buf_manager_handle);
+		if (frame1) {
+			frame->common.sensor_time.tv_sec = frame1->common.sensor_time.tv_sec;
+			frame->common.sensor_time.tv_usec = frame1->common.sensor_time.tv_usec;
+			frame->common.boot_sensor_time = frame1->common.boot_sensor_time;
+			pr_debug("src fid %d time %06d.%06d\n", frame1->common.fid, frame1->common.sensor_time.tv_sec, frame1->common.sensor_time.tv_usec);
+		} else
+			pr_warn("warning: src frame is NULL, sensor_time lost\n");
+	}
+	if (port->data_cb_func)
+		port->data_cb_func(data_type, frame, port->data_cb_handle);
+
+	return ret;
+}
+
 static int dcamoffline_irq_proc(void *param, void *handle)
 {
 	int ret = 0, time_out = 0, port_id = 0, is_frm_port = 0;
 	struct cam_hw_info *hw = NULL;
-	struct cam_frame *frame = NULL, *frame1 = NULL;
+	struct cam_frame *frame = NULL;
 	struct dcam_offline_node *node = NULL;
+	struct dcam_offline_port *port = NULL;
 	struct dcam_irq_proc_desc *irq_desc = NULL;
 	struct dcam_offline_slice_info *slice_info = NULL;
-	struct cam_node_cfg_param node_param = {0};
-	struct camera_buf_get_desc buf_desc = {0};
+	uint32_t is_work = 0, i = 0;
+	uint32_t bin_done = 0, full_done = 0;
 
 	if (!param || !handle) {
 		pr_err("fail to get valid param %px %px\n", param, handle);
@@ -210,50 +261,43 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			(slice_info->slice_num - slice_info->slice_count));
 		if (irq_desc->dcam_cb_type == CAM_CB_DCAM_DATA_DONE)
 			dcamoffline_hw_ts_cal(node);
-		slice_info->slice_count--;
+
+		if (node->offline_pre_en) {
+			port = dcam_offline_node_port_get(node, PORT_OFFLINE_BIN_OUT);
+			if (!port) {
+				pr_err("fail to get bin port\n");
+				return -EFAULT;
+			}
+			is_work = atomic_read(&port->is_work);
+			if (port_id == PORT_OFFLINE_BIN_OUT) {
+				bin_done = atomic_inc_return(&node->port_done[port_id]);
+				full_done = atomic_read(&node->port_done[PORT_OFFLINE_FULL_OUT]);
+			} else if (port_id == PORT_OFFLINE_FULL_OUT) {
+				full_done = atomic_inc_return(&node->port_done[port_id]);
+				bin_done = atomic_read(&node->port_done[PORT_OFFLINE_BIN_OUT]);
+			} else
+				pr_info("port %d\n", cam_port_dcam_offline_out_id_name_get(port_id));
+		}
+
+		if ((is_work && bin_done == full_done) || !is_work) {
+			slice_info->slice_count--;
+			complete(&node->slice_done);
+		}
 		time_out = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
 		if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy. timeout %d\n", time_out);
 
-		complete(&node->slice_done);
 		if (slice_info->slice_count > 0)
 			return 0;
 	}
 
-	if (node->port_cfg_cb_func) {
-		node_param.port_id = irq_desc->dcam_port_id;
-		ret = node->port_cfg_cb_func(&node_param, PORT_CFG_BUFFER_GET, node->port_cfg_cb_handle);
-		if (ret)
-			pr_err("fail to get dcam offline port param\n");
-		frame = (struct cam_frame *)(node_param.param);
-		if (frame && is_frm_port)
-			cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
-		if (frame && node->data_cb_func) {
-			if (is_frm_port) {
-				buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
-				frame1 = cam_buf_manager_buf_dequeue(&node->proc_pool, &buf_desc, node->buf_manager_handle);
-				if (frame1) {
-					frame->common.zoom_data = frame1->common.zoom_data;
-					frame->common.fid = frame1->common.fid;
-				}
-			}
-			frame->common.link_from.node_type = node->node_type;
-			frame->common.link_from.node_id = node->node_id;
-			if (is_frm_port) {
-				buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
-				frame1 = cam_buf_manager_buf_dequeue(&node->proc_pool, &buf_desc, node->buf_manager_handle);
-				if (frame1) {
-					frame->common.zoom_data = frame1->common.zoom_data;
-					frame->common.sensor_time.tv_sec = frame1->common.sensor_time.tv_sec;
-					frame->common.sensor_time.tv_usec = frame1->common.sensor_time.tv_usec;
-					frame->common.boot_sensor_time = frame1->common.boot_sensor_time;
-					pr_debug("src fid %d time %06d.%06d\n", frame1->common.fid, frame1->common.sensor_time.tv_sec, frame1->common.sensor_time.tv_usec);
-				} else
-					pr_warn("warning: src frame is NULL, sensor_time lost\n");
-			}
-			node->data_cb_func(irq_desc->dcam_cb_type, frame, node->data_cb_handle);
-		}
-	}
+	if (node->offline_pre_en && is_frm_port) {
+		for(i = PORT_OFFLINE_BIN_OUT; i <= PORT_OFFLINE_FULL_OUT; i++)
+			ret = dcamoffline_data_callback(node, irq_desc->dcam_cb_type, i);
+	} else
+		ret = dcamoffline_data_callback(node, irq_desc->dcam_cb_type, port_id);
+	if (ret)
+		pr_err("fail to data cb, slice_num %d, port %s\n", slice_info->slice_num, cam_port_dcam_offline_out_id_name_get(port_id));
 
 	if (is_frm_port) {
 		time_out = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
@@ -300,6 +344,7 @@ static int dcamoffline_ctx_bind(struct dcam_offline_node *node)
 	node->hw_ctx->dcam_irq_cb_func = dcamoffline_irq_proc;
 	node->hw_ctx->dcam_irq_cb_handle = node;
 	node->hw_ctx->err_count = 1;
+	node->hw_ctx->offline_pre_en = node->offline_pre_en;
 
 exit:
 	spin_unlock_irqrestore(&node->dev->ctx_lock, flag);
@@ -404,6 +449,10 @@ static int dcamoffline_hw_statis_work_set(struct dcam_offline_node *node)
 		dcamoffline_statis_work_set(pm->lscm.bypass, node, PORT_OFFLINE_LSCM_OUT);
 		if(hw->ip_isp->isphw_abt->frbg_hist_support)
 			dcamoffline_statis_work_set(pm->hist_roi.hist_roi_info.bypass, node, PORT_OFFLINE_FRGB_HIST_OUT);
+		if ((pm->gtm.gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
+			dcamoffline_statis_work_set(0, node, PORT_OFFLINE_GTM_HIST_OUT);
+		if ((pm->rgb_gtm.gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
+			dcamoffline_statis_work_set(0, node, PORT_OFFLINE_GTM_HIST_OUT);
 	} else {
 		pm->aem.bypass = 1;
 		pm->hist.bayerHist_info.hist_bypass = 1;
@@ -474,13 +523,31 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 			pr_info("slc%d, (%d %d %d %d)\n", i,
 				slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,
 				slice->slice_trim[i].size_x, slice->slice_trim[i].size_y);
-			dcam_hwctx_slice_fetch_set(hw_ctx, fetch, slice);
+			dcam_hwctx_slice_set(hw_ctx, fetch, slice);
 		}
 
 		mutex_lock(&pm->lsc.lsc_lock);
-		if (i == 0)
+		if (i == 0) {
+			pm->lsc.grid_offset = 0;
 			ret = dcam_init_lsc(pm, 0);
-		else
+			if (ret < 0) {
+				mutex_unlock(&pm->lsc.lsc_lock);
+				return ret;
+			}
+		} else if (i == slice->w_slice_num) {
+			/* LSC table is divided into two pieces, grid_offset is the offset address of the lower one,
+			 * grid_offset = index * grid_x_num * 4 * sizeof(uint16_t)
+			 * index:the height of each cell in the table,
+			 * grid_x_num:the number of cells in the wide direction of the table,
+			 * 4:four channels; the type of the table is uint16_t.
+			 */
+			pm->lsc.grid_offset = pm->lsc.grid_x_index * pm->lsc.lens_info.grid_x_num * 4 * sizeof(uint16_t);
+			ret = dcam_init_lsc(pm, 0);
+			if (ret < 0) {
+				mutex_unlock(&pm->lsc.lsc_lock);
+				return ret;
+			}
+		} else
 			ret = dcam_init_lsc_slice(pm, 0);
 		if (ret < 0) {
 			pr_err("fail to init lsc\n");
@@ -527,6 +594,7 @@ static int dcamoffline_node_frame_start(void *param)
 {
 	int ret = 0, loop = 0;
 	struct dcam_offline_node *node = NULL;
+	struct dcam_offline_port *port = NULL;
 	struct cam_frame *pframe = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct dcam_offline_pm_context *pm_pctx = NULL;
@@ -600,16 +668,19 @@ static int dcamoffline_node_frame_start(void *param)
 
 	/* fetch in node may put it into hw ctx */
 	slice->fetch_fmt= node->fetch.fmt;
-	dcamslice_needed_info_get(node->hw_ctx, &lbuf_width, pframe->common.width);
-	dcam_slice_info_cal(slice, pframe, lbuf_width);
+	dcam_slice_needed_info_get(node->hw_ctx, &lbuf_width, pframe->common.width);
 	ret = dcamoffline_hw_statis_work_set(node);
-	if (node->port_cfg_cb_func)
-		ret = node->port_cfg_cb_func(node->hw_ctx, PORT_CFG_PARAM_GET, node->port_cfg_cb_handle);
+
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
+		if (port && port->port_param_cfg_func)
+			ret |= port->port_param_cfg_func(port, PORT_CFG_PARAM_GET, node->hw_ctx);
+	}
 	if (ret) {
 		pr_err("fail to get dcam offline port param\n");
 		goto return_buf;
 	}
 
+	dcam_slice_hw_info_set(slice, pframe, lbuf_width, pm);
 	dcamoffline_hw_frame_param_set(node->hw_ctx);
 	atomic_set(&node->status, STATE_RUNNING);
 
@@ -1174,7 +1245,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	node->fetch.fmt = param->fetch_fmt;
 	node->fetch.pattern = param->pattern;
 	node->fetch.endian = param->endian;
-	pr_debug("pattern %d, endian %d\n", node->fetch.pattern, node->fetch.endian);
+	pr_debug("fmt %d, pattern %d, endian %d\n", node->fetch.fmt, node->fetch.pattern, node->fetch.endian);
 	node->node_id = node_id;
 	node->node_type = param->node_type;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
@@ -1214,6 +1285,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	*param->node_dev = node;
 
 exit:
+	node->offline_pre_en |= param->offline_pre_en;
 	atomic_inc(&node->user_cnt);
 	pr_info("node id %d\n", node->node_id);
 	return node;
