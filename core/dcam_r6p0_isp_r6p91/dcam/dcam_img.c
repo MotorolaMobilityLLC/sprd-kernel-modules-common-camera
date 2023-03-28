@@ -500,7 +500,7 @@ static int dcam_create_flash_thread(void *param)
 	struct dcam_dev *dev = (struct dcam_dev *)param;
 
 	if (dev == NULL) {
-		DCAM_TRACE("%s:  dev is NULL.\n", __func__);
+		DCAM_TRACE(" dev is NULL.\n");
 		return -1;
 	}
 	dev->is_flash_thread_stop = 0;
@@ -1019,7 +1019,7 @@ static int sprd_img_cap_cfg(struct dcam_info *info)
 
 	ret = dcam_cap_cfg(DCAM_CAP_SYNC_POL, &info->sync_pol);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
@@ -1041,19 +1041,19 @@ static int sprd_img_cap_cfg(struct dcam_info *info)
 
 	ret = dcam_cap_cfg(DCAM_CAP_TO_ISP, &param);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_YUV_TYPE, &info->yuv_ptn);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_DATA_BITS, &info->data_bits);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
@@ -1061,32 +1061,32 @@ static int sprd_img_cap_cfg(struct dcam_info *info)
 		&& info->if_mode == DCAM_CAP_IF_CSI2) {
 		ret = dcam_cap_cfg(DCAM_CAP_DATA_PACKET, &info->is_loose);
 		if (unlikely(ret)) {
-			pr_err("%s err, code %d", __func__, ret);
+			pr_err("err, code %d", ret);
 			goto exit;
 		}
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_DATA_TYPE, &info->sn_mode);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_DATA_MODE, &info->sn_mode);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_FRM_DECI, &info->frm_deci);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_INPUT_RECT, &info->cap_in_rect);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
@@ -1097,19 +1097,19 @@ static int sprd_img_cap_cfg(struct dcam_info *info)
 
 	ret = dcam_cap_cfg(DCAM_CAP_FRM_COUNT_CLR, NULL);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_PRE_SKIP_CNT, &info->skip_number);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = dcam_cap_cfg(DCAM_CAP_SAMPLE_MODE, &info->capture_mode);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
@@ -1566,7 +1566,7 @@ static int sprd_img_path_cfg_output_addr(path_cfg_func path_cfg,
 		frm_addr.is_secure = cur_node->frm_addr.is_secure;
 		ret = path_cfg(DCAM_PATH_OUTPUT_ADDR, &frm_addr);
 		if (unlikely(ret)) {
-			pr_err("%s err, code %d", __func__, ret);
+			pr_err("err, code %d", ret);
 			goto exit;
 	}
 	}
@@ -1591,68 +1591,68 @@ static int sprd_img_path0_cfg(path_cfg_func path_cfg,
 
 	ret = path_cfg(DCAM_PATH_SRC_SEL, &param);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_INPUT_SIZE, &path_spec->in_size);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_INPUT_RECT, &path_spec->in_rect);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_OUTPUT_SIZE, &path_spec->out_size);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err(" err, code %d", ret);
 		goto exit;
 	}
 	ret = path_cfg(DCAM_PATH_OUTPUT_FORMAT, &path_spec->out_fmt);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_FRAME_BASE_ID, &path_spec->frm_id_base);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_FRAME_TYPE, &path_spec->frm_type);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_DATA_ENDIAN, &path_spec->end_sel);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_FRM_DECI, &path_spec->path_frm_deci);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	if (path_spec->pdaf_ctrl.mode) {
 		ret = path_cfg(DCAM_PDAF_CONTROL, &path_spec->pdaf_ctrl);
 		if (unlikely(ret)) {
-			pr_err("%s err, code %d", __func__, ret);
+			pr_err("err, code %d", ret);
 			goto exit;
 		}
 	}
 
 	ret = sprd_img_path_cfg_output_addr(path_cfg, path_spec);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("%s err, code %d", ret);
 		goto exit;
 	}
 
@@ -1682,67 +1682,67 @@ static int sprd_img_path_cfg(path_cfg_func path_cfg,
 
 	ret = path_cfg(DCAM_PATH_SRC_SEL, &param);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_ROT_MODE, &path_spec->rot_mode);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_INPUT_SIZE, &path_spec->in_size);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_INPUT_RECT, &path_spec->in_rect);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_OUTPUT_SIZE, &path_spec->out_size);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d",ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_OUTPUT_FORMAT, &path_spec->out_fmt);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_FRAME_BASE_ID, &path_spec->frm_id_base);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_FRAME_TYPE, &path_spec->frm_type);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_DATA_ENDIAN, &path_spec->end_sel);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = path_cfg(DCAM_PATH_FRM_DECI, &path_spec->path_frm_deci);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
 	ret = sprd_img_path_cfg_output_addr(path_cfg, path_spec);
 	if (unlikely(ret)) {
-		pr_err("%s err, code %d", __func__, ret);
+		pr_err("err, code %d", ret);
 		goto exit;
 	}
 
@@ -2118,7 +2118,7 @@ static int sprd_img_streampause(struct file *file, uint32_t channel_id,
 		path->status = PATH_IDLE;
 		ret = dcam_stop_path(path_index);
 		if (ret)
-			pr_err("%s err, code %d", __func__, ret);
+			pr_err("err, code %d", ret);
 
 		if ((reconfig_flag)/* && (DCAM_PATH2 == channel_id)*/) {
 			/*path->is_work = 0;*/
@@ -2127,7 +2127,7 @@ static int sprd_img_streampause(struct file *file, uint32_t channel_id,
 			sprd_img_queue_disable(&dev->queue, channel_id);
 			ret = sprd_img_unreg_path2_isr(dev);
 			if (ret)
-				pr_err("%s err, code %d", __func__, ret);
+				pr_err("err, code %d", ret);
 		}
 
 		if (dev->got_resizer && channel_id == DCAM_PATH2) {
@@ -2167,7 +2167,7 @@ static int sprd_img_streamresume(struct file *file, uint32_t channel_id)
 		pr_err("resume stream not on.\n");
 		ret = sprd_img_local_deinit(dev);
 		if (unlikely(ret))
-			pr_err("%s error", __func__);
+			pr_err(" error");
 		on_flag = 0;
 	}
 	if (on_flag && path->status == PATH_IDLE) {
@@ -2184,7 +2184,7 @@ static int sprd_img_streamresume(struct file *file, uint32_t channel_id)
 				}
 				ret = sprd_img_reg_path2_isr(dev);
 				if (ret)
-					pr_err("%s err,code %d", __func__, ret);
+					pr_err("err,code %d", ret);
 				path_cfg = dcam_path2_cfg;
 			} else {
 				pr_err("resume, invalid channel_id=0x%x.\n",
@@ -2197,14 +2197,14 @@ static int sprd_img_streamresume(struct file *file, uint32_t channel_id)
 			else
 				ret = sprd_img_path_cfg(path_cfg, path);
 			if (unlikely(ret)) {
-				pr_err("%s err, code %d", __func__, ret);
+				pr_err("err, code %d", ret);
 				goto exit;
 			}
 			sprd_img_queue_enable(&dev->queue, channel_id);
 			path->status = PATH_RUN;
 			ret = dcam_start_path(path_index);
 			if (ret)
-				pr_err("%s err,code %d", __func__, ret);
+				pr_err("err,code %d", ret);
 		} else {
 			DCAM_TRACE("resume, path %d is_work %d, can't resume\n",
 				   channel_id, path->is_work);
@@ -2377,7 +2377,7 @@ static int sprd_img_set_crop(struct file *file, struct sprd_img_parm __user *upa
 	dev = file->private_data;
 	if (!dev) {
 		ret = -EFAULT;
-		pr_err("%s: dev is NULL.\n", __func__);
+		pr_err("dev is NULL.\n");
 		goto exit;
 	}
 
@@ -2467,7 +2467,7 @@ static int sprd_img_set_sensor_if(struct file *file,
 	dev = file->private_data;
 	if (!dev) {
 		ret = -EFAULT;
-		pr_err("%s: dev is NULL.\n", __func__);
+		pr_err("dev is NULL.\n");
 		goto exit;
 	}
 
@@ -2675,11 +2675,11 @@ static int sprd_img_stream_on(struct file *file)
 	struct dcam_path_spec *path_1 = NULL;
 	struct dcam_path_spec *path_2 = NULL;
 
-	pr_info("%s start\n", __func__);
+	pr_info("start\n");
 	dev = file->private_data;
 	if (!dev) {
 		ret = -EFAULT;
-		pr_err("%s: dev is NULL.\n", __func__);
+		pr_err("dev is NULL.\n");
 		goto exit;
 	}
 
@@ -2726,19 +2726,19 @@ static int sprd_img_stream_on(struct file *file)
 		if (path_0->is_work || path_1->is_work || path_2->is_work) {
 			ret = sprd_img_dcam_reg_isr(dev);
 			if (unlikely(ret)) {
-				pr_err("%s error", __func__);
+				pr_err(" error");
 				break;
 			}
 			ret = sprd_img_isp_reg_isr(dev);
 			if (unlikely(ret)) {
-				pr_err("%s error", __func__);
+				pr_err("error");
 				break;
 			}
 		}
 		/* config cap sub-module */
 		ret = sprd_img_cap_cfg(&dev->dcam_cxt);
 		if (unlikely(ret)) {
-			pr_err("%s error", __func__);
+			pr_err("error");
 			break;
 		}
 
@@ -2746,7 +2746,7 @@ static int sprd_img_stream_on(struct file *file)
 		if (path_1->is_work) {
 			ret = sprd_img_path_cfg(dcam_path1_cfg, path_1);
 			if (unlikely(ret)) {
-				pr_err("%s error", __func__);
+				pr_err("error");
 				break;
 			}
 			path_1->status = PATH_RUN;
@@ -2754,7 +2754,7 @@ static int sprd_img_stream_on(struct file *file)
 			ret = dcam_path1_cfg(DCAM_PATH_ENABLE,
 					     &path_1->is_work);
 			if (unlikely(ret)) {
-				pr_err("%s error", __func__);
+				pr_err("error");
 				break;
 			}
 		}
@@ -2763,12 +2763,12 @@ static int sprd_img_stream_on(struct file *file)
 		if (path_2->is_work) {
 			ret = sprd_img_path_cfg(dcam_path2_cfg, path_2);
 			if (unlikely(ret)) {
-				pr_err("%s error, line:%d", __func__, __LINE__);
+				pr_err("error");
 				break;
 			}
 			ret = sprd_img_reg_path2_isr(dev);
 			if (unlikely(ret)) {
-				pr_err("%s error, line:%d", __func__, __LINE__);
+				pr_err("error");
 				break;
 			}
 			path_2->status = PATH_RUN;
@@ -2776,7 +2776,7 @@ static int sprd_img_stream_on(struct file *file)
 			ret = dcam_path2_cfg(DCAM_PATH_ENABLE,
 						&path_2->is_work);
 			if (unlikely(ret)) {
-				pr_err("%s error, line:%d", __func__, __LINE__);
+				pr_err("error");
 				break;
 			}
 		}
@@ -2784,7 +2784,7 @@ static int sprd_img_stream_on(struct file *file)
 		if (path_0->is_work) {
 			ret = sprd_img_path0_cfg(dcam_path0_cfg, path_0);
 			if (unlikely(ret)) {
-				pr_err("%s error, line:%d", __func__, __LINE__);
+				pr_err("error");
 				break;
 			}
 			path_0->status = PATH_RUN;
@@ -2792,7 +2792,7 @@ static int sprd_img_stream_on(struct file *file)
 			ret = dcam_path0_cfg(DCAM_PATH_ENABLE,
 					     &path_0->is_work);
 			if (unlikely(ret)) {
-				pr_err("%s error, line:%d", __func__, __LINE__);
+				pr_err("error");
 				break;
 			}
 		}
@@ -2820,7 +2820,7 @@ static int sprd_img_stream_on(struct file *file)
 		sprd_img_unreg_path2_isr(dev);
 		sprd_img_dcam_unreg_isr(dev);
 		sprd_img_isp_unreg_isr(dev);
-		pr_err("sprd_img_stream_on failed: %d.\n", ret);
+		pr_err("failed: %d.\n", ret);
 	} else {
 		atomic_set(&dev->run_flag, 0);
 		if (path_0->is_work || path_1->is_work || path_2->is_work)
@@ -2828,7 +2828,7 @@ static int sprd_img_stream_on(struct file *file)
 	}
 
 	mutex_unlock(&dev->dcam_mutex);
-	pr_info("%s end, ret: %d\n", __func__, ret);
+	pr_info("end, ret: %d\n", ret);
 exit:
 	return ret;
 }
@@ -2840,6 +2840,7 @@ static int sprd_img_stream_off(struct file *file)
 	struct dcam_path_spec *path_0 = NULL;
 	struct dcam_path_spec *path_1 = NULL;
 	struct dcam_path_spec *path_2 = NULL;
+	struct platform_device *pdev = NULL;
 
 	dev = file->private_data;
 	if (!dev) {
@@ -2855,14 +2856,13 @@ static int sprd_img_stream_off(struct file *file)
 	path_2 = &dev->dcam_cxt.dcam_path[DCAM_PATH2];
 
 	if (unlikely(atomic_read(&dev->stream_on) == 0)) {
-		pr_debug("stream not on.\n");
+		pr_info("stream not on.\n");
 		ret = sprd_img_local_deinit(dev);
 		mutex_unlock(&dev->dcam_mutex);
 		goto exit;
 	}
 
-	pr_info("%s start, path_0:%d, path_1:%d, path_2:%d, stream_on:%d.\n",
-		__func__,
+	pr_info("start, path_0:%d, path_1:%d, path_2:%d, stream_on:%d.\n",
 		path_0->is_work, path_1->is_work,
 		path_2->is_work, atomic_read(&dev->stream_on));
 
@@ -2933,12 +2933,14 @@ static int sprd_img_stream_off(struct file *file)
 		}
 		dev->dcam_cxt.interp_mode = 0;
 	} while (0);
+	pdev = sprd_dcam_get_pdev();
+	buffer_list_clear(IOMMU_BUF, &pdev->dev);
 	pfiommu_put_sg_table();
 	dcam_rel_resizer();
 	dev->got_resizer = 0;
 
 	mutex_unlock(&dev->dcam_mutex);
-	pr_info("%s end, ret: %d\n", __func__, ret);
+	pr_info("end, ret: %d\n", ret);
 exit:
 	return ret;
 }
@@ -2960,11 +2962,11 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 #endif
 	if (atomic_read(&s_dcam_cnt) >= 1)
 		return -EBADFD;
-	pr_info("%s start\n", __func__);
+	pr_info("start\n");
 	dev = vzalloc(sizeof(*dev));
 	if (!dev) {
 		ret = -ENOMEM;
-		pr_err("sprd_img_k_open fail alloc.\n");
+		pr_err("fail alloc.\n");
 		return ret;
 	}
 	pr_info("dev:0x%x", (unsigned int)dev);
@@ -3008,13 +3010,13 @@ static int sprd_img_k_open(struct inode *node, struct file *file)
 
 exit:
 	if (unlikely(ret)) {
-		pr_err("sprd_img_k_open failed!\n");
+		pr_err("failed!\n");
 		dcam_stop_flash_thread(dev);
 		sprd_img_stop_zoom_thread(dev);
 		vfree(dev);
 	}
 
-	pr_info("%s end, ret: %d\n", __func__, ret);
+	pr_info("end, ret: %d\n", ret);
 	return ret;
 }
 
@@ -3026,7 +3028,7 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 
 	if (atomic_read(&s_dcam_cnt) <= 0)
 		return -EBADFD;
-	pr_info("%s start\n", __func__);
+	pr_info("start\n");
 	dev = file->private_data;
 	if (!dev || !dev->driver_data) {
 		pr_err("dev or dev->driver_data is NULL!\n");
@@ -3055,11 +3057,11 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 	file->private_data = NULL;
 	atomic_dec(&s_dcam_cnt);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	sprd_glb_mm_pw_off_cfg();
-	pm_runtime_put_autosuspend(md->this_device->platform_data);
+	ret = sprd_glb_mm_pw_off_cfg();
+	ret |= pm_runtime_put_autosuspend(md->this_device->platform_data);
 #endif
 exit:
-	pr_info("%s end\n", __func__);
+	pr_info(" end,ret=%d\n",ret);
 	return ret;
 }
 
@@ -3089,6 +3091,7 @@ static int dcam_get_iova(struct device *dev,
 {
 	int ret = 0;
 	struct sprd_iommu_map_data iommu_map_data;
+	struct sprd_iommu_unmap_data iommu_data;
 
 	if (dev == NULL) {
 		pr_err("iommu dcam_get_iova fail, dev null\n");
@@ -3104,10 +3107,20 @@ static int dcam_get_iova(struct device *dev,
 			pr_err("map fail, ret %d, fd 0x%x iova 0x%lx size 0x%zx sg %p\n",
 				ret, mapdata->fd, iommu_map_data.iova_addr,
 				mapdata->size, mapdata->sg_table);
-		else
-			pr_info("map succe, fd 0x%x iova 0x%lx size 0x%zx sg %p\n",
-				mapdata->fd, iommu_map_data.iova_addr,
-				mapdata->size, mapdata->sg_table);
+		else {
+			ret = buffer_list_add(mapdata->fd, mapdata->sg_table, mapdata->size, IOMMU_BUF);
+			if (ret){
+				iommu_data.buf = mapdata->sg_table;
+				iommu_data.iova_size = mapdata->size;
+				iommu_data.iova_addr = 0;
+				sprd_iommu_unmap(dev, &iommu_data);
+				pr_err("list add error");
+			}
+			else
+				DMABUF_TRACE("map succe, fd 0x%x iova 0x%lx size 0x%zx sg %p\n",
+					mapdata->fd, iommu_map_data.iova_addr,
+					mapdata->size, mapdata->sg_table);
+		}
 	}
 	return ret;
 }
@@ -3123,23 +3136,25 @@ static int dcam_free_iova(struct device *dev,
 		return -EFAULT;
 	}
 
-	if (sprd_iommu_attach_device(dev) == 0) {
-		iommu_data.buf = unmapdata->sg_table;
-		iommu_data.iova_size = unmapdata->size;
-		iommu_data.iova_addr = 0;
-		ret = sprd_iommu_unmap(dev, &iommu_data);
-		if (ret)
-			pr_err("unmap fail, ret %d, fd  0x%x iova 0x%x size 0x%zx sg %p\n",
+	if (sprd_iommu_attach_device(dev) == 0 && !buffer_list_empty(IOMMU_BUF)) {
+		if (!buffer_list_del(unmapdata->fd, unmapdata->sg_table, unmapdata->size, IOMMU_BUF)){
+			iommu_data.buf = unmapdata->sg_table;
+			iommu_data.iova_size = unmapdata->size;
+			iommu_data.iova_addr = 0;
+			ret = sprd_iommu_unmap(dev, &iommu_data);
+			if (ret)
+				pr_err("unmap fail, ret %d, fd 0x%x iova 0x%x size 0x%zx sg %x\n",
 				ret, unmapdata->fd,
 				unmapdata->size,
 				(unsigned int)iommu_data.iova_addr,
 				unmapdata->sg_table);
-		else
-			pr_info("unmap succe, fd  0x%x iova 0x%x size 0x%zx sg %p\n",
-				unmapdata->fd,
-				(unsigned int)iommu_data.iova_addr,
-				unmapdata->size,
-				unmapdata->sg_table);
+			else
+				DMABUF_TRACE("unmap succe, fd 0x%x iova 0x%x size 0x%zx sg %x\n",
+					unmapdata->fd,
+					(unsigned int)iommu_data.iova_addr,
+					unmapdata->size,
+					unmapdata->sg_table);
+		}
 	}
 
 	return ret;
@@ -3173,19 +3188,19 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	int                      ret = DCAM_RTN_SUCCESS;
 	struct sprd_img_parm __user *uparam = NULL;
 
-	DCAM_TRACE("sprd_img_k_ioctl: cmd: 0x%x.\n", cmd);
+	DCAM_TRACE("cmd: 0x%x.\n", cmd);
 
 	dev = file->private_data;
 	if (!dev) {
 		ret = -EFAULT;
-		pr_err("sprd_img_k_ioctl: dev is NULL.\n");
+		pr_err("dev is NULL.\n");
 		goto exit;
 	}
 
 	info = &dev->dcam_cxt;
 	if(cmd == SPRD_IMG_IO_SET_KEY || dev->private_key == 1){}
 	else {
-		pr_err("%s private key error\n", __func__);
+		pr_err("private key error\n");
 		goto exit;
 	}
 
@@ -3195,7 +3210,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&mode, (void __user *)arg,
 				sizeof(uint32_t));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3210,7 +3225,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&freq_flag, (void __user *)arg,
 				sizeof(uint32_t));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3226,7 +3241,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&skip_num, (void __user *)arg,
 		      sizeof(uint32_t));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3241,7 +3256,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&size, (void __user *)arg,
 			sizeof(struct sprd_img_size));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3259,7 +3274,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&rect, (void __user *)arg,
 			sizeof(struct sprd_img_rect));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3330,7 +3345,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&info->set_flash, (void __user *)arg,
 					sizeof(struct sprd_img_set_flash));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3367,14 +3382,14 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&info->path_input_rect,
 				&uparam->crop_rect, sizeof(struct sprd_img_rect));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info of path_input_rect.\n");
+			pr_err("fail to get user info of path_input_rect.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
 		ret = copy_from_user(&info->dst_size,
 				&uparam->dst_size, sizeof(struct sprd_img_size));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info of dst_size.\n");
+			pr_err("fail to get user info of dst_size.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3386,7 +3401,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&zoom, (void __user *)arg,
 					sizeof(uint32_t));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3405,7 +3420,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&sensor_if, (void __user *)arg,
 				sizeof(struct sprd_img_sensor_if));
 		if (unlikely(ret)) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3435,7 +3450,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		get_user(channel_id, &uparam->channel_id);
 		ret = get_user(deci, &uparam->deci);
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3454,7 +3469,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&path->regular_desc,
 			&uparam->regular_desc, sizeof(struct dcam_regular_desc));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			mutex_unlock(&dev->dcam_mutex);
 			goto exit;
 		}
@@ -3474,7 +3489,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&channel_id, (void __user *)arg,
 				sizeof(uint32_t));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			goto exit;
 		}
 		sprd_img_streamresume(file, channel_id);
@@ -3503,7 +3518,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&fmt_desc, (void __user *)arg,
 				sizeof(struct sprd_img_get_fmt));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			goto exit;
 		}
 		if (unlikely(fmt_desc.index >= ARRAY_SIZE(dcam_img_fmt)))
@@ -3586,7 +3601,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = copy_from_user(&img_format, (void __user *)arg,
 					sizeof(struct sprd_img_format));
 		if (ret) {
-			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
+			pr_err("fail to get user info.\n");
 			goto exit;
 		}
 
@@ -3784,7 +3799,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		ret = dcam_get_sg(&data);
 		if (copy_to_user((void __user *)arg, &data,
 				sizeof(struct sprd_img_iova))) {
-			pr_err("%s, copy to user error!\n", __func__);
+			pr_err("copy to user error!\n");
 			return -EFAULT;
 		}
 		break;
@@ -3837,13 +3852,13 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		pr_info("cam%d get ioctrl permission %d\n", dev->idx, dev->private_key);
 		break;
 	default:
-		pr_err("sprd_img_k_ioctl: invalid cmd NR %u\n", _IOC_NR(cmd));
+		pr_err("invalid cmd NR %u\n", _IOC_NR(cmd));
 		break;
 	}
 
 exit:
 	if (ret) {
-		pr_err("sprd_img_k_ioctl fail, cmd NR %u\n", _IOC_NR(cmd));
+		pr_err("fail, cmd NR %u\n", _IOC_NR(cmd));
 		ret = -EFAULT;
 	}
 
@@ -4032,14 +4047,14 @@ static ssize_t sprd_img_write(struct file *file, const char __user *u_data,
 	uint32_t                 index;
 	int                      ret = 0;
 
-	DCAM_TRACE("sprd_img_write.\n");
+	DCAM_TRACE("in\n");
 
 	if (!dev)
 		return -EFAULT;
 	info = &dev->dcam_cxt;
 
 	if (cnt != sizeof(struct sprd_img_write_op)) {
-		pr_err("sprd_img_write: error cnt %d.\n", cnt);
+		pr_err("error cnt %d.\n", cnt);
 		return -EIO;
 	}
 
@@ -4119,7 +4134,7 @@ int32_t sprd_dcam_registers_dump(void *buf, uint32_t buf_len)
 	int ret;
 
 	if (buf == NULL || buf_len < 0x400) {
-		pr_err("%s input para is error", __func__);
+		pr_err("input para is error");
 		return -1;
 	}
 
@@ -4158,7 +4173,7 @@ static struct miscdevice image_dev = {
 static int sprd_img_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	pr_err("sprd_img_probe called.\n");
+	pr_err("called.\n");
 
 	ret = misc_register(&image_dev);
 	if (ret) {

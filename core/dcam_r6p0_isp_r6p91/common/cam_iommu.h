@@ -35,10 +35,13 @@ struct pfiommu_info {
 #endif
 	int is_secure;
 };
+enum BUF_TYPE{
+	IOMMU_BUF = 0,
+	DMA_BUF,
+};
 
 int pfiommu_get_sg_table(struct pfiommu_info *pfinfo);
-int  pfiommu_put_sg_table(void);
-void dma_buffer_list_clear(void);
+int pfiommu_put_sg_table(void);
 int pfiommu_check_addr(struct pfiommu_info *pfinfo);
 int pfiommu_get_addr(struct pfiommu_info *pfinfo);
 unsigned int pfiommu_get_kaddr(struct pfiommu_info *pfinfo);
@@ -46,5 +49,18 @@ int pfiommu_free_addr(struct pfiommu_info *pfinfo);
 int pfiommu_free_addr_with_id(struct pfiommu_info *pfinfo,
 	enum sprd_iommu_chtype ctype, unsigned int cid);
 int pfiommu_get_single_page_addr(struct pfiommu_info *pfinfo);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+int sprd_get_sysbuffer(int fd,  void **buf, size_t *size);
+#endif
+int buffer_list_add(int fd, void *buf, size_t size, int buf_type);
+int buffer_list_del(int fd, void *buf, size_t size, int buf_type);
+void buffer_list_clear(int buf_type, struct device *dev);
+bool buffer_list_empty(int buf_type);
 
+//#define DMABUF_DEBUG
+#ifdef DMABUF_DEBUG
+	#define DMABUF_TRACE  pr_info
+#else
+	#define DMABUF_TRACE    pr_debug
+#endif
 #endif /* _CAM_IOMMU_H_ */

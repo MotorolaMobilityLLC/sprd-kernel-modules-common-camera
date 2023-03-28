@@ -442,7 +442,7 @@ int sprd_isp_clr_statis_buf(void *isp_pipe_dev_handle)
 	pfinfo = &statis_module_info->img_statis_buf.pfinfo;
 	if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0
 			&& !is_dma_buf_map_null(&pfinfo->dmabuf_p[0]->vmap_ptr)) {
-		pr_info("dmabuf unmap kaddr 0x%x", (unsigned int)pfinfo->map.vaddr);
+		pr_info("dmabuf %x unmap kaddr %x", pfinfo->dmabuf_p[0], (unsigned int)pfinfo->map.vaddr);
 		sprd_dmabuf_unmap_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
 	}
 #endif
