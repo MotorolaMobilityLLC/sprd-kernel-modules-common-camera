@@ -354,6 +354,7 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			pframe->common.is_compressed = param->compress_en;
 			pframe->common.width = width;
 			pframe->common.height = height;
+			CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
 			ret = cam_buf_alloc(&pframe->common.buf, size, param->iommu_enable);
 			if (ret) {
 				pr_err("fail to alloc buf: %d ch %d\n",

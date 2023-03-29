@@ -23,34 +23,6 @@
 #endif
 #define pr_fmt(fmt) "GTM: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-void dcam_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p)
-{
-	p->gtm_tm_out_bit_depth = 0xE;
-	p->gtm_tm_in_bit_depth = 0xE;
-	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 769156;
-	p->gtm_log_diff_int = 698;
-	p->gtm_log_max_int = 0x0;
-	p->gtm_log_min_int = 32580;
-	p->gtm_lr_int = 61517;
-	p->gtm_tm_param_calc_by_hw = 0x1;
-	p->tm_lumafilter_c[0][0] = 0x4;
-	p->tm_lumafilter_c[0][1] = 0x2;
-	p->tm_lumafilter_c[0][2] = 0x4;
-	p->tm_lumafilter_c[1][0] = 0x2;
-	p->tm_lumafilter_c[1][1] = 0x28;
-	p->tm_lumafilter_c[1][2] = 0x2;
-	p->tm_lumafilter_c[2][0] = 0x4;
-	p->tm_lumafilter_c[2][1] = 0x2;
-	p->tm_lumafilter_c[2][2] = 0x4;
-	p->tm_lumafilter_shift = 0x6;
-	p->slice.gtm_slice_line_startpos = 0x0;
-	p->slice.gtm_slice_line_endpos = 0x0;
-	p->slice.gtm_slice_main = 0x0;
-	p->gtm_ymin = 2;
-	p->gtm_target_norm = 4015;
-}
-
 int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice)
 {
 	int ret = 0;
@@ -97,10 +69,10 @@ int dcam_k_raw_gtm_block(struct dcam_isp_k_block *param)
 		return 0;
 	}
 
-	if (gtm->gtm_calc_mode == GTM_SW_CALC) {
+	if (p->calc_mode == GTM_SW_CALC) {
 		p->gtm_cur_is_first_frame = 1;
 		p->gtm_tm_param_calc_by_hw = 0;
-		pr_debug("gtm_sw_calc first frame need gtm map\n");
+		pr_info("gtm_sw_calc first frame need gtm map\n");
 	} else if (hw_ctx->fid == 0) {
 		pr_debug("online or offline first frame gtm map need bypass\n");
 		p->gtm_cur_is_first_frame = 1;
@@ -120,7 +92,7 @@ int dcam_k_raw_gtm_block(struct dcam_isp_k_block *param)
 		((p->gtm_tm_out_bit_depth & 0xF) << 28);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0xFF00007E, val);
 
-	if (gtm->gtm_calc_mode == GTM_SW_CALC)
+	if (p->calc_mode == GTM_SW_CALC)
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, 0);
 	else
 		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
@@ -266,98 +238,40 @@ int dcam_k_gtm_bypass(struct dcam_isp_k_block *param, struct dcam_dev_raw_gtm_by
 int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 {
 	int ret = 0;
-	uint32_t *calc_mode = NULL;
 	struct dcam_dev_raw_gtm_block_info *gtm_block = NULL;
-	struct cam_gtm_mapping map_param = {0};
 	struct dcam_dev_raw_gtm_bypass *gtm_bypass = NULL;
 
 	switch (param->property) {
 	case DCAM_PRO_GTM_BLOCK:
 		gtm_block = &p->gtm.gtm_info;
-		/* online mode not need mutex, response faster
-		 * Offline need mutex to protect param
-		 */
-		if (p->offline == 0) {
-			ret = copy_from_user((void *)gtm_block, param->property_param, sizeof(struct dcam_dev_raw_gtm_block_info));
-			if (ret) {
-				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
-				return -EPERM;
+		ret = copy_from_user((void *)(gtm_block), param->property_param, sizeof(struct dcam_dev_raw_gtm_block_info));
+		if (ret) {
+			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
+			return -EPERM;
+		}
+		pr_debug("dcam%d scene_id %d, mod %d hist %d map %d init_flag %d\n",
+			p->idx, param->scene_id, gtm_block->bypass_info.gtm_mod_en,
+			gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass, gtm_block->init_flag);
+		/* if stream on, init_flag is 1, else, init_flag is 0 */
+		if (gtm_block->init_flag) {
+			if (p->offline == 0) {
+				if (p->idx == DCAM_HW_CONTEXT_MAX)
+					return 0;
+				dcam_k_raw_gtm_block(p);
 			}
-			dcam_k_raw_gtm_set_default(gtm_block);
-			pr_debug("scene %d gtm mod_en %d,  hist_stat_bypass %d, map_bypass %d\n",
-				param->scene_id, gtm_block->bypass_info.gtm_mod_en, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
+		} else {
+			gtm_bypass = &p->gtm.gtm_info.bypass_info;
 			if (p->idx == DCAM_HW_CONTEXT_MAX)
 				return 0;
-
-			dcam_k_raw_gtm_block(p);
-		} else {
-			mutex_lock(&p->param_lock);
-			ret = copy_from_user((void *)gtm_block, param->property_param, sizeof(struct dcam_dev_raw_gtm_block_info));
-			if (ret) {
-				mutex_unlock(&p->param_lock);
-				pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
-				return -EPERM;
-			}
-			dcam_k_raw_gtm_set_default(gtm_block);
-			pr_debug("scene %d gtm mod_en %d,  hist_stat_bypass %d, map_bypass %d\n",
-				param->scene_id, gtm_block->bypass_info.gtm_mod_en, gtm_block->bypass_info.gtm_hist_stat_bypass, gtm_block->bypass_info.gtm_map_bypass);
-			mutex_unlock(&p->param_lock);
+			dcam_k_gtm_bypass(p, gtm_bypass);
+			pr_debug("get mapping info, scene_id %d, offline %d\n", param->scene_id, p->offline);
+			dcam_k_raw_gtm_mapping(gtm_block, p->idx);
 		}
-		break;
-	case DCAM_PRO_GTM_MAPPING:
-		gtm_block = &p->gtm.gtm_info;
-		pr_debug("get mapping info, scene_id %d, offline %d\n", param->scene_id, p->offline);
-
-		ret = copy_from_user((void *)&map_param, param->property_param, sizeof(struct cam_gtm_mapping));
-		if (ret) {
-			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
-			return -EPERM;
-		}
-		if ((!map_param.ymin) && (!map_param.target) && (!map_param.lr_int) &&
-			(!map_param.log_min_int) && (!map_param.log_diff_int) && (!map_param.diff)) {
-			pr_warn("warn: set wrong map param, drop it\n");
-			break;
-		}
-		gtm_block->gtm_lr_int = map_param.lr_int;
-		gtm_block->gtm_ymin = map_param.ymin;
-		gtm_block->gtm_ymax = map_param.ymax;
-		gtm_block->gtm_yavg = map_param.yavg;
-		gtm_block->gtm_target_norm = map_param.target;
-		gtm_block->gtm_log_min_int = map_param.log_min_int;
-		gtm_block->gtm_log_diff_int = map_param.log_diff_int;
-		gtm_block->gtm_log_diff = map_param.diff;
-		if (p->idx == DCAM_HW_CONTEXT_MAX)
-			return 0;
-
-		dcam_k_raw_gtm_mapping(gtm_block, p->idx);
-		break;
-	case DCAM_PRO_GTM_BYPASS:
-		gtm_bypass = &p->gtm.gtm_info.bypass_info;
-		ret = copy_from_user((void *)gtm_bypass, param->property_param, sizeof(struct dcam_dev_raw_gtm_bypass));
-		if (ret) {
-			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
-			return -EPERM;
-		}
-		pr_debug("scene%d mod en %d, hitst bypass %d, map bypass %d\n",
-			param->scene_id, gtm_bypass->gtm_mod_en, gtm_bypass->gtm_hist_stat_bypass, gtm_bypass->gtm_map_bypass);
-
-		if (p->idx == DCAM_HW_CONTEXT_MAX)
-			return 0;
-		dcam_k_gtm_bypass(p, gtm_bypass);
-		break;
-	case DCAM_PRO_GTM_CALC_MODE:
-		calc_mode = &p->gtm.gtm_calc_mode;
-		ret = copy_from_user((void *)calc_mode, param->property_param, sizeof(uint32_t));
-		if (ret) {
-			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
-			return -EPERM;
-		}
-		pr_debug("gtm calc mode %d\n", *calc_mode);
 		break;
 	default:
-		pr_err("fail cmd id:%d, not supported.\n", param->property);
+		pr_err("fail to support cmd id:%d\n", param->property);
 		break;
 	}
+
 	return ret;
 }
-

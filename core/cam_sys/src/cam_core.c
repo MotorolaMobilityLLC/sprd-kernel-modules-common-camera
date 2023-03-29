@@ -1874,6 +1874,12 @@ rewait:
 				read_op.parm.frame.uaddr = pframe->common.buf.offset[1];
 				read_op.parm.frame.vaddr = pframe->common.buf.offset[2];
 				read_op.parm.frame.is_flash_status = pframe->common.is_flash_status;
+				/*statis info*/
+				read_op.parm.frame.aem_info = pframe->common.aem_info;
+				read_op.parm.frame.bayerhist_info = pframe->common.bayerhist_info;
+				read_op.parm.frame.afm_info = pframe->common.afm_info;
+				read_op.parm.frame.pdaf_info = pframe->common.pdaf_info;
+				read_op.parm.frame.lscm_info = pframe->common.lscm_info;
 
 				if (pframe->common.irq_type == CAMERA_IRQ_RAW_IMG) {
 					pr_info("FDR %d ch %d, evt %d, fid %d, buf_fd %d,  time  %06d.%06d\n",
