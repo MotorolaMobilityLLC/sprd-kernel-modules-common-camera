@@ -15,6 +15,7 @@
 #include "dcam_dummy.h"
 #include "cam_statis.h"
 #include "dcam_int_common.h"
+#include "dcam_hwctx.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -65,7 +66,6 @@ static void dcamonline_nr3_store_addr(struct dcam_online_node *node)
 	struct cam_frame *frame = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
-	struct dcam_hw_cfg_store_addr store_arg = {0};
 
 	hw = node->dev->hw;
 	hw_ctx = node->hw_ctx;
@@ -78,10 +78,7 @@ static void dcamonline_nr3_store_addr(struct dcam_online_node *node)
 	}
 
 	if (frame) {
-		store_arg.idx = hw_ctx->hw_ctx_id;
-		store_arg.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
-		store_arg.path_id = DCAM_PATH_3DNR;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+		dcam_hwctx_nr3_store_addr(hw_ctx, frame);
 		node->nr3_frm = frame;
 	}
 }
@@ -292,7 +289,6 @@ static int dcamonline_fmcu_slw_set(struct dcam_online_node *node)
 	int ret = 0, j = 0;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_online_port *port = NULL;
-	struct dcam_fmcu_ctx_desc *fmcu = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
 
 	if (!node) {
@@ -328,18 +324,8 @@ static int dcamonline_fmcu_slw_set(struct dcam_online_node *node)
 						node->hw_ctx_id, cam_port_name_get(port->port_id), ret);
 			}
 		}
-		fmcu = hw_ctx->fmcu;
-		if (!fmcu)
-			pr_err("fail to check param fmcu%px\n", fmcu);
-		hw_ctx->slw.fmcu_handle = fmcu;
-		hw_ctx->slw.ctx_id = node->hw_ctx_id;
-		hw_ctx->slw.slw_id = j;
-		hw_ctx->slw.slw_cnt = hw_ctx->slowmotion_count;
-		if ((node->hw_ctx->index_to_set == 0) && (j == 0))
-			hw_ctx->slw.is_first_cycle = 1;
-		else
-			hw_ctx->slw.is_first_cycle = 0;
-		ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_FMCU_CMDS, &hw_ctx->slw);
+
+		ret = dcam_hwctx_slw_fmcu_set(hw_ctx, node->hw_ctx_id, j);
 		if (ret)
 			pr_err("fail to prepare %s slw cmd\n", cam_port_name_get(port->port_id));
 	}
@@ -1236,8 +1222,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		return -1;
 	}
 
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETSTATIS, pm);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, pm);
+	dcam_hwctx_block_set(hw_ctx);
 
 	ret = atomic_read(&node->state);
 	if (unlikely(ret != STATE_IDLE)) {

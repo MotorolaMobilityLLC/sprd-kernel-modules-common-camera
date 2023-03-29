@@ -73,6 +73,11 @@ enum dcam_state {
 	STATE_ERROR = 3,
 };
 
+enum slice_proc_chose {
+	FETCH_SLICE_PROC,
+	OFFLINE_SLICE_PROC,
+};
+
 struct dcam_offline_slice_info {
 	enum camera_slice_mode dcam_slice_mode;
 	uint32_t slice_num;
@@ -150,6 +155,7 @@ struct dcam_hw_context {
 	void *dcam_irq_cb_handle;
 	dcam_irq_proc_cb dcam_irq_cb_func;
 	uint32_t frame_addr[DCAM_ADDR_RECORD_FRAME_NUM][DCAM_RECORD_PORT_INFO_MAX];
+	enum slice_proc_chose slice_proc_mode;
 };
 
 struct dcam_pipe_dev {

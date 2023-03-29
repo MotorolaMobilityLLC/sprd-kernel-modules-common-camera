@@ -13,6 +13,7 @@
 
 #include "cam_zoom.h"
 #include "dcam_reg.h"
+#include "dcam_hwctx.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -398,106 +399,6 @@ static inline struct cam_frame *dcamonline_port_frame_cycle(struct dcam_online_p
 	return frame;
 }
 
-static void dcamonline_port_update_path_size(struct dcam_online_port *dcam_port,
-	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
-{
-	struct dcam_hw_path_size path_size = {0};
-	struct cam_hw_info *hw;
-
-	hw = hw_ctx->hw;
-
-	path_size.path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
-	path_size.idx = idx;
-	path_size.size_x = hw_ctx->cap_info.cap_size.size_x;
-	path_size.size_y = hw_ctx->cap_info.cap_size.size_y;
-	path_size.src_sel = dcam_port->src_sel;
-	path_size.bin_ratio = dcam_port->bin_ratio;
-	path_size.scaler_sel = dcam_port->scaler_sel;
-	path_size.in_size = dcam_port->in_size;
-	path_size.in_trim = dcam_port->in_trim;
-	path_size.out_size = dcam_port->out_size;
-	path_size.out_pitch= dcam_port->out_pitch;
-	path_size.compress_info = frame->common.fbc_info;
-	path_size.deci = dcam_port->deci;
-	path_size.scaler_info = &dcam_port->scaler_info;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
-}
-
-static int dcamonline_port_pyr_dec_cfg(struct dcam_online_port *dcam_port,
-	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
-{
-	int ret = 0, i = 0;
-	uint32_t align_w = 0, align_h = 0;
-	uint32_t layer_num = 0;
-	struct cam_hw_info *hw;
-	struct dcam_hw_dec_store_cfg dec_store;
-	struct dcam_hw_dec_online_cfg dec_online;
-
-	if (!dcam_port || !frame || !hw_ctx) {
-		pr_err("fail to check param, port%px, frame%px, hw_ctx%px\n", dcam_port, frame, hw_ctx);
-		return -EINVAL;
-	}
-	hw = hw_ctx->hw;
-
-	memset(&dec_store, 0, sizeof(struct dcam_hw_dec_store_cfg));
-	memset(&dec_online, 0, sizeof(struct dcam_hw_dec_online_cfg));
-
-	layer_num = dcam_port->dec_store_info.layer_num;
-	dec_online.idx = idx;
-	dec_online.layer_num = layer_num;
-	dec_online.chksum_clr_mode = 0;
-	dec_online.chksum_work_mode = 0;
-	dec_online.path_sel = DACM_DEC_PATH_DEC;
-	dec_online.hor_padding_num = dcam_port->dec_store_info.align_w - dcam_port->out_size.w;
-	dec_online.ver_padding_num = dcam_port->dec_store_info.align_h - dcam_port->out_size.h;
-	if (dec_online.hor_padding_num)
-		dec_online.hor_padding_en = 1;
-	if (dec_online.ver_padding_num)
-		dec_online.ver_padding_en = 1;
-	dec_online.flust_width = dcam_port->out_size.w;
-	dec_online.flush_hblank_num = dec_online.hor_padding_num + 20;
-	dec_online.flush_line_num = dec_online.ver_padding_num + 20;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
-
-	dec_store.idx = idx;
-	dec_store.bypass = 1;
-	dec_store.endian = dcam_port->endian;
-	dec_store.color_format = dcam_port->dcamout_fmt;
-	dec_store.border_up = 0;
-	dec_store.border_down = 0;
-	dec_store.border_left = 0;
-	dec_store.border_right = 0;
-	/*because hw limit, pyr output 10bit*/
-	dec_store.data_10b = 1;
-	dec_store.flip_en = 0;
-	dec_store.last_frm_en = 1;
-	dec_store.mirror_en = 0;
-	dec_store.mono_en = 0;
-	dec_store.speed2x = 1;
-	dec_store.rd_ctrl = 0;
-	dec_store.store_res = 0;
-	dec_store.burst_len = 1;
-
-	pr_debug("dcam %d padding w %d h %d alignw %d h%d\n", idx,
-		dec_online.hor_padding_num, dec_online.ver_padding_num, align_w, align_h);
-	for (i = 0; i < layer_num; i++) {
-		dec_store.bypass = 0;
-		dec_store.cur_layer = i;
-		dec_store.width = dcam_port->dec_store_info.size_t[i].w;
-		dec_store.height = dcam_port->dec_store_info.size_t[i].h;
-		dec_store.pitch[0] = dcam_port->dec_store_info.pitch_t[i].pitch_ch0;
-		dec_store.pitch[1] = dcam_port->dec_store_info.pitch_t[i].pitch_ch1;
-		/* when zoom, if necessary size update may set with path size udapte
-		 thus, the dec_store need remember on path or ctx, and calc & reg set
-		 need separate too, now just */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
-
-		pr_debug("dcam %d dec_layer %d w %d h %d\n", idx, i, dec_store.width, dec_store.height);
-	}
-
-	return ret;
-}
-
 static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_port,
 	struct cam_frame *frame, struct dcam_hw_context *hw_ctx, uint32_t idx)
 {
@@ -615,7 +516,7 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 
 	switch (dcam_port->port_id) {
 	case PORT_RAW_OUT:
-		dcamonline_port_update_path_size(dcam_port, frame, hw_ctx, idx);
+		dcam_hwctx_update_path_size(dcam_port, frame, hw_ctx, idx);
 		frame->common.width = dcam_port->out_size.w;
 		frame->common.height = dcam_port->out_size.h;
 		break;
@@ -625,8 +526,8 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 
 		if (!frame->common.is_reserved || slw != NULL) {
 			if (dcam_port->is_pyr_rec)
-				dcamonline_port_pyr_dec_cfg(dcam_port, frame, hw_ctx, idx);
-			dcamonline_port_update_path_size(dcam_port, frame, hw_ctx, idx);
+				dcam_hwctx_pyr_dec_cfg(dcam_port, frame, hw_ctx, idx);
+			dcam_hwctx_update_path_size(dcam_port, frame, hw_ctx, idx);
 			hw_ctx->next_roi = dcam_port->in_trim;
 			hw_ctx->zoom_ratio = ZOOM_RATIO_DEFAULT * dcam_port->zoom_ratio_w / dcam_port->in_trim.size_x;
 			hw_ctx->total_zoom = ZOOM_RATIO_DEFAULT * dcam_port->in_size.w / dcam_port->total_zoom_crop_w;
@@ -636,7 +537,7 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 		frame->common.height = dcam_port->out_size.h;
 		break;
 	case PORT_FULL_OUT:
-		dcamonline_port_update_path_size(dcam_port, frame, hw_ctx, idx);
+		dcam_hwctx_update_path_size(dcam_port, frame, hw_ctx, idx);
 		frame->common.width = dcam_port->out_size.w;
 		frame->common.height = dcam_port->out_size.h;
 		break;
