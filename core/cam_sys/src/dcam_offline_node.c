@@ -16,6 +16,7 @@
 #include "cam_zoom.h"
 #include "dcam_dummy.h"
 #include "dcam_slice.h"
+#include "dcam_hwctx.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -31,20 +32,6 @@
 			atomic_set(&__port->is_work, 1); \
 	}\
 })
-
-static int dcamoffline_hw_reset(struct dcam_hw_context *hw_ctx)
-{
-	int ret = 0;
-	struct cam_hw_info *hw = NULL;
-
-	hw = hw_ctx->hw;
-	hw_ctx->fid = 0;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
-	if (ret)
-		pr_err("fail to reset dcam%d\n", hw_ctx->hw_ctx_id);
-
-	return ret;
-}
 
 static int dcamoffline_node_size_update(struct dcam_offline_node *node,
 	struct dcam_offline_port *port, struct cam_frame *pframe)
@@ -264,7 +251,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			if (node->data_cb_func)
 				node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, node->data_cb_handle);
 		}
-		ret = dcamoffline_hw_reset(node->hw_ctx);
+		ret = dcam_hwctx_offline_reset(node->hw_ctx);
 		if (ret)
 			pr_err("fail to reset dcam%d\n", node->hw_ctx_id);
 		dcamoffline_ctx_unbind(node);
@@ -414,36 +401,20 @@ static int dcamoffline_hw_statis_work_set(struct dcam_offline_node *node)
 
 static int dcamoffline_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 {
-	int ret = 0, i = 0;
+	int ret = 0;
 	struct cam_hw_info *hw = NULL;
 
 	hw = hw_ctx->hw;
-	for (i = 0; i < DCAM_PATH_MAX; i++) {
-		if (!hw_ctx->hw_path[i].need_update)
-			continue;
-		pr_info("dcam path id %d update, compress_en %d\n", i, hw_ctx->hw_path[i].hw_fbc.compress_en);
-		if (hw_ctx->hw_path[i].hw_fbc.compress_en)
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &hw_ctx->hw_path[i].hw_fbc_store);
-		else
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &hw_ctx->hw_path[i].hw_store);
 
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &hw_ctx->hw_path[i].hw_size);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &hw_ctx->hw_path[i].hw_start);
-		if (hw_ctx->hw_path[i].hw_fbc.compress_en)
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_CTRL, &hw_ctx->hw_path[i].hw_fbc);
-	}
-
+	dcam_hwctx_frame_param_set(hw_ctx);
 	/*use for offline 4in1*/
-	hw_ctx->binning.binning_4in1_en = 0;
-	hw_ctx->binning.idx = hw_ctx->hw_ctx_id;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BINNING_4IN1_SET, &hw_ctx->binning);
+	dcam_hwctx_binning_4in1_set(hw_ctx);
 
 	/* bypass all blks and then set all blks to current pm */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETSTATIS, hw_ctx->blk_pm);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BLOCKS_SETALL, hw_ctx->blk_pm);
+	dcam_hwctx_block_set(hw_ctx);
 
 	hw_ctx->fid++;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &hw_ctx->hw_fetch);
+	ret = dcam_hwctx_fetch_set(hw_ctx);
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 
 	return ret;
@@ -452,10 +423,7 @@ static int dcamoffline_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_isp_k_block *pm)
 {
 	int i = 0, ret = 0;
-	uint32_t force_ids = DCAM_CTRL_ALL;
 	struct cam_hw_reg_trace trace = {0};
-	struct dcam_hw_slice_fetch slicearg = {0};
-	struct dcam_hw_force_copy copyarg = {0};
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
@@ -484,21 +452,11 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 		pr_info("slice%d/%d proc start\n", i, slice->slice_num);
 
 		if (hw->ip_dcam[hw_ctx->hw_ctx_id]->dcamhw_abt->offline_slice_support && slice->slice_num > 1) {
-			slicearg.idx = hw_ctx->hw_ctx_id;
-			slicearg.path_id = hw->ip_dcam[hw_ctx->hw_ctx_id]->dcamhw_abt->aux_dcam_path;
-			slicearg.fetch = fetch;
-			slicearg.cur_slice = slice->cur_slice;
-			slicearg.dcam_slice_mode = slice->dcam_slice_mode;
-			slicearg.slice_num = slice->slice_num;
-			slicearg.slice_count = slice->slice_count;
-			slicearg.is_compress = hw_ctx->hw_path[DCAM_PATH_FULL].hw_fbc.compress_en;
-			slicearg.st_pack = cam_is_pack(hw_ctx->hw_path[DCAM_PATH_FULL].hw_start.out_fmt);
-			slicearg.store_trim = hw_ctx->hw_path[DCAM_PATH_FULL].hw_size.in_trim;
+			hw_ctx->slice_proc_mode = OFFLINE_SLICE_PROC;
 			pr_info("slc%d, (%d %d %d %d)\n", i,
 				slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,
 				slice->slice_trim[i].size_x, slice->slice_trim[i].size_y);
-
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
+			dcam_hwctx_slice_fetch_set(hw_ctx, fetch, slice);
 		}
 
 		mutex_lock(&pm->lsc.lsc_lock);
@@ -513,21 +471,11 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 		mutex_unlock(&pm->lsc.lsc_lock);
 
 		/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
-		copyarg.id = force_ids;
-		copyarg.idx = hw_ctx->hw_ctx_id;
-		copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
-		os_adapt_time_udelay(500);
 
-		if (i == 0) {
-			trace.type = NORMAL_REG_TRACE;
-			trace.idx = hw_ctx->hw_ctx_id;
-			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-		}
-
+		dcam_hwctx_slice_force_copy(hw_ctx, i);
 		dcamoffline_node_ts_cal(node);
 		/* start fetch */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);
+		dcam_hwctx_cfg_fetch_start(hw);
 	}
 	return 0;
 }
@@ -607,7 +555,7 @@ static int dcamoffline_node_frame_start(void *param)
 	pr_debug("bind hw context %d.\n", node->hw_ctx_id);
 
 	slice = &node->hw_ctx->slice_info;
-	ret = dcamoffline_hw_reset(node->hw_ctx);
+	ret = dcam_hwctx_offline_reset(node->hw_ctx);
 	if (ret)
 		pr_err("fail to reset dcam%d\n", node->hw_ctx_id);
 
