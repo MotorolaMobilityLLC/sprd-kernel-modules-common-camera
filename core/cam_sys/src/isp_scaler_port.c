@@ -1035,14 +1035,15 @@ void isp_scaler_port_put(struct isp_scaler_port *port)
 		return;
 	}
 
-	CAM_QUEUE_CLEAN(&port->out_buf_queue, struct cam_frame, list);
-	CAM_QUEUE_CLEAN(&port->result_queue, struct cam_frame, list);
-	atomic_set(&port->user_cnt, 0);
-	port->resbuf_get_cb = NULL;
-	port->data_cb_func = NULL;
-	port->port_cfg_cb_func = NULL;
-	cam_buf_kernel_sys_vfree(port);
-	port = NULL;
-	pr_info("isp port free success\n");
+	if (atomic_dec_return(&port->user_cnt) == 0) {
+		CAM_QUEUE_CLEAN(&port->out_buf_queue, struct cam_frame, list);
+		CAM_QUEUE_CLEAN(&port->result_queue, struct cam_frame, list);
+		port->resbuf_get_cb = NULL;
+		port->data_cb_func = NULL;
+		port->port_cfg_cb_func = NULL;
+		cam_buf_kernel_sys_vfree(port);
+		port = NULL;
+		pr_info("isp port free success\n");
+	}
 }
 
