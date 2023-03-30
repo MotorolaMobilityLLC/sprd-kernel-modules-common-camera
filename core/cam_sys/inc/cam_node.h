@@ -203,7 +203,8 @@ struct cam_nodes_dev {
 	struct isp_port *isp_out_port_dev[ISP_NODE_MODE_MAX_ID][PORT_ISP_OUT_MAX];
 	struct isp_port *isp_in_port_dev[ISP_NODE_MODE_MAX_ID][PORT_ISP_IN_MAX];
 	struct isp_yuv_scaler_node *isp_yuv_scaler_node_dev[ISP_YUV_SCALER_MAX_NODE_ID];
-	struct isp_scaler_port *isp_scaler_out_port_dev[PORT_ISP_YUV_SCALER_OUT_MAX];
+	struct isp_scaler_port *isp_scaler_in_port_dev[ISP_YUV_SCALER_MAX_NODE_ID][PORT_ISP_YUV_SCALER_IN_MAX];
+	struct isp_scaler_port *isp_scaler_out_port_dev[ISP_YUV_SCALER_MAX_NODE_ID][PORT_ISP_YUV_SCALER_OUT_MAX];
 	struct pyr_dec_port *pyr_dec_out_port_dev[PORT_DEC_OUT_MAX];
 	struct pyr_dec_node *pyr_dec_node_dev;
 };

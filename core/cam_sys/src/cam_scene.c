@@ -73,24 +73,25 @@ static int camscene_cap_info_set(struct camera_module *module, struct dcam_mipi_
 	return ret;
 }
 
-static int camscene_outport_type_get (uint32_t type)
+static int camscene_outport_type_get(uint32_t type, uint32_t isp_outport_type)
 {
 	int outport_type = 0;
 
 	switch (type) {
 	case PIPELINE_PREVIEW_TYPE:
-		outport_type = PORT_PRE_OUT;
+		outport_type = isp_outport_type ? PORT_PRE_ISP_YUV_SCALER_OUT : PORT_PRE_OUT;
 		break;
 	case PIPELINE_CAPTURE_TYPE:
-		outport_type = PORT_CAP_OUT;
+		outport_type = isp_outport_type ? PORT_CAP_ISP_YUV_SCALER_OUT : PORT_CAP_OUT;
 		break;
 	case PIPELINE_VIDEO_TYPE:
-		outport_type = PORT_VID_OUT;
+		outport_type = isp_outport_type ? PORT_VID_ISP_YUV_SCALER_OUT : PORT_VID_OUT;
 		break;
 	default:
 		pr_err("fail to get invalid pipeline_prev_type %d\n", type);
 		break;
 	}
+
 	return outport_type;
 }
 
@@ -118,7 +119,7 @@ static void camscene_preview_pipeline_get(struct cam_pipeline_topology *param, v
 		param->pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
 	else
 		param->pyr_layer_num = 0;
-	outport_type = camscene_outport_type_get(type);
+	outport_type = camscene_outport_type_get(type, ISP_OUT);
 	cur_node = &param->nodes[0];
 	param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 	for (i = 0; i < param->node_cnt; i++, cur_node++)
@@ -168,19 +169,12 @@ static void camscene_preview_pipeline_get(struct cam_pipeline_topology *param, v
 	cur_node->inport[PORT_PRE_ISP_YUV_SCALER_IN].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 	cur_node->inport[PORT_PRE_ISP_YUV_SCALER_IN].link.node_id = ISP_NODE_MODE_PRE_ID;
 	cur_node->inport[PORT_PRE_ISP_YUV_SCALER_IN].link.port_id = outport_type;
-	switch (type) {
-	case PIPELINE_PREVIEW_TYPE:
-		cur_node->outport[PORT_PRE_OUT].link_state = PORT_LINK_NORMAL;
-		cur_node->outport[PORT_PRE_OUT].link.node_type = CAM_NODE_TYPE_USER;
-		break;
-	case PIPELINE_VIDEO_TYPE:
-		cur_node->outport[PORT_VID_OUT].link_state = PORT_LINK_NORMAL;
-		cur_node->outport[PORT_VID_OUT].link.node_type = CAM_NODE_TYPE_USER;
-		break;
-	default:
-		pr_err("fail to get invalid pipeline_prev_type %d\n", type);
-		break;
-	}
+	outport_type = camscene_outport_type_get(type, ISP_SCALER_OUT);
+	cur_node->outport[outport_type].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[outport_type].link.node_type = CAM_NODE_TYPE_USER;
+	cur_node->outport[outport_type].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[outport_type].link.node_type = CAM_NODE_TYPE_USER;
+
 }
 
 static void camscene_onlineyuv_2_user_2_offlineyuv_2_nr_get(struct cam_pipeline_topology *param, void *input)
@@ -209,7 +203,7 @@ static void camscene_onlineyuv_2_user_2_offlineyuv_2_nr_get(struct cam_pipeline_
 		param->pyr_layer_num = DCAM_PYR_DEC_LAYER_NUM;
 	else
 		param->pyr_layer_num = 0;
-	outport_type = camscene_outport_type_get(type);
+	outport_type = camscene_outport_type_get(type, ISP_OUT);
 	cur_node = &param->nodes[0];
 	param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 	for (i = 0; i < param->node_cnt; i++, cur_node++)
@@ -303,7 +297,7 @@ static void camscene_capture_pipeline_get(struct cam_pipeline_topology *param, v
 	in = (struct cam_scene_topology_input *)input;
 	type = in->prev_type;
 	pyrdec_support = in->pyrdec_support;
-	outport_type = camscene_outport_type_get(type);
+	outport_type = camscene_outport_type_get(type, ISP_OUT);
 	cur_node = &param->nodes[0];
 	if (pyrdec_support) {
 		uint32_t node_list_type[] = {
@@ -419,9 +413,10 @@ static void camscene_capture_pipeline_get(struct cam_pipeline_topology *param, v
 	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.node_id = ISP_NODE_MODE_CAP_ID;
 	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.port_id = outport_type;
+	outport_type = camscene_outport_type_get(type, ISP_SCALER_OUT);
 	if (type == PIPELINE_CAPTURE_TYPE) {
-		cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
-		cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
+		cur_node->outport[outport_type].link_state = PORT_LINK_NORMAL;
+		cur_node->outport[outport_type].link.node_type = CAM_NODE_TYPE_USER;
 	} else
 		pr_err("fail to get invalid pipeline_prev_type %d\n", type);
 }
@@ -437,7 +432,7 @@ static void camscene_zsl_capture_pipeline_get(struct cam_pipeline_topology *para
 	in = (struct cam_scene_topology_input *)input;
 	type = in->prev_type;
 	pyrdec_support = in->pyrdec_support;
-	outport_type = camscene_outport_type_get(type);
+	outport_type = camscene_outport_type_get(type,ISP_OUT);
 	cur_node = &param->nodes[0];
 	if (pyrdec_support) {
 		uint32_t node_list_type[] = {
@@ -550,9 +545,10 @@ static void camscene_zsl_capture_pipeline_get(struct cam_pipeline_topology *para
 	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.node_id = ISP_NODE_MODE_CAP_ID;
 	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.port_id = outport_type;
+	outport_type = camscene_outport_type_get(type,ISP_SCALER_OUT);
 	if (type == PIPELINE_CAPTURE_TYPE) {
-		cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
-		cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
+		cur_node->outport[outport_type].link_state = PORT_LINK_NORMAL;
+		cur_node->outport[outport_type].link.node_type = CAM_NODE_TYPE_USER;
 	} else
 		pr_err("fail to get invalid pipeline_prev_type %d\n", type);
 }

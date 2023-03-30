@@ -1663,12 +1663,13 @@ void pyr_dec_node_put(struct pyr_dec_node *node)
 		return;
 	}
 
-	node->data_cb_func = NULL;
-	node->data_cb_handle = NULL;
-
-	if (node)
+	if (atomic_dec_return(&node->user_cnt) == 0) {
+		node->data_cb_func = NULL;
+		node->data_cb_handle = NULL;
+		pr_info("pyr dec node %d put success\n", node->node_id);
 		cam_buf_kernel_sys_vfree(node);
-	node = NULL;
+		node = NULL;
+	}
 
 	return;
 }
