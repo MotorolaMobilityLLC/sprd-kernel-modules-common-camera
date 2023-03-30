@@ -250,16 +250,53 @@ struct cam_queue_frame_manager {
 	struct rw_semaphore check_lock;
 };
 
+#define CAM_QUEUE_LIST_ADD_CHECK(head, _list) ({ \
+	struct cam_q_head *pos = NULL; \
+	uint32_t ret = 0; \
+	list_for_each_entry(pos, head, list) { \
+		if (pos == _list) \
+			ret = 1; \
+	} \
+	ret; \
+})
+
+#define CAM_QUEUE_LIST_DEL_CHECK(head) ({ \
+	struct list_head *entry = (head); \
+	struct list_head *prev = NULL; \
+	struct list_head *next = NULL; \
+	uint32_t ret = 0; \
+	prev = entry->prev; \
+	next = entry->next; \
+	if (prev->next != entry || next->prev != entry) { \
+		prev->next = next; \
+		next->prev = prev; \
+		prev == LIST_POISON2; \
+		next == LIST_POISON1; \
+	} \
+	if (next == NULL || prev == NULL) { \
+		prev == LIST_POISON2; \
+		next == LIST_POISON1; \
+	} \
+	if (prev == LIST_POISON2 || next == LIST_POISON1) \
+		ret = 1; \
+	ret; \
+})
+
 #define CAM_QUEUE_LIST_ADD(_list, head, is_tail) ({ \
 	struct cam_q_head *__list = (_list); \
 	enum en_status __is_tail = (is_tail); \
+	uint32_t is_check = 0; \
 	uint32_t ret = -1; \
 	if (atomic_cmpxchg(&__list->status, CAM_Q_FREE, CAM_Q_USED) == CAM_Q_FREE) { \
-		if (__is_tail) \
-			list_add_tail(&__list->list, head); \
-		else \
-			list_add(&__list->list, head); \
-		ret = 0; \
+		is_check = CAM_QUEUE_LIST_ADD_CHECK(head, __list); \
+		if (!is_check) { \
+			if (__is_tail) \
+				list_add_tail(&__list->list, head); \
+			else \
+				list_add(&__list->list, head); \
+			ret = 0; \
+		} else \
+			pr_err("fail to list add valid, addr: %p\n", __list); \
 	} else \
 		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0));\
 	ret; \
@@ -267,10 +304,15 @@ struct cam_queue_frame_manager {
 
 #define CAM_QUEUE_LIST_DEL(_list) ({ \
 	struct cam_q_head *__list = (_list); \
+	uint32_t is_check = 0; \
 	uint32_t ret = -1; \
 	if (atomic_cmpxchg(&__list->status, CAM_Q_USED, CAM_Q_FREE) == CAM_Q_USED) { \
-		list_del(&__list->list); \
-		ret = 0; \
+		is_check = CAM_QUEUE_LIST_DEL_CHECK(&__list->list); \
+		if (!is_check) { \
+			list_del(&__list->list);\
+			ret = 0; \
+		} else \
+			pr_err("fail to list del valid, addr: %p\n", __list); \
 	} else \
 		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0)); \
 	ret; \
