@@ -131,6 +131,7 @@ struct dcam_online_node {
 	void *shutoff_cfg_cb_handle;
 };
 
+int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id);
 int dcam_online_node_irq_proc(void *param, void *handle);
 int dcam_online_node_pmctx_init(struct dcam_online_node *node);
 void dcam_online_node_pmctx_update(struct dcam_isp_k_block *node_pm, struct dcam_isp_k_block *input_pm);
@@ -140,14 +141,12 @@ int dcam_online_node_port_insert(struct dcam_online_node* node, void *param);
 int dcam_online_node_state_get(void *handle);
 struct dcam_online_port *dcam_online_node_port_get(struct dcam_online_node *node, uint32_t port_id);
 int dcam_online_node_blk_param_set(struct dcam_online_node *node, void *param);
-int dcam_online_cfg_param(void *handle, uint32_t cmd, void *param);
-int dcam_online_share_buf(void *handle, void *param);
+int dcam_online_node_cfg_param(void *handle, uint32_t cmd, void *param);
+int dcam_online_node_share_buf(void *handle, void *param);
 int dcam_online_node_reset(struct dcam_online_node *node, void *param);
 int dcam_online_node_request_proc(struct dcam_online_node *node, void *param);
 int dcam_online_node_stop_proc(struct dcam_online_node *node, void *param);
-int dcam_online_set_shutoff(void *handle, void *param, uint32_t port_id);
 void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param);
 void dcam_online_node_put(struct dcam_online_node *node);
-int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct cam_frame *frame);
 
 #endif

@@ -207,7 +207,7 @@ static int camnode_set_shutoff(void *handle, void *param, uint32_t port_id)
 
 	switch (node->node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
-		ret = dcam_online_set_shutoff(node->handle, node_shutoff, port_id);
+		ret = dcam_online_node_set_shutoff(node->handle, node_shutoff, port_id);
 		break;
 	default:
 		pr_warn("warning: node_type %d not support shutoff temp.", node->node_graph->type);
@@ -291,7 +291,7 @@ static int camnode_cfg_shutoff_reconfig(struct cam_node *node, uint32_t port_id)
 			CAM_NODE_SHUTOFF_PARAM_INIT(node_shutoff);
 			node_shutoff.outport_shutoff[port_id].port_id = port_id;
 			node_shutoff.outport_shutoff[port_id].shutoff_type = SHUTOFF_RESUME;
-			dcam_online_set_shutoff(node->handle, &node_shutoff, port_id);
+			dcam_online_node_set_shutoff(node->handle, &node_shutoff, port_id);
 			frame_cycle = 1;
 		}
 	}
@@ -370,13 +370,13 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_CFG_RECT_GET:
 	case CAM_NODE_CFG_STATIS:
-		ret = dcam_online_cfg_param(node->handle, cmd, in_param->param);
+		ret = dcam_online_node_cfg_param(node->handle, cmd, in_param->param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = dcam_online_node_blk_param_set(node->handle, in_param->param);
 		break;
 	case CAM_NODE_CFG_SHARE_BUF:
-		ret = dcam_online_share_buf(node->handle, in_param);
+		ret = dcam_online_node_share_buf(node->handle, in_param);
 		break;
 	case CAM_NODE_CFG_RESET:
 		ret = dcam_online_node_reset(node->handle, in_param->param);

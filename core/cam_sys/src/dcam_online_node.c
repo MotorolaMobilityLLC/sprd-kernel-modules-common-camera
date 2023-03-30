@@ -1135,58 +1135,6 @@ static int dcamonline_statis_cfg(struct dcam_online_node *node, void *param)
 	return ret;
 }
 
-int dcam_online_set_shutoff(void *handle, void *param, uint32_t port_id)
-{
-	uint32_t shutoff = 0, cmd = 0;
-	struct dcam_online_node *node = NULL;
-	struct dcam_hw_path_ctrl path_ctrl = {0};
-	struct dcam_online_port *dcam_port = NULL;
-	struct cam_node_shutoff_ctrl *node_shutoff = NULL;
-	struct cam_port_shutoff_ctrl *port_shutoff = NULL;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid input ptr %px %px\n", handle, param);
-		return -EFAULT;
-	}
-
-	node = (struct dcam_online_node *)handle;
-	node_shutoff = (struct cam_node_shutoff_ctrl *)param;
-	port_shutoff = &node_shutoff->outport_shutoff[port_id];
-	cmd = port_shutoff->shutoff_type;
-
-	switch (cmd) {
-	case SHUTOFF_PAUSE:
-		shutoff = 1;
-		path_ctrl.idx = node->hw_ctx_id;
-		path_ctrl.type = HW_DCAM_PATH_PAUSE;
-		path_ctrl.path_id = dcamonline_portid_convert_to_pathid(port_id);
-		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
-		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
-			if (dcam_port->port_id == port_id)
-				atomic_set(&dcam_port->is_shutoff, shutoff);
-		}
-		pr_debug("SHUTOFF_PAUSE, %s\n", cam_port_name_get(port_id));
-		break;
-	case SHUTOFF_RESUME:
-		shutoff = 0;
-		path_ctrl.idx = node->hw_ctx_id;
-		path_ctrl.type = HW_DCAM_PATH_RESUME;
-		path_ctrl.path_id = dcamonline_portid_convert_to_pathid(port_id);
-		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
-		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
-			if (dcam_port->port_id == port_id)
-				atomic_set(&dcam_port->is_shutoff, shutoff);
-		}
-		pr_debug("SHUTOFF_RESUME, %s\n", cam_port_name_get(port_id));
-		break;
-	default:
-		pr_err("fail to support cmd %d", cmd);
-		return -EFAULT;
-	}
-
-	return shutoff;
-}
-
 static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 {
 	int ret = 0, loop = 0, is_csi_connect = 0;
@@ -1396,7 +1344,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				CAM_NODE_SHUTOFF_PARAM_INIT(node_shutoff);
 				node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
 				node_shutoff.outport_shutoff[port->port_id].shutoff_type = SHUTOFF_PAUSE;
-				dcam_online_set_shutoff(node, &node_shutoff, port->port_id);
+				dcam_online_node_set_shutoff(node, &node_shutoff, port->port_id);
 				node->shutoff_cfg_cb_func(node->shutoff_cfg_cb_handle, CAM_NODE_SHUTOFF_CONFIG, &node_shutoff);
 			}
 		}
@@ -1605,6 +1553,58 @@ static int dcamonline_dummy_proc(struct dcam_online_node *node, void *param, str
 		break;
 	}
 	return 0;
+}
+
+int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id)
+{
+	uint32_t shutoff = 0, cmd = 0;
+	struct dcam_online_node *node = NULL;
+	struct dcam_hw_path_ctrl path_ctrl = {0};
+	struct dcam_online_port *dcam_port = NULL;
+	struct cam_node_shutoff_ctrl *node_shutoff = NULL;
+	struct cam_port_shutoff_ctrl *port_shutoff = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);
+		return -EFAULT;
+	}
+
+	node = (struct dcam_online_node *)handle;
+	node_shutoff = (struct cam_node_shutoff_ctrl *)param;
+	port_shutoff = &node_shutoff->outport_shutoff[port_id];
+	cmd = port_shutoff->shutoff_type;
+
+	switch (cmd) {
+	case SHUTOFF_PAUSE:
+		shutoff = 1;
+		path_ctrl.idx = node->hw_ctx_id;
+		path_ctrl.type = HW_DCAM_PATH_PAUSE;
+		path_ctrl.path_id = dcamonline_portid_convert_to_pathid(port_id);
+		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
+		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
+			if (dcam_port->port_id == port_id)
+				atomic_set(&dcam_port->is_shutoff, shutoff);
+		}
+		pr_debug("SHUTOFF_PAUSE, %s\n", cam_port_name_get(port_id));
+		break;
+	case SHUTOFF_RESUME:
+		shutoff = 0;
+		path_ctrl.idx = node->hw_ctx_id;
+		path_ctrl.type = HW_DCAM_PATH_RESUME;
+		path_ctrl.path_id = dcamonline_portid_convert_to_pathid(port_id);
+		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
+		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
+			if (dcam_port->port_id == port_id)
+				atomic_set(&dcam_port->is_shutoff, shutoff);
+		}
+		pr_debug("SHUTOFF_RESUME, %s\n", cam_port_name_get(port_id));
+		break;
+	default:
+		pr_err("fail to support cmd %d", cmd);
+		return -EFAULT;
+	}
+
+	return shutoff;
 }
 
 int dcam_online_node_irq_proc(void *param, void *handle)
@@ -1928,7 +1928,7 @@ exit:
 
 }
 
-int dcam_online_cfg_param(void *handle, uint32_t cmd, void *param)
+int dcam_online_node_cfg_param(void *handle, uint32_t cmd, void *param)
 {
 	int ret = 0;
 	struct dcam_online_node *node = NULL;
@@ -1960,7 +1960,7 @@ int dcam_online_cfg_param(void *handle, uint32_t cmd, void *param)
 	return ret;
 }
 
-int dcam_online_share_buf(void *handle, void *param)
+int dcam_online_node_share_buf(void *handle, void *param)
 {
 	int ret = 0;
 	enum dcam_path_state port_state = DCAM_PATH_IDLE;
