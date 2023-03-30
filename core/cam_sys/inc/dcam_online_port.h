@@ -111,11 +111,12 @@ struct dcam_online_port {
 	void *shutoff_cb_handle;
 };
 
+int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct cam_frame *frame);
+int dcam_online_port_buffer_cfg(void *handle, void *param);
 int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param);
 int dcam_online_port_skip_num_set(void *dcam_ctx_handle, uint32_t hw_id, int port_id, uint32_t skip_num);
 int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param);
 void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param);
 void dcam_online_port_put(struct dcam_online_port *port);
-int dcam_online_port_buffer_cfg(void *handle, void *param);
 
 #endif

@@ -660,7 +660,7 @@ int dcam_fetch_node_cfg_param(void *handle, uint32_t cmd, void *param)
 		break;
 	case CAM_NODE_CFG_STATIS:
 	case CAM_NODE_CFG_RECT_GET:
-		ret = dcam_online_cfg_param(&node->online_node, cmd, param);
+		ret = dcam_online_node_cfg_param(&node->online_node, cmd, param);
 		break;
 	default:
 		pr_err("fail to support vaild cmd %d\n", cmd);
@@ -677,7 +677,7 @@ int dcam_fetch_share_buf(void *handle, void *param)
 	struct dcam_fetch_node *node = NULL;
 
 	node = (struct dcam_fetch_node *)handle;
-	ret = dcam_online_share_buf(&node->online_node, param);
+	ret = dcam_online_node_share_buf(&node->online_node, param);
 	return ret;
 }
 
