@@ -34,6 +34,11 @@ enum cam_port_dcam_online_in_id {
 	PORT_DCAM_ONLINE_IN_MAX,
 };
 
+enum cam_port_isp_outport_type {
+	ISP_OUT,
+	ISP_SCALER_OUT,
+};
+
 enum cam_port_dcam_online_out_id {
 	PORT_RAW_OUT,
 	PORT_BIN_OUT,

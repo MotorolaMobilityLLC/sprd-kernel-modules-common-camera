@@ -484,7 +484,10 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 		port->handle = isp_port_get(port->port_graph->id, param->isp_offline);
 		break;
 	case CAM_NODE_TYPE_ISP_YUV_SCALER:
-		param->isp_offline_scaler->port_dev = (void *)&nodes_dev->isp_scaler_out_port_dev[port->port_graph->id];
+		if (param->port_graph->transfer_type == PORT_TRANSFER_IN)
+			param->isp_offline_scaler->port_dev = (void *)&nodes_dev->isp_scaler_in_port_dev[node_id][port->port_graph->id];
+		else
+			param->isp_offline_scaler->port_dev = (void *)&nodes_dev->isp_scaler_out_port_dev[node_id][port->port_graph->id];
 		param->isp_offline_scaler->data_cb_func = param->data_cb_func;
 		param->isp_offline_scaler->data_cb_handle = param->data_cb_handle;
 		param->isp_offline_scaler->buf_manager_handle = param->buf_manager_handle;

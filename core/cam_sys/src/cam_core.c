@@ -1188,8 +1188,13 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	nodes_dev->dcam_offline_node_raw2frgb_dev = NULL;
 	nodes_dev->dcam_offline_node_frgb2yuv_dev = NULL;
 	nodes_dev->pyr_dec_node_dev = NULL;
-	for (j = 0; j < ISP_YUV_SCALER_MAX_NODE_ID; j++)
-		nodes_dev->isp_yuv_scaler_node_dev[j] = NULL;
+	for (k = 0; k < ISP_YUV_SCALER_MAX_NODE_ID; k++) {
+		nodes_dev->isp_yuv_scaler_node_dev[k] = NULL;
+		for (j = 0; j < PORT_ISP_YUV_SCALER_IN_MAX; j++)
+			nodes_dev->isp_scaler_in_port_dev[k][j] = NULL;
+		for (j = 0; j < PORT_ISP_YUV_SCALER_OUT_MAX; j++)
+			nodes_dev->isp_scaler_out_port_dev[k][j] = NULL;
+	}
 	for (k = 0; k < ISP_NODE_MODE_MAX_ID; k++) {
 		nodes_dev->isp_node_dev[k] = NULL;
 		for (j = 0; j < PORT_ISP_IN_MAX; j++)
@@ -1207,8 +1212,6 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 		nodes_dev->dcam_offline_raw2frgb_out_port_dev[j] = NULL;
 	for (j = 0; j < PORT_DCAM_OUT_MAX; j++)
 		nodes_dev->dcam_offline_frgb2yuv_out_port_dev[j] = NULL;
-	for (j = 0; j < PORT_ISP_YUV_SCALER_OUT_MAX; j++)
-		nodes_dev->isp_scaler_out_port_dev[j] = NULL;
 	for (j = 0; j < PORT_DEC_OUT_MAX; j++)
 		nodes_dev->pyr_dec_out_port_dev[j] = NULL;
 }
