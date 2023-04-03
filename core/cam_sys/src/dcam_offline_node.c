@@ -1084,7 +1084,6 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 {
 	int ret = 0;
 	struct cam_node_cfg_param *node_param = NULL;
-	struct cam_frame *dst_frame = NULL;
 	struct cam_frame *src_frame = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
 	struct cam_pipeline *pipeline = NULL;
@@ -1098,28 +1097,23 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param)
 	node_param = (struct cam_node_cfg_param *)param;
 	/* Temp change for cam buf manage change not ready, need change back later */
 	src_frame = (struct cam_frame *)node_param->param;
-	if (src_frame->common.irq_type == CAMERA_IRQ_4IN1_DONE) {
-		dst_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-		memcpy(dst_frame, src_frame, sizeof(struct cam_frame));
-	} else
-		dst_frame = src_frame;
-	dst_frame->common.priv_data = node;
+	src_frame->common.priv_data = node;
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
 	cam_node = (struct cam_node *)node->data_cb_handle;
 	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 
 	if (pipeline->debug_log_switch)
 		pr_info("pipeline_type %s, fid %d, ch_id %d, buf %x, w %d, h %d, pframe->common.is_reserved %d, compress_en %d\n",
-			pipeline->pipeline_graph->name, dst_frame->common.fid, dst_frame->common.channel_id, dst_frame->common.buf.mfd,
-			dst_frame->common.width, dst_frame->common.height, dst_frame->common.is_reserved, dst_frame->common.is_compressed);
+			pipeline->pipeline_graph->name, src_frame->common.fid, src_frame->common.channel_id, src_frame->common.buf.mfd,
+			src_frame->common.width, src_frame->common.height, src_frame->common.is_reserved, src_frame->common.is_compressed);
 
-	ret = cam_buf_manager_buf_enqueue(&node->in_pool, dst_frame, &buf_desc, node->buf_manager_handle);
+	ret = cam_buf_manager_buf_enqueue(&node->in_pool, src_frame, &buf_desc, node->buf_manager_handle);
 	if (ret == 0)
 		complete(&node->thread.thread_com);
 	else {
-		if (dst_frame->common.buf.type == CAM_BUF_USER)
-			cam_buf_manager_buf_status_cfg(&dst_frame->common.buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX);
-		cam_queue_empty_frame_put(dst_frame);
+		if (src_frame->common.buf.type == CAM_BUF_USER)
+			cam_buf_manager_buf_status_cfg(&src_frame->common.buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX);
+		cam_queue_empty_frame_put(src_frame);
 		pr_err("fail to enqueue dcam offline frame\n");
 	}
 	return ret;

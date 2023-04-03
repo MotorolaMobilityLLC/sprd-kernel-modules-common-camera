@@ -1381,7 +1381,6 @@ static int camioctl_stream_off(struct camera_module *module,
 			pr_info("camera%d wait for read %d %d\n", module->idx, i, j);
 			os_adapt_time_msleep(20);
 		}
-		CAM_QUEUE_CLEAN(&module->remosaic_queue, struct cam_frame, list);
 		/* default 0, hal set 1 when needed */
 		module->auto_3dnr = 0;
 	}
@@ -1473,7 +1472,6 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		}
 	}
 	module->dual_frame = NULL;
-	CAM_QUEUE_INIT(&module->remosaic_queue, CAM_IRQ_Q_LEN, cam_queue_empty_frame_put);
 
 	/* dcam online node stream on */
 	for (i = 0; i < CAM_CH_MAX; i++) {
@@ -2262,7 +2260,7 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 static int camioctl_4in1_post_proc(struct camera_module *module,
 		unsigned long arg)
 {
-	int ret = 0, i = 0, iommu_enable = 0;
+	int ret = 0, iommu_enable = 0;
 	uint32_t index = 0, reserved1 = 0, reserved2 = 0, fd_array = 0;
 	struct sprd_img_parm __user *uparam = NULL;
 	struct channel_context *channel = NULL;
@@ -2298,33 +2296,17 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 	sensor_time = reserved2;
 	sensor_time <<= 32;
 	sensor_time |= reserved1;
-	/* get frame: 1:check id;2:check time;3:get first,4:get new */
-	i = CAM_QUEUE_CNT_GET(&module->remosaic_queue);
-	while (i--) {
-		pframe = CAM_QUEUE_DEQUEUE(&module->remosaic_queue,
-			struct cam_frame, list);
-		/* check frame id */
-		if (pframe == NULL)
-			break;
-		if (pframe->common.fid == index)
-			break;
-		if (pframe->common.boot_sensor_time == sensor_time)
-			break;
-		CAM_QUEUE_ENQUEUE(&module->remosaic_queue, &pframe->list);
-		pframe = NULL;
-	}
-	if (pframe == NULL) {
-		pr_info("Can't find frame in the queue, get new one\n");
-		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-		pframe->common.boot_sensor_time = sensor_time;
-		pframe->common.sensor_time = os_adapt_time_ktime_to_timeval(os_adapt_time_sub(
-			pframe->common.boot_sensor_time, os_adapt_time_sub(
-			os_adapt_time_get_boottime(), os_adapt_time_get_monotonic())));
-		pframe->common.fid = index;
-	}
+	pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+	pframe->common.boot_sensor_time = sensor_time;
+	pframe->common.sensor_time = os_adapt_time_ktime_to_timeval(os_adapt_time_sub(
+		pframe->common.boot_sensor_time, os_adapt_time_sub(
+		os_adapt_time_get_boottime(), os_adapt_time_get_monotonic())));
+	pframe->common.fid = index;
+
 	pframe->common.width = channel->ch_uinfo.src_size.w;
 	pframe->common.height = channel->ch_uinfo.src_size.h;
 	pframe->common.buf.type = CAM_BUF_USER;
+	pframe->common.buf.status = CAM_BUF_ALLOC;
 	pframe->common.buf.mfd = fd_array;
 	ret |= get_user(pframe->common.buf.addr_vir[0],&uparam->frame_addr_vir_array[0].y);
 	ret |= get_user(pframe->common.buf.addr_vir[1],&uparam->frame_addr_vir_array[0].u);
