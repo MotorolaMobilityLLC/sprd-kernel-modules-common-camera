@@ -264,7 +264,6 @@ struct camera_module {
 	atomic_t dual_select_frame_done;
 	int64_t capture_times;/* *ns, timestamp get from start_capture */
 	enum capture_scene cap_scene;
-	struct camera_queue remosaic_queue;/* 4in1: save camera_frame when remosaic */
 	enum en_status auto_3dnr;/* 1: enable hw,and alloc buffer before stream on */
 	struct sprd_img_flash_info flash_info;
 	uint32_t flash_skip_fid;

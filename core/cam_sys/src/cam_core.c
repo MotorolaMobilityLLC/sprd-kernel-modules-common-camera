@@ -1483,7 +1483,6 @@ static int camcore_module_init(struct camera_module *module)
 
 	camcore_timer_init(&module->cam_timer, (unsigned long)module);
 	/* no need release buffer, only release camera_frame */
-	CAM_QUEUE_INIT(&module->remosaic_queue, CAM_IRQ_Q_LEN, cam_queue_empty_frame_put);
 	CAM_QUEUE_INIT(&module->frm_queue, CAM_FRAME_Q_LEN, cam_queue_empty_frame_put);
 	CAM_QUEUE_INIT(&module->alloc_queue, CAM_ALLOC_Q_LEN, cam_queue_empty_frame_put);
 
@@ -1498,7 +1497,6 @@ static int camcore_module_deinit(struct camera_module *module)
 	struct channel_context *channel = NULL;
 
 	cam_flash_handle_put(module->flash_core_handle);
-	CAM_QUEUE_CLEAN(&module->remosaic_queue, struct cam_frame, list);
 	CAM_QUEUE_CLEAN(&module->frm_queue, struct cam_frame, list);
 	CAM_QUEUE_CLEAN(&module->alloc_queue, struct cam_frame, list);
 
@@ -1961,18 +1959,6 @@ rewait:
 				cam_queue_frame_check_unlock();
 				break;
 			}
-			/* 4in1 report frame for remosaic
-			 * save frame for 4in1_post IOCTL
-			 */
-			ret = CAM_QUEUE_ENQUEUE(&module->remosaic_queue, &pframe->list);
-			if (!ret) {
-				cam_queue_frame_check_unlock();
-				break;
-			}
-			pr_err("fail to enqueue remosaic pframe:%lx,%d\n", pframe, pframe->common.fid);
-			/* fail, give back */
-			cam_queue_empty_frame_put(pframe);
-			ret = 0;
 		}
 		cam_queue_frame_check_unlock();
 		break;
