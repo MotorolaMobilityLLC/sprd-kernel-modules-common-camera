@@ -1071,6 +1071,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 			pr_info("ITS Only open preview pipeline,shoud open raw channel\n");
 		else if (module->cam_uinfo.need_dcam_raw && hw->ip_isp->isphw_abt->fetch_raw_support)
 			goto fail;
+		camscene_onlineraw_ports_enable(module, dcam_port_id);
 		break;
 	case CAM_CH_VIRTUAL:
 		channel->isp_port_id = PORT_VID_OUT;
@@ -1080,7 +1081,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 	case CAM_CH_DCAM_VCH:
 		dcam_port_id = PORT_VCH2_OUT;
 		isp_port_id = -1;
-		pipeline_type = CAM_PIPELINE_VCH_SENSOR_RAW;
+		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
+		camscene_onlineraw_ports_enable(module, dcam_port_id);
 		break;
 	default:
 		pr_err("fail to get channel id %d\n", channel->ch_id);
@@ -1180,6 +1182,10 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	struct cam_nodes_dev *nodes_dev = NULL;
 
 	nodes_dev = &module->nodes_dev;
+
+	if (channel->ch_id == CAM_CH_RAW || channel->ch_id == CAM_CH_DCAM_VCH)
+		camscene_onlineraw_ports_disable(module, channel->dcam_port_id);
+
 	cam_pipeline_destory(channel->pipeline_handle);
 
 	nodes_dev->dcam_online_node_dev = NULL;

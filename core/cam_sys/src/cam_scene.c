@@ -46,6 +46,44 @@ struct cam_scene_topology_input {
 	enum pipeline_prev_type prev_type;
 };
 
+void camscene_onlineraw_ports_enable(void *module_ptr, int dcam_port_id)
+{
+	struct camera_module *module = NULL;
+	struct cam_pipeline_topology *topology = NULL;
+	struct cam_node_topology *dcamonline_node = NULL;
+
+	if (dcam_port_id < 0) {
+		pr_warn("not get valid dcam_port_id\n");
+		return;
+	}
+
+	module = (struct camera_module *)module_ptr;
+	topology = &module->static_topology->pipeline_list[CAM_PIPELINE_SENSOR_RAW];
+	dcamonline_node = &topology->nodes[0];
+
+	dcamonline_node->outport[dcam_port_id].link_state = PORT_LINK_NORMAL;
+	pr_debug("enable port id %d\n", dcam_port_id);
+}
+
+void camscene_onlineraw_ports_disable(void *module_ptr, int dcam_port_id)
+{
+	struct camera_module *module = NULL;
+	struct cam_pipeline_topology *topology = NULL;
+	struct cam_node_topology *dcamonline_node = NULL;
+
+	if (dcam_port_id < 0) {
+		pr_warn("not get valid dcam_port_id\n");
+		return;
+	}
+
+	module = (struct camera_module *)module_ptr;
+	topology = &module->static_topology->pipeline_list[CAM_PIPELINE_SENSOR_RAW];
+	dcamonline_node = &topology->nodes[0];
+
+	dcamonline_node->outport[dcam_port_id].link_state = PORT_LINK_IDLE;
+	pr_debug("disable port id %d\n", dcam_port_id);
+}
+
 static int camscene_cap_info_set(struct camera_module *module, struct dcam_mipi_info *cap_info)
 {
 	int ret = 0;
@@ -553,26 +591,6 @@ static void camscene_zsl_capture_pipeline_get(struct cam_pipeline_topology *para
 		pr_err("fail to get invalid pipeline_prev_type %d\n", type);
 }
 
-static void camscene_onlinevchraw_pipeline_get(struct cam_pipeline_topology *param, void *input)
-{
-	int i = 0;
-	struct cam_node_topology *cur_node = NULL;
-	uint32_t node_list_type[] = {
-		CAM_NODE_TYPE_DCAM_ONLINE,
-	};
-
-	cur_node = &param->nodes[0];
-	param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
-	for (i = 0; i < param->node_cnt; i++, cur_node++)
-		cam_node_static_nodelist_get(cur_node, node_list_type[i]);
-
-	/* cfg port link between dcam online & user node */
-	cur_node = &param->nodes[0];
-	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
-	cur_node->outport[PORT_VCH2_OUT].link_state = PORT_LINK_NORMAL;
-	cur_node->outport[PORT_VCH2_OUT].link.node_type = CAM_NODE_TYPE_USER;
-}
-
 static void camscene_onlineraw_pipeline_get(struct cam_pipeline_topology *param, void *input)
 {
 	int i = 0;
@@ -594,7 +612,9 @@ static void camscene_onlineraw_pipeline_get(struct cam_pipeline_topology *param,
 	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(raw_path_id);
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
-	cur_node->outport[dcam_online_raw_port_id].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[PORT_VCH2_OUT].link_state = PORT_LINK_IDLE;
+	cur_node->outport[PORT_VCH2_OUT].link.node_type = CAM_NODE_TYPE_USER;
+	cur_node->outport[dcam_online_raw_port_id].link_state = PORT_LINK_IDLE;
 	cur_node->outport[dcam_online_raw_port_id].link.node_type = CAM_NODE_TYPE_USER;
 }
 
@@ -1489,14 +1509,6 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
-		[CAM_PIPELINE_VCH_SENSOR_RAW] = {
-			.name = "CAM_PIPELINE_VCH_SENSOR_RAW",
-			.type = CAM_PIPELINE_VCH_SENSOR_RAW,
-			.prev_type = PIPELINE_SCENE_TYPE_MAX,
-			.base_cfg_func = camscene_onlinevchraw_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
-			.need_isp_offline = 0, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 0,
-		},
 		[CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR] = {
 			.name = "CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR", .type = CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR,
 			.prev_type = PIPELINE_PREVIEW_TYPE, .base_cfg_func = camscene_onlineyuv_2_user_2_offlineyuv_2_nr_get,
@@ -1751,7 +1763,6 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 		dcam_online_desc->port_desc[i].dcam_out_fmt = channel->dcam_out_fmt;
 		dcam_online_desc->port_desc[i].compress_en = channel->compress_en;
 		if (pipeline_type == CAM_PIPELINE_SENSOR_RAW
-			|| pipeline_type == CAM_PIPELINE_VCH_SENSOR_RAW
 			|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV
 			|| pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV) {
 			dcam_online_desc->port_desc[i].is_raw = 1;
