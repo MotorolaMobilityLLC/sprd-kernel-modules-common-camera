@@ -83,7 +83,7 @@ enum cam_buf_status {
 struct camera_buf {
 	enum en_status buf_sec;
 	/* user buffer info */
-	uint32_t mfd;
+	int32_t mfd;
 	struct dma_buf *dmabuf_p;
 	void *ionbuf;/* for iommu map */
 	unsigned long offset[3];

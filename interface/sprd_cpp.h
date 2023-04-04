@@ -272,7 +272,7 @@ struct sprd_cpp_addr {
 	unsigned long long y;
 	unsigned long long u;
 	unsigned long long v;
-	unsigned long long mfd[3];
+	long long mfd[3];
 };
 
 struct sprd_cpp_rot_cfg_parm {
@@ -579,7 +579,7 @@ struct sprd_dcam_img_frm {
 	struct sprd_cpp_size                 size;
 	struct sprd_cpp_addr                addr_phy;
 	struct sprd_cpp_addr                addr_vir;
-	unsigned int                                fd;
+	int                                fd;
 	struct sprd_cpp_scale_endian_sel    data_end;
 	unsigned int                                format_pattern;
 	void                                             *reserved;

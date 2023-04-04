@@ -523,7 +523,7 @@ struct sprd_img_statis_info {
 	uint32_t addr_offset;
 	uint64_t kaddr[2];
 	uint32_t buf_size;
-	uint32_t mfd;
+	int32_t mfd;
 	uint32_t sec;
 	uint32_t usec;
 	int64_t monoboottime;
@@ -568,7 +568,7 @@ struct sprd_offline_info {
 };
 
 struct sprd_vir_ch_info {
-	uint32_t fd_array[IMG_PATH_BUFFER_COUNT];
+	int32_t fd_array[IMG_PATH_BUFFER_COUNT];
 	enum dev_out_fmt dump_isp_out_fmt;
 	struct sprd_img_size dst_size;
 };
@@ -625,7 +625,7 @@ struct sprd_img_parm {
 	struct sprd_img_frm_addr  frame_addr_vir;
 	struct sprd_img_frm_addr  frame_addr_array[IMG_PATH_BUFFER_COUNT];
 	struct sprd_img_frm_addr  frame_addr_vir_array[IMG_PATH_BUFFER_COUNT];
-	uint32_t                  fd_array[IMG_PATH_BUFFER_COUNT];
+	int32_t                  fd_array[IMG_PATH_BUFFER_COUNT];
 	uint32_t                  buffer_count;
 	struct sprd_img_statis_info img_statis_info;
 	uint32_t jpegls_length[3];
@@ -727,7 +727,7 @@ struct sprd_img_frm_info {
 	uint32_t kaddr[2];
 	uint32_t buf_size;
 	int64_t  monoboottime;
-	uint32_t mfd;
+	int32_t mfd;
 	uint32_t zoom_ratio;
 	uint32_t total_zoom;
 	struct sprd_img_vcm_dac_info dac_info;
