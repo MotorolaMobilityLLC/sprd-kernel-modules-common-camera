@@ -102,7 +102,10 @@ int camoffline_statis_dcam_port_bufferq_init(
 			ion_buf->type = CAM_BUF_USER;
 			ion_buf->status = CAM_BUF_ALLOC;
 
-			ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+			if (stats_type != STATIS_PDAF)
+				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
+			else
+				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			if (ret)
 				continue;
 			pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);

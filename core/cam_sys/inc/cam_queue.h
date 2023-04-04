@@ -198,12 +198,6 @@ struct camera_frame {
 	void *pframe_data;
 	struct cam_zoom_frame zoom_data;
 	uint32_t is_flash_status;
-	/*statis info*/
-	struct sprd_img_aem_info aem_info;
-	struct sprd_img_bayerhist_info bayerhist_info;
-	struct sprd_img_afm_info afm_info;
-	struct sprd_img_pdaf_info pdaf_info;
-	struct dcam_dev_lscm_param lscm_info;
 };
 
 enum camera_frame_type {

@@ -1310,9 +1310,9 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (hw->ip_isp->isphw_abt->frbg_hist_support)
 		DCAMONLINE_STATIS_WORK_SET(pm->hist_roi.hist_roi_info.bypass, node, PORT_FRGB_HIST_OUT);
 	DCAMONLINE_STATIS_WORK_SET(pm->pdaf.bypass, node, PORT_PDAF_OUT);
-	if ((pm->gtm.gtm_info.calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
+	if ((pm->gtm.gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
 		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
-	if ((pm->rgb_gtm.rgb_gtm_info.calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
+	if ((pm->rgb_gtm.gtm_calc_mode == GTM_SW_CALC) && (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
 		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
 
 	hw_ctx->fid = pm->recovery_fid ? pm->recovery_fid : 0;

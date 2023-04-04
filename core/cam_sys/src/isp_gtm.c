@@ -262,7 +262,7 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 			} else if (atomic_read(&gtm_ctx->cnt) > 1) {
 				mapping = &gtm_ctx->sync->mapping;
 				mapping->ctx_id = gtm_ctx->ctx_id;
-				mapping->sw_mode = 0;
+				mapping->sw_mode = 1;
 				gtm_func.k_blk_func(&gtm_ctx->sync->mapping);
 			}
 		}
@@ -284,7 +284,7 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 			return -1;
 		}
 		break;
-	case MODE_GTM_CAP:
+	 case MODE_GTM_CAP:
 		gtm_sync = gtm_ctx->sync;
 		if (!gtm_sync) {
 			pr_err("fail to ctx_id %d get valid gtm_sync ptr NULL\n", gtm_ctx->ctx_id);
@@ -351,7 +351,7 @@ static int ispgtm_pipe_proc(void *handle, void *param, void *param2)
 
 			mapping = &gtm_ctx->sync->mapping;
 			mapping->ctx_id = gtm_ctx->ctx_id;
-			mapping->sw_mode = 0;
+			mapping->sw_mode = 1;
 			gtm_func.index = ISP_K_GTM_MAPPING_SET;
 			gtm_ctx->hw->isp_ioctl(gtm_ctx->hw, ISP_HW_CFG_GTM_FUNC_GET, &gtm_func);
 			gtm_func.k_blk_func(mapping);

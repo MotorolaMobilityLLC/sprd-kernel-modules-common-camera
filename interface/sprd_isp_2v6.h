@@ -482,7 +482,6 @@ struct isp_coord {
 };
 
 struct dcam_dev_blc_info {
-	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t r;
 	uint32_t b;
@@ -554,12 +553,9 @@ struct dcam_dev_raw_gtm_block_info {
 	uint16_t tm_hist_xpts[GTM_HIST_BIN_NUM];
 	struct dcam_dev_gtm_slice_info slice;
 	uint32_t gtm_map_video_mode;
-	uint32_t calc_mode;
-	uint32_t init_flag;
 };
 
 struct dcam_dev_rgb_gtm_block_info {
-	uint32_t update_flag;
 	uint32_t gtm_tm_out_bit_depth;
 	uint32_t gtm_tm_in_bit_depth;
 	uint32_t gtm_cur_is_first_frame;
@@ -600,8 +596,6 @@ struct dcam_dev_rgb_gtm_block_info {
 	uint32_t tm_filter_dist_c[49];
 	uint32_t tm_filter_distw_c[19];
 	uint32_t tm_filter_rangw_c[61];
-	uint32_t calc_mode;
-	uint32_t init_flag;
 };
 
 struct isp_cnr_h_info {
@@ -659,7 +653,6 @@ struct isp_dev_post_cnr_h_info {
 };
 
 struct dcam_dev_rgb_gain_info {
-	uint32_t update_flag;
 	uint32_t  bypass;
 	uint32_t  global_gain;
 	uint32_t  r_gain;
@@ -668,7 +661,6 @@ struct dcam_dev_rgb_gain_info {
 };
 
 struct dcam_dev_rgb_dither_info {
-	uint32_t update_flag;
 	uint32_t random_bypass;
 	uint32_t random_mode;
 	uint32_t seed;
@@ -679,7 +671,6 @@ struct dcam_dev_rgb_dither_info {
 };
 
 struct dcam_dev_lsc_info {
-	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t update_all;
 	uint32_t grid_width;
@@ -699,7 +690,6 @@ struct dcam_dev_lsc_info {
 };
 
 struct dcam_dev_hist_info {
-	uint32_t update_flag;
 	uint32_t hist_bypass;
 	uint32_t hist_skip_num;
 	uint32_t hist_mul_enable;
@@ -740,7 +730,6 @@ struct dcam_dev_aem_thr {
 };
 
 struct dcam_dev_lscm_param {
-	uint32_t update_flag;
 	uint32_t update;
 	uint32_t bypass;
 	uint32_t mode;
@@ -761,7 +750,6 @@ struct dcam_dev_afl_info {
 
 /* not used now, just for compiling. */
 struct isp_dev_anti_flicker_info {
-	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t mode;
 	uint32_t skip_frame_num;
@@ -803,7 +791,6 @@ struct img_rgb_info {
 };
 
 struct dcam_dev_awbc_info {
-	uint32_t update_flag;
 	uint32_t awbc_bypass;
 	struct img_rgb_info gain;
 	struct img_rgb_info thrd;
@@ -834,7 +821,6 @@ struct dcam_bpc_rawhdr_info{
 };
 
 struct dcam_bpc_ppi_info{
-	uint32_t update_flag;
 	uint32_t bpc_ppi_en;
 	uint32_t bpc_ppi_start_row;
 	uint32_t bpc_ppi_end_row;
@@ -858,7 +844,6 @@ struct dcam_ppe_ppc_info{
 };
 
 struct dcam_dev_bpc_info {
-	uint32_t update_flag;
 	uint32_t bpc_bypass;
 	uint32_t bpc_double_bypass;
 	uint32_t bpc_three_bypass;
@@ -908,7 +893,6 @@ struct dcam_dev_bpc_info {
 };
 
 struct dcam_dev_bpc_info_l3 {
-	uint32_t update_flag;
 	uint32_t bpc_gc_cg_dis;
 	uint32_t bpc_mode_en;
 	uint32_t bpc_mode_en_gc;
@@ -950,7 +934,6 @@ struct dcam_dev_bpc_info_l3 {
 };
 
 struct dcam_dev_bpc_info_v1 {
-	uint32_t update_flag;
 	uint32_t bpc_bypass;
 	uint32_t bpc_mode;
 	uint32_t bpc_is_mono_sensor;
@@ -996,7 +979,6 @@ struct dcam_dev_bpc_info_v1 {
 };
 
 struct dcam_dev_3dnr_me {
-	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t nr3_channel_sel;
 	uint32_t nr3_project_mode;
@@ -1197,7 +1179,6 @@ struct isp_3dnr_fast_me_v1 {
 };
 
 struct isp_dev_3dnr_info_v1 {
-	uint32_t update_flag;
 	struct isp_3dnr_fast_me_v1 fast_me;
 	struct isp_3dnr_blend_info blend;
 };
@@ -1324,7 +1305,6 @@ struct isp_dev_cfa_info {
 };
 
 struct isp_dev_cfa_info_v1 {
-	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t grid_thr;
 	uint32_t min_grid_new;
@@ -1530,7 +1510,6 @@ struct isp_dev_gamma_info {
 };
 
 struct isp_dev_gamma_info_v1 {
-	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t gain_r[ISP_FRGB_GAMMA_PT_NUM_V1];
 	uint32_t gain_g[ISP_FRGB_GAMMA_PT_NUM_V1];
@@ -1558,7 +1537,6 @@ struct isp_dev_grgb_info {
 };
 
 struct isp_dev_hist_info {
-	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t mode;
 	uint32_t skip_num;
@@ -2391,7 +2369,6 @@ struct isp_dev_noise_filter_info {
 };
 
 struct isp_pyramid_onl_info {
-	uint32_t update_flag;
 	uint32_t dec1_onine_bypass;
 	uint32_t store_dec1_bypass;
 	uint32_t store_dec2_bypass;
@@ -2402,7 +2379,6 @@ struct isp_pyramid_onl_info {
 };
 
 struct isp_pyramid_offl_info {
-	uint32_t update_flag;
 	uint32_t dec_offline_bypass;
 	uint32_t reconstruction_byass;
 	uint32_t offline_layer_num;
@@ -2453,7 +2429,6 @@ struct isp_dev_ltm_map_info {
 };
 
 struct isp_dev_ltm_info {
-	uint32_t update_flag;
 	struct isp_dev_ltm_stat_info ltm_stat;
 	struct isp_dev_ltm_map_info ltm_map;
 };

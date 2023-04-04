@@ -15,7 +15,6 @@
 #define _SPRD_CAMSYS_H_
 
 #include <linux/ioctl.h>
-#include "sprd_isp_2v6.h"
 
 /* SPRD_IMG_IO_CHECK_FMT fourcc Four-character-code(FOURCC) */
 #define img_fourcc(a, b, c, d)\
@@ -448,35 +447,6 @@ struct sprd_img_vcm_dac_info {
 };
 #pragma pack(pop)
 
-struct sprd_img_aem_info {
-	uint32_t skip_num;
-	struct dcam_dev_aem_win win;
-};
-
-struct sprd_img_bayerhist_roi {
-	uint32_t sty;
-	uint32_t stx;
-	uint32_t endy;
-	uint32_t endx;
-};
-struct sprd_img_bayerhist_info {
-	struct sprd_img_bayerhist_roi roi_info;
-};
-
-struct sprd_img_afm_info {
-	uint32_t skip_num;
-	uint32_t crop_eb;
-	struct isp_img_rect crop_size;
-	struct isp_img_rect win;
-	struct isp_img_size win_num;
-	struct dcam_dev_afm_iir_info iir_info;
-};
-
-struct sprd_img_pdaf_info {
-	uint32_t skip_num;
-	struct pdaf_roi_info roi_info;
-};
-
 struct sprd_img_statis_info {
 	uint32_t irq_type;
 	uint32_t irq_property;
@@ -497,12 +467,6 @@ struct sprd_img_statis_info {
 	uint32_t width;
 	uint32_t height;
 	uint32_t is_flash_status;
-	/*statis info*/
-	struct sprd_img_aem_info aemInfo;
-	struct sprd_img_bayerhist_info bHistInfo;
-	struct sprd_img_afm_info afmInfo;
-	struct sprd_img_pdaf_info pdInfo;
-	struct dcam_dev_lscm_param lscmInfo;
 };
 
 struct sprd_irq_info {
@@ -665,12 +629,6 @@ struct sprd_img_frm_info {
 	struct sprd_img_vcm_dac_info dac_info;
 	uint32_t reserved[4];
 	uint32_t is_flash_status;
-	/*statis info*/
-	struct sprd_img_aem_info aem_info;
-	struct sprd_img_bayerhist_info bayerhist_info;
-	struct sprd_img_afm_info afm_info;
-	struct sprd_img_pdaf_info pdaf_info;
-	struct dcam_dev_lscm_param lscm_info;
 };
 #pragma pack(pop)
 

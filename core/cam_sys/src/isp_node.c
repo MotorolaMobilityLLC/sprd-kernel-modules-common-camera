@@ -509,7 +509,7 @@ static int ispnode_gtm_frame_process(struct isp_node *inode, struct isp_port_cfg
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_HIST_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_gtm_hist);
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MAP_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_gtm_map);
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MOD_EN, &port_cfg->src_frame->common.xtm_conflict.gtm_mod_en);
-	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_CALC_MODE, &inode->isp_using_param->gtm_rgb_info.calc_mode);
+	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_CALC_MODE, &inode->isp_using_param->gtm_calc_mode);
 	gtm_rgb_info = &inode->isp_using_param->gtm_rgb_info;
 	rgb_gtm->src.w = port_cfg->src_crop.size_x;
 	rgb_gtm->src.h = port_cfg->src_crop.size_y;

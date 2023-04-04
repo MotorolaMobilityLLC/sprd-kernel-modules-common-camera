@@ -273,7 +273,7 @@ int camstatis_dcam_port_buffer_init(
 			if (mfd > 0)
 				ion_buf->status = CAM_BUF_ALLOC;
 
-			if (stats_type == STATIS_GTMHIST)
+			if (stats_type != STATIS_PDAF)
 				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 			else
 				ret = cam_buf_manager_buf_status_cfg(ion_buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
