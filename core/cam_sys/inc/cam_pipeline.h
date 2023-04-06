@@ -142,21 +142,6 @@ struct cam_pipeline {
 	ret; \
 })
 
-#define CAM_PIPEINE_NR_ISP_NODE_CFG(channel, cmd, par)  ({ \
-	struct cam_pipeline_cfg_param param_cfg = {0}; \
-	int ret = 0; \
-	param_cfg.node_id = ISP_NODE_MODE_CAP_ID; \
-	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE; \
-	param_cfg.node_param.param = (par); \
-	if ((channel)->pipeline_handle) \
-		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
-	else { \
-		pr_warn("warning: current channel not contain pipeline\n"); \
-		ret = -EFAULT; \
-	} \
-	ret; \
-})
-
 #define CAM_PIPEINE_ISP_IN_PORT_CFG(channel, portid, cmd, nodeid, par)  ({ \
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
@@ -174,23 +159,6 @@ struct cam_pipeline {
 	ret; \
 })
 
-#define CAM_PIPEINE_NR_ISP_IN_PORT_CFG(channel, portid, cmd, par)  ({ \
-	struct cam_pipeline_cfg_param param_cfg = {0}; \
-	int ret = 0; \
-	param_cfg.node_id = ISP_NODE_MODE_CAP_ID; \
-	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE; \
-	param_cfg.node_param.param = (par); \
-	param_cfg.node_param.port_type = PORT_TRANSFER_IN; \
-	param_cfg.node_param.port_id = (portid); \
-	if ((channel)->pipeline_handle) \
-		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
-	else { \
-		pr_warn("warning: current channel not contain pipeline\n"); \
-		ret = -EFAULT; \
-	} \
-	ret; \
-})
-
 #define CAM_PIPEINE_ISP_OUT_PORT_CFG(channel, portid, cmd, nodeid, par)  ({ \
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
@@ -199,23 +167,6 @@ struct cam_pipeline {
 	param_cfg.node_param.port_type = PORT_TRANSFER_OUT; \
 	param_cfg.node_param.port_id = (portid); \
 	param_cfg.node_id = (nodeid); \
-	if ((channel)->pipeline_handle) \
-		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
-	else { \
-		pr_warn("warning: current channel not contain pipeline\n"); \
-		ret = -EFAULT; \
-	} \
-	ret; \
-})
-
-#define CAM_PIPEINE_NR_ISP_OUT_PORT_CFG(channel, portid, cmd, par)  ({ \
-	struct cam_pipeline_cfg_param param_cfg = {0}; \
-	int ret = 0; \
-	param_cfg.node_id = ISP_NODE_MODE_CAP_ID; \
-	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE; \
-	param_cfg.node_param.param = (par); \
-	param_cfg.node_param.port_type = PORT_TRANSFER_OUT; \
-	param_cfg.node_param.port_id = (portid); \
 	if ((channel)->pipeline_handle) \
 		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
 	else { \
@@ -308,6 +259,23 @@ struct cam_pipeline {
 	param_cfg.node_param.port_type = PORT_TRANSFER_OUT; \
 	param_cfg.node_param.port_id = (portid); \
 	param_cfg.node_id = DCAM_ONLINE_PRE_NODE_ID; \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
+#define CAM_PIPEINE_DCAM_OFFLINE_IN_PORT_CFG(channel, portid, cmd, par, type)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = (type); \
+	param_cfg.node_param.param = (par); \
+	param_cfg.node_param.port_type = PORT_TRANSFER_IN; \
+	param_cfg.node_param.port_id = (portid); \
+	param_cfg.node_id = DCAM_OFFLINE_NODE_ID; \
 	if ((channel)->pipeline_handle) \
 		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
 	else { \

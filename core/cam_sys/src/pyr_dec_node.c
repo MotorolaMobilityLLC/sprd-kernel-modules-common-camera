@@ -1446,6 +1446,19 @@ int pyr_dec_node_base_cfg(void *handle, void *param)
 	return ret;
 }
 
+void pyr_dec_node_buffer_clr(void *handle)
+{
+	struct cam_frame *pframe = NULL;
+	struct pyr_dec_node *node = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
+
+	node = (struct pyr_dec_node *)handle;
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
+	pframe = cam_buf_manager_buf_dequeue(&node->fetch_result_pool, &buf_desc, node->buf_manager_handle);
+	if (!pframe)
+		pframe = cam_buf_manager_buf_dequeue(&node->fetch_unprocess_pool, &buf_desc, node->buf_manager_handle);
+}
+
 int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 {
 	int ret = 0;
@@ -1490,7 +1503,7 @@ int pyr_dec_node_postproc_param_cfg(void *handle, void *param)
 	int ret = 0;
 	struct pyr_dec_node *node = NULL;
 	struct cam_frame *decblk_frame = NULL;
-	struct cam_postproc_blkpm *dec_blkpm = NULL;
+	struct cam_postproc_param *postproc_param = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid param %px %px\n", handle, param);
@@ -1498,17 +1511,17 @@ int pyr_dec_node_postproc_param_cfg(void *handle, void *param)
 	}
 
 	node = (struct pyr_dec_node *)handle;
-	dec_blkpm = (struct cam_postproc_blkpm *)param;
+	postproc_param = (struct cam_postproc_param *)param;
 	decblk_frame = cam_queue_empty_blk_param_get(&node->param_share_queue);
 	if (decblk_frame) {
 		/* Temp get param from mw by do offset on base addr, need to discuss
 			param & image buf share set way in offline proc scene. */
-		dec_blkpm->blk_property += sizeof(struct isp_dev_cnr_h_info);
+		postproc_param->blk_property += sizeof(struct isp_dev_cnr_h_info);
 		ret = copy_from_user((void *)&decblk_frame->dec_blk.decblk_pm->dct_info,
-			dec_blkpm->blk_property, sizeof(struct isp_dev_dct_info));
+			postproc_param->blk_property, sizeof(struct isp_dev_dct_info));
 		if (ret)
 			pr_warn("Warning:not get the dec dct info.\n");
-		decblk_frame->dec_blk.fid = dec_blkpm->fid;
+		decblk_frame->dec_blk.fid = postproc_param->fid;
 		decblk_frame->dec_blk.decblk_pm->dct_info.isupdate = 1;
 		ret = CAM_QUEUE_ENQUEUE(&node->param_buf_queue, &decblk_frame->list);
 		if (ret) {
@@ -1516,7 +1529,7 @@ int pyr_dec_node_postproc_param_cfg(void *handle, void *param)
 			cam_queue_recycle_blk_param(&node->param_share_queue, decblk_frame);
 		}
 	} else {
-		pr_err("fail to recive dec blk param, fid %d\n", dec_blkpm->fid);
+		pr_err("fail to recive dec blk param, fid %d\n", postproc_param->fid);
 		return -EFAULT;
 	}
 	return ret;

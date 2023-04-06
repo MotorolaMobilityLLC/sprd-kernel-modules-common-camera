@@ -271,7 +271,9 @@ static uint32_t dcamoffline_port_bufq_clr(struct dcam_offline_port *port, void *
 	struct camera_buf_get_desc buf_desc = {0};
 
 	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
-	pframe = cam_buf_manager_buf_dequeue(&port->unprocess_pool, &buf_desc, port->buf_manager_handle);
+	pframe = cam_buf_manager_buf_dequeue(&port->result_pool, &buf_desc, port->buf_manager_handle);
+	if (!pframe)
+		pframe = cam_buf_manager_buf_dequeue(&port->unprocess_pool, &buf_desc, port->buf_manager_handle);
 
 	pr_debug("port:0x%px, port_id:%d.\n", port, port->port_id);
 	return 0;

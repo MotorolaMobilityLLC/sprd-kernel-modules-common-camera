@@ -71,6 +71,16 @@ int pyr_dec_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 		alloc_param = (struct cam_buf_alloc_desc *)param;
 		ret = pyr_dec_port_buf_alloc(port, alloc_param);
 		break;
+	case PORT_CFG_BUFFER_CLR:
+		pframe = cam_buf_manager_buf_dequeue(&port->result_pool, NULL, port->buf_manager_handle);
+		if (pframe) {
+			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, port->buf_manager_handle);
+			if (ret) {
+				pr_err("fail to enqueue pyrdec buffer\n");
+				ret = -EFAULT;
+			}
+		}
+		break;
 	default:
 		pr_err("fail to support port cfg cmd %d\n", cmd);
 		ret = -EFAULT;

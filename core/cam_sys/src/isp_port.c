@@ -68,8 +68,18 @@ static uint32_t ispport_bufq_clr(struct isp_port *port, void *param)
 	struct cam_frame *pframe = NULL;
 	struct camera_buf_get_desc buf_desc = {0};
 
-	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
-	pframe = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, &buf_desc, port->buf_manager_handle);
+	if (port->type == PORT_TRANSFER_OUT) {
+		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
+		pframe = cam_buf_manager_buf_dequeue(&port->store_result_pool, &buf_desc, port->buf_manager_handle);
+		if (!pframe)
+			pframe = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, &buf_desc, port->buf_manager_handle);
+	} else if (port->type == PORT_TRANSFER_IN) {
+		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
+		pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, &buf_desc, port->buf_manager_handle);
+		if (pframe)
+			port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
+	} else
+		pr_err("fail to support port:%d.\n", port->type);
 
 	pr_debug("port_type:%d, port_id:%d\n", port->type, port->port_id);
 	return 0;

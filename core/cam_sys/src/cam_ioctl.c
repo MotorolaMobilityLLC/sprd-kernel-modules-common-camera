@@ -1987,191 +1987,124 @@ static int camioctl_raw_proc(struct camera_module *module,
 
 static int camioctl_cam_post_proc(struct camera_module *module, unsigned long arg)
 {
-	int ret = 0, i = 0;
-	uint32_t scene_mode = 0, mode_3dnr = 0, index = 0, reserved[4] = {0}, in_fmt = 0;
-	struct channel_context *ch = NULL;
-	struct sprd_img_size dst_size = {0};
+	int ret = 0;
+	uint32_t mode_3dnr = 0, in_fmt = 0;
 	struct cam_zoom_index zoom_index = {0};
-	struct sprd_img_parm __user *uparam = NULL;
-	struct cam_postproc_blkpm postproc_blkpm = {0};
 	struct cam_pipeline_cfg_param param = {0};
-	struct cam_frame *pfrm_dcam = NULL, *pfrm_isp = NULL;
-	struct cam_frame *pframe = NULL, *pfrm[3] = {NULL, NULL, NULL};
+	struct cam_postproc_param postproc_param = {0};
+	struct channel_context *ch = NULL;
 
 	if (atomic_read(&module->state) != CAM_RUNNING) {
 		pr_warn("warning: only for state RUNNING\n");
 		return -EFAULT;
 	}
 
-	uparam = (struct sprd_img_parm __user *)arg;
-	ret |= get_user(index, &uparam->index);
-	ret |= get_user(scene_mode, &uparam->scene_mode);
-	ret |= get_user(reserved[0], &uparam->reserved[0]);
-	ret |= get_user(reserved[1], &uparam->reserved[1]);
-	ret |= get_user(reserved[2], &uparam->reserved[2]);
-	ret |= get_user(reserved[3], &uparam->reserved[3]);
-	ret |= get_user(dst_size.w, &uparam->dst_size.w);
-	ret |= get_user(dst_size.h, &uparam->dst_size.h);
+	ret = camcore_postproc_param_get(module, &postproc_param, arg);
 	if (ret) {
-		pr_err("fail to copy_from_user\n");
-		goto exit;
-	}
-	if (scene_mode == CAM_POSTPROC_VID_NOISE_RD)
-		ch = &module->channel[CAM_CH_PRE];
-	else
-		ch = &module->channel[CAM_CH_CAP];
-	for (i = 0; i < 3; i++) {
-		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-		ret |= get_user(pframe->common.buf.mfd, &uparam->fd_array[i]);
-		if (pframe->common.buf.mfd == 0) {
-			cam_queue_empty_frame_put(pframe);
-			continue;
-		}
-		pframe->common.fid = index;
-		pframe->common.sensor_time.tv_sec = reserved[0];
-		pframe->common.sensor_time.tv_usec = reserved[1];
-		pframe->common.boot_sensor_time = reserved[3];
-		pframe->common.boot_sensor_time = (pframe->common.boot_sensor_time << 32) | reserved[2];
-		pframe->common.buf.type = CAM_BUF_USER;
-		pframe->common.link_from.node_type = CAM_NODE_TYPE_USER;
-		pframe->common.link_from.node_id = CAM_LINK_DEFAULT_NODE_ID;
-		if (scene_mode == CAM_POSTPROC_VID_NOISE_RD) {
-			pframe->common.width = ch->ch_uinfo.dst_size.w;
-			pframe->common.height  = ch->ch_uinfo.dst_size.h;
-		} else {
-			pframe->common.width = ch->ch_uinfo.src_size.w;
-			pframe->common.height  = ch->ch_uinfo.src_size.h;
-		}
-		ret |= get_user(pframe->common.buf.addr_vir[0], &uparam->frame_addr_vir_array[i].y);
-		ret |= get_user(pframe->common.buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
-		ret |= get_user(pframe->common.buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
-		pframe->common.channel_id = ch->ch_id;
-		pframe->common.buf.status = CAM_BUF_ALLOC;
-		pfrm[i] = pframe;
+		pr_err("fail to get postproc param.\n");
+		goto param_get_err;
 	}
 
-	if (scene_mode == CAM_POSTPROC_VID_NOISE_RD) {
+	ch = postproc_param.ch;
+	if (postproc_param.need_update_zoom) {
 		zoom_index.node_id = ISP_NODE_MODE_CAP_ID;
 		zoom_index.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		zoom_index.port_type = PORT_TRANSFER_IN;
 		zoom_index.port_id = PORT_ISP_OFFLINE_IN;
-		ret = camcore_postproc_zoom_param_get(module, ch, &pfrm[0]->common.zoom_data, &zoom_index);
-		/* Tmp change, it will be changed when hal porting dr func after dispatch change back a14*/
-		/*ret |= get_user(postproc_blkpm.blk_property, &uparam->blk_param);
-		if (ret) {
-			pr_err("fail to get postproc blk param addr\n");
-			goto blkpm_cfg_err;
-		}*/
-
-		postproc_blkpm.fid = index;
-		ret = CAM_PIPEINE_NR_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, &postproc_blkpm);
+		ret = camcore_postproc_zoom_param_get(module, ch, &postproc_param.src_frm->common.zoom_data, &zoom_index);
+	}
+	if (postproc_param.need_cfg_blkpm) {
+		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, ISP_NODE_MODE_CAP_ID, &postproc_param);
 		if (ret) {
 			pr_err("fail to cfg isp postproc param.\n");
 			goto blkpm_cfg_err;
 		}
-		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, &postproc_blkpm);
+		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, &postproc_param);
 		if (ret) {
 			pr_err("fail to cfg dec postproc param.\n");
 			goto blkpm_cfg_err;
 		}
 		mode_3dnr = MODE_3DNR_OFF;
-		ret = CAM_PIPEINE_NR_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_3DNR_MODE, &mode_3dnr);
+		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_3DNR_MODE, ISP_NODE_MODE_CAP_ID, &mode_3dnr);
 		if (ret) {
 			pr_err("fail to cfg isp 3dnr mode.\n");
 			goto blkpm_cfg_err;
 		}
-
-		pfrm_isp = pfrm[1];
-		pfrm_isp->common.proc_mode = CAM_POSTPROC_SERIAL;
-		ret = CAM_PIPEINE_NR_ISP_OUT_PORT_CFG(ch, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF, pfrm_isp);
-		if (ret) {
-			pr_err("fail to cfg isp out buffer.\n");
-			goto blkpm_cfg_err;
-		}
-
+	}
+	if (postproc_param.need_cfg_dec) {
 		in_fmt = CAM_YVU420_2FRAME;
 		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_BASE, &in_fmt);
 		if (ret) {
 			pr_err("fail to cfg dec in fmt.\n");
-			goto buf_cfg_err;
+			goto blkpm_cfg_err;
 		}
-		param.node_type = CAM_NODE_TYPE_PYR_DEC;
-	} else {
-		pfrm_dcam = pfrm[1];
-		pfrm_isp = pfrm[2];
-		if (scene_mode == CAM_POSTPROC_CAP_PROC_RAW) {
-			param.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW;
-			pfrm[0]->common.link_to.port_id = ch->aux_raw_port_id;
-			pfrm_dcam->common.irq_property = CAM_FRAME_PROCESS_RAW;
-			param.node_param.port_id = ch->aux_raw_port_id;
+	}
+	if (postproc_param.need_cfg_zoom) {
+		if (postproc_param.dst_size.w && postproc_param.dst_size.h) {
+			postproc_param.dst_frm->common.width = postproc_param.dst_size.w;
+			postproc_param.dst_frm->common.height = postproc_param.dst_size.h;
 		} else {
-			param.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
-			pfrm[0]->common.link_to.port_id = ch->aux_dcam_port_id;
-			pfrm_dcam->common.irq_property = CAM_FRAME_FDRH;
-			param.node_param.port_id = ch->aux_dcam_port_id;
-
-			if (dst_size.w && dst_size.h) {
-				pfrm_isp->common.width = dst_size.w;
-				pfrm_isp->common.height = dst_size.h;
-			} else {
-				pfrm_isp->common.width = ch->ch_uinfo.dst_size_tmp.w;
-				pfrm_isp->common.height = ch->ch_uinfo.dst_size_tmp.h;
-			}
-
-			ch->ch_uinfo.dst_size.w = pfrm_isp->common.width;
-			ch->ch_uinfo.dst_size.h = pfrm_isp->common.height;
-			ret = cam_zoom_channel_size_config(module, ch);
-
-			ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_CAP_ID, pfrm_isp);
-			if (ret) {
-				pr_err("fail to cfg isp out buffer.\n");
-				goto size_cfg_err;
-			}
+			postproc_param.dst_frm->common.width = ch->ch_uinfo.dst_size_tmp.w;
+			postproc_param.dst_frm->common.height = ch->ch_uinfo.dst_size_tmp.h;
 		}
-
-		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, param.node_param.port_id, CAM_PIPELINE_CFG_BUF, pfrm_dcam, param.node_type);
+		ch->ch_uinfo.dst_size.w = postproc_param.dst_frm->common.width;
+		ch->ch_uinfo.dst_size.h = postproc_param.dst_frm->common.height;
+		ret = cam_zoom_channel_size_config(module, ch);
+	}
+	if (postproc_param.need_cfg_dcam) {
+		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, postproc_param.dcam_port_id, CAM_PIPELINE_CFG_BUF, postproc_param.mid_frm, postproc_param.node_type);
 		if (ret) {
 			pr_err("fail to cfg dcam out buffer.\n");
-			goto buf_cfg_err;
+			goto dcambuf_cfg_err;
 		}
 	}
 
-	ret = camcore_frame_start_proc(module, pfrm[0], param.node_type, ch);
+	if (postproc_param.need_cfg_isp) {
+		ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, postproc_param.isp_port_id, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_CAP_ID, postproc_param.dst_frm);
+		if (ret) {
+			pr_err("fail to cfg isp out buffer.\n");
+			goto ispbuf_cfg_err;
+		}
+	}
+
+	ret = camcore_frame_start_proc(module, postproc_param.src_frm, postproc_param.node_type, ch);
 	if (ret) {
 		pr_err("fail to start pipeline or cfg dcam out buffer.\n");
 		goto start_proc_err;
 	}
 
-	pr_info("scene %d, frm fd (%d 0x%x), (%d 0x%x)\n",
-		scene_mode, pfrm[0]->common.buf.mfd, pfrm[0]->common.buf.offset[0],
-		pfrm[1]->common.buf.mfd, pfrm[1]->common.buf.offset[0]);
+	pr_info("scene %d, src_frm fd (%d 0x%x)\n", postproc_param.scene_mode,
+		postproc_param.src_frm->common.buf.mfd, postproc_param.src_frm->common.buf.offset[0]);
 
-	if (scene_mode == CAM_POSTPROC_VID_NOISE_RD) {
+	if (postproc_param.postproc_mode == CAM_POSTPROC_SERIAL) {
 		ret = wait_for_completion_timeout(&module->postproc_done, DCAM_OFFLINE_TIMEOUT);
 		if (ret <= 0) {
 			pr_err("fail to wait isp offline node done\n");
 			ret = -EFAULT;
-		        goto buf_cfg_err;
+		        goto start_proc_err;
 		}
 	}
 
 	return 0;
 
 start_proc_err:
-	if (scene_mode != CAM_POSTPROC_VID_NOISE_RD)
-		CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, param.node_param.port_id, CAM_PIPELINE_CFG_BUF_CLR, &param, param.node_type);
-buf_cfg_err:
-	if (scene_mode == CAM_POSTPROC_VID_NOISE_RD)
-		CAM_PIPEINE_NR_ISP_OUT_PORT_CFG(ch, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF_CLR, &param);
-	else
-		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF_CLR, ISP_NODE_MODE_CAP_ID, &param);
-size_cfg_err:
-blkpm_cfg_err:
-	for (i = 0; i < 3; i++) {
-		if (pfrm[i])
-			cam_queue_empty_frame_put(pfrm[i]);
+	if (postproc_param.need_cfg_isp) {
+		if (postproc_param.postproc_mode == CAM_POSTPROC_SERIAL)
+			CAM_PIPEINE_ISP_IN_PORT_CFG(ch, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_BUF_CLR, ISP_NODE_MODE_CAP_ID, &param);
+		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, postproc_param.isp_port_id, CAM_PIPELINE_CFG_BUF_CLR, ISP_NODE_MODE_CAP_ID, &param);
 	}
-exit:
+	if (postproc_param.need_cfg_dec && postproc_param.postproc_mode == CAM_POSTPROC_SERIAL)
+		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_BUF_CLR, &param);
+	if (postproc_param.need_cfg_dcam && postproc_param.postproc_mode == CAM_POSTPROC_SERIAL)
+		CAM_PIPEINE_DCAM_OFFLINE_IN_PORT_CFG(ch, postproc_param.dcam_port_id, CAM_PIPELINE_CFG_BUF_CLR, &param, postproc_param.node_type);
+ispbuf_cfg_err:
+	if (postproc_param.need_cfg_dcam)
+		CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch, postproc_param.dcam_port_id, CAM_PIPELINE_CFG_BUF_CLR, &param, postproc_param.node_type);
+blkpm_cfg_err:
+param_get_err:
+dcambuf_cfg_err:
+	camcore_postproc_param_put(&postproc_param);
+
 	return ret;
 }
 

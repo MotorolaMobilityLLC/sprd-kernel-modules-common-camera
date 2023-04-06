@@ -255,9 +255,25 @@ struct img_scaler_info {
 	struct img_size dst_size;
 };
 
-struct cam_postproc_blkpm {
+struct cam_postproc_param {
 	uint32_t fid;
+	uint32_t node_type;
+	uint32_t dcam_port_id;
+	uint32_t isp_port_id;
+	uint32_t scene_mode;
+	uint32_t need_cfg_isp;
+	uint32_t need_cfg_dcam;
+	uint32_t need_cfg_dec;
+	uint32_t need_cfg_blkpm;
+	uint32_t need_cfg_zoom;
+	uint32_t need_update_zoom;
+	struct channel_context *ch;
 	void __user *blk_property;
+	struct cam_frame *src_frm;
+	struct cam_frame *mid_frm;
+	struct cam_frame *dst_frm;
+	struct sprd_img_size dst_size;
+	enum cam_postproc_mode postproc_mode;
 };
 
 enum reserved_buf_cb_type {

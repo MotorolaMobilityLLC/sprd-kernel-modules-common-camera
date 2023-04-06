@@ -440,6 +440,14 @@ static int camnode_cfg_node_param_dcam_offline(void *handle, enum cam_node_cfg_c
 	case CAM_NODE_CFG_INSERT_PORT:
 		ret = dcam_offline_node_port_insert(node->handle, in_param->param);
 		break;
+	case CAM_NODE_CFG_BUF_CLR:
+		if (in_param->port_type == PORT_TRANSFER_OUT)
+			ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_CLR, node->handle);
+		else if (in_param->port_type == PORT_TRANSFER_IN)
+			dcam_offline_node_buffer_clr(node->handle);
+		else
+			pr_err("fail to support port type:%d.\n", in_param->port_type);
+		break;
 	default:
 		pr_err("fail to support node: %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);
 		ret = -EFAULT;
@@ -472,6 +480,14 @@ static int camnode_cfg_node_param_dcam_offline_bpc(void *handle, enum cam_node_c
 		break;
 	case CAM_NODE_CFG_INSERT_PORT:
 		ret = dcam_offline_node_port_insert(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_BUF_CLR:
+		if (in_param->port_type == PORT_TRANSFER_OUT)
+			ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_CLR, node->handle);
+		else if (in_param->port_type == PORT_TRANSFER_IN)
+			dcam_offline_node_buffer_clr(node->handle);
+		else
+			pr_err("fail to support port type:%d.\n", in_param->port_type);
 		break;
 	default:
 		pr_err("fail to support node %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);
@@ -795,6 +811,12 @@ static int camnode_cfg_node_param_pyr_dec(void *handle, enum cam_node_cfg_cmd cm
 		break;
 	case CAM_NODE_CFG_BASE:
 		ret = pyr_dec_node_base_cfg(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_BUF_CLR:
+		pyr_dec_node_buffer_clr(node->handle);
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_CLR, in_param->param);
+		if (ret)
+			pr_err("fail to recycle dec out buffer.\n");
 		break;
 	case CAM_NODE_CFG_INSERT_PORT:
 		break;

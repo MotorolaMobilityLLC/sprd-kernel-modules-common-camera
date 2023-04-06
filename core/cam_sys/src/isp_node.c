@@ -1345,15 +1345,15 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
-	struct cam_postproc_blkpm *blkpm = NULL;
 	struct isp_port_cfg port_cfg = {0};
 	struct cam_hw_gtm_ltm_eb eb = {0};
 	struct cam_hw_gtm_ltm_dis dis = {0};
 	struct isp_port *port = NULL;
 	struct isp_node *inode = NULL;
-	struct isp_hw_gtm_func *gtm_func = NULL;
 	struct cam_frame *param_frame = NULL;
+	struct isp_hw_gtm_func *gtm_func = NULL;
 	struct cfg_param_status *param_status = NULL;
+	struct cam_postproc_param *postproc_param = NULL;
 
 	inode = VOID_PTR_TO(node, struct isp_node);
 	switch (cmd) {
@@ -1397,25 +1397,25 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		}
 		break;
 	case ISP_NODE_CFG_POSTPROC_PARAM:
-		blkpm = (struct cam_postproc_blkpm *)param;
+		postproc_param = (struct cam_postproc_param *)param;
 		param_frame = cam_queue_empty_blk_param_get(&inode->param_share_queue);
 		if (param_frame) {
-			param_frame->isp_blk.fid = blkpm->fid;
+			param_frame->isp_blk.fid = postproc_param->fid;
 
 			/* Temp get param from mw by do offset on base addr, need to discuss
 				param & image buf share set way in offline proc scene. */
 			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->post_cnr_h_info,
-				blkpm->blk_property, sizeof(struct isp_dev_post_cnr_h_info));
+				postproc_param->blk_property, sizeof(struct isp_dev_post_cnr_h_info));
 			param_frame->isp_blk.param_block->post_cnr_h_info.isupdate = 1;
 
-			blkpm->blk_property += sizeof(struct isp_dev_post_cnr_h_info);
+			postproc_param->blk_property += sizeof(struct isp_dev_post_cnr_h_info);
 			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->ynr_info_v3,
-				blkpm->blk_property, sizeof(struct isp_dev_ynr_info_v3));
+				postproc_param->blk_property, sizeof(struct isp_dev_ynr_info_v3));
 			param_frame->isp_blk.param_block->ynr_info_v3.isupdate = 1;
 
-			blkpm->blk_property += sizeof(struct isp_dev_ynr_info_v3);
+			postproc_param->blk_property += sizeof(struct isp_dev_ynr_info_v3);
 			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->cnr_info,
-				blkpm->blk_property, sizeof(struct isp_dev_cnr_h_info));
+				postproc_param->blk_property, sizeof(struct isp_dev_cnr_h_info));
 			param_frame->isp_blk.param_block->cnr_info.isupdate = 1;
 			param_frame->isp_blk.update = 1;
 			if (ret)
@@ -1426,7 +1426,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 				cam_queue_recycle_blk_param(&inode->param_share_queue, param_frame);
 			}
 		} else {
-			pr_err("fail to recive param, fid %d\n", blkpm->fid);
+			pr_err("fail to recive param, fid %d\n", postproc_param->fid);
 			return -EFAULT;
 		}
 		break;

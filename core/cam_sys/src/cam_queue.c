@@ -289,9 +289,9 @@ void cam_queue_empty_frame_put(void *frame)
 	pframe = (struct cam_frame *)frame;
 	camqueue_frame_state_clear(pframe);
 	ret = CAM_QUEUE_ENQUEUE(&g_frame_manager->empty_frame_q, &pframe->list);
-	if (ret) {
-		pr_warn("queue should be enlarged\n");
-	}
+	if (ret)
+		pr_warn("warning:frame in another queue or check fail\n");
+
 	return;
 }
 

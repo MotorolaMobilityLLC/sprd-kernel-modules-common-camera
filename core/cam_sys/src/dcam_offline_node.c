@@ -916,6 +916,17 @@ struct dcam_offline_port *dcam_offline_node_port_get(struct dcam_offline_node *n
 	return NULL;
 }
 
+void dcam_offline_node_buffer_clr(struct dcam_offline_node *node)
+{
+	struct cam_frame *pframe = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
+
+	buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ALLOC;
+	pframe = cam_buf_manager_buf_dequeue(&node->proc_pool, &buf_desc, node->buf_manager_handle);
+	if (!pframe)
+		pframe = cam_buf_manager_buf_dequeue(&node->in_pool, &buf_desc, node->buf_manager_handle);
+}
+
 int dcam_offline_node_statis_cfg(struct dcam_offline_node *node, void *param)
 {
 	int ret = 0;

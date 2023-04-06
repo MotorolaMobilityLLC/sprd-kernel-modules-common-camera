@@ -101,5 +101,6 @@ int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param);
 void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *param);
 void dcam_offline_node_put(struct dcam_offline_node *node);
 void dcam_offline_node_close(void *handle);
+void dcam_offline_node_buffer_clr(struct dcam_offline_node *node);
 
 #endif

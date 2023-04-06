@@ -1532,6 +1532,126 @@ static int camcore_module_deinit(struct camera_module *module)
 	return 0;
 }
 
+static int camcore_postproc_param_get(struct camera_module *module, struct cam_postproc_param *postproc_param,
+	unsigned long arg)
+{
+	int ret = 0;
+	uint32_t i = 0, reserved[4] = {0};
+	struct cam_frame *pframe = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
+	struct cam_frame *pfrm[3] = {NULL, NULL, NULL};
+
+	if (!module || !postproc_param) {
+		pr_err("fail to get input handle:%px, %px.\n", module, postproc_param);
+		return -EFAULT;
+	}
+
+	uparam = (struct sprd_img_parm __user *)arg;
+	ret |= get_user(postproc_param->fid, &uparam->index);
+	ret |= get_user(postproc_param->scene_mode, &uparam->scene_mode);
+	ret |= get_user(postproc_param->dst_size.w, &uparam->dst_size.w);
+	ret |= get_user(postproc_param->dst_size.h, &uparam->dst_size.h);
+	ret |= get_user(reserved[0], &uparam->reserved[0]);
+	ret |= get_user(reserved[1], &uparam->reserved[1]);
+	ret |= get_user(reserved[2], &uparam->reserved[2]);
+	ret |= get_user(reserved[3], &uparam->reserved[3]);
+	if (ret) {
+		pr_err("fail to copy_from_user\n");
+		return -EFAULT;
+	}
+
+	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD) {
+		postproc_param->ch = &module->channel[CAM_CH_PRE];
+		/* Tmp change, it will be changed when hal porting dr func after dispatch change back a14*/
+		/*ret |= get_user(postproc_blkpm.blk_property, &uparam->blk_param);
+		if (ret) {
+			pr_err("fail to get postproc blk param addr\n");
+			goto blkpm_cfg_err;
+		}*/
+	} else
+		postproc_param->ch = &module->channel[CAM_CH_CAP];
+
+	for (i = 0; i < 3; i++) {
+		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		ret |= get_user(pframe->common.buf.mfd, &uparam->fd_array[i]);
+		if (pframe->common.buf.mfd == 0) {
+			cam_queue_empty_frame_put(pframe);
+			continue;
+		}
+		pframe->common.fid = postproc_param->fid;
+		pframe->common.sensor_time.tv_sec = reserved[0];
+		pframe->common.sensor_time.tv_usec = reserved[1];
+		pframe->common.boot_sensor_time = reserved[3];
+		pframe->common.boot_sensor_time = (pframe->common.boot_sensor_time << 32) | reserved[2];
+		pframe->common.buf.type = CAM_BUF_USER;
+		pframe->common.link_from.node_type = CAM_NODE_TYPE_USER;
+		pframe->common.link_from.node_id = CAM_LINK_DEFAULT_NODE_ID;
+		if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD) {
+			pframe->common.width = postproc_param->ch->ch_uinfo.dst_size.w;
+			pframe->common.height  = postproc_param->ch->ch_uinfo.dst_size.h;
+		} else {
+			pframe->common.width = postproc_param->ch->ch_uinfo.src_size.w;
+			pframe->common.height  = postproc_param->ch->ch_uinfo.src_size.h;
+		}
+		ret |= get_user(pframe->common.buf.addr_vir[0], &uparam->frame_addr_vir_array[i].y);
+		ret |= get_user(pframe->common.buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
+		ret |= get_user(pframe->common.buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
+		if (ret) {
+			pr_err("fail to copy_from_user\n");
+			cam_queue_empty_frame_put(pframe);
+			return -EFAULT;
+		}
+		pframe->common.channel_id = postproc_param->ch->ch_id;
+		pframe->common.buf.status = CAM_BUF_ALLOC;
+		pfrm[i] = pframe;
+	}
+
+	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD) {
+		postproc_param->src_frm = pfrm[0];
+		postproc_param->dst_frm = pfrm[1];
+		postproc_param->dst_frm->common.proc_mode = CAM_POSTPROC_SERIAL;
+		postproc_param->node_type = CAM_NODE_TYPE_PYR_DEC;
+		postproc_param->postproc_mode = CAM_POSTPROC_SERIAL;
+		postproc_param->need_cfg_blkpm = 1;
+		postproc_param->need_cfg_dec = 1;
+		postproc_param->need_cfg_isp = 1;
+		postproc_param->need_update_zoom = 1;
+		postproc_param->isp_port_id = PORT_VID_OUT;
+	} else {
+		postproc_param->src_frm = pfrm[0];
+		postproc_param->mid_frm = pfrm[1];
+		postproc_param->dst_frm = pfrm[2];
+		postproc_param->need_cfg_dcam = 1;
+		if (postproc_param->scene_mode == CAM_POSTPROC_CAP_PROC_RAW) {
+			postproc_param->node_type = CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW;
+			postproc_param->mid_frm->common.irq_property = CAM_FRAME_PROCESS_RAW;
+			postproc_param->dcam_port_id = postproc_param->ch->aux_raw_port_id;
+		} else {
+			postproc_param->node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+			postproc_param->mid_frm->common.irq_property = CAM_FRAME_FDRH;
+			postproc_param->dcam_port_id = postproc_param->ch->aux_dcam_port_id;
+			postproc_param->need_cfg_isp = 1;
+			postproc_param->need_cfg_zoom = 1;
+		}
+		postproc_param->postproc_mode = CAM_POSTPROC_PARALLEL;
+		postproc_param->isp_port_id = postproc_param->ch->isp_port_id;
+	}
+
+	return ret;
+}
+
+static void camcore_postproc_param_put(struct cam_postproc_param *postproc_param)
+{
+	if (postproc_param->src_frm)
+		cam_queue_empty_frame_put(postproc_param->src_frm);
+
+	if (postproc_param->mid_frm)
+		cam_queue_empty_frame_put(postproc_param->mid_frm);
+
+	if (postproc_param->dst_frm)
+		cam_queue_empty_frame_put(postproc_param->dst_frm);
+}
+
 static int camcore_postproc_zoom_param_get(struct camera_module *module, struct channel_context *channel,
 	struct cam_zoom_frame *zoom_data, struct cam_zoom_index *zoom_index)
 {
