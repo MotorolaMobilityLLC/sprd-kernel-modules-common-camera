@@ -285,8 +285,6 @@ static void dcamonline_frame_dispatch(void *param, void *handle)
 
 	if (dcam_port->data_cb_func)
 		dcam_port->data_cb_func(irq_proc->type, frame, dcam_port->data_cb_handle);
-	else
-		node->data_cb_func(irq_proc->type, frame, node->data_cb_handle);
 }
 
 static int dcamonline_fmcu_slw_set(struct dcam_online_node *node)
