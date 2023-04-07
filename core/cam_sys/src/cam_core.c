@@ -2228,7 +2228,7 @@ static int camcore_power_on(struct camera_group *grp)
 {
 	int ret = 0;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	ret = sprd_glb_mm_pw_on_cfg();
 	if (ret) {
 		pr_err("fail to power on mm domain\n");
@@ -2257,7 +2257,7 @@ static int camcore_power_off(struct camera_group *grp)
 		grp->hw_info->isp_ioctl(grp->hw_info, ISP_HW_CFG_DISABLE_CLK, NULL);
 		grp->hw_info->dcam_ioctl(grp->hw_info, DCAM_HW_CFG_DISABLE_CLK, NULL);
 	}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	ret = sprd_glb_mm_pw_off_cfg();
 	pm_runtime_put_sync(&grp->hw_info->pdev->dev);
 #else

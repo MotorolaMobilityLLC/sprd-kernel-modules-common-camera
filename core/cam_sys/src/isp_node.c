@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include <linux/uaccess.h>
 #include "cam_statis.h"
 #include "cam_zoom.h"
 #include "isp_cfg.h"
