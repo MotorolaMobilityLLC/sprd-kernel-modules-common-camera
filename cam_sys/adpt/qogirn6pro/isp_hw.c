@@ -1012,6 +1012,10 @@ static int isphw_default_param_cfg(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 
 	idx = *(uint32_t *)arg;
+	if (idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get idx %d\n", idx);
+		return 0;
+	}
 	hw = (struct cam_hw_info *)handle;
 
 	/*common*/

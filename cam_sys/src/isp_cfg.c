@@ -429,8 +429,8 @@ static int ispcfg_ctx_buf_reset(
 {
 	void *shadow_buf_vaddr = NULL;
 
-	if (!cfg_ctx) {
-		pr_err("fail to get cfg_ctx pointer\n");
+	if (!cfg_ctx || (ctx_id >= ISP_CONTEXT_SW_NUM)) {
+		pr_err("fail to get cfg_ctx pointer or ctx_id %d\n", ctx_id);
 		return -EFAULT;
 	}
 	pr_debug("Enter\n");

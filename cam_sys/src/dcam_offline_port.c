@@ -100,6 +100,10 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	}
 
 	path_id = dcamoffline_portid_convert_to_pathid(dcam_port->port_id);
+	if (path_id >= DCAM_PATH_MAX) {
+		pr_err("fail to port %s convert to path id %d\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id), path_id);
+		return -EFAULT;
+	}
 	pr_info("dcam offline port %s path id %d\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id), path_id);
 	hw_store = &hw_ctx->hw_path[path_id].hw_store;
 	hw_size = &hw_ctx->hw_path[path_id].hw_size;

@@ -1028,11 +1028,6 @@ static int camcore_pyrdec_desc_get(struct camera_module *module, struct channel_
 	uint32_t format = 0, temp_format = 0, rawpath_id = 0;
 	struct cam_hw_info *hw = NULL;
 
-	if (!module || !channel || !pyr_dec_desc) {
-		pr_err("fail to get valid inptr %p %p %p\n", module, channel, pyr_dec_desc);
-		return -EINVAL;
-	}
-
 	hw = module->grp->hw_info;
 	format = module->cam_uinfo.sensor_if.img_fmt;
 	rawpath_id = camcore_dcampath_id_convert(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
