@@ -2396,8 +2396,8 @@ static int camcore_release(struct inode *node, struct file *file)
 		camthread_stop(&group->recovery_thrd);
 	}
 
-	camcore_power_off(group);
 	cam_buf_manager_deinit(idx, (void *)group->global_buf_manager);
+
 	if (atomic_read(&group->camera_opened) == 0) {
 		group->global_buf_manager = NULL;
 		group->s_dcam_dev = NULL;
@@ -2412,6 +2412,8 @@ static int camcore_release(struct inode *node, struct file *file)
 
 	if (g_mem_dbg && g_mem_dbg->g_dbg_memory_leak_ctrl && atomic_read(&group->camera_opened) == 0)
 		cam_buf_monitor_memory_queue_deinit();
+
+	camcore_power_off(group);
 
 	mutex_unlock(&group->module_lock);
 	pr_info("sprd_img: cam %d release end.\n", idx);
