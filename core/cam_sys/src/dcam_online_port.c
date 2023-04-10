@@ -106,9 +106,7 @@ static void dcamonline_port_check_status(struct dcam_online_port *dcam_port,
 		return;
 
 	buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
-	if (blk_dcam_pm->gtm.gtm_info.bypass_info.gtm_hist_stat_bypass)
-		recycle = 1;
-	if (blk_dcam_pm->rgb_gtm.rgb_gtm_info.bypass_info.gtm_hist_stat_bypass)
+	if (hw_ctx->gtm_hist_stat_bypass)
 		recycle = 1;
 	if (g_dcam_bypass[hw_ctx->hw_ctx_id] & (1 << _E_GTM))
 		recycle = 1;
@@ -426,7 +424,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 			dcam_port->out_size.w, dcam_port->out_size.h);
 		layer_num--;
 		dec_store->layer_num = layer_num;
-		hw->dcam_ioctl(hw, DCAM_HW_BYPASS_DEC, dec_store);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_BYPASS_DEC, dec_store);
 		if (layer_num == 0)
 			break;
 	}
@@ -980,11 +978,12 @@ static int dcamonline_port_store_reconfig(struct dcam_online_port *dcam_port, vo
 static int dcamonline_port_store_set(void *handle, void *param)
 {
 	int ret = 0;
-	struct dcam_online_port *dcam_port = NULL;
-	struct dcam_hw_context *hw_ctx = NULL;
-	struct cam_frame *frame = NULL;
-	struct dcam_isp_k_block *blk_dcam_pm = NULL;
 	uint32_t idx = 0;
+	struct cam_hw_info *hw = NULL;
+	struct cam_frame *frame = NULL;
+	struct dcam_hw_context *hw_ctx = NULL;
+	struct dcam_online_port *dcam_port = NULL;
+	struct dcam_isp_k_block *blk_dcam_pm = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr %px %px\n", handle, param);
@@ -1000,6 +999,7 @@ static int dcamonline_port_store_set(void *handle, void *param)
 	}
 
 	idx = hw_ctx->hw_ctx_id;
+	hw = hw_ctx->hw;
 	blk_dcam_pm = hw_ctx->blk_pm;
 
 	if(idx >= DCAM_HW_CONTEXT_MAX || !blk_dcam_pm) {
@@ -1008,8 +1008,10 @@ static int dcamonline_port_store_set(void *handle, void *param)
 	}
 
 	pr_debug("DCAM%u ONLINE %s enter\n", idx, cam_port_name_get(dcam_port->port_id));
-	if (dcam_port->port_id == PORT_GTM_HIST_OUT)
+	if (dcam_port->port_id == PORT_GTM_HIST_OUT) {
+		hw_ctx->gtm_hist_stat_bypass = hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_HIST_BYPASS_GET, blk_dcam_pm);
 		dcamonline_port_check_status(dcam_port, hw_ctx, blk_dcam_pm);
+	}
 	frame = dcamonline_port_frame_cycle(dcam_port, hw_ctx);
 	if (IS_ERR_OR_NULL(frame))
 		return PTR_ERR(frame);

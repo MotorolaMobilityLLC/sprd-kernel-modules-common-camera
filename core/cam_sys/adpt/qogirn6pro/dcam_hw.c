@@ -2227,6 +2227,18 @@ static int dcamhw_gtm_status_get(void *handle, void *arg)
 	return ret;
 }
 
+static int dcamhw_gtm_hist_bypass_get(void *handle, void *arg)
+{
+	int val = 0;
+	struct dcam_isp_k_block *dcam_blkpm = NULL;
+
+	dcam_blkpm = (struct dcam_isp_k_block *)arg;
+	if (dcam_blkpm->rgb_gtm.rgb_gtm_info.bypass_info.gtm_hist_stat_bypass)
+		val = 1;
+
+	return val;
+}
+
 static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
@@ -3141,24 +3153,25 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
 	{DCAM_HW_CFG_HIST_ROI_UPDATE,       dcamhw_bayer_hist_roi_update},
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
-	{DCAM_HW_DISCONECT_CSI,             dcamhw_csi_disconnect},
-	{DCAM_HW_CONECT_CSI,                dcamhw_csi_connect},
-	{DCAM_HW_FORCE_EN_CSI,              dcamhw_csi_force_enable},
+	{DCAM_HW_CFG_DISCONECT_CSI,         dcamhw_csi_disconnect},
+	{DCAM_HW_CFG_CONECT_CSI,            dcamhw_csi_connect},
+	{DCAM_HW_CFG_FORCE_EN_CSI,          dcamhw_csi_force_enable},
 	{DCAM_HW_CFG_FMCU_CMD,              dcamhw_fmcu_cmd_set},
 	{DCAM_HW_CFG_FMCU_START,            dcamhw_fmcu_start},
-	{DCAM_HW_FMCU_EBABLE,               dcamhw_fmcu_enable},
+	{DCAM_HW_CFG_FMCU_EBABLE,           dcamhw_fmcu_enable},
 	{DCAM_HW_CFG_SLW_FMCU_CMDS,         dcamhw_slw_fmcu_cmds},
 	{DCAM_HW_CFG_DEC_ONLINE,            dcamhw_dec_online},
-	{DCAM_HW_BYPASS_DEC,                dcamhw_dec_bypass},
+	{DCAM_HW_CFG_BYPASS_DEC,            dcamhw_dec_bypass},
 	{DCAM_HW_CFG_DEC_STORE_ADDR,        dcamhw_dec_store_addr},
 	{DCAM_HW_CFG_DEC_SIZE_UPDATE,       dcamhw_dec_size_update},
 	{DCAM_HW_CFG_GTM_HIST_GET,          dcamhw_get_gtm_hist},
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
 	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
 	{DCAM_HW_CFG_SLW_ADDR,              dcamhw_set_slw_addr},
-	{DCAM_HW_FETCH_STATUS_GET,          dcamhw_fetch_sts_get},
+	{DCAM_HW_CFG_FETCH_STATUS_GET,      dcamhw_fetch_sts_get},
 	{DCAM_HW_CFG_DUMMY_SET,             dcamhw_dummy_set},
 	{DCAM_HW_CFG_DUMMY_ENABLE,          dcamhw_dummy_enable},
+	{DCAM_HW_CFG_GTM_HIST_BYPASS_GET,   dcamhw_gtm_hist_bypass_get},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)
