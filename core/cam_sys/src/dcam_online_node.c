@@ -1207,7 +1207,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		csi_switch.dcam_id= node->hw_ctx_id;
 		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 		/* switch connect */
-		hw->dcam_ioctl(hw, DCAM_HW_FORCE_EN_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_EN_CSI, &csi_switch);
 		if (ret)
 			pr_err("fail to force en csi%d\n", node->hw_ctx_id);
 		node->csi_connect_stat = DCAM_CSI_RESUME;
@@ -1366,7 +1366,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (node->slw_type == DCAM_SLW_FMCU) {
 		fmcu_enable.enable = 1;
 		fmcu_enable.idx = node->hw_ctx_id;
-		hw->dcam_ioctl(hw, DCAM_HW_FMCU_EBABLE, &fmcu_enable);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_FMCU_EBABLE, &fmcu_enable);
 		hw_ctx->fmcu->ops->hw_start(hw_ctx->fmcu);
 	} else {
 		parm.idx = node->hw_ctx_id;
@@ -1389,7 +1389,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		/* switch connect */
 		csi_switch.csi_id = node->dcam_idx;
 		csi_switch.dcam_id= node->hw_ctx_id;
-		hw->dcam_ioctl(hw, DCAM_HW_CONECT_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_CONECT_CSI, &csi_switch);
 		pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 	}
 	pr_info("dcam%d done state = %d\n", node->hw_ctx_id, atomic_read(&node->state));
@@ -2016,7 +2016,7 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 		csi_switch.is_recovery = 1;
 
 	if (atomic_read(&hw_ctx->user_cnt) > 0) {
-		hw->dcam_ioctl(hw, DCAM_HW_DISCONECT_CSI, &csi_switch);
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
 		/* reset */
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, hw_ctx);
 		if (!csi_switch.is_recovery)

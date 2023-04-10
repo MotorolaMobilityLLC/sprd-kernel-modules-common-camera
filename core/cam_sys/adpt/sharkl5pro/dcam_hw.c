@@ -1284,6 +1284,18 @@ static int dcamhw_gtm_status_get(void *handle, void *arg)
 	return val;
 }
 
+static int dcamhw_gtm_hist_bypass_get(void *handle, void *arg)
+{
+	int val = 0;
+	struct dcam_isp_k_block *dcam_blkpm = NULL;
+
+	dcam_blkpm = (struct dcam_isp_k_block *)arg;
+	if (dcam_blkpm->gtm.gtm_info.bypass_info.gtm_hist_stat_bypass)
+		val = 1;
+
+	return val;
+}
+
 static int dcamhw_gtm_ltm_eb(void *handle, void *arg)
 {
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
@@ -1624,6 +1636,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_SLW_ADDR,              dcamhw_set_slw_addr},
 	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
+	{DCAM_HW_CFG_GTM_HIST_BYPASS_GET,   dcamhw_gtm_hist_bypass_get},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

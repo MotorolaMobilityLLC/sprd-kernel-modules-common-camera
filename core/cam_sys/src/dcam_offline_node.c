@@ -207,7 +207,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		if (irq_desc->dcam_cb_type == CAM_CB_DCAM_DATA_DONE)
 			dcamoffline_hw_ts_cal(node);
 		slice_info->slice_count--;
-		time_out = hw->dcam_ioctl(hw, DCAM_HW_FETCH_STATUS_GET, &node->hw_ctx_id);
+		time_out = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
 		if (time_out > CAM_DCAM_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy. timeout %d\n", time_out);
 
@@ -242,7 +242,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 	}
 
 	if (is_frm_port) {
-		time_out = hw->dcam_ioctl(hw, DCAM_HW_FETCH_STATUS_GET, &node->hw_ctx_id);
+		time_out = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
 		if (time_out > CAM_DCAM_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy.\n");
 		frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL, node->buf_manager_handle);

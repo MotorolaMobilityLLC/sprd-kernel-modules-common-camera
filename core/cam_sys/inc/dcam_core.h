@@ -156,6 +156,7 @@ struct dcam_hw_context {
 	dcam_irq_proc_cb dcam_irq_cb_func;
 	uint32_t frame_addr[DCAM_ADDR_RECORD_FRAME_NUM][DCAM_RECORD_PORT_INFO_MAX];
 	enum slice_proc_chose slice_proc_mode;
+	uint32_t gtm_hist_stat_bypass;
 };
 
 struct dcam_pipe_dev {
