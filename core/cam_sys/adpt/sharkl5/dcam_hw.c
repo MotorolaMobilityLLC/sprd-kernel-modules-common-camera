@@ -1304,13 +1304,9 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	dcam_k_aem_win(p);
 
 	dcam_k_afm_block(p);
-	dcam_k_afm_win(p);
-	dcam_k_afm_win_num(p);
 	dcam_k_afm_mode(p);
 	dcam_k_afm_skipnum(p);
-	dcam_k_afm_crop_eb(p);
-	dcam_k_afm_crop_size(p);
-	dcam_k_afm_done_tilenum(p);
+	dcam_k_afm_win_info(p);
 	dcam_k_afm_bypass(p);
 
 	dcam_k_afl_block(p);

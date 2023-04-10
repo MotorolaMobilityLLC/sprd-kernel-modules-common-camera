@@ -158,7 +158,7 @@ static int dcamonline_rect_get(struct dcam_online_node *node, void *param)
 
 	pm = &node->blk_pm;
 	aem_win = &(pm->aem.win_info);
-	afm_crop = &(pm->afm.crop_size);
+	afm_crop = &(pm->afm.win_parm.crop_size);
 	p->ae_valid_rect.x = aem_win->offset_x;
 	p->ae_valid_rect.y = aem_win->offset_y;
 	p->ae_valid_rect.w = aem_win->blk_width * aem_win->blk_num_x;

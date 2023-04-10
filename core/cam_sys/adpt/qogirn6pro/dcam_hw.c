@@ -2398,13 +2398,9 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 	dcam_k_aem_win(p);
 
 	dcam_k_afm_block(p);
-	dcam_k_afm_win(p);
-	dcam_k_afm_win_num(p);
 	dcam_k_afm_mode(p);
 	dcam_k_afm_skipnum(p);
-	dcam_k_afm_crop_eb(p);
-	dcam_k_afm_crop_size(p);
-	dcam_k_afm_done_tilenum(p);
+	dcam_k_afm_win_info(p);
 	dcam_k_afm_bypass(p);
 	dcam_k_afl_block(p);
 	dcam_k_bayerhist_block(p);
@@ -2522,8 +2518,8 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 	case DCAM_PATH_AFM:
 		DCAM_REG_WR(idx, DCAM_AFM_LUM_FV_BASE_WADDR, param->frame_addr[0]);
 		if (param->blk_param && param->blk_param->afm.af_param.afm_enhanced_lum.afm_hist_en) {
-			blk_x = param->blk_param->afm.win_num.width;
-			blk_y = param->blk_param->afm.win_num.height;
+			blk_x = param->blk_param->afm.win_parm.win_num.width;
+			blk_y = param->blk_param->afm.win_parm.win_num.height;
 			DCAM_REG_WR(idx, DCAM_AFM_HIST_BASE_WADDR, param->frame_addr[0] + blk_x * blk_y * 16);
 		}
 		break;

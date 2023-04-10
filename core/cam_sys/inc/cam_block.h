@@ -211,13 +211,9 @@ int dcam_k_3dnr_me(struct dcam_isp_k_block *param);
 
 int dcam_k_afm_block(struct dcam_isp_k_block *param);
 int dcam_k_afm_bypass(struct dcam_isp_k_block *param);
-int dcam_k_afm_win(struct dcam_isp_k_block *param);
-int dcam_k_afm_win_num(struct dcam_isp_k_block *param);
 int dcam_k_afm_mode(struct dcam_isp_k_block *param);
 int dcam_k_afm_skipnum(struct dcam_isp_k_block *param);
-int dcam_k_afm_crop_eb(struct dcam_isp_k_block *param);
-int dcam_k_afm_crop_size(struct dcam_isp_k_block *param);
-int dcam_k_afm_done_tilenum(struct dcam_isp_k_block *param);
+int dcam_k_afm_win_info(struct dcam_isp_k_block *param);
 int dcam_k_afm_iir_info(struct dcam_isp_k_block *param);
 
 int dcam_k_lscm_bypass(struct dcam_isp_k_block *param);

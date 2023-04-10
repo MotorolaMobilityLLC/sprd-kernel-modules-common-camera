@@ -97,17 +97,21 @@ struct dcam_dev_3dnr_param {
 	struct dcam_dev_3dnr_me nr3_me;
 };
 
+struct afm_win_param {
+	uint32_t crop_eb;
+	struct isp_img_rect crop_size;
+	struct isp_img_size win_num;
+	struct isp_img_size done_tile_num;
+	struct isp_img_rect win;
+};
+
 struct dcam_dev_afm_param {
 	struct dcam_dev_afm_info af_param;
-	struct isp_img_rect win;
-	struct isp_img_size win_num;
 	uint32_t mode;
 	uint32_t bypass;
 	uint32_t skip_num;
-	uint32_t crop_eb;
-	struct isp_img_rect crop_size;
-	struct isp_img_size done_tile_num;
 	struct dcam_dev_afm_iir_info af_iir_info;
+	struct afm_win_param win_parm;
 };
 
 struct dcam_dev_gtm_param {

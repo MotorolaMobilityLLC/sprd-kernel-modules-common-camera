@@ -549,10 +549,10 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 		break;
 	case PORT_AFM_OUT:
 		frame->common.afm_info.skip_num = blk_dcam_pm->afm.skip_num;
-		frame->common.afm_info.crop_eb = blk_dcam_pm->afm.crop_eb;
-		frame->common.afm_info.crop_size = blk_dcam_pm->afm.crop_size;
-		frame->common.afm_info.win = blk_dcam_pm->afm.win;
-		frame->common.afm_info.win_num = blk_dcam_pm->afm.win_num;
+		frame->common.afm_info.crop_eb = blk_dcam_pm->afm.win_parm.crop_eb;
+		frame->common.afm_info.crop_size = blk_dcam_pm->afm.win_parm.crop_size;
+		frame->common.afm_info.win = blk_dcam_pm->afm.win_parm.win;
+		frame->common.afm_info.win_num = blk_dcam_pm->afm.win_parm.win_num;
 		frame->common.afm_info.iir_info = blk_dcam_pm->afm.af_iir_info;
 		break;
 	case PORT_PDAF_OUT:
@@ -926,8 +926,8 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	case PORT_AFM_OUT:
 		if (slw && blk_dcam_pm) {
 			uint32_t w = 0, h = 0;
-			w = blk_dcam_pm->afm.win_num.width;
-			h = blk_dcam_pm->afm.win_num.height;
+			w = blk_dcam_pm->afm.win_parm.win_num.width;
+			h = blk_dcam_pm->afm.win_parm.win_num.height;
 			slw->store_info[path_id].store_addr.addr_ch1 = out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + w * h * 16;
 		}
 		break;
