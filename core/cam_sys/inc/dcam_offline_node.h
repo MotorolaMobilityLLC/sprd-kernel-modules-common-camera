@@ -19,11 +19,6 @@
 #include "dcam_offline_port.h"
 #include "dcam_core.h"
 
-#define DCAM_OFFLINE_IN_Q_LEN                     12
-#define DCAM_OFFLINE_PROC_Q_LEN                   12
-#define CAM_DCAM_AXI_STOP_TIMEOUT                 2000
-#define DCAM_OFFLINE_PARAM_Q_LEN                  20
-
 enum dcam_offline_node_id {
 	DCAM_OFFLINE_NODE_ID,
 	DCAM_OFFLINE_MAX_NODE_ID,
@@ -50,7 +45,7 @@ struct dcam_offline_node_desc {
 	enum cam_node_buf_type buf_type;
 };
 
-struct dcam_pm_context {
+struct dcam_offline_pm_context {
 	atomic_t user_cnt;
 	uint32_t ctx_id;
 	struct dcam_isp_k_block blk_pm;
@@ -73,7 +68,7 @@ struct dcam_offline_node {
 	timespec end_ts;
 
 	struct dcam_fetch_info fetch;
-	struct dcam_pm_context pm_ctx;
+	struct dcam_offline_pm_context pm_ctx;
 	struct camera_queue port_queue;
 	struct cam_buf_pool_id in_pool;
 	struct cam_buf_pool_id proc_pool;
@@ -93,14 +88,14 @@ struct dcam_offline_node {
 
 int dcam_offline_node_port_insert(struct dcam_offline_node *node, void *param);
 struct dcam_offline_port *dcam_offline_node_port_get(struct dcam_offline_node *node, uint32_t port_id);
+void dcam_offline_node_buffer_clr(struct dcam_offline_node *node);
 int dcam_offline_node_statis_cfg(struct dcam_offline_node *node, void *param);
 int dcam_offline_node_blkpm_fid_set(struct dcam_offline_node *node, void *param);
 void dcam_offline_node_param_ptr_reset(struct dcam_offline_node *node);
 int dcam_offline_node_blk_param_set(struct dcam_offline_node *node, void *param);
 int dcam_offline_node_request_proc(struct dcam_offline_node *node, void *param);
+void dcam_offline_node_close(void *handle);
 void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *param);
 void dcam_offline_node_put(struct dcam_offline_node *node);
-void dcam_offline_node_close(void *handle);
-void dcam_offline_node_buffer_clr(struct dcam_offline_node *node);
 
 #endif

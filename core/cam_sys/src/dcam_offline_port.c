@@ -20,90 +20,8 @@
 #endif
 #define pr_fmt(fmt) "DCAM_OFFLINE_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-int dcam_offline_port_size_cfg(void *handle, void *param)
-{
-	int ret = 0;
-	struct dcam_offline_port *port = NULL;
-	struct img_size crop_size = {0};
-	struct img_size dst_size = {0};
-	struct cam_zoom_base *zoom_base = NULL;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid input ptr %px %px\n", handle, param);
-		return -EFAULT;
-	}
-
-	port = (struct dcam_offline_port *)handle;
-	zoom_base = (struct cam_zoom_base *)param;
-
-	port->in_size = zoom_base->src;
-	port->in_trim = zoom_base->crop;
-	port->out_size = zoom_base->dst;
-	port->out_pitch = cal_sprd_pitch(port->out_size.w, port->out_fmt);
-
-	switch (port->port_id) {
-	case PORT_OFFLINE_RAW_OUT:
-	case PORT_OFFLINE_FULL_OUT:
-		pr_info("port %s path done. in size %d %d out size %d %d\n", cam_port_dcam_offline_out_id_name_get(port->port_id),
-			port->in_size.w, port->in_size.h,
-			port->out_size.w, port->out_size.h);
-		pr_info("trim %d %d %d %d\n", port->in_trim.start_x, port->in_trim.start_y,
-			port->in_trim.size_x, port->in_trim.size_y);
-		break;
-	case PORT_OFFLINE_BIN_OUT:
-		crop_size.w = port->in_trim.size_x;
-		crop_size.h = port->in_trim.size_y;
-		dst_size = port->out_size;
-		switch (port->out_fmt) {
-			case CAM_YUV_BASE:
-			case CAM_YUV422_2FRAME:
-			case CAM_YVU422_2FRAME:
-			case CAM_YUV420_2FRAME:
-			case CAM_YVU420_2FRAME:
-			case CAM_YUV420_2FRAME_MIPI:
-			case CAM_YVU420_2FRAME_MIPI:
-				if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h)) {
-					port->scaler_sel = DCAM_SCALER_BYPASS;
-					break;
-				}
-				if (dst_size.w > DCAM_SCALER_MAX_WIDTH ||
-					port->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
-					pr_err("fail to support scaler, in width %d, out width %d\n",
-							port->in_trim.size_x, dst_size.w);
-					ret = -1;
-				}
-				port->scaler_sel = DCAM_SCALER_BY_YUVSCALER;
-				port->scaler_info.scaler_factor_in = port->in_trim.size_x;
-				port->scaler_info.scaler_factor_out = dst_size.w;
-				port->scaler_info.scaler_ver_factor_in = port->in_trim.size_y;
-				port->scaler_info.scaler_ver_factor_out = dst_size.h;
-				port->scaler_info.scaler_out_width = dst_size.w;
-				port->scaler_info.scaler_out_height = dst_size.h;
-				port->scaler_info.work_mode = 2;
-				port->scaler_info.scaler_bypass = 0;
-				ret = cam_scaler_coeff_calc_ex(&port->scaler_info);
-				if (ret)
-					pr_err("fail to calc scaler coeff\n");
-				break;
-			case CAM_RAW_PACK_10:
-			case CAM_RAW_HALFWORD_10:
-			case CAM_RAW_14:
-			case CAM_RAW_8:
-			case CAM_FULL_RGB14:
-				dcampath_bin_scaler_get(crop_size, dst_size, &port->scaler_sel, &port->bin_ratio);
-				break;
-			default:
-				pr_err("fail to get path->out_fmt :%s\n", camport_fmt_name_get(port->out_fmt));
-				break;
-		}
-		break;
-	default:
-		pr_err("fail to get valid port id %s\n", cam_port_dcam_offline_out_id_name_get(port->port_id));
-		break;
-	}
-
-	return ret;
-}
+#define DCAM_OFFLINE_RESULT_Q_LEN                 50
+#define DCAM_OFFLINE_OUT_BUF_Q_LEN                50
 
 static int dcamoffline_port_base_cfg(struct dcam_offline_port *port,
 		struct dcam_offline_port_desc *port_desc)
@@ -277,6 +195,91 @@ static uint32_t dcamoffline_port_bufq_clr(struct dcam_offline_port *port, void *
 
 	pr_debug("port:0x%px, port_id:%d.\n", port, port->port_id);
 	return 0;
+}
+
+int dcam_offline_port_size_cfg(void *handle, void *param)
+{
+	int ret = 0;
+	struct dcam_offline_port *port = NULL;
+	struct img_size crop_size = {0};
+	struct img_size dst_size = {0};
+	struct cam_zoom_base *zoom_base = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);
+		return -EFAULT;
+	}
+
+	port = (struct dcam_offline_port *)handle;
+	zoom_base = (struct cam_zoom_base *)param;
+
+	port->in_size = zoom_base->src;
+	port->in_trim = zoom_base->crop;
+	port->out_size = zoom_base->dst;
+	port->out_pitch = cal_sprd_pitch(port->out_size.w, port->out_fmt);
+
+	switch (port->port_id) {
+	case PORT_OFFLINE_RAW_OUT:
+	case PORT_OFFLINE_FULL_OUT:
+		pr_info("port %s path done. in size %d %d out size %d %d\n", cam_port_dcam_offline_out_id_name_get(port->port_id),
+			port->in_size.w, port->in_size.h,
+			port->out_size.w, port->out_size.h);
+		pr_info("trim %d %d %d %d\n", port->in_trim.start_x, port->in_trim.start_y,
+			port->in_trim.size_x, port->in_trim.size_y);
+		break;
+	case PORT_OFFLINE_BIN_OUT:
+		crop_size.w = port->in_trim.size_x;
+		crop_size.h = port->in_trim.size_y;
+		dst_size = port->out_size;
+		switch (port->out_fmt) {
+			case CAM_YUV_BASE:
+			case CAM_YUV422_2FRAME:
+			case CAM_YVU422_2FRAME:
+			case CAM_YUV420_2FRAME:
+			case CAM_YVU420_2FRAME:
+			case CAM_YUV420_2FRAME_MIPI:
+			case CAM_YVU420_2FRAME_MIPI:
+				if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h)) {
+					port->scaler_sel = DCAM_SCALER_BYPASS;
+					break;
+				}
+				if (dst_size.w > DCAM_SCALER_MAX_WIDTH ||
+					port->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
+					pr_err("fail to support scaler, in width %d, out width %d\n",
+							port->in_trim.size_x, dst_size.w);
+					ret = -1;
+				}
+				port->scaler_sel = DCAM_SCALER_BY_YUVSCALER;
+				port->scaler_info.scaler_factor_in = port->in_trim.size_x;
+				port->scaler_info.scaler_factor_out = dst_size.w;
+				port->scaler_info.scaler_ver_factor_in = port->in_trim.size_y;
+				port->scaler_info.scaler_ver_factor_out = dst_size.h;
+				port->scaler_info.scaler_out_width = dst_size.w;
+				port->scaler_info.scaler_out_height = dst_size.h;
+				port->scaler_info.work_mode = 2;
+				port->scaler_info.scaler_bypass = 0;
+				ret = cam_scaler_coeff_calc_ex(&port->scaler_info);
+				if (ret)
+					pr_err("fail to calc scaler coeff\n");
+				break;
+			case CAM_RAW_PACK_10:
+			case CAM_RAW_HALFWORD_10:
+			case CAM_RAW_14:
+			case CAM_RAW_8:
+			case CAM_FULL_RGB14:
+				dcampath_bin_scaler_get(crop_size, dst_size, &port->scaler_sel, &port->bin_ratio);
+				break;
+			default:
+				pr_err("fail to get path->out_fmt :%s\n", camport_fmt_name_get(port->out_fmt));
+				break;
+		}
+		break;
+	default:
+		pr_err("fail to get valid port id %s\n", cam_port_dcam_offline_out_id_name_get(port->port_id));
+		break;
+	}
+
+	return ret;
 }
 
 int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)

@@ -17,9 +17,6 @@
 #include "cam_types.h"
 #include "cam_port.h"
 
-#define DCAM_OFFLINE_RESULT_Q_LEN                 50
-#define DCAM_OFFLINE_OUT_BUF_Q_LEN                50
-
 struct dcam_offline_port_desc {
 	void **port_dev;
 	cam_data_cb data_cb_func;
@@ -64,9 +61,9 @@ struct dcam_offline_port {
 	struct cam_buf_pool_id result_pool;
 };
 
-int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param);
-int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param);
 int dcam_offline_port_size_cfg(void *handle, void *param);
+int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param);
+int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param);
 void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *param);
 void dcam_offline_port_put(struct dcam_offline_port *port);
 
