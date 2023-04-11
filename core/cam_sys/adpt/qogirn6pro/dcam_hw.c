@@ -14,7 +14,7 @@
 #ifdef CAM_HW_ADPT_LAYER
 
 #define DCAMX_STOP_TIMEOUT             500
-#define DCAM_AXI_STOP_TIMEOUT          2000
+#define DCAM_AXI_STOP_TIMEOUT          2500
 #define DCAM_AXIM_AQOS_MASK            (0xF030FFFF)
 #define DCAM_LITE_AXIM_AQOS_MASK       (0x30FFFF)
 
@@ -503,15 +503,12 @@ static int dcamhw_stop(void *handle, void *arg)
 
 	/* wait for AHB path busy cleared */
 	while (time_out) {
-		ret = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x7FFB;
+		ret = DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x7FFF;
 		if (!ret)
 			break;
 		os_adapt_time_udelay(1000);
 		time_out--;
 	}
-
-	if (DCAM_REG_RD(idx, DCAM_PATH_BUSY) & 0x4)
-		pr_warn("dcam % pdaf is busy\n", idx);
 
 	if (time_out == 0) {
 		pr_err("fail to normal stop, DCAM%d timeout for 2s\n", idx);
@@ -801,24 +798,19 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 	dbg_reg = AXIM_DBG_STS;
 	write_lock(&soc->cam_ahb_lock);
 	DCAM_AXIM_MWR(DCAM_ID_0, ctrl_reg, BIT_24 | BIT_23, (0x3 << 23));
+
 	/* then wait for AHB busy cleared */
-	while (++time_out < 500) {
-		if ((DCAM_AXIM_RD(DCAM_ID_0, dbg_reg) & 0x8000) == 0)
-			break;
-		os_adapt_time_udelay(1000);
-	}
-
-	if (time_out >= 500)
-		pr_err("fail to wait dcam axi fifo clear\n");
-
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
-		if ((DCAM_AXIM_RD(DCAM_ID_0, dbg_reg) & 0x1700F) == 0)
+		if ((DCAM_AXIM_RD(DCAM_ID_0, dbg_reg) & 0x3F00F) == 0
+			&& (DCAM_REG_RD(DCAM_ID_0, DCAM_PATH_BUSY) & 0x7FFF) == 0
+			&& (DCAM_REG_RD(DCAM_ID_1, DCAM_PATH_BUSY) & 0x7FFF) == 0)
 			break;
 		os_adapt_time_udelay(1000);
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
-		pr_info("fail to dcam axim timeout status 0x%x\n", DCAM_AXIM_RD(DCAM_ID_0, dbg_reg));
+		pr_err("fail to dcam axim timeout dbg_status 0x%x, dcam0/1 path_busy 0x%x, 0x%x\n",
+			DCAM_AXIM_RD(DCAM_ID_0, dbg_reg), DCAM_REG_RD(DCAM_ID_0, DCAM_PATH_BUSY), DCAM_REG_RD(DCAM_ID_1, DCAM_PATH_BUSY));
 	} else {
 		ip = hw->ip_dcam[DCAM_ID_0];
 		flag = ip->syscon.all_rst_mask
@@ -888,14 +880,15 @@ static int dcamhw_reset(void *handle, void *arg)
 	pr_info("DCAM%d: reset.\n", idx);
 	/* then wait for AXIM cleared */
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
-		if (0 == (DCAM_AXIM_RD(idx, dbg_sts_reg) & (sts_bit[idx])))
+		if (0 == (DCAM_AXIM_RD(idx, dbg_sts_reg) & (sts_bit[idx]))
+			&& 0 == (DCAM_REG_RD(idx, DCAM_PATH_BUSY)))
 			break;
 		os_adapt_time_udelay(1000);
 	}
 
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
-		pr_err("fail to reset DCAM%d timeout, axim status 0x%x\n", idx,
-			DCAM_AXIM_RD(idx, dbg_sts_reg));
+		pr_err("fail to reset DCAM%d timeout, axim status 0x%x, path_busy 0x%x\n", idx,
+			DCAM_AXIM_RD(idx, dbg_sts_reg), DCAM_REG_RD(idx, DCAM_PATH_BUSY));
 		trace.type = ABNORMAL_REG_TRACE;
 		trace.idx = idx;
 		hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
