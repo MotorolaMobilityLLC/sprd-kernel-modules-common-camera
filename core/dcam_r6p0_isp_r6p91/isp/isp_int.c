@@ -299,6 +299,7 @@ static void isp_aem_done(void *isp_handle)
 		       sizeof(unsigned int) * 3);
 		frame_info.phy_addr = node.phy_addr;
 		frame_info.vir_addr = node.vir_addr;
+		frame_info.kaddr[0] = node.kaddr[0];
 		frame_info.addr_offset = node.addr_offset;
 		frame_info.irq_type = CAMERA_IRQ_STATIS;
 		frame_info.irq_property = IRQ_AEM_STATIS;
@@ -429,6 +430,7 @@ static void isp_binning_done(void *isp_handle)
 			sizeof(unsigned int) * 3);
 		frame_info.phy_addr = node.phy_addr;
 		frame_info.vir_addr = node.vir_addr;
+		frame_info.kaddr[0] = node.kaddr[0];
 		frame_info.addr_offset = node.addr_offset;
 		frame_info.irq_type = CAMERA_IRQ_STATIS;
 		frame_info.irq_property = IRQ_BINNING_STATIS;
@@ -558,6 +560,7 @@ static void isp_afl_done(void *isp_handle)
 		       sizeof(unsigned int) * 3);
 		frame_info.phy_addr = node.phy_addr;
 		frame_info.vir_addr = node.vir_addr;
+		frame_info.kaddr[0] = node.kaddr[0];
 		frame_info.addr_offset = node.addr_offset;
 		frame_info.irq_type = CAMERA_IRQ_STATIS;
 		frame_info.irq_property = IRQ_AFL_STATIS;

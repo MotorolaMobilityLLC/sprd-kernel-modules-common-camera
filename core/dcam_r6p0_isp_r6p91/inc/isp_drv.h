@@ -280,7 +280,7 @@ int sprd_isp_unmap_buf(void *isp_pipe_dev_handle);
 int isp_set_statis_buf(void *isp_pipe_dev_handle);
 int sprd_isp_dev_deinit(void *isp_pipe_dev_handle);
 int sprd_isp_k_ioctl(void *isp_pipe_dev_handle, unsigned int cmd,
-	unsigned long param);
+	unsigned long param, bool is_stream_on);
 void print_isp_regs(void);
 int isp_reset(void);
 int switch_isp_clk(unsigned char high);

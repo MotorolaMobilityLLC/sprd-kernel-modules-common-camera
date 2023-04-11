@@ -3743,7 +3743,8 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		mutex_lock(&dev->dcam_mutex);
 		DCAM_TRACE("start isp ioctl cmd%d dev %p\n",
 			_IOC_NR(cmd), dev);
-		ret = sprd_isp_k_ioctl(dev->isp_dev_handle, cmd, arg);
+		ret = sprd_isp_k_ioctl(dev->isp_dev_handle, cmd, arg,
+			(atomic_read(&dev->stream_on) != 0));
 		mutex_unlock(&dev->dcam_mutex);
 		break;
 
