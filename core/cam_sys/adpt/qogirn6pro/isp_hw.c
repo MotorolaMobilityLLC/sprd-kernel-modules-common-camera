@@ -2109,7 +2109,6 @@ static int isphw_slice_3dnr_fbc_store(void *handle, void *arg)
 	cmd = fbc_store->slice_payload_base_addr;
 	FMCU_PUSH(fmcu, addr, cmd);
 
-
 	addr = ISP_GET_REG(ISP_FBC_3DNR_SLICE_HEADER_BASE_ADDR);
 	cmd = fbc_store->slice_header_base_addr;
 	FMCU_PUSH(fmcu, addr, cmd);
@@ -2177,11 +2176,6 @@ static int isphw_slice_3dnr_fbd_fetch(void *handle, void *arg)
 	cmd = fbd_fetch->start_3dnr_afbd;
 	FMCU_PUSH(fmcu, addr, cmd);
 
-	return 0;
-}
-
-static int isphw_subblock_cfg(void *handle, void *arg)
-{
 	return 0;
 }
 
@@ -2407,38 +2401,6 @@ static int isphw_slices_pyr_rec_fmcu_cmds(void *handle, void *arg)
 
 	addr = ISP_GET_REG(ISP_FMCU_CMD);
 	cmd = rec_store_done_cmd[parg->hw_ctx_id];
-	FMCU_PUSH(parg->fmcu, addr, cmd);
-
-	return 0;
-}
-
-static int isphw_slices_dewarp_fmcu_cmds(void *handle, void *arg)
-{
-	uint32_t addr = 0, cmd = 0;
-	struct isp_hw_slices_fmcu_cmds *parg = NULL;
-	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_SHADOW_DONE, PRE1_SHADOW_DONE,
-		CAP0_SHADOW_DONE, CAP1_SHADOW_DONE,
-	};
-	uint32_t all_done_cmd[ISP_CONTEXT_HW_NUM] = {
-		PRE0_ALL_DONE, PRE1_ALL_DONE,
-		CAP0_ALL_DONE, CAP1_ALL_DONE,
-	};
-
-	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
-	if (parg->wmode == ISP_CFG_MODE)
-		addr = ISP_GET_REG(ISP_CFG_CAP_FMCU_RDY);
-	else
-		addr = ISP_GET_REG(ISP_DEWARPING_FSTART);
-	cmd = 1;
-	FMCU_PUSH(parg->fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FMCU_CMD);
-	cmd = shadow_done_cmd[parg->hw_ctx_id];
-	FMCU_PUSH(parg->fmcu, addr, cmd);
-
-	addr = ISP_GET_REG(ISP_FMCU_CMD);
-	cmd = all_done_cmd[parg->hw_ctx_id];
 	FMCU_PUSH(parg->fmcu, addr, cmd);
 
 	return 0;
@@ -3051,13 +3013,6 @@ static int isphw_fetch_start(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_dewarp_fetch_start(void *handle, void *arg)
-{
-	ISP_HREG_WR(ISP_DEWARPING_FSTART, 1);
-
-	return 0;
-}
-
 static int isphw_fmcu_cmd_set(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_cmd *cmdarg = NULL;
@@ -3163,46 +3118,6 @@ static int isphw_fmcu_cmd_align(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_cfg_alldone_ctrl(void *handle, void *arg)
-{
-	struct isp_hw_alldone_ctrl *para = (struct isp_hw_alldone_ctrl *)arg;
-	uint32_t ctx_id = 0;
-	uint32_t val = 0, bit = 0;
-
-	if (!arg) {
-		pr_err("fail to cfg alldone ctrl\n");
-		return -1;
-	}
-	ctx_id = para->hw_ctx_id;
-	val = ISP_HREG_RD(irq_base[ctx_id] + ISP_INT_ALL_DONE_CTRL);
-	switch (para->int_bit) {
-	case ISP_ALLDONE_WAIT_DISPATCH:
-		bit = 4;
-		break;
-	case ISP_ALLDONE_WAIT_LTMHIST:
-		bit = 3;
-		break;
-	case ISP_ALLDONE_WAIT_REC:
-		bit = 2;
-		break;
-	case ISP_ALLDONE_WAIT_YUV_DONE:
-		bit = 1;
-		break;
-	case ISP_ALLDONE_WAIT_STORE:
-		bit = 0;
-		break;
-	default:
-		pr_debug("all done ctrl not support %d\n", para->int_bit);
-	}
-	if (para->wait)
-		val &= ~(0x1UL << bit);
-	else
-		val |= (0x1UL << bit);
-	pr_debug("int %d wait %d, all done ctrl 0x%x\n", para->int_bit, para->wait, val);
-	ISP_HREG_WR(irq_base[ctx_id] + ISP_INT_ALL_DONE_CTRL, val);
-	return 0;
-}
-
 static int isphw_subblock_reconfig(void *handle, void *arg)
 {
 	uint32_t ret = 0, idx = 0;
@@ -3267,7 +3182,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_BYPASS_DATA_GET,         isphw_bypass_data_get},
 	{ISP_HW_CFG_BYPASS_COUNT_GET,        isphw_bypass_count_get},
 	{ISP_HW_CFG_REG_TRACE,               isphw_reg_trace},
-	{ISP_HW_CFG_ISP_CFG_SUBBLOCK,        isphw_subblock_cfg},
 	{ISP_HW_CFG_SET_PATH_STORE,          isphw_path_store},
 	{ISP_HW_CFG_SET_PATH_SCALER,         isphw_path_scaler},
 	{ISP_HW_CFG_SET_PATH_THUMBSCALER,    isphw_path_thumbscaler},
@@ -3283,7 +3197,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_SLICE_FETCH,             isphw_slice_fetch},
 	{ISP_HW_CFG_SLICE_FMCU_CMD,          isphw_slices_fmcu_cmds},
 	{ISP_HW_CFG_SLICE_FMCU_PYR_REC_CMD,  isphw_slices_pyr_rec_fmcu_cmds},
-	{ISP_HW_CFG_SLICE_FMCU_DEWARP_CMD,   isphw_slices_dewarp_fmcu_cmds},
 	{ISP_HW_CFG_SLICE_NOFILTER,          isphw_slice_nofilter},
 	{ISP_HW_CFG_SLICE_3DNR_CROP,         isphw_slice_3dnr_crop},
 	{ISP_HW_CFG_SLICE_3DNR_STORE,        isphw_slice_3dnr_store},
@@ -3302,12 +3215,10 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_CMD_READY,               isphw_cfg_cmd_ready},
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
-	{ISP_HW_CFG_DEWARP_FETCH_START,      isphw_dewarp_fetch_start},
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 	{ISP_HW_CFG_FMCU_CMD_ALIGN,          isphw_fmcu_cmd_align},
-	{ISP_HW_CFG_ALLDONE_CTRL,            isphw_cfg_alldone_ctrl},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
 };

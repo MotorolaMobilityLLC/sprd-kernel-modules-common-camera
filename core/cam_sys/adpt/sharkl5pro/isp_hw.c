@@ -636,12 +636,8 @@ static int isphw_default_param_set(void *handle, void *arg)
 	rqos_val = (0x0 << 8) |
 			((hw->soc_isp->arqos_high & 0xF) << 4) |
 			(hw->soc_isp->arqos_low & 0xF);
-	ISP_HREG_MWR(ISP_AXI_ARBITER_WQOS,
-					0x37FF,
-					wqos_val);
-	ISP_HREG_MWR(ISP_AXI_ARBITER_RQOS,
-					0x1FF,
-					rqos_val);
+	ISP_HREG_MWR(ISP_AXI_ARBITER_WQOS, 0x37FF, wqos_val);
+	ISP_HREG_MWR(ISP_AXI_ARBITER_RQOS, 0x1FF, rqos_val);
 	ISP_HREG_WR(ISP_CORE_PMU_EN, 0xFFFF0000);
 	ISP_HREG_WR(ISP_COMMON_GCLK_CTRL_0, 0xFFFF0000);
 	ISP_HREG_WR(ISP_COMMON_GCLK_CTRL_1, 0xFFFF0000);
@@ -792,8 +788,8 @@ static int isphw_path_store(void *handle, void *arg)
 	addr = store_base[path_store->spath_id];
 
 	pr_debug("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d,fmt:%s\n",
-			store_info->bypass, path_store->spath_id,
-			store_info->size.w, store_info->size.h, camport_fmt_name_get(store_info->color_fmt));
+		store_info->bypass, path_store->spath_id,
+		store_info->size.w, store_info->size.h, camport_fmt_name_get(store_info->color_fmt));
 
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM,
 		BIT_0, store_info->bypass);
@@ -2305,6 +2301,7 @@ static int isphw_stop(void *handle, void *arg)
 		ISP_HREG_RD(ISP_C0_INT_BASE + ISP_INT_STATUS),
 		ISP_HREG_RD(ISP_P1_INT_BASE + ISP_INT_STATUS),
 		ISP_HREG_RD(ISP_C1_INT_BASE + ISP_INT_STATUS));
+
 	os_adapt_time_udelay(10);
 
 	for (cid = 0; cid < 4; cid++)
@@ -2627,21 +2624,6 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 	return ret;
 }
 
-static int isphw_hist_get(void *handle, void *arg)
-{
-	uint32_t *buf = NULL;
-	uint32_t max_item = 256;
-	uint32_t i = 0;
-	if (!arg) {
-		pr_err("fail to get valid ptr\n");
-		return -1;
-	}
-	buf = (uint32_t *)arg;
-	for (i = 0; i < max_item; i++)
-		buf[i] = ISP_HREG_RD(ISP_HIST2_BUF0_ADDR + i * 4);
-	return 0;
-}
-
 static int isphw_cfg_mmu_wbypass(void *handle, void *arg)
 {
 	/* bypass mmu vaor, record the addr and not generate abnormal interrupt for fd buf */
@@ -2702,7 +2684,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
-	{ISP_HW_CFG_HIST_GET,                isphw_hist_get},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
 };
 

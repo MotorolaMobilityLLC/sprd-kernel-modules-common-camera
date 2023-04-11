@@ -1108,26 +1108,26 @@ static int isphw_path_scaler(void *handle, void *arg)
 
 	/*src size*/
 	ISP_REG_WR(idx, addr + ISP_YUV_SCALER_SRC_SIZE,
-				((path_scaler->src.h & 0x3FFF) << 16) |
-					(path_scaler->src.w & 0x3FFF));
+		((path_scaler->src.h & 0x3FFF) << 16) |
+			(path_scaler->src.w & 0x3FFF));
 	/* trim0 */
 	ISP_REG_WR(idx, addr + ISP_YUV_SCALER_TRIM0_START,
-				((path_scaler->in_trim.start_y & 0x3FFF) << 16) |
-					(path_scaler->in_trim.start_x & 0x3FFF));
+		((path_scaler->in_trim.start_y & 0x3FFF) << 16) |
+			(path_scaler->in_trim.start_x & 0x3FFF));
 	ISP_REG_WR(idx, addr + ISP_YUV_SCALER_TRIM0_SIZE,
-				((path_scaler->in_trim.size_y & 0x3FFF) << 16) |
-					(path_scaler->in_trim.size_x & 0x3FFF));
+		((path_scaler->in_trim.size_y & 0x3FFF) << 16) |
+			(path_scaler->in_trim.size_x & 0x3FFF));
 	/* trim1 */
 	ISP_REG_WR(idx, addr + ISP_YUV_SCALER_TRIM1_START,
-				((path_scaler->out_trim.start_y & 0x3FFF) << 16) |
-					(path_scaler->out_trim.start_x & 0x3FFF));
+		((path_scaler->out_trim.start_y & 0x3FFF) << 16) |
+			(path_scaler->out_trim.start_x & 0x3FFF));
 	ISP_REG_WR(idx, addr + ISP_YUV_SCALER_TRIM1_SIZE,
-				((path_scaler->out_trim.size_y & 0x3FFF) << 16) |
-					(path_scaler->out_trim.size_x & 0x3FFF));
+		((path_scaler->out_trim.size_y & 0x3FFF) << 16) |
+			(path_scaler->out_trim.size_x & 0x3FFF));
 	/* des size */
 	ISP_REG_WR(idx, addr + ISP_YUV_SCALER_DES_SIZE,
-				((path_scaler->dst.h & 0x3FFF) << 16) |
-					(path_scaler->dst.w & 0x3FFF));
+		((path_scaler->dst.h & 0x3FFF) << 16) |
+			(path_scaler->dst.w & 0x3FFF));
 	pr_debug("sw %d, path src: %d %d; in_trim:%d %d %d %d, out_trim: %d %d %d %d, dst: %d %d \n",
 		idx, path_scaler->src.w, path_scaler->src.h, path_scaler->in_trim.start_x,
 		path_scaler->in_trim.start_y, path_scaler->in_trim.size_x, path_scaler->in_trim.size_y,
@@ -1987,20 +1987,20 @@ static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 		base = ISP_FMCU1_BASE;
 
 	if (parg->wmode == ISP_CFG_MODE) {
-			reg_off = ISP_CFG_CAP_FMCU_RDY;
-			addr = ISP_GET_REG(reg_off);
-		} else
-			addr = ISP_GET_REG(ISP_FETCH_START);
-		cmd = 1;
-		FMCU_PUSH(parg->fmcu, addr, cmd);
+		reg_off = ISP_CFG_CAP_FMCU_RDY;
+		addr = ISP_GET_REG(reg_off);
+	} else
+		addr = ISP_GET_REG(ISP_FETCH_START);
+	cmd = 1;
+	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = shadow_done_cmd[parg->hw_ctx_id];
-		FMCU_PUSH(parg->fmcu, addr, cmd);
+	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	cmd = shadow_done_cmd[parg->hw_ctx_id];
+	FMCU_PUSH(parg->fmcu, addr, cmd);
 
-		addr = ISP_GET_REG(base + ISP_FMCU_CMD);
-		cmd = all_done_cmd[parg->hw_ctx_id];
-		FMCU_PUSH(parg->fmcu, addr, cmd);
+	addr = ISP_GET_REG(base + ISP_FMCU_CMD);
+	cmd = all_done_cmd[parg->hw_ctx_id];
+	FMCU_PUSH(parg->fmcu, addr, cmd);
 
 	return 0;
 }
@@ -2933,21 +2933,6 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 	return ret;
 }
 
-static int isphw_hist_get(void *handle, void *arg)
-{
-	uint32_t *buf = NULL;
-	uint32_t max_item = 256;
-	uint32_t i = 0;
-	if (!arg) {
-		pr_err("fail to get valid ptr\n");
-		return -1;
-	}
-	buf = (uint32_t *)arg;
-	for (i = 0; i < max_item; i++)
-		buf[i] = ISP_HREG_RD(ISP_HIST2_BUF0_ADDR + i * 4);
-	return 0;
-}
-
 static int isphw_gtmhist_get(void *handle, void *arg)
 {
 	uint32_t *buf = NULL;
@@ -3050,7 +3035,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 	{ISP_HW_CFG_GTM_FUNC_GET,            isphw_gtm_func_get},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
-	{ISP_HW_CFG_HIST_GET,                isphw_hist_get},
 	{ISP_HW_CFG_GTMHIST_GET,             isphw_gtmhist_get},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
 };

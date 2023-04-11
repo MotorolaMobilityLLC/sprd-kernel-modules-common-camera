@@ -2569,21 +2569,6 @@ BLOCK_BYPASS:
 	return ret;
 }
 
-static int isphw_hist_get(void *handle, void *arg)
-{
-	uint32_t *buf = NULL;
-	uint32_t max_item = 256;
-	uint32_t i = 0;
-	if (!arg) {
-		pr_err("fail to get valid ptr\n");
-		return -1;
-	}
-	buf = (uint32_t *)arg;
-	for (i = 0; i < max_item; i++)
-		buf[i] = ISP_HREG_RD(ISP_HIST2_BUF0_ADDR + i * 4);
-	return 0;
-}
-
 static int isphw_subblock_reconfig(void *handle, void *arg)
 {
 	uint32_t ret = 0, idx = 0;
@@ -2683,7 +2668,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
-	{ISP_HW_CFG_HIST_GET,                isphw_hist_get},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
 };
