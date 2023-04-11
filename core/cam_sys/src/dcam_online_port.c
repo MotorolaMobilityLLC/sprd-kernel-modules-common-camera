@@ -276,6 +276,10 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 			case CAM_YVU420_2FRAME_MIPI:
 				if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h)) {
 					dcam_port->scaler_sel = PORT_SCALER_BYPASS;
+					dcam_port->deci.deci_x_eb = 0;
+					dcam_port->deci.deci_y_eb = 0;
+					dcam_port->deci.deci_x = 0;
+					dcam_port->deci.deci_y = 0;
 					break;
 				}
 				if (dst_size.w > DCAM_SCALER_MAX_WIDTH) {

@@ -1563,7 +1563,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 		/* PINGPONG BUF CONTROL  SW MODE*/
 		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, BIT_3, BIT_3);
 
-		pr_debug("scaler_sel %d\n", sizearg->scaler_sel);
+		pr_debug("scaler_sel %d deci_x_eb %d deci_x %d deci_y_eb %d deci_y %d\n", sizearg->scaler_sel, sizearg->deci.deci_x_eb, sizearg->deci.deci_x, sizearg->deci.deci_y_eb, sizearg->deci.deci_y);
 		if (sizearg->scaler_sel == DCAM_SCALER_BYPASS) {
 			DCAM_REG_MWR(idx, DCAM_SCL0_CFG, BIT_1, BIT_1);
 			if ((sizearg->in_size.w == sizearg->out_size.w) && (sizearg->in_size.h == sizearg->out_size.h))
