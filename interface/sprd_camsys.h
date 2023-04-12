@@ -554,6 +554,18 @@ struct sprd_irq_info {
 	uint32_t frame_id;
 };
 
+struct offline_cap_param {
+    uint32_t frame_id;
+    uint32_t reserved;
+};
+
+struct sprd_offline_info {
+	uint32_t offline_type;
+	uint32_t offline_bpc_flag;
+	uint32_t offline_aisfnr;
+	struct offline_cap_param offline_param;
+};
+
 struct sprd_vir_ch_info {
 	uint32_t fd_array[IMG_PATH_BUFFER_COUNT];
 	enum dev_out_fmt dump_isp_out_fmt;
