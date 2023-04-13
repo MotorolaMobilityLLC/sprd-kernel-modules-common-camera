@@ -298,6 +298,7 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 	struct dcam_online_node *online_node = NULL;
 	struct dcam_irq_proc *irq_proc = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
+	struct dcam_offline_slice_info *slice_info = NULL;
 	if (!handle || !param) {
 		pr_err("fail to get valid param %px %px\n", handle, param);
 		return -EFAULT;
@@ -305,6 +306,7 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 
 	node = (struct dcam_fetch_node *)handle;
 	irq_proc = (struct dcam_irq_proc *)param;
+	slice_info = &node->hw_ctx->slice_info;
 	pr_debug("irq proc of %d", irq_proc->of);
 
 	if (!node->hw_ctx) {
@@ -323,8 +325,10 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 		dcam_online_node_irq_proc(param, online_node);
 		break;
 	case PREV_START_OF_FRAME:
-		dcam_online_node_irq_proc(param, online_node);
-		hw_ctx->fid++;
+		if (slice_info->slice_count == 1) {
+			dcam_online_node_irq_proc(param, online_node);
+			hw_ctx->fid++;
+		}
 		break;
 	case CAP_DATA_DONE:
 		if (irq_proc->dcam_port_id == PORT_FULL_OUT
@@ -462,7 +466,7 @@ static int dcamfetch_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 	return ret;
 }
 
-static int dcamfetch_slice_proc(struct dcam_fetch_node *node)
+static int dcamfetch_slice_proc(struct dcam_fetch_node *node, struct dcam_isp_k_block *pm)
 {
 	int i = 0, ret = 0;
 	struct cam_hw_reg_trace trace = {0};
@@ -498,6 +502,19 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node)
 			dcam_hwctx_slice_set(hw_ctx, fetch, slice);
 		}
 
+		mutex_lock(&pm->lsc.lsc_lock);
+		if (slice->slice_num > 1) {
+			if (i == 0)
+				ret = dcam_init_lsc(pm, 0);
+			else
+				ret = dcam_init_lsc_slice(pm, 0);
+			if (ret < 0) {
+				pr_err("fail to init lsc\n");
+				return ret;
+			}
+		}
+		mutex_unlock(&pm->lsc.lsc_lock);
+
 		/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
 
 		dcam_hwctx_slice_force_copy(hw_ctx, i);
@@ -514,6 +531,7 @@ static int dcamfetch_node_frame_start(void *param)
 	struct dcam_fetch_node *node = NULL;
 	struct dcam_online_node *online_node = NULL;
 	struct cam_frame *pframe = NULL;
+	struct dcam_isp_k_block *pm = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
 	uint32_t lbuf_width = 0, dev_fid = 0;
 
@@ -541,6 +559,7 @@ static int dcamfetch_node_frame_start(void *param)
 	if (!pframe)
 		goto fetch_input_err;
 
+	pm = &online_node->blk_pm;
 	node->hw_ctx->index_to_set = pframe->common.fid + 1;
 	dev_fid = pframe->common.fid;
 	if (pframe->common.sensor_time.tv_sec || pframe->common.sensor_time.tv_usec) {
@@ -560,7 +579,7 @@ static int dcamfetch_node_frame_start(void *param)
 	dcam_slice_hw_info_set(slice, pframe, lbuf_width, &online_node->blk_pm);
 	dcamfetch_hw_frame_param_set(online_node->hw_ctx);
 
-	ret = dcamfetch_slice_proc(node);
+	ret = dcamfetch_slice_proc(node, pm);
 	pr_debug("done\n");
 
 	return ret;

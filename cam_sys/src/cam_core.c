@@ -1202,7 +1202,7 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 		}
 	}
 
-	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
+	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1 && !module->cam_uinfo.virtualsensor) {
 		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV;
 		if (module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX)
 			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id);
@@ -1493,6 +1493,7 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	if (channel->pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV && channel->ch_id != CAM_CH_PRE)
 		cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, CAM_DISABLE);
 	nodes_dev->dcam_online_node_dev = NULL;
+	nodes_dev->dcam_fetch_node_dev = NULL;
 	nodes_dev->dcam_offline_node_dev = NULL;
 	nodes_dev->dcam_offline_node_bpcraw_dev = NULL;
 	nodes_dev->dcam_offline_node_lscraw_dev = NULL;

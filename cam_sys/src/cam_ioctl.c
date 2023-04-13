@@ -379,13 +379,13 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 			}
 			goto exit;
 		}
-		if ((for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
+		if (((for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
 			|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
 			|| (param.scene_id == PM_SCENE_OFFLINE_CAP)
 			|| (param.scene_id == PM_SCENE_SFNR)))
 			|| (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR
-			&& param.scene_id == PM_SCENE_VID)) {
+			&& param.scene_id == PM_SCENE_VID)) && !module->cam_uinfo.virtualsensor) {
 			if (g_dbg_raw2frgb_switch == DEBUG_FRGB_MODE) {
 				ret = CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 				ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
