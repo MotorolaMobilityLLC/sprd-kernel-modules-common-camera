@@ -69,8 +69,6 @@ struct dcam_offline_node {
 	void *port_cfg_cb_handle;
 	struct cam_thread_info thread;
 	struct cam_thread_info recovery_thread;
-	timespec frame_ts[DCAM_FRAME_TIMESTAMP_COUNT];
-	ktime_t frame_ts_boot[DCAM_FRAME_TIMESTAMP_COUNT];
 	timespec start_ts ;
 	timespec end_ts;
 

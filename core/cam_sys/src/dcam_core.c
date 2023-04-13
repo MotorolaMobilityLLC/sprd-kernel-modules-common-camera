@@ -417,13 +417,6 @@ void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 	/* unbind alway be called in irq proc for offline proc
 	 * no need to wait irq proc done */
 	irq_status = irq_info->status;
-	if (irq_status & BIT(DCAM_CAP_SOF)) {
-		/* record SOF timestamp for current frame */
-		struct dcam_offline_node *node = NULL;
-		node = (struct dcam_offline_node *)dcam_hw_ctx->dcam_irq_cb_handle;
-		node->frame_ts_boot[tsid(dcam_hw_ctx->fid)] = os_adapt_time_get_boottime();
-		os_adapt_time_get_ts(&node->frame_ts[tsid(dcam_hw_ctx->fid)]);
-	}
 	if (dcam_hw_ctx->dummy_slave) {
 		dummy_status = atomic_read(&dcam_hw_ctx->dummy_slave->status);
 		if (dummy_status == DCAM_DUMMY_TRIGGER || dummy_status == DCAM_DUMMY_DONE)

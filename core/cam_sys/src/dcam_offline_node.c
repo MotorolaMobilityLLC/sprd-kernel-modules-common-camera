@@ -179,7 +179,6 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 	struct dcam_offline_slice_info *slice_info = NULL;
 	struct cam_node_cfg_param node_param = {0};
 	struct camera_buf_get_desc buf_desc = {0};
-	timespec *ts = NULL;
 
 	if (!param || !handle) {
 		pr_err("fail to get valid param %px %px\n", param, handle);
@@ -227,15 +226,17 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		if (frame && node->data_cb_func) {
 			frame->common.link_from.node_type = node->node_type;
 			frame->common.link_from.node_id = node->node_id;
-			ts = &node->frame_ts[tsid(frame->common.fid)];
-			frame->common.sensor_time.tv_sec = ts->tv_sec;
-			frame->common.sensor_time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
-			frame->common.boot_sensor_time = node->frame_ts_boot[tsid(frame->common.fid)];
 			if (is_frm_port) {
 				buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
 				frame1 = cam_buf_manager_buf_dequeue(&node->proc_pool, &buf_desc, node->buf_manager_handle);
-				if (frame1)
+				if (frame1) {
 					frame->common.zoom_data = frame1->common.zoom_data;
+					frame->common.sensor_time.tv_sec = frame1->common.sensor_time.tv_sec;
+					frame->common.sensor_time.tv_usec = frame1->common.sensor_time.tv_usec;
+					frame->common.boot_sensor_time = frame1->common.boot_sensor_time;
+					pr_debug("src fid %d time %06d.%06d\n", frame1->common.fid, frame1->common.sensor_time.tv_sec, frame1->common.sensor_time.tv_usec);
+				} else
+					pr_warn("warning: src frame is NULL, sensor_time lost\n");
 			}
 			node->data_cb_func(irq_desc->dcam_cb_type, frame, node->data_cb_handle);
 		}
@@ -573,12 +574,6 @@ static int dcamoffline_node_frame_start(void *param)
 			pm = &pm_pctx->blk_pm;
 	}
 	pm->dev = node->dev;
-
-	if (pframe->common.sensor_time.tv_sec || pframe->common.sensor_time.tv_usec) {
-		node->frame_ts[tsid(pframe->common.fid)].tv_sec = pframe->common.sensor_time.tv_sec;
-		node->frame_ts[tsid(pframe->common.fid)].tv_nsec = pframe->common.sensor_time.tv_usec * NSEC_PER_USEC;
-		node->frame_ts_boot[tsid(pframe->common.fid)] = pframe->common.boot_sensor_time;
-	}
 	node->hw_ctx->blk_pm = pm;
 	ret = dcamoffline_fetch_param_get(node, pframe);
 	if (ret) {
