@@ -1668,7 +1668,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_DISCONECT_CSI,         dcamhw_csi_disconnect},
 	{DCAM_HW_CFG_CONECT_CSI,            dcamhw_csi_connect},
 	{DCAM_HW_CFG_FORCE_EN_CSI,          dcamhw_csi_force_enable},
-	{DCAM_HW_CFG_HIST_ROI_UPDATE,       dcamhw_bayer_hist_roi_update},
+	{DCAM_HW_CFG_BAYER_HIST_ROI_UPDATE, dcamhw_bayer_hist_roi_update},
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
 	{DCAM_HW_CFG_SLW_ADDR,              dcamhw_set_slw_addr},
 	{DCAM_HW_CFG_FETCH_STATUS_GET,      dcamhw_fetch_sts_get},

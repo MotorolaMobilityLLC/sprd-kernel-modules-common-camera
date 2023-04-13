@@ -3140,7 +3140,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},
 	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
 	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
-	{DCAM_HW_CFG_HIST_ROI_UPDATE,       dcamhw_bayer_hist_roi_update},
+	{DCAM_HW_CFG_BAYER_HIST_ROI_UPDATE, dcamhw_bayer_hist_roi_update},
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
 	{DCAM_HW_CFG_DISCONECT_CSI,         dcamhw_csi_disconnect},
 	{DCAM_HW_CFG_CONECT_CSI,            dcamhw_csi_connect},

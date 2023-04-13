@@ -597,7 +597,7 @@ static void dcamonline_port_hist_update_statis_head(struct dcam_online_port *dca
 
 	/* Re-config hist win if it is updated */
 	spin_lock_irqsave(&blk_dcam_pm->hist.param_update_lock, flags);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_HIST_ROI_UPDATE, blk_dcam_pm);
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_BAYER_HIST_ROI_UPDATE, blk_dcam_pm);
 	spin_unlock_irqrestore(&blk_dcam_pm->hist.param_update_lock, flags);
 
 }
@@ -920,7 +920,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	case PORT_AEM_OUT:
 		dcamonline_port_aem_update_statis_head(dcam_port, out_frame, hw_ctx, blk_dcam_pm);
 		break;
-	case PORT_FRGB_HIST_OUT:
+	case PORT_BAYER_HIST_OUT:
 		dcamonline_port_hist_update_statis_head(dcam_port, out_frame, hw_ctx, blk_dcam_pm);
 		break;
 	case PORT_AFM_OUT:
