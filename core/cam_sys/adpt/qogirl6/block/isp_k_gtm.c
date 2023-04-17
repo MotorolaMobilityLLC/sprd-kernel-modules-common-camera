@@ -23,46 +23,6 @@
 #endif
 #define pr_fmt(fmt) "GTM: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-static void isp_k_raw_gtm_set_default(struct dcam_dev_raw_gtm_block_info *p,
-	struct cam_gtm_mapping *map)
-{
-	p->gtm_tm_out_bit_depth = 0xE;
-	p->gtm_tm_in_bit_depth = 0xE;
-	p->gtm_cur_is_first_frame = 0x0;
-	p->gtm_log_diff = 769156;
-	p->gtm_log_diff_int = 698;
-	p->gtm_log_max_int = 0x0;
-	p->gtm_log_min_int = 32580;
-	p->gtm_lr_int = 61517;
-	p->gtm_tm_param_calc_by_hw = 0x1;
-	p->tm_lumafilter_c[0][0] = 0x4;
-	p->tm_lumafilter_c[0][1] = 0x2;
-	p->tm_lumafilter_c[0][2] = 0x4;
-	p->tm_lumafilter_c[1][0] = 0x2;
-	p->tm_lumafilter_c[1][1] = 0x28;
-	p->tm_lumafilter_c[1][2] = 0x2;
-	p->tm_lumafilter_c[2][0] = 0x4;
-	p->tm_lumafilter_c[2][1] = 0x2;
-	p->tm_lumafilter_c[2][2] = 0x4;
-	p->tm_lumafilter_shift = 0x6;
-	p->slice.gtm_slice_line_startpos = 0x0;
-	p->slice.gtm_slice_line_endpos = 0x0;
-	p->slice.gtm_slice_main = 0x0;
-	p->gtm_ymin = 2;
-	p->gtm_target_norm = 4015;
-
-	if (map) {
-		map->ymin = 2;
-		map->ymax = 0;
-		map->yavg = 0;
-		map->target = 4015;
-		map->lr_int = 61517;
-		map->log_min_int = 32580;
-		map->log_diff_int = 698;
-		map->diff = 769156;
-	}
-}
-
 int isp_k_gtm_mapping_get(void *param)
 {
 	uint32_t val = 0;
@@ -122,7 +82,7 @@ int isp_k_gtm_mapping_set(void *param)
 		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 0);
 		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 0);
 		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_3, 0);
-		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_4, 1);
+		ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, BIT_4, BIT_4);
 	} else {
 		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, BIT_0, 1);
 		ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL1, BIT_0, 1);
@@ -206,8 +166,13 @@ int isp_k_gtm_block(void *pctx, void *param)
 		p->gtm_cur_is_first_frame = 0;
 	}
 
+	if (p->calc_mode == GTM_SW_CALC) {
+		p->gtm_cur_is_first_frame = 1;
+		p->gtm_tm_param_calc_by_hw = 0;
+	}
+
 	pr_debug("ctx_id %d, mod_en %d, map %d, hist_stat %d, calc mode %d\n",
-		idx, p->bypass_info.gtm_mod_en, p->bypass_info.gtm_map_bypass, p->bypass_info.gtm_hist_stat_bypass, p->gtm_tm_param_calc_by_hw);
+		idx, p->bypass_info.gtm_mod_en, p->bypass_info.gtm_map_bypass, p->bypass_info.gtm_hist_stat_bypass, p->calc_mode);
 
 	val = ((p->bypass_info.gtm_map_bypass & 0x1) << 1)
 		| ((p->bypass_info.gtm_hist_stat_bypass & 0x1) << 2)
@@ -220,7 +185,7 @@ int isp_k_gtm_block(void *pctx, void *param)
 		| ((p->gtm_tm_in_bit_depth & 0xF) << 24)
 		| ((p->gtm_tm_out_bit_depth & 0xF) << 28);
 	ISP_REG_MWR(idx, ISP_GTM_GLB_CTRL, 0xFFE0007E, val);
-
+	pr_debug("ctx_id %d, gtm_hist_total w %d, h %d\n", idx, ctx->src.w, ctx->src.h);
 	val = (p->gtm_imgkey_setting_mode & 0x1)
 		| ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
 	ISP_REG_MWR(idx, ISP_GTM_HIST_CTRL0, 0x7FFF1, val);
@@ -240,7 +205,6 @@ int isp_k_gtm_block(void *pctx, void *param)
 	val = ((p->gtm_log_diff_int & 0xFFFF) << 16);
 	ISP_REG_MWR(idx,  ISP_GTM_HIST_CTRL4, 0xFFFFFFFF, val);
 
-	pr_debug("ctx_id %d, gtm_hist_total w %d, h %d\n", idx, ctx->src.w, ctx->src.h);
 	p->gtm_hist_total = ctx->src.w * ctx->src.h;
 	val = ((p->gtm_hist_total & 0x3FFFFFF) << 0);
 	ISP_REG_WR(idx,  ISP_GTM_HIST_CTRL5, val);
@@ -316,69 +280,58 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 		struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
-	uint32_t *calc_mode = NULL;
 	struct dcam_dev_raw_gtm_block_info *gtm = NULL;
 	struct cam_gtm_mapping *gtm_alg_calc = NULL;
-
-	gtm = &isp_k_param->gtm_rgb_info;
 
 	switch (param->property) {
 	case DCAM_PRO_GTM_BLOCK:
 		gtm = &isp_k_param->gtm_rgb_info;
-		ret = copy_from_user((void *)gtm, param->property_param,
-				sizeof(struct dcam_dev_raw_gtm_block_info));
+		ret = copy_from_user((void *)gtm, param->property_param, sizeof(struct dcam_dev_raw_gtm_block_info));
 		if (ret) {
 			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
 			return -EPERM;
 		}
-		isp_k_raw_gtm_set_default(gtm, &isp_k_param->gtm_sw_map_info);
-		isp_k_param->gtm_sw_map_info.isupdate = 1;
-		isp_k_param->gtm_rgb_info.isupdate = 1;
-		if (param->scene_id == PM_SCENE_CAP)
-			gtm->bypass_info.gtm_hist_stat_bypass = 1;
-		pr_debug("ctx_id %d , mod_en %d, map %d, hist_stat %d\n",
-			isp_k_param->cfg_id, gtm->bypass_info.gtm_mod_en, gtm->bypass_info.gtm_map_bypass, gtm->bypass_info.gtm_hist_stat_bypass);
-		break;
-	case DCAM_PRO_GTM_MAPPING:
+		pr_debug("ctx_id%d, scene_id %d, mod_en %d, hist %d map %d, init_flag %d\n",
+			isp_k_param->cfg_id, param->scene_id, gtm->bypass_info.gtm_mod_en, gtm->bypass_info.gtm_hist_stat_bypass, gtm->bypass_info.gtm_map_bypass, gtm->init_flag);
+		/* if stream on, init_flag is 1, else, init_flag is 0 */
+		if (gtm->init_flag) {
+			if (param->scene_id == PM_SCENE_CAP)
+				gtm->bypass_info.gtm_hist_stat_bypass = 1;
+			isp_k_param->gtm_rgb_info.isupdate = 1;
+		}
 		gtm_alg_calc = &isp_k_param->gtm_sw_map_info;
-		ret = copy_from_user((void *)gtm_alg_calc, param->property_param, sizeof(struct cam_gtm_mapping));
-		if (ret) {
-			pr_err("fail to copy alg_calc ret %d\n", ret);
-			return -EPERM;
-		}
+		gtm_alg_calc->idx = isp_k_param->cfg_id;
+		gtm_alg_calc->ymin = gtm->gtm_ymin;
+		gtm_alg_calc->ymax = gtm->gtm_ymax;
+		gtm_alg_calc->yavg = gtm->gtm_yavg;
+		gtm_alg_calc->target = gtm->gtm_target_norm;
+		gtm_alg_calc->lr_int = gtm->gtm_lr_int;
+		gtm_alg_calc->log_min_int = gtm->gtm_log_min_int;
+		gtm_alg_calc->log_diff_int = gtm->gtm_log_diff_int;
+		gtm_alg_calc->diff = gtm->gtm_log_diff;
 		isp_k_param->gtm_sw_map_info.isupdate = 1;
-		pr_debug("ctx_id %d, get gtm alg_calc info\n", isp_k_param->cfg_id);
-		break;
-	case DCAM_PRO_GTM_CALC_MODE:
-		calc_mode = &isp_k_param->gtm_calc_mode;
-
-		ret = copy_from_user((void *)calc_mode, param->property_param, sizeof(uint32_t));
-		if (ret) {
-			pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
-			return -EPERM;
-		}
-		pr_debug("ctx_id %d, gtm calc mode %d\n", isp_k_param->cfg_id, isp_k_param->gtm_calc_mode);
 		break;
 	default:
-		pr_err("fail cmd id:%d, not supported.\n",
-			param->property);
+		pr_err("fail to support cmd id:%d\n", param->property);
 		break;
 	}
-	return ret;
+
+		return ret;
 }
 
 int isp_k_cpy_rgb_gtm(struct dcam_isp_k_block *param_block, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
+
 	if (isp_k_param->gtm_rgb_info.isupdate == 1) {
 		memcpy(&param_block->gtm_rgb_info, &isp_k_param->gtm_rgb_info, sizeof(struct dcam_dev_raw_gtm_block_info));
-		param_block->gtm_calc_mode = isp_k_param->gtm_calc_mode;
 		isp_k_param->gtm_rgb_info.isupdate = 0;
 		param_block->gtm_rgb_info.isupdate = 1;
 	}
 
 	if (isp_k_param->gtm_sw_map_info.isupdate == 1) {
 		memcpy(&param_block->gtm_sw_map_info, &isp_k_param->gtm_sw_map_info, sizeof(struct cam_gtm_mapping));
+		memcpy(&param_block->gtm_rgb_info.bypass_info, &isp_k_param->gtm_rgb_info.bypass_info, sizeof(struct dcam_dev_raw_gtm_bypass));
 		isp_k_param->gtm_sw_map_info.isupdate = 0;
 		param_block->gtm_sw_map_info.isupdate = 1;
 	}
