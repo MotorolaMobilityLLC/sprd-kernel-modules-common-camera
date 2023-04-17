@@ -3433,6 +3433,12 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		mutex_lock(&dev->dcam_mutex);
 		uparam = (struct sprd_img_parm __user *)arg;
 		get_user(channel_id, &uparam->channel_id);
+		if (channel_id >= DCAM_PATH_NUM) {
+			pr_err("fail to get vaild channel_id\n");
+			mutex_unlock(&dev->dcam_mutex);
+			goto exit;
+		}
+
 		ret = get_user(deci, &uparam->deci);
 		if (ret) {
 			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
@@ -3450,6 +3456,12 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		mutex_lock(&dev->dcam_mutex);
 		uparam = (struct sprd_img_parm __user *)arg;
 		get_user(channel_id, &uparam->channel_id);
+		if (channel_id >= DCAM_PATH_NUM) {
+			pr_err("fail to get vaild channel_id\n");
+			mutex_unlock(&dev->dcam_mutex);
+			goto exit;
+		}
+
 		path = &info->dcam_path[channel_id];
 		ret = copy_from_user(&path->regular_desc,
 			&uparam->regular_desc, sizeof(struct dcam_regular_desc));
@@ -3466,6 +3478,10 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	case SPRD_IMG_IO_PATH_PAUSE:
 		uparam = (struct sprd_img_parm __user *)arg;
 		get_user(channel_id, &uparam->channel_id);
+		if (channel_id >= DCAM_PATH_NUM) {
+			pr_err("fail to get vaild channel_id\n");
+			goto exit;
+		}
 		get_user(reserved, &uparam->reserved[0]);
 		sprd_img_streampause(file, channel_id, reserved);
 		break;
@@ -3473,7 +3489,7 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 	case SPRD_IMG_IO_PATH_RESUME:
 		ret = copy_from_user(&channel_id, (void __user *)arg,
 				sizeof(uint32_t));
-		if (ret) {
+		if (ret || (channel_id >= DCAM_PATH_NUM)) {
 			pr_err("sprd_img_k_ioctl: fail to get user info.\n");
 			goto exit;
 		}
@@ -3680,6 +3696,11 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 
 		uparam = (struct sprd_img_parm __user *)arg;
 		get_user(channel_id, &uparam->channel_id);
+		if (channel_id >= DCAM_PATH_NUM) {
+			pr_err("fail to get vaild channel_id\n");
+			mutex_unlock(&dev->dcam_mutex);
+			goto exit;
+		}
 
 		path = &info->dcam_path[channel_id];
 		ret = copy_from_user(&(path->pdaf_ctrl),
