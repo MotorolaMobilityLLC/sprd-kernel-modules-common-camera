@@ -3448,6 +3448,12 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		mutex_lock(&dev->dcam_mutex);
 		uparam = (struct sprd_img_parm __user *)arg;
 		get_user(channel_id, &uparam->channel_id);
+		if (channel_id >= DCAM_PATH_NUM) {
+			pr_err("fail to get vaild channel_id\n");
+			mutex_unlock(&dev->dcam_mutex);
+			goto exit;
+		}
+
 		ret = get_user(deci, &uparam->deci);
 		if (ret) {
 			pr_err("fail to get user info.\n");
@@ -3465,6 +3471,12 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 		mutex_lock(&dev->dcam_mutex);
 		uparam = (struct sprd_img_parm __user *)arg;
 		get_user(channel_id, &uparam->channel_id);
+		if (channel_id >= DCAM_PATH_NUM) {
+			pr_err("fail to get vaild channel_id\n");
+			mutex_unlock(&dev->dcam_mutex);
+			goto exit;
+		}
+
 		path = &info->dcam_path[channel_id];
 		ret = copy_from_user(&path->regular_desc,
 			&uparam->regular_desc, sizeof(struct dcam_regular_desc));
@@ -3695,6 +3707,11 @@ static long sprd_img_k_ioctl(struct file *file, unsigned int cmd,
 
 		uparam = (struct sprd_img_parm __user *)arg;
 		get_user(channel_id, &uparam->channel_id);
+		if (channel_id >= DCAM_PATH_NUM) {
+			pr_err("fail to get vaild channel_id\n");
+			mutex_unlock(&dev->dcam_mutex);
+			goto exit;
+		}
 
 		path = &info->dcam_path[channel_id];
 		ret = copy_from_user(&(path->pdaf_ctrl),
