@@ -729,37 +729,85 @@ static void dcamonline_sensor_eof(struct dcam_online_node *node)
 	};
 }
 
-static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_context *hw_ctx)
+static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
+	struct dcam_irq_proc *irq_proc, struct dcam_hw_context *hw_ctx)
 {
-	int ret = 0, cnt = 0, i = 0;
-	uint32_t *buf = NULL;
-	uint32_t sum = 0, w = 0, h = 0, mv_ready = 0;
-	struct dcam_hw_gtm_hist gtm_hist = {0};
-	struct camera_buf_get_desc buf_desc = {0};
-	struct cam_hw_info *hw = NULL;
+	int ret = 0, i = 0;
+	uint32_t  slw_mv_cnt = 0;
 	struct cam_frame *frame = NULL;
-	struct isp_dev_hist2_info *p = NULL;
-	struct dcam_online_node *node = NULL;
-	struct dcam_irq_proc *irq_proc = NULL;
-	struct dcam_pipe_dev *dcam_dev = NULL;
 	struct dcam_online_port *dcam_port = NULL;
-	struct dcam_offline_slice_info *slice_info = NULL;
 
-	hw = hw_ctx->hw;
-	node = (struct dcam_online_node *)handle;
-	irq_proc = (struct dcam_irq_proc *)param;
-	slice_info = &node->hw_ctx->slice_info;
-
-	if (node->slw_type == DCAM_SLW_FMCU && !irq_proc->is_nr3_done) {
-		if (irq_proc->slw_cmds_set) {
-			ret = dcamonline_fmcu_slw_set(node);
-			return 0;
+	if (irq_proc->slw_cmds_set) {
+		ret = dcamonline_fmcu_slw_set(node);
+		return 0;
+	}
+	if (irq_proc->is_nr3_done) {
+		node->nr3_me.slw_mv_cnt ++;
+		pr_debug("dcam %d, bin_path_cnt %d, slw_mv_cnt %d", node->hw_ctx_id, node->nr3_me.bin_path_cnt, node->nr3_me.slw_mv_cnt);
+		if (node->nr3_me.bin_path_cnt && node->nr3_me.slw_mv_cnt == node->slowmotion_count) {
+			while (++i < node->slowmotion_count) {
+				CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
+					if (!dcam_port)
+						continue;
+					if (atomic_read(&dcam_port->is_work) < 1 || atomic_read(&dcam_port->is_shutoff) > 0)
+						continue;
+					if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+						if (dcam_port->port_id <= PORT_FULL_OUT) {
+							dcamonline_nr3_mv_get(hw_ctx, frame);
+							irq_proc->param = frame;
+							irq_proc->type = CAM_CB_DCAM_DATA_DONE;
+							irq_proc->dcam_port_id = dcam_port->port_id;
+							dcamonline_frame_dispatch(irq_proc, node);
+						} else {
+							irq_proc->param = frame;
+							irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
+							irq_proc->dcam_port_id = dcam_port->port_id;
+							dcamonline_frame_dispatch(irq_proc, node);
+						}
+					}
+				}
+				node->nr3_me.bin_path_cnt = 0;
+				node->nr3_me.slw_mv_cnt = 0;
+			}
 		}
-		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
-			if (!dcam_port)
-				continue;
-			if (atomic_read(&dcam_port->is_work) < 1 || atomic_read(&dcam_port->is_shutoff) > 0)
-				continue;
+	}
+
+	CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
+		if (!dcam_port)
+			continue;
+		if (irq_proc->is_nr3_done == 1)
+			continue;
+		if (atomic_read(&dcam_port->is_work) < 1 || atomic_read(&dcam_port->is_shutoff) > 0)
+			continue;
+
+		if (node->is_3dnr) {
+			if (dcam_port->port_id <= PORT_FULL_OUT) {
+				slw_mv_cnt = node->nr3_me.slw_mv_cnt;
+				if (slw_mv_cnt < node->slowmotion_count) {
+					node->nr3_me.bin_path_cnt++;
+					return ret;
+				} else {
+					if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+						dcamonline_nr3_mv_get(hw_ctx, frame);
+						irq_proc->param = frame;
+						irq_proc->type = CAM_CB_DCAM_DATA_DONE;
+						irq_proc->dcam_port_id = dcam_port->port_id;
+						dcamonline_frame_dispatch(irq_proc, node);
+					}
+					if (irq_proc->slw_count == node->slowmotion_count) {
+						node->nr3_me.bin_path_cnt = 0;
+						node->nr3_me.slw_mv_cnt = 0;
+					}
+				}
+			} else {
+				if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+					irq_proc->param = frame;
+					irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
+					irq_proc->dcam_port_id = dcam_port->port_id;
+					dcamonline_frame_dispatch(irq_proc, node);
+				}
+			}
+		} else {
 			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
 				if (dcam_port->port_id <= PORT_FULL_OUT) {
 					irq_proc->param = frame;
@@ -774,16 +822,48 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 				}
 			}
 		}
-		return 0;
+	}
+
+	return 0;
+}
+
+static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_context *hw_ctx)
+{
+	int ret = 0, cnt = 0, i = 0;
+	uint32_t *buf = NULL;
+	uint32_t sum = 0, w = 0, h = 0, mv_ready = 0, slw_mv_cnt = 0;
+	struct dcam_hw_gtm_hist gtm_hist = {0};
+	struct camera_buf_get_desc buf_desc = {0};
+	struct cam_hw_info *hw = NULL;
+	struct cam_frame *frame = NULL;
+	struct cam_frame *frame1 = NULL;
+	struct isp_dev_hist2_info *p = NULL;
+	struct dcam_online_node *node = NULL;
+	struct dcam_irq_proc *irq_proc = NULL;
+	struct dcam_pipe_dev *dcam_dev = NULL;
+	struct dcam_online_port *dcam_port = NULL;
+	struct dcam_offline_slice_info *slice_info = NULL;
+
+	hw = hw_ctx->hw;
+	node = (struct dcam_online_node *)handle;
+	irq_proc = (struct dcam_irq_proc *)param;
+	slice_info = &node->hw_ctx->slice_info;
+
+	if (node->slw_type == DCAM_SLW_FMCU) {
+		dcamonline_slw_fmcu_process(node, irq_proc, hw_ctx);
+		return ret;
 	}
 
 	if (irq_proc->is_nr3_done) {
 		node->nr3_me.full_path_mv_ready = 1;
 		node->nr3_me.bin_path_mv_ready = 1;
+		if (node->slowmotion_count)
+			node->nr3_me.slw_mv_cnt ++;
 
-		pr_debug("dcam %d full_path_cnt %d bin_path_cnt %d", node->hw_ctx_id,
-			node->nr3_me.full_path_cnt, node->nr3_me.bin_path_cnt);
-		if (node->nr3_me.full_path_cnt) {
+		pr_debug("dcam %d full_path_cnt %d bin_path_cnt %d, slw_mv_cnt %d", node->hw_ctx_id,
+			node->nr3_me.full_path_cnt, node->nr3_me.bin_path_cnt, node->nr3_me.slw_mv_cnt);
+
+		if (node->nr3_me.full_path_cnt && !node->slowmotion_count) {
 			dcam_port = dcam_online_node_port_get(node, PORT_FULL_OUT);
 			frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
 			if (frame == NULL) {
@@ -799,8 +879,8 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			node->nr3_me.full_path_mv_ready = 0;
 			node->nr3_me.full_path_cnt = 0;
 		}
-
-		if (node->nr3_me.bin_path_cnt) {
+		if ((node->nr3_me.bin_path_cnt && !node->slowmotion_count) || (node->nr3_me.bin_path_cnt &&
+			node->slowmotion_count && node->nr3_me.slw_mv_cnt == node->slowmotion_count)) {
 			dcam_port = dcam_online_node_port_get(node, PORT_BIN_OUT);
 			frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
 			if (frame == NULL) {
@@ -815,6 +895,18 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			dcamonline_frame_dispatch(irq_proc, node);
 			node->nr3_me.bin_path_mv_ready = 0;
 			node->nr3_me.bin_path_cnt = 0;
+
+			i = 0;
+			while (++i < node->slowmotion_count) {
+				dcam_port = dcam_online_node_port_get(node, PORT_BIN_OUT);
+				frame1 = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
+				dcamonline_nr3_mv_get(hw_ctx, frame1);
+				irq_proc->param = frame1;
+				irq_proc->type = CAM_CB_DCAM_DATA_DONE;
+				irq_proc->dcam_port_id = PORT_BIN_OUT;
+				dcamonline_frame_dispatch(irq_proc, node);
+				node->nr3_me.slw_mv_cnt = 0;
+			}
 		}
 		return ret;
 	}
@@ -848,7 +940,8 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 					dcamonline_nr3_mv_get(hw_ctx, frame);
 					node->nr3_me.full_path_mv_ready = 0;
 					node->nr3_me.full_path_cnt = 0;
-					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", node->hw_ctx_id, frame->common.fid, frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y);
+					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", node->hw_ctx_id,
+						frame->common.fid, frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y);
 					irq_proc->param = frame;
 					irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 					dcamonline_frame_dispatch(irq_proc, node);
@@ -889,10 +982,12 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 					return ret;
 				}
 				mv_ready = node->nr3_me.bin_path_mv_ready;
-				if (mv_ready == 0) {
+				slw_mv_cnt = node->nr3_me.slw_mv_cnt;
+				pr_debug("mv_ready %d, slw_mv_cnt %d", mv_ready, slw_mv_cnt);
+				if (mv_ready == 0 || (node->slowmotion_count && slw_mv_cnt < node->slowmotion_count)) {
 					node->nr3_me.bin_path_cnt++;
 					return ret;
-				} else if (mv_ready == 1) {
+				} else {
 					frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
 					if (frame == NULL) {
 						node->nr3_me.bin_path_mv_ready = 0;
@@ -902,10 +997,22 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 					dcamonline_nr3_mv_get(hw_ctx, frame);
 					node->nr3_me.bin_path_mv_ready = 0;
 					node->nr3_me.bin_path_cnt = 0;
-					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", node->hw_ctx_id, frame->common.fid, frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y);
+					pr_debug("dcam %d,fid %d mv_x %d mv_y %d", node->hw_ctx_id,
+						frame->common.fid, frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y);
 					irq_proc->param = frame;
 					irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 					dcamonline_frame_dispatch(irq_proc, node);
+
+					i = 0;
+					while (++i < node->slowmotion_count) {
+						frame1 = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
+						node->nr3_me.slw_mv_cnt = 0;
+						dcamonline_nr3_mv_get(hw_ctx, frame1);
+						irq_proc->param = frame1;
+						irq_proc->type = CAM_CB_DCAM_DATA_DONE;
+						dcamonline_frame_dispatch(irq_proc, node);
+					}
+					return ret;
 				}
 			} else {
 				if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {

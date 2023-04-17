@@ -888,13 +888,34 @@ struct isp_hw_afbc_path_slice {
 	uint32_t spath_id;
 };
 
+struct isp_3dnr_slw_mem {
+	int mv_y;
+	int mv_x;
+	uint32_t first_line_mode;
+	uint32_t last_line_mode;
+	uint32_t ft_y_width;
+	uint32_t ft_y_height;
+	uint32_t ft_uv_width;
+	uint32_t ft_uv_height;
+	unsigned long ft_luma_addr;
+	unsigned long ft_chroma_addr;
+};
+
+struct isp_3dnr_slw_store {
+	unsigned long st_luma_addr;
+	unsigned long st_chroma_addr;
+};
+
 struct isp_hw_slw_fmcu_cmds {
 	uint32_t ctx_id;
+	enum isp_3dnr_mode mode_3dnr;
 	enum en_status is_compressed;
 	struct img_addr fetchaddr;
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct isp_store_info store[ISP_SPATH_NUM];
 	struct isp_hw_path_store *isp_store;
+	struct isp_3dnr_slw_mem slw_mem_ctrl;
+	struct isp_3dnr_slw_store nr3_slw_store;
 };
 
 struct isp_hw_fmcu_cfg {

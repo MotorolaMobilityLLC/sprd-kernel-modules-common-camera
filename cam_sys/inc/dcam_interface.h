@@ -113,6 +113,7 @@ struct dcam_irq_proc {
 	uint32_t handled_bits;
 	uint32_t handled_bits_on_int1;
 	uint32_t slw_cmds_set;
+	uint32_t slw_count;
 	enum en_status is_nr3_done;
 };
 
@@ -162,6 +163,7 @@ struct nr3_me_data {
 	uint32_t full_path_cnt;
 	uint32_t bin_path_mv_ready;
 	uint32_t bin_path_cnt;
+	uint32_t slw_mv_cnt;
 };
 
 void *dcam_core_pipe_dev_get(struct cam_hw_info *hw, void *s_dcam_dev);
