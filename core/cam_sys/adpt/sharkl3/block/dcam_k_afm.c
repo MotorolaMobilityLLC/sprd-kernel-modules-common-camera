@@ -102,44 +102,6 @@ int dcam_k_afm_bypass(struct dcam_isp_k_block *param)
 	return ret;
 }
 
-int dcam_k_afm_win(struct dcam_isp_k_block *param)
-{
-	int ret = 0;
-	uint32_t idx = 0;
-	struct isp_img_rect *p;
-
-	if (param == NULL)
-		return -1;
-
-	idx = param->idx;
-	p = &(param->afm.win);
-	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE0S,
-			(p->y & 0x1FFF) << 16 | (p->x & 0x1FFF));
-
-	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE0E,
-			(p->h & 0x7FF) << 16 | (p->w & 0X7FF));
-
-	return ret;
-}
-
-int dcam_k_afm_win_num(struct dcam_isp_k_block *param)
-{
-	int ret = 0;
-	uint32_t idx = 0;
-	struct isp_img_size *p;/* win_num; */
-
-	if (param == NULL)
-		return -1;
-
-	idx = param->idx;
-	p = &(param->afm.win_num);
-
-	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE1S,
-			(p->height & 0xF) << 16 | (p->width & 0x1F));
-
-	return ret;
-}
-
 int dcam_k_afm_mode(struct dcam_isp_k_block *param)
 {
 	int ret = 0;
@@ -193,35 +155,35 @@ int dcam_k_afm_skipnum(struct dcam_isp_k_block *param)
 	return ret;
 }
 
-int dcam_k_afm_crop_eb(struct dcam_isp_k_block *param)
+int dcam_k_afm_win_info(struct dcam_isp_k_block *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
+	uint32_t val = 0;
 	uint32_t crop_eb = 0;
-
-	if (param == NULL)
-		return -1;
-
-	idx = param->idx;
-	crop_eb = param->afm.crop_eb;
-	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, BIT_17,
-		crop_eb << 17);
-
-	return ret;
-}
-
-int dcam_k_afm_crop_size(struct dcam_isp_k_block *param)
-{
-	int ret = 0;
-	uint32_t idx = 0;
+	struct isp_img_size *win_num;
+	struct isp_img_rect *win_size;
 	struct isp_img_rect crop_size;
+	struct isp_img_size done_tile_num;
 
 	if (param == NULL)
 		return -1;
 
 	idx = param->idx;
-	crop_size = param->afm.crop_size;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
 
+	win_size = &(param->afm.win_parm.win);
+	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE0S,
+			(win_size->y & 0x1FFF) << 16 | (win_size->x & 0x1FFF));
+	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE0E,
+			(win_size->h & 0x7FF) << 16 | (win_size->w & 0X7FF));
+
+	win_num = &(param->afm.win_parm.win_num);
+	DCAM_REG_WR(idx, ISP_AFM_WIN_RANGE1S,
+			(win_num->height & 0xF) << 16 | (win_num->width & 0x1F));
+
+	crop_size = param->afm.win_parm.crop_size;
 	DCAM_REG_WR(idx, ISP_AFM_CROP_START,
 		(crop_size.y & 0x1FFF) << 16 |
 		(crop_size.x & 0X1FFF));
@@ -229,22 +191,11 @@ int dcam_k_afm_crop_size(struct dcam_isp_k_block *param)
 		(crop_size.h & 0x1FFF) << 16 |
 		(crop_size.w & 0X1FFF));
 
-	return ret;
-}
+	crop_eb = param->afm.win_parm.crop_eb;
+	DCAM_REG_MWR(idx, ISP_AFM_PARAMETERS, BIT_17,
+		crop_eb << 17);
 
-int dcam_k_afm_done_tilenum(struct dcam_isp_k_block *param)
-{
-	int ret = 0;
-	uint32_t idx = 0;
-	uint32_t val = 0;
-	struct isp_img_size done_tile_num;
-
-	if (param == NULL)
-		return -1;
-
-	idx = param->idx;
-	done_tile_num = param->afm.done_tile_num;
-
+	done_tile_num = param->afm.win_parm.done_tile_num;
 	val = ((done_tile_num.width & 0x1F) << 4) |
 		(done_tile_num.height & 0x0F);
 	DCAM_REG_WR(idx, ISP_AFM_DONE_TILE_NUM, val);
@@ -270,16 +221,6 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		size = sizeof(p->afm.af_param);
 		sub_func = dcam_k_afm_block;
 		break;
-	case DCAM_PRO_AFM_WIN:
-		pcpy = (void *)&(p->afm.win);
-		size = sizeof(p->afm.win);
-		sub_func = dcam_k_afm_win;
-		break;
-	case DCAM_PRO_AFM_WIN_NUM:
-		pcpy = (void *)&(p->afm.win_num);
-		size = sizeof(p->afm.win_num);
-		sub_func = dcam_k_afm_win_num;
-		break;
 	case DCAM_PRO_AFM_MODE:
 		pcpy = (void *)&(p->afm.mode);
 		size = sizeof(p->afm.mode);
@@ -290,20 +231,10 @@ int dcam_k_cfg_afm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		size = sizeof(p->afm.skip_num);
 		sub_func = dcam_k_afm_skipnum;
 		break;
-	case DCAM_PRO_AFM_CROP_EB:
-		pcpy = (void *)&(p->afm.crop_eb);
-		size = sizeof(p->afm.crop_eb);
-		sub_func = dcam_k_afm_crop_eb;
-		break;
-	case DCAM_PRO_AFM_CROP_SIZE:
-		pcpy = (void *)&(p->afm.crop_size);
-		size = sizeof(p->afm.crop_size);
-		sub_func = dcam_k_afm_crop_size;
-		break;
-	case DCAM_PRO_AFM_DONE_TILENUM:
-		pcpy = (void *)&(p->afm.done_tile_num);
-		size = sizeof(p->afm.done_tile_num);
-		sub_func = dcam_k_afm_done_tilenum;
+	case DCAM_PRO_AFM_WIN_CFG:
+		pcpy = (void *)&(p->afm.win_parm);
+		size = sizeof(p->afm.win_parm);
+		sub_func = dcam_k_afm_win_info;
 		break;
 	default:
 		pr_err("fail to support property %d\n",

@@ -99,6 +99,7 @@ enum {
 	CAMERA_IRQ_FDR_DRC,
 	CAMERA_IRQ_RAW_IMG,
 	CAMERA_IRQ_RAW_BPC_IMG,
+	CAMERA_IRQ_PARAM_BUFFER,
 	CAMERA_IRQ_TX_RESERVED,
 	CAMERA_IRQ_MAX
 };
@@ -551,6 +552,18 @@ struct sprd_irq_info {
 	uint32_t is_last_frm;
 	uint32_t time_diff;
 	uint32_t frame_id;
+};
+
+struct offline_cap_param {
+    uint32_t frame_id;
+    uint32_t reserved;
+};
+
+struct sprd_offline_info {
+	uint32_t offline_type;
+	uint32_t offline_bpc_flag;
+	uint32_t offline_aisfnr;
+	struct offline_cap_param offline_param;
 };
 
 struct sprd_vir_ch_info {
@@ -1077,7 +1090,9 @@ struct sprd_cfg_param_status {
 #define SPRD_IMG_IO_SET_KEY              _IOW(SPRD_IMG_IO_MAGIC, 82, uint32_t)
 #define SPRD_IMG_IO_SET_960FPS_PARAM     _IOW(SPRD_IMG_IO_MAGIC, 83, struct sprd_slowmotion_960fps_param)
 #define SPRD_IMG_IO_CFG_PARAM_STATUS     _IOW(SPRD_IMG_IO_MAGIC, 84, struct sprd_cfg_param_status)
-#define SPRD_IMG_IO_SET_PRE_RAW_FLAG     _IOW(SPRD_IMG_IO_MAGIC, 85, uint32_t)
+#define SPRD_ISP_IO_CFG_PARAM_BUF        _IOWR(SPRD_IMG_IO_MAGIC, 85, struct isp_buf_param)
+#define SPRD_ISP_IO_CFG_PARAM_BUF_INIT   _IOWR(SPRD_IMG_IO_MAGIC, 86, struct isp_buf_param_init)
+#define SPRD_IMG_IO_SET_PRE_RAW_FLAG     _IOW(SPRD_IMG_IO_MAGIC, 87, uint32_t)
 
 /*
  * Dump dcam register.
