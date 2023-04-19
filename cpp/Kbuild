@@ -24,9 +24,9 @@ ISP_ADAPT_VERSION := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
 #
 # Build Options
 #
-ccflags-y += -I$(KO_MODULE_PATH)/../cam_sys/inc/
+ccflags-y += -I$(KO_MODULE_PATH)/../core/cam_sys/inc/
+ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
-ccflags-y += -I$(KO_MODULE_PATH)/../interface/cam_sys
 ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
 ccflags-y += -I$(KO_MODULE_PATH)/$(CPP_DIR)/inc
 ccflags-y += -I$(KO_MODULE_PATH)/$(CPP_DIR)/hw/$(ADAPT_DIR)

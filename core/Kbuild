@@ -19,14 +19,33 @@ ISP_DIR   := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
 CSI_DIR   := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
 ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
 
+ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.15)
+  ifeq ($(findstring $(strip $(ISP_DIR)), dcam_r6p0_isp_r6p91 dcam_if_r4p0_isp_r6p11),)
+    ISP_DIR := cam_sys
+  endif
+endif
+
 ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)
 KO_MODULE_SRC += $(shell find $(KO_MODULE_PATH)/$(ISP_DIR) -name "*.c")
 else
-KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/src/*.c)
+KO_MODULE_SRC += \
+	$(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/src/*.c)
   ifeq ($(ISP_DIR),dcam_if_r4p0_isp_r6p11)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/common/*.c)
   endif
+  ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
+    ifeq ($(ADAPT_DIR),qogirn6l)
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/block/*.c)
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/*.c)
+    else
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/block/*.c)
+    KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/*.c)
+    endif
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/test/*.c)
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/alg_calc/*.c)
+  else
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/block/*.c)
+  endif
   ifeq ($(CONFIG_COMPAT),y)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(ISP_DIR)/compat/*.c)
   endif
@@ -44,6 +63,7 @@ ifeq ($(ISP_DIR),dcam_if_r4p0_isp_r6p11)
 ccflags-y += -I$(KO_MODULE_PATH)/common
 endif
 
+ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
 ccflags-y += -I$(KO_MODULE_PATH)/../sensor
 ccflags-y += -I$(KO_MODULE_PATH)/../sensor/csi2/sprd/$(CSI_DIR)
@@ -56,7 +76,29 @@ ifeq ($(ISP_DIR),dcam_r6p0_isp_r6p91)
 ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/common
 endif
 
-ifeq ($(ISP_DIR), dcam_r6p0_isp_r6p91)
+ifneq ($(findstring $(strip $(ISP_DIR)), isp2.6 cam_sys),)
+  ifeq ($(ADAPT_DIR),qogirn6l)
+  ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/qogirn6pro/inc
+  else
+  ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/adpt/$(ADAPT_DIR)/inc
+  endif
+ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/test/
+ccflags-y += -I$(KO_MODULE_PATH)/$(ISP_DIR)/alg_calc/
+endif
+
+ifeq ($(ADAPT_DIR), sharkl3)
+ccflags-y += -DPROJ_SHARKL3
+else ifeq ($(ADAPT_DIR), sharkl5pro)
+ccflags-y += -DPROJ_SHARKL5PRO
+else ifeq ($(ADAPT_DIR), sharkl5)
+ccflags-y += -DPROJ_SHARKL5
+else ifeq ($(ADAPT_DIR), qogirl6)
+ccflags-y += -DPROJ_QOGIRL6
+else ifeq ($(ADAPT_DIR), qogirn6pro)
+ccflags-y += -DPROJ_QOGIRN6PRO
+else ifeq ($(ADAPT_DIR), qogirn6l)
+ccflags-y += -DPROJ_QOGIRN6L
+else ifeq ($(ISP_DIR), dcam_r6p0_isp_r6p91)
 ccflags-y += -DPROJ_PIKE2
 else ifeq ($(ISP_DIR), dcam_if_r4p0_isp_r6p11)
 ccflags-y += -DPROJ_SHARKLE

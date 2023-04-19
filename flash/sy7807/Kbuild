@@ -23,7 +23,6 @@ KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/*.c)
 #
 ccflags-y += -I$(KO_MODULE_PATH)/../flash_drv
 ccflags-y += -I$(KO_MODULE_PATH)/../../interface
-ccflags-y += -I$(KO_MODULE_PATH)/../../interface/cam_sys
 
 ifeq ($(ISP_DIR), dcam_r6p0_isp_r6p91)
 ccflags-y += -DPROJ_PIKE2

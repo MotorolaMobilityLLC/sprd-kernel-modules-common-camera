@@ -10,8 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <dt-bindings/soc/sprd,sharkl5-regs.h>
-#include <dt-bindings/soc/sprd,sharkl5-mask.h>
+
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -29,6 +28,8 @@
 #include "csi_driver.h"
 #include "sprd_sensor_core.h"
 #include "dphy_drv.h"
+
+#include "mm_ahb.h"
 
 #ifdef pr_fmt
 #undef pr_fmt

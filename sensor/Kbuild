@@ -32,9 +32,8 @@ endif
 # Build Options
 #
 ccflags-y += -I$(KO_MODULE_PATH)
-ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
+ccflags-y += -I$(KO_MODULE_PATH)/../common
 ccflags-y += -I$(KO_MODULE_PATH)/../interface
-ccflags-y += -I$(KO_MODULE_PATH)/../interface/cam_sys
 ccflags-y += -I$(KO_MODULE_PATH)/csi2/sprd/$(CSI_DIR)
 ifeq ($(strip $(CSI_DIR)),receiver_r3p1)
 ccflags-y += -DMCLK_NEW_PROCESS
