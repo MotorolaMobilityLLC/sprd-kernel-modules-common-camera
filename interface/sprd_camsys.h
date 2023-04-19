@@ -563,6 +563,7 @@ struct sprd_offline_info {
 	uint32_t offline_type;
 	uint32_t offline_bpc_flag;
 	uint32_t offline_aisfnr;
+	struct camera_frame_param *offline_param_ptr;
 	struct offline_cap_param offline_param;
 };
 
