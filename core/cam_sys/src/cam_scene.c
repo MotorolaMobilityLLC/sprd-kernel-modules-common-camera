@@ -794,6 +794,7 @@ static void camscene_online2user2offline_pipeline_get(struct cam_pipeline_topolo
 	if (pyrdec_support) {
 		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_PYR_DEC;
 		cur_node->outport[dcam_offline_port_id].link.node_id = PYR_DEC_NODE_ID;
+		cur_node->outport[dcam_offline_port_id].link.port_id = PORT_DEC_IN;
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_1;
 		cur_node++;
@@ -818,6 +819,7 @@ static void camscene_online2user2offline_pipeline_get(struct cam_pipeline_topolo
 	if (pyrdec_support) {
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_PYR_DEC;
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = PYR_DEC_NODE_ID;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = PORT_DEC_OUT;
 	} else {
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = DCAM_OFFLINE_NODE_ID;
@@ -879,8 +881,6 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 	cur_node->outport[dcam_online_raw_port_id].link.node_type = CAM_NODE_TYPE_DATA_COPY;
 	cur_node->outport[dcam_online_raw_port_id].link.node_id = CAM_COPY_NODE_ID_0;
 	cur_node->outport[dcam_online_raw_port_id].link.port_id = PORT_COPY_IN;
-	cur_node->outport[dcam_online_raw_port_id].switch_link.node_type = CAM_NODE_TYPE_DATA_COPY;
-	cur_node->outport[dcam_online_raw_port_id].switch_link.port_id = PORT_COPY_IN;
 	cur_node++;
 	cur_node->id = CAM_DUMP_NODE_ID_0;
 	cur_node++;
@@ -888,6 +888,7 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 	cur_node->outport[PORT_COPY_OUT].dynamic_link_en = 1;
 	cur_node->outport[PORT_COPY_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_COPY_OUT].link.node_type = CAM_NODE_TYPE_DATA_COPY;
+	cur_node->outport[PORT_COPY_OUT].link.node_id = CAM_COPY_NODE_ID_0;
 	cur_node->outport[PORT_COPY_OUT].link.port_id = PORT_COPY_OUT;
 	cur_node->outport[PORT_COPY_OUT].switch_link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
 	cur_node->outport[PORT_COPY_OUT].switch_link.node_id = DCAM_OFFLINE_NODE_ID;

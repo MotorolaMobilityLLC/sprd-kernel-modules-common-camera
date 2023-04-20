@@ -445,11 +445,14 @@ static void camdebugger_pipeline_log_read(struct seq_file *s, uint32_t idx)
 	seq_printf(s, " 6: CAM_PIPELINE_OFFLINE_RAW2YUV\n");
 	seq_printf(s, " 7: CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV\n");
 	seq_printf(s, " 8: CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV\n");
-	seq_printf(s, " 9: CAM_PIPELINE_ONLINERAW_2_BPCRAW_2_USER_2_OFFLINEYUV\n");
-	seq_printf(s, " 10: CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV\n");
-	seq_printf(s, " 11: CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV\n");
-	seq_printf(s, " 12: CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV\n");
-	seq_printf(s, " 13: Close Pipeline Log\n");
+	seq_printf(s, " 9: CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV\n");
+	seq_printf(s, " 10: CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV\n");
+	seq_printf(s, " 11: CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV\n");
+	seq_printf(s, " 12: CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV\n");
+	seq_printf(s, " 13: CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV\n");
+	seq_printf(s, " 14: CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV\n");
+	seq_printf(s, " 15: CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR\n");
+	seq_printf(s, " 16: Close Pipeline Log\n");
 }
 
 static void camdebugger_isp_bypass_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx)
