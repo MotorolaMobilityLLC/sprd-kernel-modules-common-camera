@@ -41,7 +41,7 @@ ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/mm_dvfs_devfreq
 ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/mmsys_comm
 ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/dvfs_driver/dvfs_driver_common
 ccflags-y += -I$(KO_MODULE_PATH)/$(ADAPT_DIR)/dvfs_driver/dvfs_reg_param/$(DVFS_DEVICE)
-ccflags-y += -I$(KO_MODULE_PATH)/../common/
+ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
 ccflags-y += -I$(srctree)/drivers/devfreq/
 
 # HAPS only
