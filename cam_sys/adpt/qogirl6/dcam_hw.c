@@ -684,8 +684,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
 	/* frame skip before capture */
-	if (cap_info->frm_skip == 0)
-		cap_info->frm_skip = 1;
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
@@ -1363,6 +1361,7 @@ static int dcamhw_csi_connect(void *handle, void *arg)
 
 	pr_info("DCAM%d connect to csi%d\n", idx, csi_idx);
 
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, 0xf00, 1 << 8);
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_9 | BIT_10, csi_idx << 9);/* select csi for dcam */
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, BIT_0);
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, ~BIT_0);

@@ -1009,7 +1009,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	uint32_t image_vc = 0, image_mode = 1;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t bwu_shift = 4;
-	char chip_type[64] = { 0 };
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -1031,7 +1030,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 			cap_info->sensor_if);
 		return -EINVAL;
 	}
-	cam_kernel_adapt_kproperty_get("auto/chipid", chip_type, "-1");
 
 	/* data format */
 	if (cap_info->format == DCAM_CAP_MODE_RAWRGB) {
@@ -1093,11 +1091,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
 	/* frame skip before capture */
-	if (strncmp(chip_type, "UMS9620-AA", strlen("UMS9620-AA")) == 0) {
-		if (cap_info->frm_skip == 0)
-			cap_info->frm_skip = 1;
-	}
-
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
@@ -2390,12 +2383,16 @@ static int dcamhw_csi_connect(void *handle, void *arg)
 	struct dcam_switch_param *csi_switch = NULL;
 	int time_out = DCAMX_STOP_TIMEOUT;
 	uint32_t val = 0xffffffff;
+	char chip_type[64] = { 0 };
 
 	csi_switch = (struct dcam_switch_param *)arg;
 	hw = (struct cam_hw_info *)handle;
 	csi_id = csi_switch->csi_id;
 	idx = csi_switch->dcam_id;
 
+	cam_kernel_adapt_kproperty_get("auto/chipid", chip_type, "-1");
+	if (strncmp(chip_type, "UMS9620-AA", strlen("UMS9620-AA")) == 0)
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, 0xf00, 1 << 8);
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, 0x7 << 13, csi_id << 13);
 	regmap_update_bits(hw->soc_dcam->cam_switch_gpr, idx * 4, BIT_31, ~BIT_31);
 	while (time_out) {
