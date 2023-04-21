@@ -57,7 +57,7 @@ static inline uint32_t dcam_if_cal_pyramid_size(uint32_t w, uint32_t h,
 	for (i = start_layer; i <= layer_num; i++) {
 		pitch = w / align;
 		if (out_bits != CAM_8_BITS) {
-			if(is_pack)
+			if (is_pack)
 				pitch = (pitch * 10 + 127) / 128 * 128 / 8;
 			else
 				pitch = (pitch * 16 + 127) / 128 * 128 / 8;
