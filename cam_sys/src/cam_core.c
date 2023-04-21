@@ -12,7 +12,6 @@
  */
 
 #include <linux/miscdevice.h>
-#include "cam_buf_monitor.h"
 #include "cam_test.h"
 #include "cam_trusty.h"
 #include "cam_zoom.h"
@@ -30,8 +29,6 @@
 #define pr_fmt(fmt) "CAM_CORE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 spinlock_t g_reg_wr_lock;
-struct camera_queue *g_ion_buf_q;
-
 struct cam_global_ctrl g_camctrl = {
 	ZOOM_BINNING2,
 	0,
@@ -424,7 +421,7 @@ static int camcore_buffers_alloc(void *param)
 	complete(&channel->alloc_com);
 	channel->alloc_start = 0;
 	pr_info("ch %d done. status %d\n", channel->ch_id, atomic_read(&channel->err_status));
-	ret = cam_buf_monitor_mdbg_check();
+	ret = cam_buf_mdbg_check();
 	return ret;
 }
 
@@ -2423,8 +2420,6 @@ static int camcore_open(struct inode *node, struct file *file)
 		return -ENODEV;
 	}
 	mutex_lock(&grp->module_lock);
-	if (g_mem_dbg && g_mem_dbg->g_dbg_memory_leak_ctrl && atomic_read(&grp->camera_opened) == 0)
-		cam_buf_monitor_memory_queue_init();
 	if (atomic_inc_return(&grp->camera_opened) > count) {
 		pr_err("fail to open camera, all %d cameras opened already.", count);
 		atomic_dec(&grp->camera_opened);
@@ -2494,8 +2489,6 @@ static int camcore_open(struct inode *node, struct file *file)
 
 		pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
 		cam_buf_manager_pool_reg(&pool_id, CAM_FRAME_Q_LEN, (void *)grp->global_buf_manager);
-		g_ion_buf_q = &grp->ion_buf_q;
-		CAM_QUEUE_INIT(g_ion_buf_q, CAM_EMP_Q_LEN_MAX, cam_queue_ioninfo_free);
 
 		pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 		ret = cam_buf_manager_pool_reg(&pool_id, DCAM_OUT_BUF_Q_LEN, (void *)grp->global_buf_manager);
@@ -2646,11 +2639,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
 		cam_buf_manager_pool_unreg(&pool_id, (void *)group->global_buf_manager);
 
-		/* g_leak_debug_cnt should be 0 after clr, or else memory leak */
-		CAM_QUEUE_CLEAN(g_ion_buf_q, struct camera_buf_ion_info, list);
-		g_ion_buf_q = NULL;
-
-		ret = cam_buf_monitor_mdbg_check();
+		ret = cam_buf_mdbg_check();
 		atomic_set(&group->runner_nr, 0);
 		atomic_set(&group->mul_buf_alloced, 0);
 		group->is_mul_buf_share = 0;
@@ -2669,13 +2658,7 @@ static int camcore_release(struct inode *node, struct file *file)
 		cam_queue_empty_frame_deinit();
 	}
 
-	if (g_mem_dbg && g_mem_dbg->g_dbg_memory_leak_ctrl && atomic_read(&group->camera_opened) == 0)
-		cam_buf_monitor_memory_queue_check();
-
-	ret = cam_buf_monitor_mdbg_check();
-
-	if (g_mem_dbg && g_mem_dbg->g_dbg_memory_leak_ctrl && atomic_read(&group->camera_opened) == 0)
-		cam_buf_monitor_memory_queue_deinit();
+	ret = cam_buf_mdbg_check();
 
 	camcore_power_off(group);
 

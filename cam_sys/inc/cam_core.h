@@ -306,7 +306,6 @@ struct camera_group {
 
 	struct miscdevice *md;
 	struct platform_device *pdev;
-	struct camera_queue ion_buf_q;
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct cam_hw_info *hw_info;
 	struct img_size mul_sn_max_size;

@@ -362,36 +362,6 @@ int cam_queue_empty_frame_deinit()
 	return 0;
 }
 
-void cam_queue_ioninfo_free(void *param)
-{
-	int ret = 0;
-	struct camera_buf_ion_info *ioninfo = NULL;
-	struct dma_buf *dmabuf_p = NULL;
-
-	if (param == NULL) {
-		pr_err("fail to get valid param\n");
-		return;
-	}
-	ioninfo = (struct camera_buf_ion_info *)param;
-	dmabuf_p = ioninfo->ionbuf_copy.dmabuf_p;
-
-	if (!IS_ERR_OR_NULL(dmabuf_p->file) && virt_addr_valid(dmabuf_p->file)) {
-		pr_warn("warning:ion_buf leak, mfd=%d, dmabuf_p=%p\n", ioninfo->ionbuf_copy.mfd, dmabuf_p);
-		while (dmabuf_p->vmapping_counter > 0) {
-			pr_warn("warning:kmap_buf leak\n");
-			ret = cam_buf_kunmap(&ioninfo->ionbuf_copy);
-			if (ret) {
-				pr_err("fail to unmap\n");
-				break;
-			}
-		}
-		cam_buf_ionbuf_put(&ioninfo->ionbuf_copy);
-	}
-	pr_debug("free ioninfo %p\n", ioninfo);
-	cam_buf_kernel_sys_vfree(ioninfo);
-	ioninfo = NULL;
-}
-
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe)
 {
 	int ret = 0;

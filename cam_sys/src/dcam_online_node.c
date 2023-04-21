@@ -1249,7 +1249,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	hw_ctx->fid = pm->recovery_fid ? pm->recovery_fid : 0;
 	hw_ctx->recovery_fid = pm->recovery_fid;
 	hw_ctx->index_to_set = hw_ctx->fid;
-	pr_info("dcam%d start  frame idx %d\n", hw_ctx->hw_ctx_id, hw_ctx->fid);
+	pr_info("dcam%d start frame idx %d\n", hw_ctx->hw_ctx_id, hw_ctx->fid);
 	node->hw_ctx->iommu_status = 0;
 	memset(node->frame_ts, 0, sizeof(node->frame_ts[0]) * DCAM_FRAME_TIMESTAMP_COUNT);
 	memset(node->frame_ts_boot, 0, sizeof(node->frame_ts_boot[0]) * DCAM_FRAME_TIMESTAMP_COUNT);
