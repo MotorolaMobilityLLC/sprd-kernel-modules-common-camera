@@ -357,22 +357,6 @@ static int dcamhw_stop(void *handle, void *arg)
 	return ret;
 }
 
-static int dcamhw_cap_disable(void *handle, void *arg)
-{
-	int ret = 0;
-	uint32_t idx = 0;
-
-	if (!arg) {
-		pr_err("fail to get valid arg\n");
-		return -EFAULT;
-	}
-
-	idx = *(uint32_t *)arg;
-	/* stop  cap_en*/
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_0, 0);
-	return ret;
-}
-
 static int dcamhw_record_addr(void *handle, void *arg)
 {
 	struct dcam_hw_context *hw_ctx = NULL;
@@ -1097,34 +1081,6 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	return ret;
 }
 
-static int dcamhw_full_path_src_sel(void *handle, void *arg)
-{
-	int ret = 0;
-	struct dcam_hw_path_src_sel *patharg = NULL;
-
-	if (!arg) {
-		pr_err("fail to get valid handle\n");
-		return -EFAULT;
-	}
-
-	patharg = (struct dcam_hw_path_src_sel *)arg;
-
-	switch (patharg->src_sel) {
-	case ORI_RAW_SRC_SEL:
-		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT(2), 0);
-		break;
-	case PROCESS_RAW_SRC_SEL:
-		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT(2), BIT(2));
-		break;
-	default:
-		pr_err("fail to support src_sel %d\n", patharg->src_sel);
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
 static int dcamhw_lbuf_share_set(void *handle, void *arg)
 {
 	int i = 0;
@@ -1211,54 +1167,6 @@ static int dcamhw_sram_ctrl_set(void *handle, void *arg)
 		DCAM_REG_MWR(sramarg->idx, DCAM_APB_SRAM_CTRL, BIT_0, 1);
 	else
 		DCAM_REG_MWR(sramarg->idx, DCAM_APB_SRAM_CTRL, BIT_0, 0);
-
-	return 0;
-}
-
-static int dcamhw_mipicap_cfg(void *handle, void *arg)
-{
-	struct dcam_hw_cfg_mipicap *mipiarg = NULL;
-
-	mipiarg = (struct dcam_hw_cfg_mipicap *)arg;
-
-	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
-	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_29, 0x1 << 29);
-	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
-	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
-	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
-	DCAM_REG_MWR(mipiarg->idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
-	DCAM_REG_WR(mipiarg->idx, DCAM_MIPI_CAP_END, mipiarg->reg_val);
-
-	return 0;
-}
-
-static int dcamhw_bin_mipi_cfg(void *handle, void *arg)
-{
-	uint32_t reg_val = 0;
-	struct dcam_hw_start_fetch *parm = NULL;
-
-	parm = (struct dcam_hw_start_fetch *)arg;
-
-	reg_val = DCAM_REG_RD(parm->idx, DCAM_BIN_BASE_WADDR0);
-	DCAM_REG_WR(parm->idx, DCAM_BIN_BASE_WADDR0, reg_val + parm->fetch_pitch*128/8/2);
-	DCAM_AXIM_WR(IMG_FETCH_X,
-		(parm->fetch_pitch << 16) | ((parm->start_x + parm->size_x/2) & 0x1fff));
-	DCAM_REG_MWR(parm->idx,
-		DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
-
-	return 0;
-}
-
-static int dcamhw_bin_path_cfg(void *handle, void *arg)
-{
-	struct dcam_hw_cfg_bin_path *parm = NULL;
-
-	parm = (struct dcam_hw_cfg_bin_path *)arg;
-
-	DCAM_REG_MWR(parm->idx, DCAM_CAM_BIN_CFG, 0x3FF << 20, parm->fetch_pitch << 20);
-
-	DCAM_AXIM_WR(IMG_FETCH_X,
-		(parm->fetch_pitch << 16) | (parm->start_x & 0xffff));
 
 	return 0;
 }
@@ -1439,14 +1347,12 @@ static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_RESET,                 dcamhw_reset},
 	{DCAM_HW_CFG_START,                 dcamhw_start},
 	{DCAM_HW_CFG_STOP,                  dcamhw_stop},
-	{DCAM_HW_CFG_STOP_CAP_EB,           dcamhw_cap_disable},
 	{DCAM_HW_CFG_FETCH_START,           dcamhw_fetch_start},
 	{DCAM_HW_CFG_RECORD_ADDR,           dcamhw_record_addr},
 	{DCAM_HW_CFG_AUTO_COPY,             dcamhw_auto_copy},
 	{DCAM_HW_CFG_FORCE_COPY,            dcamhw_force_copy},
 	{DCAM_HW_CFG_PATH_START,            dcamhw_path_start},
 	{DCAM_HW_CFG_PATH_CTRL,             dcamhw_path_ctrl},
-	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_full_path_src_sel},
 	{DCAM_HW_CFG_PATH_SIZE_UPDATE,      dcamhw_path_size_update},
 	{DCAM_HW_CFG_MIPI_CAP_SET,          dcamhw_mipi_cap_set},
 	{DCAM_HW_CFG_FETCH_SET,             dcamhw_fetch_set},
@@ -1456,9 +1362,6 @@ static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
 	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},
 	{DCAM_HW_CFG_BLOCKS_SETSTATIS,      dcamhw_blocks_setstatis},
-	{DCAM_HW_CFG_MIPICAP,               dcamhw_mipicap_cfg},
-	{DCAM_HW_CFG_BIN_MIPI,              dcamhw_bin_mipi_cfg},
-	{DCAM_HW_CFG_BIN_PATH,              dcamhw_bin_path_cfg},
 	{DCAM_HW_CFG_BAYER_HIST_ROI_UPDATE, dcamhw_bayer_hist_roi_update},
 	{DCAM_HW_CFG_STORE_ADDR,            dcamhw_set_store_addr},
 	{DCAM_HW_CFG_SLW_ADDR,              dcamhw_set_slw_addr},
