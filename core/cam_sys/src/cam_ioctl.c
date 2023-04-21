@@ -1072,7 +1072,7 @@ static int camioctl_fmt_check(struct camera_module *module,
 	pr_debug("check fmt\n");
 	uparam = (struct sprd_img_parm __user *)arg;
 	ret |= get_user(channel_id, &uparam->channel_id);
-	if (ret || (channel_id >= CAM_CH_MAX)) {
+	if (ret) {
 		pr_err("fail to get channel_id\n");
 		return -EFAULT;
 	}
@@ -1144,7 +1144,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	}
 
 	if ((channel_id >= CAM_CH_MAX) || (buffer_count == 0) ||
-		(module->channel[channel_id].enable == 0) || (buffer_count > IMG_PATH_BUFFER_COUNT)) {
+		(module->channel[channel_id].enable == 0)) {
 		pr_err("fail to get valid channel id %d. buf cnt %d\n",
 			channel_id, buffer_count);
 		return -EFAULT;
@@ -2199,8 +2199,7 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 		channel_id, module->channel[channel_id].enable);
 	if ((channel_id >= CAM_CH_MAX) ||
 		(buffer_count == 0) ||
-		(module->channel[channel_id].enable == 0) ||
-		(buffer_count > IMG_PATH_BUFFER_COUNT)) {
+		(module->channel[channel_id].enable == 0)) {
 		pr_err("fail to get valid channel id %d. buf cnt %d\n",
 			channel_id, buffer_count);
 		return -EFAULT;
