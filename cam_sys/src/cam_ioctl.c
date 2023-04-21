@@ -13,7 +13,7 @@
 
 #include <linux/compat.h>
 
-#include "cam_buf_monitor.h"
+#include "cam_buf.h"
 
 #ifdef CAM_IOCTL_LAYER
 
@@ -1410,7 +1410,7 @@ static int camioctl_stream_off(struct camera_module *module,
 	}
 	atomic_set(&module->state, CAM_IDLE);
 
-	ret = cam_buf_monitor_mdbg_check();
+	ret = cam_buf_mdbg_check();
 	pr_info("cam %d stream off done.\n", module->idx);
 
 	return ret;
@@ -1521,7 +1521,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	atomic_inc(&module->grp->runner_nr);
 
 	pr_info("stream on done cam%d csi %d.\n", module->idx, module->dcam_idx);
-	cam_buf_monitor_mdbg_check();
+	cam_buf_mdbg_check();
 	return 0;
 
 exit:

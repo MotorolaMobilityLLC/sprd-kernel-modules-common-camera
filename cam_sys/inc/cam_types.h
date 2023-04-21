@@ -98,10 +98,6 @@ struct cam_mem_dbg_info {
 	atomic_t empty_frm_cnt;
 	atomic_t mem_kzalloc_cnt;
 	atomic_t mem_vzalloc_cnt;
-	struct camera_queue *empty_memory_alloc_queue;
-	struct camera_queue *memory_alloc_queue;
-	struct camera_queue *buf_map_calc_queue;
-	uint32_t g_dbg_memory_leak_ctrl;
 };
 extern struct cam_mem_dbg_info *g_mem_dbg;
 
@@ -419,8 +415,6 @@ enum shutoff_type {
 	SHUTOFF_TYPE_MAX,
 };
 
-extern struct camera_queue *g_ion_buf_q;
-
 uint32_t cam_data_bits(uint32_t dcam_out_fmt);
 uint32_t cam_is_pack(uint32_t dcam_out_fmt);
 uint32_t cam_format_get(uint32_t img_pix_fmt);
@@ -433,7 +427,6 @@ uint32_t dcamonline_portid_convert_to_pathid(uint32_t port_id);
 uint32_t dcamoffline_portid_convert_to_pathid(uint32_t port_id);
 uint32_t dcamoffline_pathid_convert_to_portid(uint32_t path_id);
 uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id);
-
 
 typedef int(*pyr_dec_buf_cb)(void *param, void *cb_handle);
 typedef int(*reserved_buf_get_cb)(enum reserved_buf_cb_type type, void *param, void *cb_handle);

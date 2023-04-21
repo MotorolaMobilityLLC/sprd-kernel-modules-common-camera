@@ -549,7 +549,6 @@ struct cam_queue_frame_manager {
 int cam_queue_enqueue_front(struct camera_queue *q, struct cam_q_head *list);
 struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, enum en_status (*filter)(struct cam_frame *, void *), void *data);
 int cam_queue_same_frame_get(struct camera_queue *q0, struct cam_frame **pf0, int64_t t_sec, int64_t t_usec);
-void cam_queue_ioninfo_free(void *param);
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe);
 struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
 void cam_queue_empty_frame_put(void *pframe);

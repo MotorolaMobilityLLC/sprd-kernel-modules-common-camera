@@ -405,12 +405,6 @@ static void camdebugger_dcamint_eof_read(struct seq_file *s, uint32_t idx)
 	seq_printf(s, "cap_eof: %d\n", contr_cap_eof);
 }
 
-static void camdebugger_memory_leak_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx)
-{
-	g_mem_dbg->g_dbg_memory_leak_ctrl = simple_strtol(param, NULL, 0);
-	pr_info("set memory_leak %u\n", g_mem_dbg->g_dbg_memory_leak_ctrl);
-}
-
 static void camdebugger_rawcap_frgb_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx)
 {
 	g_dbg_raw2frgb_switch = simple_strtol(param, NULL, 0);
@@ -713,7 +707,6 @@ static struct debug_cmd debug_cmd_tab[] = {
 	{"dump_count",         camdebugger_dump_count_write,         NULL,                                HW_CTX_MAX, IP_MAX},
 	{"pyr_dec_bypass",     camdebugger_pyr_dec_bypass_write,     camdebugger_pyr_dec_bypass_read,     HW_CTX_MAX, IP_MAX},
 	{"dcam_cap_eof",       camdebugger_dcamint_eof_write,        camdebugger_dcamint_eof_read,        HW_CTX_MAX, IP_MAX},
-	{"mem_leak_ctrl",      camdebugger_memory_leak_write,        NULL,                                HW_CTX_MAX, IP_MAX},
 	{"rawcap_frgb",        camdebugger_rawcap_frgb_write,        camdebugger_rawcap_frgb_read,        HW_CTX_MAX, IP_MAX},
 	{"debug_log_switch",   camdebugger_pipeline_log_write,       camdebugger_pipeline_log_read,       HW_CTX_MAX, IP_MAX},
 	{"iommu_mode",         camdebugger_iommu_mode_write,         camdebugger_iommu_mode_read,         HW_CTX_MAX, IP_MAX},
