@@ -417,8 +417,7 @@ static int cppcore_ioctl_start_scale(struct cpp_device *dev,
 
 	ret = copy_from_user(sc_parm, (void __user *)arg,
 			sizeof(struct sprd_cpp_scale_cfg_parm));
-	if (ret || (sc_parm->slice_param.output.slice_count > CPP_MAX_SLICE_NUM) ||
-		(sc_parm->slice_param_1.output.slice_count > CPP_MAX_SLICE_NUM)) {
+	if (ret) {
 		pr_err("fail to get parm form user\n");
 		mutex_unlock(&scif->sc_mutex);
 		ret = -EFAULT;
