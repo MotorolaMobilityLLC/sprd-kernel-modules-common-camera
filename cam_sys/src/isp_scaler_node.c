@@ -79,7 +79,6 @@ exit:
 	pctx_hw->node_id = inode->node_id;
 	pctx_hw->cfg_id = inode->cfg_id;
 	pctx_hw->fmcu_used = 0;
-	pctx_hw->scaler_debug = 1;
 	inode->is_bind = 1;
 	pctx_hw->postproc_func = postproc_func;
 	pr_debug("sw %d, hw %d %d, fmcu_need %d fmcu %px\n",
@@ -117,7 +116,6 @@ static uint32_t ispscaler_node_context_unbind(void *node)
 			pctx_hw->node = NULL;
 			pctx_hw->postproc_func = NULL;
 			inode->is_bind = 0;
-			pctx_hw->scaler_debug = 0;
 			goto exit;
 		}
 

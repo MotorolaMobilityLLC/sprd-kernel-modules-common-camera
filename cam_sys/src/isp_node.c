@@ -1048,7 +1048,7 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 		return -EINVAL;
 	}
 
-	if (inode->isp_receive_param == NULL && io_param->scene_id == PM_SCENE_PRE) {
+	if (inode->isp_receive_param == NULL && (io_param->scene_id == PM_SCENE_PRE || io_param->scene_id == PM_SCENE_VID)) {
 		pr_warn("warning:not get recive handle, param out of range, isp%d blk %d\n", inode->cfg_id, io_param->sub_block);
 		mutex_unlock(&dev->path_mutex);
 		return 0;

@@ -60,7 +60,6 @@ struct isp_hw_context {
 	uint32_t is_last_slice;
 	uint32_t valid_slc_num;
 	uint32_t pyr_layer_num;
-	uint32_t is_dewarping;
 	enum en_status enable_slowmotion;
 	uint32_t slowmotion_count;
 	uint32_t nr3_fbc_fbd;
@@ -68,7 +67,6 @@ struct isp_hw_context {
 	struct completion slice_done;
 	enum isp_work_mode wmode;
 	isp_irq_postproc postproc_func;
-	uint32_t scaler_debug;
 	spinlock_t yhist_read_lock;
 	uint32_t yhist_value[ISP_HIST_VALUE_SIZE + 1]; /* 256+1 */
 };
