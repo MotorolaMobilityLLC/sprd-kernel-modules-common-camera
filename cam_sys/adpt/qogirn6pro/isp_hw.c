@@ -1151,9 +1151,10 @@ static int isphw_path_store(void *handle, void *arg)
 	store_info = &path_store->store;
 	addr = store_base[path_store->spath_id];
 
-	pr_debug("isp set store in.  bypass %d, path_id:%d, w:%d,h:%d, bwd:%d\n",
+	pr_debug("isp set store in. bypass %d, path_id:%d, w:%d, h:%d, bwd:%d, format %s\n",
 			store_info->bypass, path_store->spath_id,
-			store_info->size.w, store_info->size.h, store_info->need_bwd);
+			store_info->size.w, store_info->size.h, store_info->need_bwd,
+			camport_fmt_name_get(store_info->color_fmt));
 
 	ISP_REG_MWR(idx, addr + ISP_STORE_PARAM, BIT_0, store_info->bypass);
 	if (store_info->bypass)

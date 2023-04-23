@@ -32,6 +32,7 @@ enum isp_node_cfg_cmd {
 	ISP_NODE_CFG_BASE,
 	ISP_NODE_CFG_INSERT_PORT,
 	ISP_NODE_CFG_CLEAR_PORT,
+	ISP_NODE_CFG_CAP_PARAM,
 	ISP_NODE_CFG_SIZE_CFG,
 	ISP_NODE_CFG_BLK_PATAM,
 	ISP_NODE_CFG_PORT_UFRAME,
@@ -68,6 +69,8 @@ struct isp_node_uinfo {
 	enum cam_en_status enable_slowmotion;
 	uint32_t slowmotion_240fp_count;
 	uint32_t slowmotion_count;
+	uint32_t cap_type;
+	int64_t cap_timestamp;
 	struct slowmotion_960fps_info slw_960desc;
 	struct isp_node_slwm960fps_frame_num frame_num;
 	uint32_t stage_a_valid_count;
@@ -87,6 +90,7 @@ struct isp_node_desc {
 	enum cam_en_status ltm_rgb;
 	enum isp_gtm_mode mode_gtm;
 	enum cam_en_status gtm_rgb;
+	enum cam_en_status vid_cap_en;
 	enum cam_format in_fmt;
 	uint32_t bayer_pattern;
 	enum cam_en_status enable_slowmotion;

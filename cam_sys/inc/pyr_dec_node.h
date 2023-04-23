@@ -235,6 +235,7 @@ struct pyr_dec_node {
 	uint32_t isp_node_cfg_id;
 	atomic_t user_cnt;
 	uint32_t dcam_slice_mode;
+	enum cam_en_status is_yuvsensor;
 	enum cam_en_status is_4in1;
 	enum cam_en_status is_rawcap;
 	enum cam_en_status is_bind;
@@ -302,6 +303,7 @@ struct pyr_dec_node_desc {
 	enum cam_format pyr_out_fmt;
 	uint32_t layer_num;
 	uint32_t dcam_slice_mode;
+	enum cam_en_status is_yuvsensor;
 	enum cam_en_status is_4in1;
 	enum cam_en_status is_rawcap;
 	uint32_t blkparam_buf_num;

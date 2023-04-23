@@ -24,22 +24,6 @@
 #endif
 #define pr_fmt(fmt) "ISP_SCALER_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-static uint32_t ispscaler_port_deci_factor_get(uint32_t src_size, uint32_t dst_size)
-{
-	uint32_t factor = 0;
-
-	if (0 == src_size || 0 == dst_size)
-		return factor;
-
-	/* factor: 0 - 1/2, 1 - 1/4, 2 - 1/8, 3 - 1/16 */
-	for (factor = 0; factor < ISP_PATH_DECI_FAC_MAX; factor++) {
-		if (src_size < (uint32_t) (dst_size * (1 << (factor + 1))))
-			break;
-	}
-
-	return factor;
-}
-
 static enum cam_en_status ispscaler_port_fid_check(struct cam_frame *frame, void *data)
 {
 	uint32_t target_fid;
@@ -63,7 +47,7 @@ static int ispscaler_port_scaler_param_calc(struct img_trim *in_trim,
 	unsigned int align_size = 0;
 	unsigned int d_max = ISP_SC_COEFF_DOWN_MAX;
 	unsigned int u_max = ISP_SC_COEFF_UP_MAX;
-	unsigned int f_max = ISP_PATH_DECI_FAC_MAX;
+	unsigned int f_max = CAM_SCALER_DECI_FAC_MAX;
 
 	CAM_ZOOM_DEBUG("in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d,out_size_h:%d\n",
 		in_trim->size_x, in_trim->size_y, out_size->w, out_size->h);
@@ -81,7 +65,7 @@ static int ispscaler_port_scaler_param_calc(struct img_trim *in_trim,
 		scaler->scaler_ver_factor_in = in_trim->size_y;
 		if (in_trim->size_x > out_size->w * d_max) {
 			tmp_dstsize = out_size->w * d_max;
-			deci->deci_x = ispscaler_port_deci_factor_get(in_trim->size_x, tmp_dstsize);
+			deci->deci_x = cam_zoom_port_deci_factor_get(in_trim->size_x, tmp_dstsize, CAM_SCALER_DECI_FAC_MAX);
 			deci->deci_x_eb = 1;
 			align_size = (1 << (deci->deci_x + 1)) * ISP_PIXEL_ALIGN_WIDTH;
 			in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
@@ -94,7 +78,7 @@ static int ispscaler_port_scaler_param_calc(struct img_trim *in_trim,
 
 		if (in_trim->size_y > out_size->h * d_max) {
 			tmp_dstsize = out_size->h * d_max;
-			deci->deci_y = ispscaler_port_deci_factor_get(in_trim->size_y, tmp_dstsize);
+			deci->deci_y = cam_zoom_port_deci_factor_get(in_trim->size_y, tmp_dstsize, CAM_SCALER_DECI_FAC_MAX);
 			deci->deci_y_eb = 1;
 			align_size = (1 << (deci->deci_y + 1)) * ISP_PIXEL_ALIGN_HEIGHT;
 			in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);

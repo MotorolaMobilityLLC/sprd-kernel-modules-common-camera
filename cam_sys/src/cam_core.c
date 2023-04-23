@@ -155,7 +155,7 @@ static int camcore_resframe_set(struct camera_module *module)
 			continue;
 		if (ch->isp_port_id >= 0 && ch->ch_uinfo.dst_fmt != IMG_PIX_FMT_GREY) {
 			pframe->common.channel_id = ch->ch_id;
-			node_id = (ch->ch_id == CAM_CH_CAP) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
+			node_id = (ch->ch_id == CAM_CH_CAP && ch->isp_port_id != PORT_VID_OUT) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
 			ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPILINE_CFG_RESEVER_BUF, node_id, pframe);
 			if (ret) {
 				pr_err("fail to set output buffer for ch%d.\n", ch->ch_id);
@@ -222,21 +222,12 @@ static void camcore_compression_cal(struct camera_module *module)
 static int camcore_buffer_channel_config(
 	struct camera_module *module, struct channel_context *channel)
 {
-	struct cam_hw_info *hw = NULL;
 	struct cam_frame *alloc_buf = NULL;
-	struct channel_context *ch_vid = NULL;
-	struct channel_context *ch_pre = NULL;
-	struct camera_uchannel *ch_uinfo = NULL;
 
 	if (!module || !channel) {
 		pr_err("fail to get valid param %p %p\n", module, channel);
 		return -EFAULT;
 	}
-
-	ch_uinfo = &channel->ch_uinfo;
-	ch_pre = &module->channel[CAM_CH_PRE];
-	ch_vid = &module->channel[CAM_CH_VID];
-	hw = module->grp->hw_info;
 
 	if ((channel->swap_size.w > 0) && (channel->ch_id != CAM_CH_RAW)) {
 		/* alloc middle buffer for channel */
@@ -1101,9 +1092,11 @@ static int camcore_pyrdec_desc_get(struct camera_module *module, struct channel_
 	pyr_dec_desc->buf_manager_handle = module->grp->global_buf_manager;
 	pyr_dec_desc->port_desc.share_buffer = camcore_mulsharebuf_verif(channel, &module->cam_uinfo);
 
-	if (format == DCAM_CAP_MODE_YUV)
+	if (format == DCAM_CAP_MODE_YUV) {
+		/*TBD: delet later after yuvsensor adapt dec*/
+		pyr_dec_desc->is_yuvsensor = CAM_ENABLE;
 		pyr_dec_desc->in_fmt = cam_format_get(channel->ch_uinfo.dst_fmt);
-	else
+	} else
 		pyr_dec_desc->in_fmt = channel->dcam_out_fmt;
 
 	pyr_dec_desc->pyr_out_fmt = hw->ip_dcam[0]->dcamhw_abt->store_pyr_fmt;
@@ -1150,8 +1143,31 @@ static int camcore_framecache_desc_get(struct camera_module *module, struct fram
 	return ret;
 }
 
+static void camcore_pre_pipeline_info_get(struct camera_module *module, struct channel_context *channel,
+		uint32_t *pipeline_type, int *dcam_port_id, int *isp_port_id)
+{
+	struct cam_hw_info *hw = NULL;
+
+	if (!module || !pipeline_type || !dcam_port_id || !channel)
+		pr_err("fail to get input handle:module:%p, pipeline_type:%p, dcam_port_id:%p, channel:%p.\n",
+			module, pipeline_type, dcam_port_id, channel);
+
+	hw = module->grp->hw_info;
+	if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV &&
+		hw->ip_dcam[0]->dcamhw_abt->output_yuv_support == CAM_DISABLE)
+		*dcam_port_id = PORT_FULL_OUT;
+
+	if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
+		*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
+	}
+
+	if (module->cam_uinfo.alg_type == ALG_TYPE_VID_DR)
+		*pipeline_type = CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR;
+}
+
 static void camcore_cap_pipeline_info_get(struct camera_module *module, struct channel_context *channel,
-		uint32_t *pipeline_type, int *dcam_port_id)
+		uint32_t *pipeline_type, int *dcam_port_id, int *isp_port_id)
 {
 	struct cam_hw_info *hw = NULL;
 
@@ -1169,7 +1185,7 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id);
 		else
 			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-		module->auto_3dnr = channel->uinfo_3dnr = 0;
+		module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
 	}
 
 	if (module->cam_uinfo.is_raw_alg) {
@@ -1196,14 +1212,26 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id);
 		else
 			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-		module->auto_3dnr = channel->uinfo_3dnr = 0;
+		module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
+	}
+
+	if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV &&
+		hw->ip_dcam[0]->dcamhw_abt->output_yuv_support == CAM_DISABLE) {
+		*isp_port_id = PORT_VID_OUT;
+		*pipeline_type = CAM_PIPELINE_VIDEO;
+	}
+
+	if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV &&
+		module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
+		*isp_port_id = PORT_CAP_OUT;
+		*pipeline_type = CAM_PIPELINE_CAPTURE;
 	}
 	/* only for sharkl3 icap scene */
 	if (module->channel[CAM_CH_DCAM_VCH].enable && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0) {
 		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV;
 		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		module->icap_scene = CAM_ENABLE;
-		module->auto_3dnr = channel->uinfo_3dnr = 0;
+		module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
 	}
 }
 
@@ -1250,24 +1278,14 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	switch (channel->ch_id) {
 	case CAM_CH_PRE:
-		if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV)
-			dcam_port_id = PORT_FULL_OUT;
-		else if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
-			dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-		else
-			dcam_port_id = PORT_BIN_OUT;
-
+		dcam_port_id = PORT_BIN_OUT;
 		isp_port_id = PORT_PRE_OUT;
-		if (module->cam_uinfo.alg_type == ALG_TYPE_VID_DR)
-			pipeline_type = CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR;
-		else if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
-			pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
-		else
-			pipeline_type = CAM_PIPELINE_PREVIEW;
+		pipeline_type = CAM_PIPELINE_PREVIEW;
+		camcore_pre_pipeline_info_get(module, channel, &pipeline_type, &dcam_port_id, &isp_port_id);
 		break;
 	case CAM_CH_VID:
 		if (channel_prev->enable) {
-			channel->dcam_port_id = channel_prev->dcam_port_id;
+			dcam_port_id = channel_prev->dcam_port_id;
 		} else {
 			dcam_port_id = PORT_BIN_OUT;
 			pr_info("vid channel enable without preview\n");
@@ -1282,7 +1300,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 		dcam_port_id = PORT_FULL_OUT;
 		isp_port_id = PORT_CAP_OUT;
 		pipeline_type = CAM_PIPELINE_CAPTURE;
-		camcore_cap_pipeline_info_get(module, channel, &pipeline_type, &dcam_port_id);
+		camcore_cap_pipeline_info_get(module, channel, &pipeline_type, &dcam_port_id, &isp_port_id);
 		break;
 	case CAM_CH_RAW:
 		if ((module->grp->hw_info->prj_id == SHARKL5pro &&
@@ -1335,11 +1353,14 @@ static int camcore_pipeline_init(struct camera_module *module,
 		}
 	}
 	camcore_compression_cal(module);
-	if ((hw->ip_isp->isphw_abt->fetch_raw_support == 0 && channel->ch_id != CAM_CH_RAW)
-		|| (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV))
+	if (hw->ip_isp->isphw_abt->fetch_raw_support == 0 && channel->ch_id != CAM_CH_RAW)
 		channel->dcam_out_fmt = CAM_YVU420_2FRAME_MIPI;
 	else
 		channel->dcam_out_fmt = channel->ch_uinfo.dcam_raw_fmt;
+	/*TBD: mipi yuv420 need to adapt later*/
+	if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV)
+		channel->dcam_out_fmt = CAM_YVU420_2FRAME;
+
 	channel->isp_port_id = isp_port_id;
 	channel->dcam_port_id = dcam_port_id;
 	channel->aux_dcam_port_id =

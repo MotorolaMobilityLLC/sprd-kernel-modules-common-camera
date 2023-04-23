@@ -23,7 +23,7 @@
 #define CAM_ZOOM_DEBUG pr_debug
 #endif
 
-#define ISP_PATH_DECI_FAC_MAX      4
+#define CAM_SCALER_DECI_FAC_MAX    4
 #define ISP_SC_COEFF_UP_MAX        ISP_SCALER_UP_MAX
 #define ISP_SC_COEFF_DOWN_MAX      ISP_SCALER_UP_MAX
 
@@ -61,6 +61,7 @@ int cam_zoom_channels_size_init(struct camera_module *module);
 int cam_zoom_channel_size_calc(struct camera_module *module);
 int cam_zoom_channel_size_config(struct camera_module *module, struct channel_context *channel);
 int cam_zoom_start_proc(void *param);
+uint32_t cam_zoom_port_deci_factor_get(uint32_t src_size, uint32_t dst_size, uint32_t deci_fac_max);
 int cam_zoom_param_set(struct cam_zoom_desc *zoom_info);
 int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_index *zoom_index);
 

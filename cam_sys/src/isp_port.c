@@ -356,7 +356,7 @@ static struct cam_frame *ispport_out_frame_get(struct isp_port *port, struct isp
 			out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
 			if (out_frame) {
 				port_cfg->valid_out_frame = 1;
-				pr_debug("reserved buffer %d %lx\n",out_frame->common.is_reserved, out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
+				pr_debug("reserved buffer %d %lx\n", out_frame->common.is_reserved, out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
 			}
 			break;
 		case ISP_STREAM_BUF_POSTPROC:
@@ -376,6 +376,11 @@ static struct cam_frame *ispport_out_frame_get(struct isp_port *port, struct isp
 	}
 
 normal_out_put:
+	if (port->vid_cap_en && (!port_cfg->uinfo->cap_type || (port_cfg->uinfo->cap_type &&
+		port_cfg->src_frame->common.boot_sensor_time < port_cfg->uinfo->cap_timestamp))) {
+		out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
+		goto exit;
+	}
 
 	if (port->slice_info.slice_num && port->slice_info.slice_no != 0)
 		out_frame = cam_buf_manager_buf_dequeue(&port->store_result_pool, NULL, port->buf_manager_handle);
@@ -403,7 +408,7 @@ normal_out_put:
 				out_frame->common.buf.size = port->reserve_buf_size;
 				pr_debug("out_frame->common.buf.size = %d, path->reserve_buf_size = %d\n", (int)out_frame->common.buf.size, (int)port->reserve_buf_size);
 			} else
-				pr_debug("out_frame->common.buf.size = %d\n",(int)out_frame->common.buf.size);
+				pr_debug("out_frame->common.buf.size = %d\n", (int)out_frame->common.buf.size);
 		}
 	}
 exit:
@@ -535,7 +540,7 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 		return -EINVAL;
 	}
 
-	pr_debug("port %d, is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x size %x fid: %d\n", port->port_id, out_frame->common.is_reserved,
+	pr_debug("port %d, is_reserved %d iova 0x%x, user_fid: %d mfd 0x%x size %x fid: %d\n", port->port_id, out_frame->common.is_reserved,
 		(uint32_t)out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP], out_frame->common.user_fid, out_frame->common.buf.mfd, out_frame->common.buf.size, out_frame->common.fid);
 	/* config store buffer */
 	ret = isp_hwctx_store_frm_set(port_cfg->pipe_info, isp_port_id_switch(port->port_id), &out_frame->common);
@@ -608,22 +613,6 @@ static int ispport_frame_cycle(struct isp_port *port, void *param)
 	return ret;
 }
 
-static uint32_t ispport_deci_factor_get(uint32_t src_size, uint32_t dst_size)
-{
-	uint32_t factor = 0;
-
-	if (0 == src_size || 0 == dst_size)
-		return factor;
-
-	/* factor: 0 - 1/2, 1 - 1/4, 2 - 1/8, 3 - 1/16 */
-	for (factor = 0; factor < ISP_PATH_DECI_FAC_MAX; factor++) {
-		if (src_size < (uint32_t) (dst_size * (1 << (factor + 1))))
-			break;
-	}
-
-	return factor;
-}
-
 static int ispport_scaler_param_calc(struct img_trim *in_trim,
 	struct img_size *out_size, struct yuv_scaler_info *scaler,
 	struct img_deci_info *deci)
@@ -633,7 +622,7 @@ static int ispport_scaler_param_calc(struct img_trim *in_trim,
 	unsigned int align_size = 0;
 	unsigned int d_max = ISP_SC_COEFF_DOWN_MAX;
 	unsigned int u_max = ISP_SC_COEFF_UP_MAX;
-	unsigned int f_max = ISP_PATH_DECI_FAC_MAX;
+	unsigned int f_max = CAM_SCALER_DECI_FAC_MAX;
 
 	pr_debug("in_trim_size_x:%d, in_trim_size_y:%d, out_size_w:%d,out_size_h:%d\n",
 		in_trim->size_x, in_trim->size_y, out_size->w, out_size->h);
@@ -651,7 +640,7 @@ static int ispport_scaler_param_calc(struct img_trim *in_trim,
 		scaler->scaler_ver_factor_in = in_trim->size_y;
 		if (in_trim->size_x > out_size->w * d_max) {
 			tmp_dstsize = out_size->w * d_max;
-			deci->deci_x = ispport_deci_factor_get(in_trim->size_x, tmp_dstsize);
+			deci->deci_x = cam_zoom_port_deci_factor_get(in_trim->size_x, tmp_dstsize, CAM_SCALER_DECI_FAC_MAX);
 			deci->deci_x_eb = 1;
 			align_size = (1 << (deci->deci_x + 1)) * ISP_PIXEL_ALIGN_WIDTH;
 			in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
@@ -664,7 +653,7 @@ static int ispport_scaler_param_calc(struct img_trim *in_trim,
 
 		if (in_trim->size_y > out_size->h * d_max) {
 			tmp_dstsize = out_size->h * d_max;
-			deci->deci_y = ispport_deci_factor_get(in_trim->size_y, tmp_dstsize);
+			deci->deci_y = cam_zoom_port_deci_factor_get(in_trim->size_y, tmp_dstsize, CAM_SCALER_DECI_FAC_MAX);
 			deci->deci_y_eb = 1;
 			align_size = (1 << (deci->deci_y + 1)) * ISP_PIXEL_ALIGN_HEIGHT;
 			in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);
@@ -734,7 +723,7 @@ static int ispport_scaler_get(struct isp_port *port, struct isp_hw_path_scaler *
 		scaler->scaler_bypass = 0;
 
 		if (port->scaler_coeff_ex) {
-			/*0:yuv422 to 422 ;1:yuv422 to 420 2:yuv420 to 420*/
+			/*0:yuv422 to 422; 1:yuv422 to 420 2:yuv420 to 420*/
 			scaler->work_mode = 2;
 			ret = cam_scaler_coeff_calc_ex(scaler);
 		}  else {
@@ -841,7 +830,7 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		fetch->addr.addr_ch1 = fetch->addr.addr_ch0 + fetch->pitch.pitch_ch0 * fetch->src.h;
 		if (pframe_data != NULL)
 			fetch->addr_dcam_out.addr_ch1 = pframe_data->buf.iova[CAM_BUF_IOMMUDEV_ISP] + fetch->pitch.pitch_ch0 * fetch->src.h;
-		pr_debug("y_addr: %x, pitch:: %x\n", fetch->addr.addr_ch0, fetch->pitch.pitch_ch0);
+		pr_debug("y_addr: %x, pitch: %x\n", fetch->addr.addr_ch0, fetch->pitch.pitch_ch0);
 		break;
 	case CAM_YUV420_2FRAME_10:
 	case CAM_YVU420_2FRAME_10:
@@ -988,7 +977,7 @@ static int ispport_store_normal_get(struct isp_port *port,
 	else
 		store->speed_2x = 1;
 
-	if (cam_data_bits(port->fmt)== CAM_10_BITS)
+	if (cam_data_bits(port->fmt) == CAM_10_BITS)
 		store->need_bwd = 0;
 	else
 		store->need_bwd = 1;
@@ -1664,7 +1653,9 @@ void *isp_port_get(uint32_t port_id, struct isp_port_desc *port_desc)
 		}
 	} else {
 		port = *port_desc->port_dev;
-		pr_debug("isp port has been alloc %p %d\n", port, port_id);
+		if (port_desc->transfer_type == PORT_TRANSFER_OUT && port_id == PORT_VID_OUT)
+			port->vid_cap_en = port_desc->vid_cap_en;
+		pr_debug("isp port %p has been alloc. port_id %d\n", port, port_id);
 		goto exit;
 	}
 

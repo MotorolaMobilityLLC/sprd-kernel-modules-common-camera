@@ -670,10 +670,10 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 			BIT_14 | BIT_15, cap_info->pattern << 14);
 
 		/* x & y deci */
-		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_FRM_CTRL,
-				BIT_9 | BIT_8 | BIT_5 | BIT_4,
-				(cap_info->y_factor << 8)
-				| (cap_info->x_factor << 4));
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
+				BIT_16 | BIT_17 | BIT_18 | BIT_19,
+				(cap_info->y_factor << 18)
+				| (cap_info->x_factor << 16));
 	} else {
 		pr_err("fail to support capture format: %d\n",
 			cap_info->format);
@@ -758,9 +758,6 @@ static int dcamhw_path_start(void *handle, void *arg)
 	data_bits = cam_data_bits(patharg->out_fmt);
 	hwfmt = cal_dcamhw_format(patharg->out_fmt);
 
-	if (data_bits == CAM_8_BITS)
-		image_data_type = IMG_TYPE_RAW8;
-
 	patharg->src_sel = patharg->src_sel ? PROCESS_RAW_SRC_SEL : ORI_RAW_SRC_SEL;
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
@@ -772,12 +769,15 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_4, patharg->src_sel << 4);
 
 		/* full_path_en */
-		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, (0x1));
+		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, 0x1);
 		DCAM_REG_MWR(patharg->idx, NR3_FAST_ME_PARAM, BIT_7 | BIT_6,
 			(patharg->bayer_pattern & 0x3) << 6);
 
-		if (patharg->cap_info.format == DCAM_CAP_MODE_YUV)
+		if (patharg->cap_info.format == DCAM_CAP_MODE_YUV) {
+			hwfmt = CAM_RAW8;
+			DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_2 | BIT_3, hwfmt << 2);
 			DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG, BIT_0, 0x1);
+		}
 
 		break;
 	case  DCAM_PATH_BIN:
@@ -831,6 +831,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 			DCAM_REG_MWR(patharg->idx, DCAM_PPE_FRM_CTRL0, BIT_0, 1);
 		break;
 	case DCAM_PATH_VCH2:
+		if (data_bits == CAM_8_BITS)
+			image_data_type = IMG_TYPE_RAW8;
 		/* data type for raw picture */
 		if (patharg->src_sel)
 			DCAM_REG_WR(patharg->idx, DCAM_VC2_CONTROL, image_data_type << 8 | 0x01 << 4);

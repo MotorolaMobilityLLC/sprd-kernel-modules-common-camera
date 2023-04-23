@@ -65,6 +65,7 @@ struct isp_port_cfg {
 	uint32_t vid_valid;
 	enum cam_en_status out_buf_clear;
 	enum cam_en_status ltm_enable;
+	enum cam_en_status vid_cap_en;
 	int valid_out_frame;
 	int hw_ctx_id;
 	uint32_t target_fid;
@@ -79,7 +80,6 @@ struct isp_port_cfg {
 	struct isp_node_uinfo *uinfo;
 	uint32_t *faststop;
 	struct completion *faststop_done;
-	uint32_t need_post_proc[ISP_SPATH_NUM];
 	struct img_size src_size;
 	struct img_trim src_crop;
 };
@@ -103,6 +103,7 @@ struct isp_port_desc {
 	uint32_t bayer_pattern;
 	struct img_size sn_size;
 	enum cam_en_status is_high_fps;
+	enum cam_en_status vid_cap_en;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
 	struct cam_hw_info *hw;
@@ -113,6 +114,7 @@ struct isp_port {
 	atomic_t user_cnt;
 	atomic_t is_work;
 	uint32_t port_id;
+	enum cam_en_status vid_cap_en;
 	enum cam_port_transfer_type type;
 	int32_t reserved_buf_fd;
 	size_t reserve_buf_size;

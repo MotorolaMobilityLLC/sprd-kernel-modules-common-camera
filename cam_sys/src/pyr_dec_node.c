@@ -1328,8 +1328,9 @@ int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param)
 		if (--layer_num == 0)
 			break;
 	}
-
-	if ((pframe->common.width >= DCAM_64M_WIDTH) || !layer_num || !node->hw->ip_isp->isphw_abt->pyr_dec_support) {
+	/*TBD: yuv sensor temp close pyr*/
+	if ((pframe->common.width >= DCAM_64M_WIDTH) || !layer_num || node->is_yuvsensor == CAM_ENABLE ||
+		!node->hw->ip_isp->isphw_abt->pyr_dec_support) {
 		pframe->common.pyr_status = CAM_DISABLE;
 		pframe->common.link_to.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		pframe->common.link_to.node_id = ISP_NODE_MODE_CAP_ID;
@@ -1629,6 +1630,7 @@ void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param)
 	node->dcam_slice_mode = param->dcam_slice_mode;
 	node->is_rawcap = param->is_rawcap;
 	node->sn_size = param->sn_size;
+	node->is_yuvsensor = param->is_yuvsensor;
 	node->layer_num = param->layer_num;
 	node->in_fmt = param->in_fmt;
 	node->pyr_out_fmt = param->pyr_out_fmt;

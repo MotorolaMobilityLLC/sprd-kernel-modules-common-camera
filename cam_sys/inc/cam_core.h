@@ -255,7 +255,6 @@ struct camera_module {
 	uint32_t csi_controller_idx;
 
 	enum cam_zoom_type zoom_solution;/* for dynamic zoom type swicth. */
-	uint32_t binning_limit;
 	struct camera_uinfo cam_uinfo;
 
 	enum cam_ch_id last_channel_id;

@@ -20,25 +20,8 @@
 #endif
 #define pr_fmt(fmt) "DCAM_ONLINE_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-#define DCAM_ONLINE_PORT_DECI_FAC_MAX            4
 #define DCAM_PIXEL_ALIGN_WIDTH                   4
 #define DCAM_PIXEL_ALIGN_HEIGHT                  2
-
-static uint32_t dcamonline_port_deci_factor_get(uint32_t src_size, uint32_t dst_size)
-{
-	uint32_t factor = 0;
-
-	if (!src_size || !dst_size)
-		return factor;
-
-	/* factor: 0 - 1/2, 1 - 1/4, 2 - 1/8, 3 - 1/16 */
-	for (factor = 0; factor < DCAM_ONLINE_PORT_DECI_FAC_MAX; factor++) {
-		if (src_size < (uint32_t) (dst_size * (1 << (factor + 1))))
-			break;
-	}
-
-	return factor;
-}
 
 static int dcamonline_port_scaler_param_calc(struct img_trim *in_trim,
 	struct img_size *out_size, struct yuv_scaler_info *scaler,
@@ -55,7 +38,7 @@ static int dcamonline_port_scaler_param_calc(struct img_trim *in_trim,
 	/* Down scaling should not be smaller then 1/10 */
 	if (in_trim->size_x > out_size->w * d_max) {
 		tmp_dstsize = out_size->w * d_max;
-		deci->deci_x = dcamonline_port_deci_factor_get(in_trim->size_x, tmp_dstsize);
+		deci->deci_x = cam_zoom_port_deci_factor_get(in_trim->size_x, tmp_dstsize, CAM_SCALER_DECI_FAC_MAX);
 		deci->deci_x_eb = 1;
 		align_size = (1 << (deci->deci_x + 1)) * DCAM_PIXEL_ALIGN_WIDTH;
 		in_trim->size_x = (in_trim->size_x) & ~(align_size - 1);
@@ -71,7 +54,7 @@ static int dcamonline_port_scaler_param_calc(struct img_trim *in_trim,
 
 	if (in_trim->size_y > out_size->h * d_max) {
 		tmp_dstsize = out_size->h * d_max;
-		deci->deci_y = dcamonline_port_deci_factor_get(in_trim->size_y, tmp_dstsize);
+		deci->deci_y = cam_zoom_port_deci_factor_get(in_trim->size_y, tmp_dstsize, CAM_SCALER_DECI_FAC_MAX);
 		deci->deci_y_eb = 1;
 		align_size = (1 << (deci->deci_y + 1)) * DCAM_PIXEL_ALIGN_HEIGHT;
 		in_trim->size_y = (in_trim->size_y) & ~(align_size - 1);
@@ -274,7 +257,9 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 			case CAM_YVU420_2FRAME:
 			case CAM_YUV420_2FRAME_MIPI:
 			case CAM_YVU420_2FRAME_MIPI:
-				if ((crop_size.w == dst_size.w) && (crop_size.h == dst_size.h)) {
+				/*TBD: yuvdeci & scaler need confirm*/
+				if ((crop_size.w == dst_size.w && crop_size.h == dst_size.h) ||
+					dcam_port->sn_if_fmt == DCAM_CAP_MODE_YUV) {
 					dcam_port->scaler_sel = PORT_SCALER_BYPASS;
 					dcam_port->deci.deci_x_eb = 0;
 					dcam_port->deci.deci_y_eb = 0;
@@ -818,6 +803,7 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 	port->frm_skip = param->frm_skip;
 	port->endian = param->endian;
 	port->bayer_pattern = param->bayer_pattern;
+	port->sn_if_fmt = param->sn_if_fmt;
 	port->dcamout_fmt = param->dcam_out_fmt;
 
 	switch (port->port_id) {
