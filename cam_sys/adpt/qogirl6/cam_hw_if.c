@@ -609,6 +609,7 @@ static struct isp_hw_abt isphw_ability = {
 	.rgb_ltm_support = 1,
 	.rgb_gtm_support = 1,
 	.frbg_hist_support = 0,
+	.static_map_support = 1,
 	.nr3_mv_alg_version = ALG_NR3_MV_VER_0,
 	.dyn_overlap_version = ALG_ISP_OVERLAP_VER_1,
 	.thumb_scaler_cal_version = ISP_THUMB_SCL_VER_0,

@@ -1280,6 +1280,7 @@ struct isp_hw_abt {
 	uint32_t frbg_hist_support;
 	uint32_t nr3_compress_support;
 	uint32_t pyr_rec_lay0_support;
+	uint32_t static_map_support;
 	uint32_t nr3_mv_alg_version;
 	uint32_t dyn_overlap_version;
 	uint32_t thumb_scaler_cal_version;

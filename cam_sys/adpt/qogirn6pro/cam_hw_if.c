@@ -790,6 +790,7 @@ static struct isp_hw_abt isphw_ability = {
 	.rgb_gtm_support = 0,
 	.frbg_hist_support = 1,
 	.nr3_compress_support = 0,
+	.static_map_support = 1,
 #if defined (PROJ_QOGIRN6L)
 	.pyr_rec_lay0_support = 1,
 #elif defined (PROJ_QOGIRN6PRO)

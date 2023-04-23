@@ -370,6 +370,7 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.height = height;
 	alloc_param.is_pyr_rec = module->cam_uinfo.is_pyr_rec;
 	alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
+	alloc_param.is_static_map = hw->ip_isp->isphw_abt->static_map_support;
 	alloc_param.pyr_out_fmt = channel->ch_uinfo.pyr_out_fmt;
 	alloc_param.pyr_layer_num = channel->pipeline_handle->pipeline_graph->pyr_layer_num;
 	alloc_param.iommu_enable = module->iommu_enable;
