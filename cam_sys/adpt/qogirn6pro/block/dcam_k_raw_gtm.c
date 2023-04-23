@@ -42,13 +42,17 @@ int dcam_k_raw_gtm_slice(uint32_t idx, struct dcam_dev_gtm_slice_info *gtm_slice
 int dcam_k_raw_gtm_block(struct dcam_isp_k_block *param)
 {
 	int ret = 0;
-	unsigned int i = 0;
+	uint32_t i = 0, val = 0;
 	uint32_t idx = param->idx;
-	unsigned int val = 0;
-	struct dcam_dev_rgb_gtm_block_info *p;
+	uint32_t gtm_imgkey_set_mode = 0;
+	uint32_t gtm_cur_is_first_frame = 1;
+	uint32_t gtm_tm_param_calc_by_sw = 1;
+	uint32_t gtm_tm_param_calc_by_hw = 1;
+	uint32_t gtm_target_norm_setting_mode = 0;
 	struct dcam_pipe_dev *dev = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct dcam_dev_rgb_gtm_param *gtm = NULL;
+	struct dcam_dev_rgb_gtm_block_info *p = NULL;
 
 	gtm = &param->rgb_gtm;
 	dev = (struct dcam_pipe_dev *)param->dev;
@@ -71,46 +75,25 @@ int dcam_k_raw_gtm_block(struct dcam_isp_k_block *param)
 		return 0;
 	}
 
-	if (p->calc_mode == GTM_SW_CALC) {
-		p->gtm_cur_is_first_frame = 1;
-		pr_info("gtm_sw_calc first frame need gtm map\n");
-	} else if (hw_ctx->fid == 0) {
-		pr_info("online or offline first frame gtm map need bypass\n");
-		p->gtm_cur_is_first_frame = 1;
-		p->bypass_info.gtm_map_bypass = 1;
-	}
-
 	pr_debug("ctx %d, gtm hw_ymin %d, target_norm %d, lr_int %d\n",
 		idx, p->gtm_ymin, p->gtm_target_norm, p->gtm_lr_int);
 	pr_debug("ctx %d, gtm log_min_int %d, log_diff_int %d, log_diff %d, imgkey_setting_value %d\n",
 		idx, p->gtm_log_min_int, p->gtm_log_diff_int, p->gtm_log_diff, p->gtm_imgkey_setting_value);
 	val = ((p->bypass_info.gtm_map_bypass & 0x1)) |
 		((p->bypass_info.gtm_hist_stat_bypass & 0x1) << 1) |
-		((p->gtm_tm_param_calc_by_sw & 0x1) << 2) |
-		((p->gtm_tm_param_calc_by_hw & 0x1) << 3) |
-		((p->gtm_cur_is_first_frame & 0x1) << 4) |
+		((gtm_tm_param_calc_by_sw & 0x1) << 2) |
+		((gtm_tm_param_calc_by_hw & 0x1) << 3) |
+		((gtm_cur_is_first_frame & 0x1) << 4) |
 		((p->gtm_rgb2y_mode & 0x1) << 5);
 	DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, 0x3F, val);
 
-	val = (p->gtm_imgkey_setting_mode & 0x1) | ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
+	val = (gtm_imgkey_set_mode & 0x1) | ((p->gtm_imgkey_setting_value & 0x7FFF) << 4);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL0, 0x7FFF1, val);
 
-	val = (p->gtm_target_norm_setting_mode & 0x1)
+	val = (gtm_target_norm_setting_mode & 0x1)
 		| ((p->gtm_target_norm & 0xFFF) << 4)
 		| ((p->gtm_target_norm_coeff & 0x3FFF) << 16);
 	DCAM_REG_MWR(idx, GTM_HIST_CTRL1, 0x3FFFFFF1, val);
-
-	if (p->calc_mode == GTM_SW_CALC) {
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, BIT_2);
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, 0);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL1, BIT_0, 0);
-	} else {
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_2, 0);
-		DCAM_REG_MWR(idx, DCAM_GTM_GLB_CTRL, BIT_3, BIT_3);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL0, BIT_0, BIT_0);
-		DCAM_REG_MWR(idx, GTM_HIST_CTRL1, BIT_0, BIT_0);
-	}
 
 	val = p->gtm_ymin & 0x3FFF;
 	DCAM_REG_MWR(idx, GTM_HIST_YMIN, 0x3FFF, val);

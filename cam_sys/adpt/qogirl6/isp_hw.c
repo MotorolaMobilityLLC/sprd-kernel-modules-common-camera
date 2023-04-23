@@ -2891,16 +2891,6 @@ static int isphw_gtm_mapping_set(void *handle)
 	return isp_k_gtm_mapping_set(handle);
 }
 
-static int isphw_gtm_mapping_get(void *handle)
-{
-	if (!handle) {
-		pr_err("fail to get input ptr\n");
-		return -EFAULT;
-	}
-
-	return isp_k_gtm_mapping_get(handle);
-}
-
 static int isphw_gtm_bypass_set(void *handle)
 {
 	if (!handle) {
@@ -2916,7 +2906,6 @@ static isp_k_blk_func isp_hw_gtm_func_tab[ISP_K_GTM_MAX] = {
 	[ISP_K_GTM_LTM_DIS] = isphw_gtm_ltm_dis,
 	[ISP_K_GTM_STATUS_GET] = isphw_gtm_status_get,
 	[ISP_K_GTM_BLOCK_SET] = isphw_gtm_block_set,
-	[ISP_K_GTM_MAPPING_GET] = isphw_gtm_mapping_get,
 	[ISP_K_GTM_MAPPING_SET] = isphw_gtm_mapping_set,
 	[ISP_K_GTM_SLICE_SET] = isphw_gtm_slice_set,
 	[ISP_K_GTM_BYPASS_SET] = isphw_gtm_bypass_set,

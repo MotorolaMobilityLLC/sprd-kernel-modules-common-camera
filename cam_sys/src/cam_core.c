@@ -2144,8 +2144,7 @@ rewait:
 				ret = 0;
 				goto read_end;
 			} else {
-				pr_err("read frame buf, fail to down, %d\n",
-					ret);
+				pr_err("read frame buf, fail to down, %d\n", ret);
 				return -EPERM;
 			}
 		}

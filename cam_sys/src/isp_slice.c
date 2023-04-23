@@ -2993,12 +2993,9 @@ static int ispslice_gtm_info_cfg(struct isp_gtm_ctx_desc *gtm_ctx,
 		cur_slc->slice_gtm.gtm_mode_en = gtm_ctx->gtm_mode_en;
 		cur_slc->slice_gtm.gtm_map_bypass = gtm_ctx->gtm_map_bypass;
 		cur_slc->slice_gtm.gtm_hist_stat_bypass = gtm_ctx->gtm_hist_stat_bypass;
-		if (gtm_ctx->gtm_hist_stat_bypass || (gtm_ctx->calc_mode == GTM_SW_CALC))
-			cur_slc->slice_gtm.gtm_tm_param_calc_by_hw = 0;
-		else
-			cur_slc->slice_gtm.gtm_tm_param_calc_by_hw = 1;
+		cur_slc->slice_gtm.gtm_tm_param_calc_by_hw = 0;
 
-		cur_slc->slice_gtm.gtm_cur_is_first_frame = (gtm_ctx->calc_mode == GTM_SW_CALC) ? 1 : 0;
+		cur_slc->slice_gtm.gtm_cur_is_first_frame = 1;
 		cur_slc->slice_gtm.gtm_tm_luma_est_mode = gtm_ctx->gtm_tm_luma_est_mode;
 		cur_slc->slice_gtm.gtm_tm_in_bit_depth = 14;
 		cur_slc->slice_gtm.gtm_tm_out_bit_depth = 14;

@@ -23,7 +23,6 @@ extern g_dbg_raw2frgb_switch;
 	uint32_t __s = scene;          \
 	(__s == CAPTURE_FDR            \
 	|| __s == CAPTURE_HW3DNR       \
-	|| __s == CAPTURE_FLASH        \
 	|| __s == CAPTURE_RAWALG       \
 	|| __s == CAPTURE_AI_SFNR);    \
 })

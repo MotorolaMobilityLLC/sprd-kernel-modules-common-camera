@@ -81,7 +81,7 @@ static int camstatis_isp_port_buffer_init(void *isp_handle, void *node,
 		if (stats_type == STATIS_HIST2)
 			statis_q = &inode->hist2_pool;
 		else if (stats_type == STATIS_GTMHIST)
-			statis_q = &inode->gtmhist_pool;
+			statis_q = &inode->gtmhist_outpool;
 		else
 			continue;
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -187,7 +187,7 @@ int cam_statis_isp_port_buffer_cfg(void *isp_handle, void *node,
 	if (input->type == STATIS_HIST2)
 		statis_q = &inode->hist2_pool;
 	else if (input->type == STATIS_GTMHIST)
-		statis_q = &inode->gtmhist_pool;
+		statis_q = &inode->gtmhist_outpool;
 	else {
 		pr_warn("statis type %d not support\n");
 		return 0;
