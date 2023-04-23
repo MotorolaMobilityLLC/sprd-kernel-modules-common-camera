@@ -1066,7 +1066,7 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 
 	if (io_param->sub_block == ISP_BLOCK_3DNR) {
 		if (inode->uinfo.mode_3dnr != MODE_3DNR_OFF) {
-			if (io_param->scene_id == PM_SCENE_PRE || (io_param->scene_id == PM_SCENE_VID && !inode->isp_receive_param))
+			if (io_param->scene_id == PM_SCENE_PRE || io_param->scene_id == PM_SCENE_VID)
 				ret = isp_k_cfg_3dnr(param, inode->isp_receive_param->isp_blk.param_block);
 			else
 				ret = isp_k_cfg_3dnr(param, &inode->isp_k_param);
@@ -1482,7 +1482,8 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		break;
 	case ISP_NODE_CFG_PARAM_SWITCH:
 		param_status = VOID_PTR_TO(param, struct cfg_param_status);
-		if (param_status->status == 0 && param_status->scene_id == PM_SCENE_PRE) {
+		if (param_status->status == 0 && (param_status->scene_id == PM_SCENE_PRE
+			|| param_status->scene_id == PM_SCENE_VID)) {
 			param_frame = cam_queue_empty_blk_param_get(&inode->param_share_queue);
 			if (param_frame) {
 				param_frame->isp_blk.param_block->cfg_id = inode->cfg_id;
@@ -1500,7 +1501,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		}
 
 		if (param_status->status) {
-			if (param_status->scene_id == PM_SCENE_PRE) {
+			if (param_status->scene_id == PM_SCENE_PRE || param_status->scene_id == PM_SCENE_VID) {
 				param_frame = inode->isp_receive_param;
 				if (!param_frame) {
 					pr_warn("warning: isp%d lose param fid %d\n", inode->cfg_id, param_status->frame_id);

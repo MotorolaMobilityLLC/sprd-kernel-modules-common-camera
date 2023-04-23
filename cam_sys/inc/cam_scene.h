@@ -23,8 +23,9 @@ struct cam_scene {
 	struct cam_pipeline_topology pipeline_list[CAM_SCENE_PIPELINE_NUM];
 };
 
-void camscene_onlineraw_ports_enable(void *module_ptr, int dcam_port_id);
-void camscene_onlineraw_ports_disable(void *module_ptr, int dcam_port_id);
+int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_id channel_id, enum en_status enable);
+void cam_scene_onlineraw_ports_enable(void *module_ptr, int dcam_port_id);
+void cam_scene_onlineraw_ports_disable(void *module_ptr, int dcam_port_id);
 int cam_scene_static_linkages_get(struct cam_scene *param, void *hw_info);
 int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void *priv_data);
 uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_ptr, uint32_t pipeline_type);

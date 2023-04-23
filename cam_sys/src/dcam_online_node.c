@@ -139,7 +139,8 @@ static int dcamonline_gtm_ltm_bypass_cfg(struct dcam_online_node *node, struct i
 
 static int dcamonline_rect_get(struct dcam_online_node *node, void *param)
 {
-	struct sprd_img_path_rect *p = (struct sprd_img_path_rect *)param;
+	struct dcam_statis_param * statis_param = (struct dcam_statis_param *)param;
+	struct sprd_img_path_rect *p = NULL;
 	struct dcam_dev_aem_win *aem_win = NULL;
 	struct isp_img_rect *afm_crop = NULL;
 	struct dcam_isp_k_block *pm = NULL;
@@ -150,7 +151,13 @@ static int dcamonline_rect_get(struct dcam_online_node *node, void *param)
 		return -EINVAL;
 	}
 
-	port = dcam_online_node_port_get(node, PORT_BIN_OUT);
+	p = (struct sprd_img_path_rect *)statis_param->param;
+	port = dcam_online_node_port_get(node, statis_param->port_id);
+	if (!port) {
+		pr_err("fail to get dcam online port %s\n", cam_port_name_get(statis_param->port_id));
+		return -EINVAL;
+	}
+
 	p->trim_valid_rect.x = port->in_trim.start_x;
 	p->trim_valid_rect.y = port->in_trim.start_y;
 	p->trim_valid_rect.w = port->in_trim.size_x;
@@ -1529,6 +1536,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 	struct dcam_isp_k_block *pm = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_online_port *dcam_port = NULL;
+	struct dcam_switch_param csi_switch = {0};
 
 	if (!node) {
 		pr_err("fail to get valid input ptr\n");
@@ -1542,6 +1550,8 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 	hw = node->dev->hw;
 	hw_ctx = node->hw_ctx;
 	state = atomic_read(&node->state);
+	csi_switch.csi_id = node->dcam_idx;
+	csi_switch.dcam_id = node->hw_ctx_id;
 
 	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
 			((node->csi_connect_stat == DCAM_CSI_RESUME) || (hw->csi_connect_type == DCAM_BIND_FIXED))) {
@@ -1551,6 +1561,8 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 
 	atomic_set(&node->state, STATE_IDLE);
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
+		if (pause == DCAM_FORCE_STOP)
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_STOP, hw_ctx);
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &hw_ctx_id);
 		dcam_int_common_tracker_dump(hw_ctx_id);
@@ -1561,7 +1573,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 		ret = dcam_online_node_pmctx_deinit(node);
 
 	pm = &node->blk_pm;
-	if (pause == DCAM_STOP) {
+	if (pause != DCAM_RECOVERY) {
 		pm->aem.bypass = 1;
 		pm->afm.bypass = 1;
 		pm->afl.afl_info.bypass = 1;
@@ -2216,7 +2228,7 @@ int dcam_online_node_request_proc(struct dcam_online_node *node, void *param)
 int dcam_online_node_stop_proc(struct dcam_online_node *node, void *param)
 {
 	int ret = 0;
-	enum dcam_stop_cmd pause = DCAM_STOP;
+	enum dcam_stop_cmd pause = DCAM_NORMAL_STOP;
 	struct cam_node_cfg_param *in_ptr = NULL;
 
 	if (!node || !param) {

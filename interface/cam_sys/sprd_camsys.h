@@ -293,6 +293,7 @@ enum alg_types {
 	ALG_TYPE_CAP_MFNR,
 	ALG_TYPE_VID_DR,
 	ALG_TYPE_CAP_XDR,
+	ALG_TYPE_VID_NR,
 	ALG_TYPE_MAX,
 };
 

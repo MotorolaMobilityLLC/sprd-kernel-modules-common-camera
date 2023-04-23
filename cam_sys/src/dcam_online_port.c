@@ -459,7 +459,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, dec_store);
 
 		pr_debug("dcam %d dec_layer %d w %d h %d\n", dec_store->idx, i, dec_store->size_t[i].w, dec_store->size_t[i].h);
-		pr_debug("dcam %d dec_layer %d w %x h %x\n", dec_store->idx, i, dec_store->addr[0], dec_store->addr[1]);
+		pr_debug("dcam %d dec_layer %d addr %08x %08xn", dec_store->idx, i, dec_store->addr[0], dec_store->addr[1]);
 	}
 
 	return ret;

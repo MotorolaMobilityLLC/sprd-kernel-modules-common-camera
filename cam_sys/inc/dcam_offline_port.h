@@ -28,6 +28,8 @@ struct dcam_offline_port_desc {
 	enum cam_data_endian endian;
 	enum cam_format dcam_out_fmt;
 	enum cam_port_transfer_type transfer_type;
+	enum en_status is_pyr_rec;
+	enum cam_format pyr_out_fmt;
 	uint32_t src_sel;
 };
 
@@ -41,6 +43,8 @@ struct dcam_offline_port {
 	enum cam_data_endian endian;
 	enum cam_format out_fmt;
 	enum cam_port_transfer_type type;
+	enum en_status is_pyr_rec;
+	enum cam_format pyr_out_fmt;
 	uint32_t out_pitch;
 	uint32_t bin_ratio;
 	uint32_t scaler_sel;

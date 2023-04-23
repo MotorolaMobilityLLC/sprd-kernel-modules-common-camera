@@ -50,6 +50,8 @@ static int dcamoffline_port_base_cfg(struct dcam_offline_port *port,
 		port->endian = port_desc->endian;
 		port->out_fmt = port_desc->dcam_out_fmt;
 		port->src_sel = port_desc->src_sel;
+		port->pyr_out_fmt = port_desc->pyr_out_fmt;
+		port->is_pyr_rec = port_desc->is_pyr_rec;
 		atomic_set(&port->is_work, 1);
 		break;
 	case PORT_OFFLINE_RAW_OUT:
@@ -64,6 +66,128 @@ static int dcamoffline_port_base_cfg(struct dcam_offline_port *port,
 		break;
 	}
 	pr_info("path: %d, port->out_fmt %s\n", port->port_id, camport_fmt_name_get(port->out_fmt));
+
+	return ret;
+}
+
+static int dcamoffline_port_pyr_dec_cfg(struct cam_hw_info *hw,
+	struct dcam_hw_dec_store_cfg *dec_store)
+{
+	int ret = 0;
+	struct dcam_hw_dec_online_cfg dec_online = {0};
+
+	if (!hw) {
+		pr_err("fail to check hw\n");
+		return -EINVAL;
+	}
+
+	dec_online.idx = dec_store->idx;
+	dec_online.layer_num = dec_store->layer_num;
+	dec_online.chksum_clr_mode = 0;
+	dec_online.chksum_work_mode = 0;
+	dec_online.path_sel = DACM_DEC_PATH_DEC;
+	dec_online.hor_padding_num = dec_store->align_w - dec_store->width;
+	dec_online.ver_padding_num = dec_store->align_h - dec_store->height;
+	if (dec_online.hor_padding_num)
+		dec_online.hor_padding_en = 1;
+	if (dec_online.ver_padding_num)
+		dec_online.ver_padding_en = 1;
+	dec_online.flust_width = dec_store->width;
+	dec_online.flush_hblank_num = dec_online.hor_padding_num + 20;
+	dec_online.flush_line_num = dec_online.ver_padding_num + 20;
+	hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
+
+	return ret;
+}
+
+static int dcamoffline_port_pyr_dec_addr_set(struct dcam_offline_port *dcam_port,
+	struct cam_frame *frame, struct dcam_hw_context *hw_ctx)
+{
+	int ret = 0, i = 0;
+	uint32_t layer_num = 0;
+	uint32_t offset = 0, align = 1, size = 0;
+	uint32_t align_w = 0, align_h = 0;
+	struct cam_hw_info *hw = NULL;
+	struct dcam_hw_dec_store_cfg dec_store = {0};
+
+	if (!dcam_port || !frame || !hw_ctx) {
+		pr_err("fail to check param, port%px, frame%px\n", dcam_port, frame);
+		return -EINVAL;
+	}
+	hw_ctx->is_pyr_rec = 0;
+	hw_ctx->dec_layer0_done = 0;
+	hw_ctx->dec_all_done = 0;
+
+	hw = hw_ctx->hw;
+	dec_store.idx = hw_ctx->hw_ctx_id;
+	layer_num = DCAM_PYR_DEC_LAYER_NUM;
+	/* update layer num based on img size */
+	while (isp_rec_small_layer_w(dcam_port->out_size.w, layer_num) < MIN_PYR_WIDTH ||
+		isp_rec_small_layer_h(dcam_port->out_size.h, layer_num) < MIN_PYR_HEIGHT) {
+		pr_debug("layer num need decrease based on small input %d %d\n",
+			dcam_port->out_size.w, dcam_port->out_size.h);
+		layer_num--;
+		if (layer_num == 0)
+			break;
+	}
+
+	hw_ctx->is_pyr_rec = frame->common.pyr_status = (layer_num > 0) ? ENABLE : DISABLE;
+	align_w = dcamonline_dec_align_width(dcam_port->out_size.w, layer_num);
+	align_h = dcamonline_dec_align_heigh(dcam_port->out_size.h, layer_num);
+	size = dcam_port->out_pitch * dcam_port->out_size.h;
+	dec_store.layer_num = layer_num;
+	dec_store.width = dcam_port->out_size.w;
+	dec_store.height = dcam_port->out_size.h;
+	dec_store.align_w = align_w;
+	dec_store.align_h = align_h;
+
+	dec_store.endian = dcam_port->endian;
+	dec_store.color_format = dcam_port->out_fmt;
+	dec_store.border_up = 0;
+	dec_store.border_down = 0;
+	dec_store.border_left = 0;
+	dec_store.border_right = 0;
+	/*because hw limit, pyr output 10bit*/
+	dec_store.data_10b = 1;
+	dec_store.flip_en = 0;
+	dec_store.last_frm_en = 1;
+	dec_store.mirror_en = 0;
+	dec_store.mono_en = 0;
+	dec_store.speed2x = 1;
+	dec_store.rd_ctrl = 0;
+	dec_store.store_res = 0;
+	dec_store.burst_len = 1;
+	dcamoffline_port_pyr_dec_cfg(hw, &dec_store);
+
+	pr_debug("dcam%d out pitch %d size %d addr %x\n", dec_store.idx, dcam_port->out_pitch, size, frame->common.buf.iova);
+	for (i = 0; i < DCAM_PYR_DEC_LAYER_NUM; i++) {
+		align = align * 2;
+		dec_store.cur_layer = i;
+		dec_store.width = align_w / align;
+		dec_store.height = align_h / align;
+		if (i >= layer_num) {
+			dec_store.bypass = 1;
+		} else {
+			dec_store.bypass = 0;
+			if (i == 0 && frame->common.is_compressed)
+				offset += frame->common.fbc_info.buffer_size;
+			else
+				offset += (size * 3 / 2);
+			dec_store.pitch[0] = cal_sprd_yuv_pitch(dec_store.width,
+				cam_data_bits(dcam_port->out_fmt), cam_is_pack(dcam_port->out_fmt));
+			dec_store.pitch[1] = dec_store.pitch[0];
+			size = dec_store.pitch[0] * dec_store.height;
+			dec_store.addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + offset;
+			dec_store.addr[1] = dec_store.addr[0] + size;
+			hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
+			pr_debug("dcam%d dec_layer[%d] addr 0x%x 0x%x offset %d\n", dec_store.idx, i, dec_store.addr[0], dec_store.addr[1], offset);
+		}
+		/* when zoom, if necessary size update may set with path size udapte
+		 * thus, the dec_store need remember on path or ctx, and calc & reg set
+		 * need separate too, now just */
+		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
+		pr_debug("dcam%d dec_layer[%d] bypass %d w %d h %d\n", dec_store.idx, i, dec_store.bypass, dec_store.width, dec_store.height);
+	}
 
 	return ret;
 }
@@ -143,6 +267,8 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 		hw_fbc_store->data_bits = cam_data_bits(dcam_port->out_fmt);
 	}
 
+	if (dcam_port->is_pyr_rec)
+		dcamoffline_port_pyr_dec_addr_set(dcam_port, frame, hw_ctx);
 	hw_store->idx = hw_ctx->hw_ctx_id;
 	hw_store->frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 	hw_store->frame_addr[1] = 0;
@@ -183,6 +309,11 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	frame->common.width = dcam_port->out_size.w;
 	frame->common.height = dcam_port->out_size.h;
 	hw_ctx->hw_path[path_id].need_update = 1;
+	if (hw_ctx->is_3dnr && (path_id == DCAM_PATH_BIN || path_id == DCAM_PATH_FULL)) {
+		hw_start->cap_info.cap_size = hw_start->in_trim;
+		hw_ctx->cap_info.cap_size = hw_start->in_trim;
+		hw_ctx->hw_path[DCAM_PATH_3DNR].in_trim = hw_start->in_trim;
+	}
 
 	return ret;
 }
@@ -349,6 +480,7 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	struct dcam_offline_port *port = (struct dcam_offline_port *)handle;
 	struct cam_frame *pframe = NULL;
 	uint32_t i = 0,size = 0, height = 0, width = 0, total = 0, out_fmt;
+	uint32_t pyr_data_bits = 0, pyr_is_pack = 0;
 
 	if (!port || !param) {
 		pr_err("fail to get valid handle %px %px\n", handle, param);
@@ -372,6 +504,14 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	}
 
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+
+	if (param->is_pyr_rec && port->port_id == PORT_BIN_OUT) {
+		pyr_data_bits = cam_data_bits(out_fmt);
+		pyr_is_pack = cam_is_pack(out_fmt);
+		size += dcam_if_cal_pyramid_size(width, height,
+			port->pyr_out_fmt, 1, DCAM_PYR_DEC_LAYER_NUM);
+		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+	}
 
 	total = param->dcamoffline_buf_alloc_num;
 	pr_info("ch %d alloc shared buffer size: %u (w %u h %u), fmt %s, num %d\n",
@@ -399,6 +539,9 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL, port->buf_manager_handle);
 		} while (0);
 	}
+
+	if (param->is_pyr_rec && port->port_id == PORT_OFFLINE_BIN_OUT && param->stream_on_buf_com)
+		complete(param->stream_on_buf_com);
 
 	ret = cam_buf_manager_pool_cnt(&port->unprocess_pool, port->buf_manager_handle);
 	if (ret > 0 || !total)

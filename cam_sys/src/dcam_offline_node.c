@@ -168,6 +168,7 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 	node->hw_ctx->is_offline_proc = 0;
 	node->hw_ctx->err_count = 0;
 	node->hw_ctx->offline_pre_en = DISABLE;
+	node->hw_ctx->is_3dnr = 0;
 	node->hw_ctx->dcam_irq_cb_func = NULL;
 	node->hw_ctx->dcam_irq_cb_handle = NULL;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
@@ -181,6 +182,30 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 exit:
 	spin_unlock_irqrestore(&node->dev->ctx_lock, flag);
 	return ret;
+}
+
+static void dcamoffline_nr3_mv_get(struct dcam_hw_context *hw_ctx, struct cam_frame *frame)
+{
+	uint32_t i = 0, fid = 0;
+
+	if (!hw_ctx || !frame) {
+		pr_err("fail to get hw %p frame %p\n", hw_ctx, frame);
+		return;
+	}
+
+	fid = hw_ctx->fid - 1;
+	i = fid % DCAM_NR3_MV_MAX;
+	frame->common.nr3_me.mv_x = hw_ctx->nr3_mv_ctrl[i].mv_x;
+	frame->common.nr3_me.mv_y = hw_ctx->nr3_mv_ctrl[i].mv_y;
+	frame->common.nr3_me.project_mode = hw_ctx->nr3_mv_ctrl[i].project_mode;
+	frame->common.nr3_me.sub_me_bypass = hw_ctx->nr3_mv_ctrl[i].sub_me_bypass;
+	frame->common.nr3_me.src_height = hw_ctx->nr3_mv_ctrl[i].src_height;
+	frame->common.nr3_me.src_width = hw_ctx->nr3_mv_ctrl[i].src_width;
+	frame->common.nr3_me.valid = hw_ctx->nr3_mv_ctrl[i].valid;
+	pr_debug("dcam%d fid %d, valid %d, x %d, y %d, w %u, h %u\n",
+		hw_ctx->hw_ctx_id, frame->common.fid, frame->common.nr3_me.valid,
+		frame->common.nr3_me.mv_x, frame->common.nr3_me.mv_y,
+		frame->common.nr3_me.src_width, frame->common.nr3_me.src_height);
 }
 
 static int dcamoffline_data_callback(struct dcam_offline_node *node,
@@ -206,6 +231,9 @@ static int dcamoffline_data_callback(struct dcam_offline_node *node,
 		return -EFAULT;
 	}
 
+	if (node->is_3dnr)
+		dcamoffline_nr3_mv_get(node->hw_ctx, frame);
+
 	frame->common.link_from.node_type = node->node_type;
 	frame->common.link_from.node_id = node->node_id;
 	frame->common.link_from.port_id = port->port_id;
@@ -217,6 +245,7 @@ static int dcamoffline_data_callback(struct dcam_offline_node *node,
 		buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
 		frame1 = cam_buf_manager_buf_dequeue(&node->proc_pool, &buf_desc, node->buf_manager_handle);
 		if (frame1) {
+			frame->common.fid = frame1->common.fid;
 			frame->common.sensor_time.tv_sec = frame1->common.sensor_time.tv_sec;
 			frame->common.sensor_time.tv_usec = frame1->common.sensor_time.tv_usec;
 			frame->common.boot_sensor_time = frame1->common.boot_sensor_time;
@@ -315,9 +344,11 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			if (node->data_cb_func)
 				node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, frame, node->data_cb_handle);
 		}
-		ret = dcam_hwctx_offline_reset(node->hw_ctx);
-		if (ret)
-			pr_err("fail to reset dcam%d\n", node->hw_ctx_id);
+		if (!node->is_3dnr) {
+			ret = dcam_hwctx_offline_reset(node->hw_ctx);
+			if (ret)
+				pr_err("fail to reset dcam%d\n", node->hw_ctx_id);
+		}
 		dcamoffline_ctx_unbind(node);
 		complete(&node->frm_done);
 	}
@@ -347,6 +378,9 @@ static int dcamoffline_ctx_bind(struct dcam_offline_node *node)
 	node->hw_ctx = &node->dev->hw_ctx[node->hw_ctx_id];
 	node->pm_ctx.blk_pm.idx = node->hw_ctx_id;
 	node->hw_ctx->is_offline_proc = 1;
+	node->hw_ctx->is_3dnr = node->is_3dnr;
+	node->hw_ctx->nr3_path_cnt = 0;
+	node->hw_ctx->nr3_path_mv_ready = 0;
 	node->hw_ctx->dcam_irq_cb_func = dcamoffline_irq_proc;
 	node->hw_ctx->dcam_irq_cb_handle = node;
 	node->hw_ctx->err_count = 1;
@@ -468,6 +502,7 @@ static int dcamoffline_hw_statis_work_set(struct dcam_offline_node *node)
 		pm->afl.afl_info.bypass = 1;
 		if (hw->ip_isp->isphw_abt->frbg_hist_support)
 			pm->hist_roi.hist_roi_info.bypass = 1;
+		pm->nr3.nr3_me.bypass = node->is_3dnr ? 0 : 1;
 	}
 	return ret;
 }
@@ -645,11 +680,12 @@ static int dcamoffline_node_frame_start(void *param)
 		return -1;
 	}
 	pr_debug("bind hw context %d.\n", node->hw_ctx_id);
-
 	slice = &node->hw_ctx->slice_info;
-	ret = dcam_hwctx_offline_reset(node->hw_ctx);
-	if (ret)
-		pr_err("fail to reset dcam%d\n", node->hw_ctx_id);
+	if (!node->is_3dnr || (node->is_3dnr && !node->hw_ctx->fid)) {
+		ret = dcam_hwctx_offline_reset(node->hw_ctx);
+		if (ret)
+			pr_err("fail to reset dcam%d\n", node->hw_ctx_id);
+	}
 
 	pframe = dcamoffline_cycle_frame(node);
 	if (!pframe)
@@ -657,7 +693,7 @@ static int dcamoffline_node_frame_start(void *param)
 
 	pm_pctx = &node->pm_ctx;
 	pm = &pm_pctx->blk_pm;
-	if (node->node_type == CAM_NODE_TYPE_DCAM_OFFLINE) {
+	if (node->node_type == CAM_NODE_TYPE_DCAM_OFFLINE && pframe->common.channel_id != CAM_CH_PRE) {
 		pm = dcamoffline_frm_param_get(pframe, node);
 		if (pm)
 			pm->idx = node->hw_ctx_id;
@@ -665,6 +701,8 @@ static int dcamoffline_node_frame_start(void *param)
 			pm = &pm_pctx->blk_pm;
 	}
 	pm->dev = node->dev;
+	pm->in_size.size_x = pframe->common.width;
+	pm->in_size.size_y = pframe->common.height;
 	node->hw_ctx->blk_pm = pm;
 	ret = dcamoffline_fetch_param_get(node, pframe);
 	if (ret) {
@@ -1220,7 +1258,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	} else {
 		node = *param->node_dev;
 		pr_info("dcam offline node has been alloc %p\n", node);
-		goto exit;
+		goto no_need_cfg;
 	}
 
 	node->buf_manager_handle = param->buf_manager_handle;
@@ -1255,6 +1293,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	node->fetch.fmt = param->fetch_fmt;
 	node->fetch.pattern = param->pattern;
 	node->fetch.endian = param->endian;
+	node->is_3dnr = param->enable_3dnr;
 	pr_debug("fmt %d, pattern %d, endian %d\n", node->fetch.fmt, node->fetch.pattern, node->fetch.endian);
 	node->node_id = node_id;
 	node->node_type = param->node_type;
@@ -1294,6 +1333,11 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	}
 	*param->node_dev = node;
 
+no_need_cfg:
+	node->data_cb_func = param->data_cb_func;
+	node->data_cb_handle = param->data_cb_handle;
+	node->port_cfg_cb_func = param->port_cfg_cb_func;
+	node->port_cfg_cb_handle = param->port_cfg_cb_handle;
 exit:
 	node->offline_pre_en |= param->offline_pre_en;
 	atomic_inc(&node->user_cnt);
@@ -1303,7 +1347,8 @@ exit:
 
 void dcam_offline_node_put(struct dcam_offline_node *node)
 {
-	int loop = 0;
+	int loop = 0, ret = 0;
+
 	if (!node) {
 		pr_err("fail to get invalid node ptr\n");
 		return;
@@ -1322,6 +1367,11 @@ void dcam_offline_node_put(struct dcam_offline_node *node)
 	if (node->hw_ctx) {
 		pr_warn("warning: offline node unbind or still in_irq_proc %d\n", node->in_irq_proc);
 		dcamoffline_ctx_unbind(node);
+	}
+	if (node->is_3dnr) {
+		ret = dcam_hwctx_offline_reset(&node->dev->hw_ctx[DCAM_HW_CONTEXT_1]);
+		if (ret)
+			pr_err("fail to reset dcam1\n");
 	}
 	dcamoffline_pmctx_deinit(node);
 	mutex_destroy(&node->blkpm_dcam_lock);
