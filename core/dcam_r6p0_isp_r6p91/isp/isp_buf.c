@@ -41,7 +41,6 @@ int isp_statis_queue_read(struct isp_statis_buf_queue *queue,
 	struct isp_statis_buf *buf)
 {
 	unsigned long flag;
-	int ret = 0;
 
 	if (queue == NULL || buf == NULL) {
 		pr_err("fail to get valid input ptr\n");
@@ -54,10 +53,12 @@ int isp_statis_queue_read(struct isp_statis_buf_queue *queue,
 		if (queue->read > &queue->buff[ISP_IMG_QUEUE_LEN - 1])
 			queue->read = &queue->buff[0];
 	} else {
-		ret = -EAGAIN;
+		spin_unlock_irqrestore(&queue->lock, flag);
+		return -EAGAIN;
 	}
 	spin_unlock_irqrestore(&queue->lock, flag);
-	return ret;
+
+	return 0;
 }
 
 int isp_statis_queue_write(struct isp_statis_buf_queue *queue,
@@ -81,7 +82,7 @@ int isp_statis_queue_write(struct isp_statis_buf_queue *queue,
 
 	if (queue->write == queue->read) {
 		queue->write = ori_buf;
-		pr_err("fail to write queue:full, %x,kaddr %x\n", queue, buf->kaddr[0]);
+		pr_err("fail to write queue:full, %p\n", queue);
 	}
 
 	spin_unlock_irqrestore(&queue->lock, flag);
@@ -170,6 +171,7 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	struct isp_statis_buf binning_frm_statis;
 	struct isp_statis_buf hist_frm_statis;
 	struct isp_statis_module *module = NULL;
+	size_t statis_mem_size = 0;
 
 	module = &dev->statis_module_info;
 
@@ -199,8 +201,6 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 	frm_statis.buf_property = parm->buf_property;
 	frm_statis.pfinfo.dev = &s_isp_pdev->dev;
 	frm_statis.pfinfo.mfd[0] = parm->mfd;
-	pr_debug("phy=%x vir=%x size=%d property=%d\n", parm->phy_addr, parm->vir_addr,
-		parm->buf_size,parm->buf_property);
 
 	/*mapping iommu buffer*/
 	ret = pfiommu_get_sg_table(&frm_statis.pfinfo);
@@ -223,13 +223,10 @@ int sprd_isp_cfg_statis_buf(struct isp_pipe_dev *dev,
 		pfiommu_free_addr(&frm_statis.pfinfo);
 		return -1;
 	}
-	frm_statis.phy_addr = aem_iova_addr;
-	frm_statis.kaddr[0] = aem_kaddr;
-	pr_info("phy=%x vir=%x,old_size=%x,map_size=%x", frm_statis.phy_addr,aem_vir_addr,
-		frm_statis.buf_size, frm_statis.pfinfo.size[0]);
 
 	memcpy(&module->img_statis_buf, &frm_statis,
 	       sizeof(struct isp_statis_buf));
+	statis_mem_size = frm_statis.pfinfo.size[0];
 	/*split the big buffer to some little buffer*/
 	for (cnt = 0; cnt < ISP_AEM_STATIS_BUF_NUM; cnt++) {
 		aem_frm_statis.phy_addr = aem_iova_addr;
@@ -445,7 +442,7 @@ int sprd_isp_clr_statis_buf(void *isp_pipe_dev_handle)
 	pfinfo = &statis_module_info->img_statis_buf.pfinfo;
 	if (!pfinfo->is_secure && sprd_iommu_attach_device(pfinfo->dev) == 0
 			&& !is_dma_buf_map_null(&pfinfo->dmabuf_p[0]->vmap_ptr)) {
-		pr_info("dmabuf %x unmap kaddr %x", pfinfo->dmabuf_p[0], (unsigned int)pfinfo->map.vaddr);
+		pr_info("dmabuf unmap kaddr 0x%x", (unsigned int)pfinfo->map.vaddr);
 		sprd_dmabuf_unmap_kernel(pfinfo->dmabuf_p[0], &pfinfo->map);
 	}
 #endif
@@ -492,14 +489,6 @@ int sprd_isp_set_statis_addr(struct isp_pipe_dev *dev,
 		break;
 	default:
 		pr_err("fail to get statis block %d\n", parm->buf_property);
-		return -EFAULT;
-	}
-	if (!((parm->kaddr[0] < module->img_statis_buf.kaddr[0] + module->img_statis_buf.buf_size)
-			&& (parm->kaddr[0] >= module->img_statis_buf.kaddr[0]))){
-		pr_err("statis buf is old,kaddr[0]=%x kaddr[1]=%x property=%d phy=%x vir=%x,"
-			"expect kaddr(%x~%x)", parm->kaddr[0], parm->kaddr[1], parm->buf_property,
-			parm->phy_addr,parm->vir_addr, module->img_statis_buf.kaddr[0],
-			module->img_statis_buf.kaddr[0] + module->img_statis_buf.buf_size);
 		return -EFAULT;
 	}
 

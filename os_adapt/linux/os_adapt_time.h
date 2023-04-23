@@ -19,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/ktime.h>
+#include <linux/timer.h>
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 typedef struct timespec64 timespec;
@@ -116,10 +117,7 @@ static inline void os_adapt_time_init_timer(struct timer_list *cam_timer,
      data = 0;
      timer_setup(cam_timer, func, data);
 }
-#endif
-
-/********************** kernel 5.4 ************************/
-#if (LINUX_VERSION_CODE == KERNEL_VERSION(5, 4, 0))
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 static inline timeval os_adapt_time_ktime_to_timeval(const ktime_t kt)
 {
      return ktime_to_timeval(kt);

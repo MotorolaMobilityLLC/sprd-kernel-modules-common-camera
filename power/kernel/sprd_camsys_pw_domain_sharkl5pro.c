@@ -35,7 +35,6 @@
 #define AWQOS_THRESHOLD    0x0D
 #define SHIFT_MASK(a)      (ffs(a) ? ffs(a) - 1 : 0)
 
-
 static const char * const syscon_name[] = {
 	"force-shutdown",
 	"shutdown-en", /* clear */
@@ -45,7 +44,7 @@ static const char * const syscon_name[] = {
 	"aon-apb-mm-eb",
 };
 
-enum  {
+enum {
 	FORCE_SHUTDOWN = 0,
 	SHUTDOWN_EN,
 	PWR_STATUS0,
@@ -80,7 +79,7 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 	int ret = 0;
 	uint32_t tmp = 0;
 
-	pr_info("cb %p\n", __builtin_return_address(0));
+	pr_info("cb %pS\n", __builtin_return_address(0));
 
 	/* mm bus enable */
 	clk_prepare_enable(pw_info->u.l5pro.cam_mm_eb);
@@ -113,7 +112,7 @@ static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 {
 	int ret = 0;
 
-	pr_info("cb %p\n", __builtin_return_address(0));
+	pr_info("cb %pS\n", __builtin_return_address(0));
 
 	clk_disable_unprepare(pw_info->u.l5pro.isppll_clk);
 

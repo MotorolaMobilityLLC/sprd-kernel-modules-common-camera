@@ -50,14 +50,12 @@ static int mmsys_notifier_call_chain(unsigned long val, void *v)
 
 static int check_drv_init(struct camsys_power_info *pw_info)
 {
-	int ret = 0;
-
 	if (!pw_info)
-		ret = -1;
+		return -1;
 	if (atomic_read(&pw_info->inited) == 0)
-		ret = -2;
+		return -2;
 
-	return ret;
+	return 0;
 }
 
 int sprd_glb_mm_pw_on_cfg(void)
@@ -66,15 +64,14 @@ int sprd_glb_mm_pw_on_cfg(void)
 
 	ret = check_drv_init(pw_info);
 	if (ret) {
-		pr_err("fail to check drv init. cb: %p, ret %d\n",
+		pr_err("fail to check drv init. cb: %pS, ret %d\n",
 			__builtin_return_address(0), ret);
 		return -ENODEV;
 	}
 
-	pr_info("power on state %d, cb %p\n", atomic_read(&pw_info->users_pw),
-		__builtin_return_address(0));
-
 	mutex_lock(&pw_info->mlock);
+	pr_info("power on state %d, cb %pS\n", atomic_read(&pw_info->users_pw),
+		__builtin_return_address(0));
 	if (atomic_inc_return(&pw_info->users_pw) == 1) {
 		ret = pw_info->ops->sprd_cam_pw_on(pw_info);
 		if (ret) {
@@ -104,15 +101,14 @@ int sprd_glb_mm_pw_off_cfg(void)
 
 	ret = check_drv_init(pw_info);
 	if (ret) {
-		pr_err("fail to check drv init. cb: %p, ret %d\n",
+		pr_err("fail to check drv init. cb: %pS, ret %d\n",
 			__builtin_return_address(0), ret);
 		return -ENODEV;
 	}
 
-	pr_info("power off state %d, cb %p\n", atomic_read(&pw_info->users_pw),
-		__builtin_return_address(0));
-
 	mutex_lock(&pw_info->mlock);
+	pr_info("power off state %d, cb %pS\n", atomic_read(&pw_info->users_pw),
+		__builtin_return_address(0));
 	if (atomic_dec_return(&pw_info->users_pw) == 0) {
 		mmsys_notifier_call_chain(_E_PW_OFF, NULL);
 		ret = pw_info->ops->sprd_cam_domain_disable(pw_info);
@@ -211,7 +207,7 @@ static int sprd_campw_remove(struct platform_device *pdev)
 	pw_info = pdev->dev.platform_data;
 	ret = check_drv_init(pw_info);
 	if (ret) {
-		pr_err("fail to check drv init: cb: %p, ret %d\n",
+		pr_err("fail to check drv init: cb: %pS, ret %d\n",
 			__builtin_return_address(0), ret);
 		return -ENODEV;
 	}

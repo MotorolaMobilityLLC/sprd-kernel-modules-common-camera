@@ -1712,6 +1712,9 @@ struct isp_statis_buf_input {
 enum statis_buf_flag {
 	STATIS_BUF_FLAG_INIT,
 	STATIS_BUF_FLAG_RUNNING,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	STATIS_BUF_FLAG_UNINIT,
+#endif
 	STATIS_BUF_FLAG_MAX
 };
 

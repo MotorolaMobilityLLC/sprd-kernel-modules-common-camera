@@ -2448,9 +2448,9 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 
 	camerafile = file->private_data;
 	if (!camerafile ||!camerafile->grp){
-		pr_err("camerafile or camerafile->grp is NULL!\n");
+                pr_err("camerafile or camerafile->grp is NULL!\n");
 		goto exit;
-	}
+        }
 	group = camerafile->grp;
 
 	if (group->dev_inited & (1 << 0))
@@ -2469,7 +2469,6 @@ static int sprd_img_k_release(struct inode *node, struct file *file)
 			if (sprd_camera_stream_off(group, i))
 				pr_err("fail to stream off, dev %d\n", i);
 			sprd_isp_module_dis(group->dev[i]->isp_dev_handle, i);
-			sprd_isp_release_statis_buf(group->dev[i]->isp_dev_handle);
 			sprd_dcam_module_dis(i);
 			sprd_camera_dev_deinit(group, i);
 

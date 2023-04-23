@@ -64,7 +64,7 @@ static const char * const syscon_name[] = {
 	"aon_apb_mm_eb"
 };
 
-enum  {
+enum {
 	CAMSYS_FORCE_SHUTDOWN = 0,
 	CAMSYS_SHUTDOWN_EN,
 	CAMSYS_PWR_STATUS,

@@ -344,7 +344,7 @@ int sprd_isp_reg_isr(enum isp_irq_id irq_id, isp_isr_func user_func,
 }
 
 int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
-		     unsigned int cmd, unsigned long param, bool is_stream_on)
+		     unsigned int cmd, unsigned long param)
 {
 	int ret = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -389,13 +389,9 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 			ret = sprd_isp_cfg_statis_buf(dev, &parm_inptr);
 			dev->statis_module_info.img_statis_buf.dev_fd =
 				parm_inptr.dev_fd;
-		} else if (is_stream_on){
-			ret = sprd_isp_set_statis_addr(dev, &parm_inptr);
 		} else
-			pr_debug("statis buf is old,not streamon,kaddr[0]=%x property=%d "
-				"phy=%x vir=%x", parm_inptr.kaddr[0],
-				parm_inptr.buf_property, parm_inptr.phy_addr,
-				parm_inptr.vir_addr);
+			ret = sprd_isp_set_statis_addr(dev, &parm_inptr);
+
 		mutex_unlock(&dev->isp_mutex);
 		break;
 	case SPRD_ISP_IO_CAPABILITY:

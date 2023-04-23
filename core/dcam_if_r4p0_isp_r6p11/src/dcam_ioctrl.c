@@ -1174,6 +1174,10 @@ static int dcamio_set_statis_buf(struct camera_file *camerafile,
 			info->is_raw_rt = 1;
 		else
 			info->is_raw_rt = 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	} else if (parm_inptr.buf_flag == STATIS_BUF_FLAG_UNINIT) {
+		ret = sprd_isp_release_statis_buf(dev->isp_dev_handle);
+#endif
 	} else {
 		ret = sprd_isp_set_statis_addr(dev->isp_dev_handle,
 					       &dev->statis_module_info,

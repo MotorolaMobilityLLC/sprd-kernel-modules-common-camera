@@ -45,7 +45,7 @@ enum {
 
 struct cpp_iommu_info {
 	struct device *dev;
-	unsigned int mfd[3];
+	int mfd[3];
 	struct sg_table *table;
 	void *buf;
 	size_t size;

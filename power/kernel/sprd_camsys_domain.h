@@ -17,8 +17,8 @@
 #include <linux/pm_domain.h>
 
 enum {
-       _E_PW_OFF = 0,
-       _E_PW_ON  = 1,
+	_E_PW_OFF = 0,
+	_E_PW_ON  = 1,
 };
 
 enum sprd_campw_id {
@@ -194,14 +194,14 @@ struct camsys_power_info {
 	} u;
 };
 
-extern  struct camsys_power_ops camsys_power_ops_l5pro;
-extern  struct camsys_power_ops camsys_power_ops_l3;
-extern  struct camsys_power_ops camsys_power_ops_le;
-extern  struct camsys_power_ops camsys_power_ops_pike2;
-extern  struct camsys_power_ops camsys_power_ops_qogirl6;
-extern  struct camsys_power_ops camsys_power_ops_qogirn6pro;
-extern  struct camsys_power_ops camsys_power_ops_l5;
-extern  struct camsys_power_ops camsys_power_ops_qogirn6l;
+extern struct camsys_power_ops camsys_power_ops_l5pro;
+extern struct camsys_power_ops camsys_power_ops_l3;
+extern struct camsys_power_ops camsys_power_ops_le;
+extern struct camsys_power_ops camsys_power_ops_pike2;
+extern struct camsys_power_ops camsys_power_ops_qogirl6;
+extern struct camsys_power_ops camsys_power_ops_qogirn6pro;
+extern struct camsys_power_ops camsys_power_ops_l5;
+extern struct camsys_power_ops camsys_power_ops_qogirn6l;
 
 int sprd_mm_pw_notify_register(struct notifier_block *nb);
 int sprd_mm_pw_notify_unregister(struct notifier_block *nb);

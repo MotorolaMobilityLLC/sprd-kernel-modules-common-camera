@@ -699,14 +699,14 @@ static int sprd_sensor_file_open(struct inode *node, struct file *file)
 	if (!md) {
 		ret = -EFAULT;
 		pr_err("sensor misc device not found\n");
-		goto exit;
+		return ret;
 	}
 
 	p_mod = md->this_device->platform_data;
 	if (!p_mod) {
 		ret = -EFAULT;
 		pr_err("sensor: no module data\n");
-		goto exit;
+		return ret;
 	}
 
 	p_file = kzalloc(sizeof(*p_file), GFP_KERNEL);
