@@ -1389,7 +1389,8 @@ void *isp_buf_get_kaddr(int fd)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	sprd_dmabuf_map_kernel(dmabuf_p, &buf->map);
-	pr_info("dma_statis_buf map fd = %d, dmabuf_p = %p %p, kaddr = %p", fd, buf->dmabuf_p, dmabuf_p, buf->map.vaddr);
+	pr_info("dma_statis_buf map fd = %d, dmabuf_p = %#x -> %#x, kaddr = %#x",
+			fd, buf->dmabuf_p, dmabuf_p, buf->map.vaddr);
 	buf->dmabuf_p = dmabuf_p;
 	buf->fd = fd;
 	kaddr = buf->map.vaddr;
@@ -1399,8 +1400,6 @@ void *isp_buf_get_kaddr(int fd)
 	if (IS_ERR_OR_NULL(kaddr)) {
 		pr_err("fail to map kernel vir_addr\n");
 	}
-
-	dma_buf_put(dmabuf_p);
 
 exit:
 	return kaddr;

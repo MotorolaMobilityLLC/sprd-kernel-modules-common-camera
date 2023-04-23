@@ -4449,9 +4449,7 @@ int32_t dcam_start_path(enum dcam_path_index path_index)
 			_dcam_wait_path_done(DCAM_PATH_IDX_2, NULL);
 	}
 
-	_dcam_reg_trace();
-
-	pr_info("%s end\n", __func__);
+	pr_info("end\n");
 	return -rtn;
 }
 
@@ -4513,7 +4511,7 @@ int32_t dcam_stop_path(enum dcam_path_index path_index)
 {
 	enum dcam_drv_rtn       rtn = DCAM_RTN_SUCCESS;
 
-	pr_info("%s start, 0x%x.\n", __func__, path_index);
+	pr_info("start, 0x%x.\n", path_index);
 	if (DCAM_ADDR_INVALID(s_p_dcam_mod)) {
 		pr_err("zero pointer\n");
 		return -EFAULT;
@@ -4545,7 +4543,7 @@ int32_t dcam_stop_path(enum dcam_path_index path_index)
 	}
 
 	_dcam_wait_path_stopped();
-	pr_info("%s end, 0x%x.\n", __func__, path_index);
+	pr_info("end, 0x%x.\n", path_index);
 
 	return -rtn;
 }
