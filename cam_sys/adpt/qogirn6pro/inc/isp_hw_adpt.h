@@ -20,7 +20,7 @@
 #define ISP_WIDTH_MAX                   12072
 #define ISP_HEIGHT_MAX                  9054
 #define ISP_SCALER_UP_MAX               10
-#define ISP_SLCIE_HEIGHT_MAX            8192
+#define ISP_SLCIE_HEIGHT_MAX            9054
 #define ISP_SC_COEFF_COEF_SIZE          (2 << 12)
 #define ISP_SC_COEFF_TMP_SIZE           (21 << 12)
 

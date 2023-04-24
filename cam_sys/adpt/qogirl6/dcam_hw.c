@@ -1176,7 +1176,7 @@ static int dcamhw_slice_store_set(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_FULL_CFG, (0x7FF << 20) | (1 << 1), (full_store->pitch << 20) | (1 << 1));
 	DCAM_REG_WR(idx, DCAM_FULL_CROP_START, full_store->crop.start_x & 0x1fff);
 	DCAM_REG_WR(idx, DCAM_FULL_CROP_SIZE,
-		((full_store->store_size.h & 0x1fff) << 16) | (full_store->store_size.w & 0x1fff));
+		((full_store->crop.size_y & 0x1fff) << 16) | (full_store->crop.size_x & 0x1fff));
 	reg_val = DCAM_REG_RD(idx, DCAM_FULL_BASE_WADDR);
 	DCAM_REG_WR(idx, DCAM_FULL_BASE_WADDR, reg_val + full_store->store_offset[0]);
 
@@ -1186,7 +1186,7 @@ static int dcamhw_slice_store_set(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, 0x3ff00000, bin_store->pitch << 20);
 	DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, bin_store->crop.start_x & 0x1fff);
 	DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
-		((bin_store->store_size.h & 0x1fff) << 16) | (bin_store->store_size.w & 0x1fff));
+		((bin_store->crop.size_y & 0x1fff) << 16) | (bin_store->crop.size_x & 0x1fff));
 
 	reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
 	DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + bin_store->store_offset[0]);

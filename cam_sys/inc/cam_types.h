@@ -244,6 +244,13 @@ struct img_trim {
 	uint32_t size_y;
 };
 
+struct img_slice_info {
+	uint32_t slice_num;
+	uint32_t slice_no;
+	uint32_t slice_cnt;
+	struct img_trim in_trim;
+};
+
 struct img_scaler_info {
 	struct img_size src_size;
 	struct img_trim src_trim;
@@ -439,6 +446,7 @@ typedef int(*shutoff_cfg_cb)(void *cb_handle, uint32_t cmd, void *param);
 typedef int(*dcam_irq_proc_cb)(void *param, void *cb_handle);
 typedef int(*zoom_get_cb)(void *cb_handle, void *param);
 typedef int(*cam_zoom_get_cb)(uint32_t param, void *cb_handle, void *zoom_param);
+typedef int(*cam_slice_cb)(void *param, void *cb_handle);
 typedef int(*port_param_cfg)(void *cb_handle, uint32_t cmd, void *param);
 
 #endif/* _CAM_TYPES_H_ */

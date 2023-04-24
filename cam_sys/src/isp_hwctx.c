@@ -453,7 +453,7 @@ int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, s
 	int ret = 0;
 	int planes = 0;
 	struct isp_store_info *store = NULL;
-	unsigned long offset_v, offset_u, yuv_addr[3] = {0};
+	unsigned long offset_u, yuv_addr[3] = {0};
 	if (!pipe_info || !frame) {
 		pr_err("fail to get valid input ptr, pipe_info %p,frame %p\n",
 			pipe_info, frame);
@@ -486,15 +486,16 @@ int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, s
 		camport_fmt_name_get(store->color_fmt), planes, yuv_addr[0], yuv_addr[1], yuv_addr[2], store->pitch.pitch_ch0);
 
 	if ((planes > 1) && yuv_addr[1] == 0) {
-		offset_u = store->pitch.pitch_ch0 * store->size.h;
-		yuv_addr[1] = yuv_addr[0] + offset_u;
+		if (!frame->slice_info.slice_num) {
+			offset_u = store->pitch.pitch_ch0 * store->size.h;
+			yuv_addr[1] = yuv_addr[0] + offset_u;
+		} else
+			yuv_addr[1] = yuv_addr[0] + store->total_size * 2 / 3;
 	}
 
-	if ((planes > 2) && yuv_addr[2] == 0) {
-		offset_v = store->pitch.pitch_ch1 * store->size.h;
-		if (store->color_fmt == CAM_YUV420_3FRAME)
-			offset_v >>= 1;
-		yuv_addr[2] = yuv_addr[1] + offset_v;
+	if (frame->slice_info.slice_num) {
+		yuv_addr[0] += store->slice_offset.addr_ch0;
+		yuv_addr[1] += store->slice_offset.addr_ch1;
 	}
 
 	pr_debug("path %d planes %d addr %lx %lx %lx\n",

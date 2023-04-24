@@ -1587,9 +1587,14 @@ void *cam_node_creat(struct cam_node_desc *param)
 	for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) {
 		struct cam_node_cfg_param cfg_param = {0};
 		port_desc.port_graph = &param->node_graph->outport[i];
-		if (port_desc.port_graph->link_state != PORT_LINK_NORMAL)
-			continue;
 		port_desc.dcam_online = &param->dcam_online_desc->port_desc[i];
+		if (port_desc.port_graph->link_state != PORT_LINK_NORMAL) {
+			if (port_desc.dcam_online->update_state) {
+				port_desc.port_graph->link_state = PORT_LINK_NORMAL;
+				port_desc.dcam_online->update_state = 0;
+			}
+			continue;
+		}
 		port_desc.dcam_online->dev = param->dcam_online_desc->dev;
 		node->outport_list[i] = cam_port_creat(&port_desc, node->node_graph->id);
 		if (!node->outport_list[i]) {

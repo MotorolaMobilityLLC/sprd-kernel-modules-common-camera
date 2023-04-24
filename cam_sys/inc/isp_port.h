@@ -141,6 +141,7 @@ struct isp_port {
 	struct cam_buf_pool_id fetch_result_pool;
 	struct cam_buf_pool_id store_unprocess_pool;
 	struct cam_buf_pool_id store_result_pool;
+	struct img_slice_info slice_info;
 };
 
 uint32_t isp_port_id_switch(uint32_t port_id);

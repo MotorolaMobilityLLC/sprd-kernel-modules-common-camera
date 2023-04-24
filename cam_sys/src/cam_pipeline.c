@@ -144,9 +144,14 @@ static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_d
 	case CAM_CB_YUV_SCALER_DATA_DONE:
 		link_node = campipeline_linked_node_get(pipeline, pframe);
 		if (link_node) {
-			node_param.param = pframe;
-			node_param.port_id = pframe->common.link_to.port_id;
-			ret = link_node->ops.request_proc(link_node, &node_param);
+			if (pframe->common.height > ISP_SLCIE_HEIGHT_MAX
+				&& (link_node->node_graph->type == CAM_NODE_TYPE_ISP_OFFLINE)) {
+				ret = pipeline->slice_cb_func(pframe, pipeline->data_cb_handle);
+			} else {
+				node_param.param = pframe;
+				node_param.port_id = pframe->common.link_to.port_id;
+				ret = link_node->ops.request_proc(link_node, &node_param);
+			}
 			if (ret) {
 				pframe->common.link_to = pframe->common.link_from;
 				ret = campipeline_src_cb_proc(type, pframe, pipeline);
@@ -560,6 +565,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 
 	pr_info("pipeline: %s start creat\n", param->pipeline_graph->name);
 	pipeline->zoom_cb_func = param->zoom_cb_func;
+	pipeline->slice_cb_func = param->slice_cb_func;
 	pipeline->data_cb_func = param->data_cb_func;
 	pipeline->data_cb_handle = param->data_cb_handle;
 	pipeline->buf_manager_handle = param->buf_manager_handle;
