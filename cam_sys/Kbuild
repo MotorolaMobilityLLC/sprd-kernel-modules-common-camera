@@ -31,6 +31,7 @@ endif
 
 KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/test/*.c)
 KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/alg_calc/*.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/debug/*.c)
 
 ifeq ($(CONFIG_COMPAT),y)
   KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/compat/*.c)
@@ -55,6 +56,7 @@ else
 endif
 ccflags-y += -I$(KO_MODULE_PATH)/test/
 ccflags-y += -I$(KO_MODULE_PATH)/alg_calc/
+ccflags-y += -I$(KO_MODULE_PATH)/debug/
 
 ifeq ($(ADAPT_DIR), sharkl3)
 ccflags-y += -DPROJ_SHARKL3
