@@ -41,7 +41,7 @@
 #define MAX_LSCTAB_LEN           (16*1024)
 
 #define PARAM_BUF_NUM_MAX        32
-#define STATIS_BUF_NUM_MAX       8
+#define STATIS_BUF_NUM_MAX       20
 #define CAMERA_PARAM_NUM_MAX     20
 
 #define STATIS_AEM_HEADER_SIZE   512
@@ -102,6 +102,7 @@ enum isp_statis_buf_type {
 	STATIS_LSCM,
 	STATIS_HIST2,
 	STATIS_GTMHIST,
+	STATIS_LTMHIST,
 	STATIS_TYPE_MAX,
 	STATIS_DBG_INIT,
 	STATIS_PARAM,
@@ -2531,11 +2532,20 @@ struct isp_dev_rgb_ltm_stat_info {
 	uint32_t region_est_en; /* region_est_en */
 	uint32_t channel_sel;
 	uint32_t ltm_hist_table[128];
+	uint16_t clip_limit;
+	uint16_t clip_limit_min;
 };
 
 struct isp_dev_rgb_ltm_map_info {
 	uint32_t bypass; /* ltm map bypass */
 	uint32_t ltm_map_video_mode;
+	uint32_t tile_width;
+	uint32_t tile_height;
+	uint32_t tile_x_num;
+	uint32_t tile_y_num;
+	uint32_t frame_width;
+	uint32_t frame_height;
+	uint16_t ltm_map_info[8192];
 };
 
 struct isp_dev_rgb_ltm_info {

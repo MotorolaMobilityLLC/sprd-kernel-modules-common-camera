@@ -201,7 +201,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 			}
 
 			/* N6: frgb hist in dcam; others: yuv hist in isp */
-			if (!hw->ip_isp->isphw_abt->frbg_hist_support || hw->ip_isp->isphw_abt->rgb_gtm_support) {
+			if (!hw->ip_isp->isphw_abt->frbg_hist_support || hw->ip_isp->isphw_abt->rgb_gtm_support || hw->ip_isp->isphw_abt->rgb_ltm_support) {
 				ch = &module->channel[CAM_CH_PRE];
 				if (ch->enable)
 					ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
@@ -286,6 +286,16 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 				if (ch->enable)
 					ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
 			}
+			break;
+		case STATIS_LTMHIST:
+			if (hw->ip_isp->isphw_abt->rgb_ltm_support) {
+				if (!ch->enable) {
+					pr_warn("warning:channel:%d not eb, can not set ltm buf\n", ch->ch_id);
+					break;
+				}
+				ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
+			} else
+				pr_warn("warning:not support ltm block module\n");
 			break;
 		default:
 			break;
@@ -1159,8 +1169,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 
 	if ((channel_id >= CAM_CH_MAX) || (buffer_count == 0) ||
 		(module->channel[channel_id].enable == 0) || (buffer_count > IMG_PATH_BUFFER_COUNT)) {
-		pr_err("fail to get valid channel id %d. buf cnt %d\n",
-			channel_id, buffer_count);
+		pr_err("fail to get valid channel id %d. buf cnt %d\n", channel_id, buffer_count);
 		return -EFAULT;
 	}
 

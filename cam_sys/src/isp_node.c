@@ -151,13 +151,12 @@ static int ispnode_hw_ts_cal(struct isp_node *inode)
 
 static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type)
 {
-	struct isp_pipe_dev *dev = NULL;
-	struct isp_node *inode = NULL;
-	struct cam_frame *pframe = NULL;
-	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
-	int completion = 0, i = 0, ret = 0;
-	struct isp_port_cfg port_cfg = {0};
+	int i = 0, ret = 0;
 	struct isp_port *port = NULL;
+	struct isp_node *inode = NULL;
+	struct isp_pipe_dev *dev = NULL;
+	struct cam_frame *pframe = NULL;
+	struct isp_port_cfg port_cfg = {0};
 
 	dev = (struct isp_pipe_dev *)handle;
 	if (!handle || type >= POSTPROC_MAX) {
@@ -206,16 +205,13 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 			ispnode_postproc_frame_return(inode);
 		break;
 	case POSTPROC_RGB_LTM_HISTS_DONE:
-		rgb_ltm = (struct isp_ltm_ctx_desc *)inode->rgb_ltm_handle;
-		if (!rgb_ltm) {
+		pframe = cam_buf_manager_buf_dequeue(&inode->ltmhist_resultpool, NULL, inode->buf_manager_handle);
+		if (!pframe) {
+			pr_warn("warning: no frame in node[%d] ltmhist_result_queue\n", inode->node_id);
 			ret = -EFAULT;
 			goto exit;
 		}
-
-		rgb_ltm->ltm_ops.sync_ops.set_frmidx(rgb_ltm);
-		completion = rgb_ltm->ltm_ops.sync_ops.get_completion(rgb_ltm);
-		if (completion && (rgb_ltm->fid >= completion))
-			completion = rgb_ltm->ltm_ops.sync_ops.do_completion(rgb_ltm);
+		inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
 		break;
 	case POSTPROC_RGB_GTM_HISTS_DONE:
 		ispnode_rgb_gtm_hist_done_process(inode, hw_idx, dev);
@@ -412,6 +408,7 @@ static int ispnode_port_param_cfg(struct isp_node *inode, struct isp_hw_context 
 	}
 
 	port_cfg->target_fid = CAMERA_RESERVE_FRAME_NUM;
+	port_cfg->ltm_enable = port_cfg->src_frame->common.xtm_conflict.need_ltm_hist ? ((inode->isp_using_param->ltm_rgb_info.ltm_stat.bypass == 0) && (inode->pipe_src.mode_ltm != MODE_LTM_OFF)) : 0;
 	port_cfg->rgb_ltm = (struct isp_ltm_ctx_desc *)inode->rgb_ltm_handle;
 	port_cfg->pipe_info = &pctx_hw->pipe_info;
 	port_cfg->cfg_id = inode->cfg_id;
@@ -518,15 +515,16 @@ static int ispnode_ltm_frame_process(struct isp_node *inode, struct isp_port_cfg
 
 	if (inode->ch_id == CAM_CH_PRE && ispnode_slice_needed(inode)) {
 		inode->pipe_src.mode_ltm = MODE_LTM_OFF;
-		rgb_ltm->sync->pre_slice_ltm_bypass = 1;
+		rgb_ltm->bypass = 1;
 	}
 
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_ltm_hist);
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_ltm_map);
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &inode->pipe_src.mode_ltm);
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &port_cfg->src_frame->common.fid);
-	rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &port_cfg->src_crop);
-	ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &inode->isp_using_param->ltm_rgb_info);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_ltm_hist);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_ltm_map);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &inode->pipe_src.mode_ltm);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &port_cfg->src_frame->common.fid);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &port_cfg->src_crop);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BUF, &inode->isp_using_param->ltm_rgb_info.ltm_map);
+	ret = rgb_ltm->ltm_ops.pipe_proc(rgb_ltm, &inode->isp_using_param->ltm_rgb_info);
 	if (ret == -1) {
 		inode->pipe_src.mode_ltm = MODE_LTM_OFF;
 		pr_err("fail to rgb LTM cfg frame, CAM_DISABLE\n");
@@ -827,7 +825,6 @@ static int ispnode_start_proc(void *node)
 		os_adapt_time_get_ts(&inode->start_ts);
 		PERFORMANCE_DEBUG("node_start_time %03d.%06d\n", inode->start_ts.tv_sec, inode->start_ts.tv_nsec / NSEC_PER_USEC);
 	}
-
 	port_cfg.node_id = inode->node_id;
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
@@ -880,7 +877,7 @@ static int ispnode_start_proc(void *node)
 			port_cfg.src_frame->common.fid, port_cfg.src_frame->common.channel_id,
 			port_cfg.src_frame->common.buf.mfd, port_cfg.src_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
 	ispnode_hist_roi_update(inode->dev->isp_hw, inode->cfg_id, &pctx_hw->pipe_info.fetch);
-	/*update NR param for crop/scaling image */
+	/* update NR param for crop/scaling image */
 	ispnode_blkparam_adapt(inode);
 
 	pctx_hw->isp_k_param = &inode->isp_k_param;
@@ -1361,7 +1358,7 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		}
 	}
 
-	if (param->ltm_mode != MODE_LTM_OFF && param->ltm_buf_mode != MODE_LTM_BUF_OFF) {
+	if (param->ltm_mode != MODE_LTM_OFF) {
 		/* todo: ltm buffer size needs to be refined.*/
 		/* size = ((width + 1) & (~1)) * height * 3 / 2; */
 		/*
@@ -1378,34 +1375,21 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 				pr_err("fail to get rgb ltm.\n");
 				return -1;
 			}
-			rgb_ltm->ltm_buf_mod = param->ltm_buf_mode;
-			if (param->ltm_buf_mode == MODE_LTM_BUF_SET) {
-				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-					ret = cam_buf_alloc(&rgb_ltm->ltm_frame[i].buf, block_size, param->iommu_enable);
-					if (ret) {
-						pr_err("fail to alloc ltm buf: %d ch %d\n", i, param->ch_id);
-						return -1;
-					}
-
-					ret = cam_buf_manager_buf_status_cfg(&rgb_ltm->ltm_frame[i].buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-					if (ret) {
-						pr_err("fail to map isp ltm iommu buf.\n");
-						cam_buf_free(&rgb_ltm->ltm_frame[i].buf);
-						return -1;
-					}
-					rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = CAM_ENABLE;
-					pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", rgb_ltm->ctx_id, i, rgb_ltm->ltm_frame[i], rgb_ltm->ltm_frame[i].buf.iova);
+			for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+				ret = cam_buf_alloc(&rgb_ltm->ltm_frame[i].buf, block_size, param->iommu_enable);
+				if (ret) {
+					pr_err("fail to alloc ltm buf: %d ch %d\n", i, param->ch_id);
+					return -1;
 				}
 
-				ret = rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SET_BUF, &rgb_ltm->ltm_frame[i]);
-				if (ret)
-					pr_err("fail to set isp ctx %d rgb ltm buffers.\n", inode->node_id);
-			}
-
-			if (param->ltm_buf_mode == MODE_LTM_BUF_GET) {
-				ret = rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_GET_BUF, &rgb_ltm->ltm_frame[i]);
-				if (ret)
-					pr_err("fail to get isp ctx %d rgb ltm buffers.\n", inode->node_id);
+				ret = cam_buf_manager_buf_status_cfg(&rgb_ltm->ltm_frame[i].buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
+				if (ret) {
+					pr_err("fail to map isp ltm iommu buf.\n");
+					cam_buf_free(&rgb_ltm->ltm_frame[i].buf);
+					return -1;
+				}
+				rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = CAM_ENABLE;
+				pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", rgb_ltm->ctx_id, i, rgb_ltm->ltm_frame[i], rgb_ltm->ltm_frame[i].buf.iova);
 			}
 		}
 	}
@@ -1751,9 +1735,11 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	uinfo->ltm_rgb = param->ltm_rgb;
 	uinfo->pyr_layer_num = param->pyr_layer_num;
 	if (rgb_ltm) {
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_rgb);
-		rgb_ltm->ltm_ops.core_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
-		rgb_ltm->ltm_ops.sync_ops.set_status(rgb_ltm, 1);
+		rgb_ltm->hist_outpool = &node->ltmhist_outpool;
+		rgb_ltm->hist_resultpool = &node->ltmhist_resultpool;
+		rgb_ltm->buf_manager_handle = param->buf_manager_handle;
+		rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_EB, &uinfo->ltm_rgb);
+		rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &uinfo->mode_ltm);
 	}
 
 	if (node->rgb_gtm_handle == NULL && node->dev->isp_hw->ip_isp->isphw_abt->rgb_gtm_support) {
@@ -1841,6 +1827,7 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	node->share_buffer = param->share_buffer;
 	node->node_id = node_id;
 	node->node_type = param->node_type;
+	node->ultra_cap_en = param->ultra_cap_en;
 	*param->node_dev = node;
 	uinfo->slw_state = param->slw_state;
 
@@ -1908,8 +1895,6 @@ void isp_node_put(struct isp_node *node)
 		}
 
 		if (node->rgb_ltm_handle) {
-			struct isp_ltm_ctx_desc *rgb_ltm = (struct isp_ltm_ctx_desc*)node->rgb_ltm_handle;
-			rgb_ltm->ltm_ops.sync_ops.set_status(rgb_ltm, 0);
 			isp_ltm_rgb_ctx_put(node->rgb_ltm_handle);
 			node->rgb_ltm_handle = NULL;
 		}

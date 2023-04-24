@@ -21,8 +21,6 @@ extern "C" {
 #include "cam_queue.h"
 
 #define LTM_HIST_TABLE_NUM              128
-#define LTM_MIN_TILE_WIDTH              128
-#define LTM_MIN_TILE_HEIGHT             20
 #define LTM_MAX_TILE_RANGE              65536
 #define LTM_MAX_ROI_X                   240
 #define LTM_MAX_ROI_Y                   180
@@ -158,29 +156,15 @@ enum isp_ltm_cfg_cmd {
 	ISP_LTM_CFG_MODE,
 	ISP_LTM_CFG_SIZE_INFO,
 	ISP_LTM_CFG_FRAME_ID,
+	ISP_LTM_CFG_MAP_BUF,
 	ISP_LTM_CFG_HIST_BYPASS,
 	ISP_LTM_CFG_MAP_BYPASS,
-	ISP_LTM_CFG_SET_BUF,
-	ISP_LTM_CFG_GET_BUF,
 	ISP_LTM_CFG_MAX,
 };
 
-struct isp_ltm_sync_ops {
-	void (*set_status)(void *handle, int status);
-	void (*set_frmidx)(void *handle);
-	int (*get_completion)(void *handle);
-	int (*do_completion)(void *handle);
-	void (*clear_status)(void *handle);
-};
-
-struct isp_ltm_core_ops {
+struct isp_ltm_ops {
 	int (*cfg_param)(void *handle, enum isp_ltm_cfg_cmd cmd, void *param);
 	int (*pipe_proc)(void *handle, void *param);
-};
-
-struct isp_ltm_ops {
-	struct isp_ltm_sync_ops sync_ops;
-	struct isp_ltm_core_ops core_ops;
 };
 
 struct isp_ltm_ctx_desc {
@@ -189,7 +173,7 @@ struct isp_ltm_ctx_desc {
 	uint32_t mode;
 	uint32_t ctx_id;
 	uint32_t cam_id;
-	uint32_t ltm_buf_mod;
+	uint32_t cur_mapbuf_id;
 
 	uint32_t fid;
 	uint32_t frame_width;
@@ -201,9 +185,12 @@ struct isp_ltm_ctx_desc {
 	struct isp_ltm_map map;
 	struct camera_frame_buf ltm_frame[ISP_LTM_BUF_NUM];
 
-	struct isp_ltm_sync *sync;
 	struct isp_ltm_ops ltm_ops;
 	struct cam_hw_info *hw;
+
+	struct cam_buf_pool_id *hist_outpool;
+	struct cam_buf_pool_id *hist_resultpool;
+	void *buf_manager_handle;
 };
 
 struct isp_ltm_tilenum_minus1 {
@@ -227,24 +214,31 @@ struct isp_ltm_stat_info {
 	uint32_t region_est_en;
 	uint32_t channel_sel;
 	uint32_t ltm_hist_table[LTM_HIST_TABLE_NUM];
+	uint16_t clip_limit;
+	uint16_t clip_limit_min;
 };
 
 struct isp_ltm_map_info {
 	uint32_t bypass;
 	uint32_t ltm_map_video_mode;
+	uint32_t tile_width;
+	uint32_t tile_height;
+	uint32_t tile_x_num;
+	uint32_t tile_y_num;
+	uint32_t frame_width;
+	uint32_t frame_height;
 };
 
 struct isp_ltm_info {
-	uint32_t is_update;
+	uint32_t isupdate;
+	uint32_t update_flag;
 	struct isp_ltm_stat_info ltm_stat;
 	struct isp_ltm_map_info ltm_map;
 };
 
-int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_rtl_param *prtl, uint32_t *slice_info);
+int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_rtl_param *prtl, uint32_t *slice_info, void *ltminfo);
 void *isp_ltm_rgb_ctx_get(uint32_t idx, enum camera_id cam_id, void *hw);
 void isp_ltm_rgb_ctx_put(void *ltm_handle);
-void isp_ltm_sync_init(void);
-void isp_ltm_sync_deinit(void);
 
 #ifdef __cplusplus
 }

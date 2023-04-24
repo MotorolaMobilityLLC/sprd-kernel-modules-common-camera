@@ -59,7 +59,7 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 	ISP_REG_WR(idx, base + ISP_LTM_TILE_RANGE, val);
 
 	val = ((hists->clip_limit_min & 0xFFFF) << 16) |
-		(hists->clip_limit     & 0xFFFF);
+		(hists->clip_limit & 0xFFFF);
 	ISP_REG_WR(idx, base + ISP_LTM_CLIP_LIMIT, val);
 
 	val = hists->texture_proportion & 0x1F;
@@ -99,10 +99,10 @@ static void isp_ltm_config_map(uint32_t idx, struct isp_ltm_map *map)
 		(map->bypass & 0x1);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM0, val);
 
-	val = ((map->tile_y_num  & 0x7) << 28) |
-		((map->tile_x_num  & 0x7) << 24) |
+	val = ((map->tile_y_num & 0x7) << 28) |
+		((map->tile_x_num & 0x7) << 24) |
 		((map->tile_height & 0x7FF) << 12) |
-		(map->tile_width  & 0x7FF);
+		(map->tile_width & 0x7FF);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val);
 
 	val = map->tile_size_pro & 0x3FFFFF;
@@ -110,7 +110,7 @@ static void isp_ltm_config_map(uint32_t idx, struct isp_ltm_map *map)
 
 	val = ((map->tile_right_flag & 0x1)   << 31) |
 		((map->tile_start_y & 0xFFF) << 16) |
-		((map->tile_left_flag  & 0x1) << 15) |
+		((map->tile_left_flag & 0x1) << 15) |
 		(map->tile_start_x & 0xFFF);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val);
 

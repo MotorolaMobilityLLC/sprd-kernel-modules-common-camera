@@ -21,7 +21,7 @@
 
 #define ISP_MAX_LINE_WIDTH              2592
 #define ISP_NR3_BUF_NUM                 2
-#define ISP_LTM_BUF_NUM                 10
+#define ISP_LTM_BUF_NUM                 2
 #define ISP_PYR_REC_BUF_NUM             2
 #define CAMERA_RESERVE_FRAME_NUM        0xffffffff
 #define ISP_FBC_3DNR_PAD_WIDTH          256

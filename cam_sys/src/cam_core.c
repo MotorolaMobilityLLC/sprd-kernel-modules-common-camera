@@ -394,10 +394,8 @@ static int camcore_buffers_alloc(void *param)
 		alloc_param.ltm_mode = MODE_LTM_OFF;
 	alloc_param.ltm_rgb_enable = channel->ltm_rgb;
 	/*non-zsl capture, or video path while preview path enable, need not use buffer*/
-	if ((!channel_pre->enable && channel->ch_id == CAM_CH_CAP) || (channel->ch_id == CAM_CH_VID && channel_pre->enable))
-		alloc_param.ltm_buf_mode = MODE_LTM_BUF_OFF;
-	else
-		alloc_param.ltm_buf_mode = (channel->ch_id == CAM_CH_PRE) ? MODE_LTM_BUF_SET : MODE_LTM_BUF_GET;
+	if (channel->ch_id == CAM_CH_VID && channel_pre->enable)
+		alloc_param.ltm_mode = MODE_LTM_OFF;
 
 	ret = cam_pipeline_buffer_alloc(channel->pipeline_handle, &alloc_param);
 	if (ret) {
@@ -1400,10 +1398,19 @@ static int camcore_pipeline_init(struct camera_module *module,
 		cam_scene_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
 	}
 
+	channel->pipeline_type = pipeline_type;
+	channel->pipeline_handle = cam_pipeline_creat(pipeline_desc);
+	if (!channel->pipeline_handle) {
+		pr_err("fail to get cam pipeline\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
+
 	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {
 		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
 		dcam_offline_desc->offline_pre_en = CAM_ENABLE;
-		isp_node_description->ch_id = 1;
+		isp_node_description->ch_id = CAM_CH_PRE;
+		isp_node_description->mode_ltm = MODE_LTM_PRE;
 		isp_node_description->port_desc.output_size.w = channel->ch_uinfo.dst_size.w / 4;
 		isp_node_description->port_desc.output_size.h = channel->ch_uinfo.dst_size.h / 4;
 		if ((channel->ch_uinfo.src_size.h / 2) > g_camctrl.isp_linebuf_len)
@@ -1417,17 +1424,6 @@ static int camcore_pipeline_init(struct camera_module *module,
 			return -ENOMEM;
 		}
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
-		dcam_offline_desc->offline_pre_en = CAM_DISABLE;
-		isp_node_description->ch_id = channel->ch_id;
-		isp_node_description->port_desc.output_size = channel->ch_uinfo.dst_size;
-	}
-
-	channel->pipeline_type = pipeline_type;
-	channel->pipeline_handle = cam_pipeline_creat(pipeline_desc);
-	if (!channel->pipeline_handle) {
-		pr_err("fail to get cam pipeline\n");
-		ret = -ENOMEM;
-		goto fail;
 	}
 
 	/*TEMP: config ispctxid to pyrdec node*/
@@ -2346,12 +2342,13 @@ rewait:
 				read_op.parm.frame.vaddr = pframe->common.buf.offset[2];
 				read_op.parm.frame.is_flash_status = pframe->common.is_flash_status;
 
-				/*statis info*/
+				/* statis info */
 				read_op.parm.frame.aem_info = pframe->common.aem_info;
 				read_op.parm.frame.bayerhist_info = pframe->common.bayerhist_info;
 				read_op.parm.frame.afm_info = pframe->common.afm_info;
 				read_op.parm.frame.pdaf_info = pframe->common.pdaf_info;
 				read_op.parm.frame.lscm_info = pframe->common.lscm_info;
+				read_op.parm.frame.ltm_info = pframe->common.ltm_info;
 
 				/* for statis buffer address below. */
 				read_op.parm.frame.addr_offset = pframe->common.buf.offset[0];

@@ -402,7 +402,6 @@ struct cam_buf_alloc_desc {
 	uint32_t dcam_out_fmt;
 	uint32_t ltm_mode;
 	uint32_t ltm_rgb_enable;
-	uint32_t ltm_buf_mode;
 	uint32_t is_static_map;
 };
 

@@ -213,6 +213,8 @@ struct camera_frame {
 	struct sprd_img_pdaf_info pdaf_info;
 	struct dcam_dev_lscm_param lscm_info;
 	struct img_slice_info slice_info;
+
+	struct sprd_img_ltm_info ltm_info;
 };
 
 enum camera_frame_type {

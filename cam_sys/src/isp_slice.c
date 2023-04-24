@@ -2892,7 +2892,7 @@ static int ispslice_3dnr_set(
 }
 
 static int ispslice_ltm_info_cfg(struct isp_ltm_ctx_desc *ltm_ctx,
-		struct isp_slice_context *slc_ctx)
+		struct isp_slice_context *slc_ctx, void *cfg_in)
 {
 	int ret = 0, idx = 0;
 	struct isp_ltm_rtl_param rtl_param;
@@ -2935,7 +2935,7 @@ static int ispslice_ltm_info_cfg(struct isp_ltm_ctx_desc *ltm_ctx,
 		slice_info[2] = cur_slc->slice_pos.end_col;
 		slice_info[3] = cur_slc->slice_pos.end_row;
 
-		isp_ltm_map_slice_config_gen(ltm_ctx, prtl, slice_info);
+		isp_ltm_map_slice_config_gen(ltm_ctx, prtl, slice_info, cfg_in);
 
 		slc_ltm_map->tile_width = map->tile_width;
 		slc_ltm_map->tile_height = map->tile_height;
@@ -3048,7 +3048,7 @@ int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 	ispslice_store_info_cfg(cfg_in, slc_ctx);
 	ispslice_3dnr_info_cfg(cfg_in, slc_ctx);
 	if (in_ptr->ltm_rgb_eb)
-		ispslice_ltm_info_cfg(in_ptr->rgb_ltm, slc_ctx);
+		ispslice_ltm_info_cfg(in_ptr->rgb_ltm, slc_ctx, &in_ptr->nofilter_ctx->ltm_rgb_info);
 	if (in_ptr->gtm_rgb_eb)
 		ispslice_gtm_info_cfg(in_ptr->rgb_gtm, slc_ctx);
 	ispslice_noisefilter_info_cfg(cfg_in, slc_ctx);

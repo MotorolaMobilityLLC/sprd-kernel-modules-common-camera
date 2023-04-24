@@ -516,6 +516,15 @@ struct sprd_img_pdaf_info {
 	struct pdaf_roi_info roi_info;
 };
 
+struct sprd_img_ltm_info {
+	uint32_t tile_num_x;
+	uint32_t tile_num_y;
+	uint32_t tile_width;
+	uint32_t tile_height;
+	uint32_t frame_width;
+	uint32_t frame_height;
+};
+
 struct sprd_img_statis_info {
 	uint32_t irq_type;
 	uint32_t irq_property;
@@ -542,6 +551,7 @@ struct sprd_img_statis_info {
 	struct sprd_img_afm_info afmInfo;
 	struct sprd_img_pdaf_info pdInfo;
 	struct dcam_dev_lscm_param lscmInfo;
+	struct sprd_img_ltm_info ltm_info;
 };
 
 struct sprd_irq_info {
@@ -740,6 +750,7 @@ struct sprd_img_frm_info {
 	struct sprd_img_afm_info afm_info;
 	struct sprd_img_pdaf_info pdaf_info;
 	struct dcam_dev_lscm_param lscm_info;
+	struct sprd_img_ltm_info ltm_info;
 };
 #pragma pack(pop)
 

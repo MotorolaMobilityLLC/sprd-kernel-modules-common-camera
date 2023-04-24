@@ -2299,6 +2299,7 @@ int cam_scene_ispoffline_desc_get(void *module_ptr, void *channel_ptr,
 	isp_node_description->slw_state = CAM_SLOWMOTION_OFF;
 	isp_node_description->ch_id = channel->ch_id;
 	isp_node_description->sn_size = module->cam_uinfo.sn_size;
+	isp_node_description->ultra_cap_en = module->cam_uinfo.dcam_slice_mode ? CAM_ENABLE : CAM_DISABLE;
 	isp_node_description->share_buffer = (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.need_share_buf &&
 		!module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1);
 	if (channel->ch_uinfo.is_high_fps)

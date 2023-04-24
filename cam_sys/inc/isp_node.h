@@ -80,6 +80,7 @@ struct isp_node_uinfo {
 
 struct isp_node_desc {
 	enum cam_en_status is_dual;
+	enum cam_en_status ultra_cap_en;
 	enum cam_node_type node_type;
 	enum isp_3dnr_mode mode_3dnr;
 	enum isp_ltm_mode mode_ltm;
@@ -122,6 +123,7 @@ struct isp_node {
 	atomic_t user_cnt;
 	enum cam_en_status is_bind;
 	enum cam_en_status is_dual;
+	enum cam_en_status ultra_cap_en;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;
