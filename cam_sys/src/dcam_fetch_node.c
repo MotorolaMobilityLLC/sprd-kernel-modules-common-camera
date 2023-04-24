@@ -801,10 +801,10 @@ void dcam_fetch_node_put(struct dcam_fetch_node *node)
 	}
 
 	CAM_QUEUE_CLEAN(&node->online_node.port_queue, struct dcam_online_port, list);
+	camthread_stop(&node->thread);
+	CAM_QUEUE_CLEAN(&node->in_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&node->proc_queue, struct cam_frame, list);
 	if (atomic_dec_return(&node->user_cnt) == 0) {
-		camthread_stop(&node->thread);
-		CAM_QUEUE_CLEAN(&node->in_queue, struct cam_frame, list);
-		CAM_QUEUE_CLEAN(&node->proc_queue, struct cam_frame, list);
 		memset(&node->online_node.nr3_me, 0, sizeof(struct nr3_me_data));
 		if (atomic_read(&node->online_node.pm_cnt) > 0)
 			dcam_online_node_pmctx_deinit(&node->online_node);
