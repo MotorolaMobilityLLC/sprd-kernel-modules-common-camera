@@ -117,13 +117,13 @@ static int camscene_outport_type_get(uint32_t type, uint32_t isp_outport_type)
 
 	switch (type) {
 	case PIPELINE_PREVIEW_TYPE:
-		outport_type = isp_outport_type ? PORT_PRE_ISP_YUV_SCALER_OUT : PORT_PRE_OUT;
+		outport_type = isp_outport_type == ISP_SCALER_OUT ? PORT_PRE_ISP_YUV_SCALER_OUT : PORT_PRE_OUT;
 		break;
 	case PIPELINE_CAPTURE_TYPE:
-		outport_type = isp_outport_type ? PORT_CAP_ISP_YUV_SCALER_OUT : PORT_CAP_OUT;
+		outport_type = isp_outport_type == ISP_SCALER_OUT ? PORT_CAP_ISP_YUV_SCALER_OUT : PORT_CAP_OUT;
 		break;
 	case PIPELINE_VIDEO_TYPE:
-		outport_type = isp_outport_type ? PORT_VID_ISP_YUV_SCALER_OUT : PORT_VID_OUT;
+		outport_type = isp_outport_type == ISP_SCALER_OUT ? PORT_VID_ISP_YUV_SCALER_OUT : PORT_VID_OUT;
 		break;
 	default:
 		pr_err("fail to get invalid pipeline_prev_type %d\n", type);
@@ -211,10 +211,6 @@ static void camscene_preview_pipeline_get(struct cam_pipeline_topology *param, v
 	cur_node->outport[outport_type].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[outport_type].link.node_type = CAM_NODE_TYPE_USER;
 	cur_node->outport[outport_type].link.port_id = PORT_USER_IN;
-	cur_node->outport[outport_type].link_state = PORT_LINK_NORMAL;
-	cur_node->outport[outport_type].link.node_type = CAM_NODE_TYPE_USER;
-	cur_node->outport[outport_type].link.port_id = PORT_USER_IN;
-
 }
 
 static void camscene_onlineyuv_2_user_2_offlineyuv_2_nr_get(struct cam_pipeline_topology *param, void *input)

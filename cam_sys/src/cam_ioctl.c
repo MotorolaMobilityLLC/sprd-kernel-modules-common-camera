@@ -1591,9 +1591,6 @@ check:
 				dcam_idx++;
 				goto check;
 			}
-			pr_err("fail to get dcam%d\n", dcam_idx);
-			ret = -EINVAL;
-			goto no_dcam;
 		}
 		module->dcam_dev_handle = dcam;
 		module->dcam_idx = dcam_idx;
@@ -1652,8 +1649,6 @@ no_isp:
 dcam_fail:
 	dcam_core_pipe_dev_put(dcam, (void *)&grp->s_dcam_dev);
 	module->dcam_dev_handle = NULL;
-no_dcam:
-	pr_err("fail to get camera res for sensor: %d\n", res.sensor_id);
 
 stop_thrd:
 	camthread_stop(&module->zoom_thrd);

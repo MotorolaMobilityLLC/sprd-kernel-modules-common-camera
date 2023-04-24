@@ -69,10 +69,6 @@ static void *ispscaler_node_context_bind(void *node, int slice_need, isp_irq_pos
 		}
 	}
 
-	/* force fmcu used, we will retry */
-	if (use_fmcu & FMCU_IS_MUST)
-		goto exit;
-
 exit:
 	spin_unlock_irqrestore(&dev->ctx_lock, flag);
 

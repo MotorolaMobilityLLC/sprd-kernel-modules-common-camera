@@ -296,16 +296,6 @@ enum alg_types {
 	ALG_TYPE_MAX,
 };
 
-enum raw_alg_types {
-	RAW_ALG_TYPE_DEFAULT,
-	RAW_ALG_FDR_V1,
-	RAW_ALG_FDR_V2,
-	RAW_ALG_AI_SFNR,
-	RAW_ALG_MFNR,
-	RAW_ALG_XDR,
-	RAW_ALG_TYPE_MAX,
-};
-
 enum cam_rawdata_src {
 	CAM_RAW_SEL_DEFAULT,
 	CAM_ORI_RAW_SEL,
@@ -314,6 +304,16 @@ enum cam_rawdata_src {
 	CAM_BPC_RAW_SEL,
 	CAM_NLM_RAW_SEL,
 	CAM_RAW_SEL_MAX
+};
+
+enum raw_alg_types {
+	RAW_ALG_TYPE_DEFAULT,
+	RAW_ALG_FDR_V1,
+	RAW_ALG_FDR_V2,
+	RAW_ALG_AI_SFNR,
+	RAW_ALG_MFNR,
+	RAW_ALG_XDR,
+	RAW_ALG_TYPE_MAX,
 };
 
 enum cam_node_frmsel_mode {
@@ -573,22 +573,6 @@ struct sprd_vir_ch_info {
 	struct sprd_img_size dst_size;
 };
 
-#pragma pack(push, 4)
-struct sprd_img_postproc_param {
-	enum cam_postproc_scene scene_mode;
-	uint32_t channel_id;
-	uint32_t index;
-	struct sprd_img_size src_size;
-	struct sprd_img_size dst_size;
-	uint32_t fd_array[SPRD_IMG_POSTPROC_BUF_CNT];
-	void __user *blk_param;
-	uint32_t src_imgfmt;
-	uint32_t dst_imgfmt;
-	struct sprd_img_frm_addr frame_addr_vir_array[SPRD_IMG_POSTPROC_BUF_CNT];
-	uint32_t reserved[4];
-};
-#pragma pack(pop)
-
 struct sprd_img_parm {
 	uint32_t                  channel_id;
 	uint32_t                  frame_base_id;
@@ -636,6 +620,22 @@ struct sprd_img_parm {
 	struct sprd_vir_ch_info   vir_ch_info[VIR_CH_NUM];
 	uint32_t                  reserved[4];
 };
+
+#pragma pack(push, 4)
+struct sprd_img_postproc_param {
+	enum cam_postproc_scene scene_mode;
+	uint32_t channel_id;
+	uint32_t index;
+	struct sprd_img_size src_size;
+	struct sprd_img_size dst_size;
+	uint32_t fd_array[SPRD_IMG_POSTPROC_BUF_CNT];
+	void __user *blk_param;
+	uint32_t src_imgfmt;
+	uint32_t dst_imgfmt;
+	struct sprd_img_frm_addr frame_addr_vir_array[SPRD_IMG_POSTPROC_BUF_CNT];
+	uint32_t reserved[4];
+};
+#pragma pack(pop)
 
 #pragma pack(push, 4)
 struct sprd_img_function_mode {
