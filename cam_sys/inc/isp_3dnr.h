@@ -303,7 +303,7 @@ struct isp_3dnr_ctx_desc {
 	struct dcam_compress_info fbc_info;
 	struct isp_3dnr_fbc_store nr3_fbc_store;
 	struct isp_3dnr_fbd_fetch nr3_fbd_fetch;
-	struct camera_frame nr3_frame[ISP_NR3_BUF_NUM];
+	struct camera_frame_buf nr3_frame[ISP_NR3_BUF_NUM];
 	struct ImageRegion_Info image_region_info[MAX_SLICE_NUM];
 };
 
