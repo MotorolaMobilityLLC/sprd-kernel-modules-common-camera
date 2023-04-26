@@ -108,7 +108,7 @@ int sprd_sensor_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 			     int sensor_id);
 int sprd_sensor_k_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 			       int sensor_id);
-int sprd_sensor_write_i2c(struct sensor_i2c_tag *i2c_tab, int sensor_id);
+int sprd_sensor_write_i2c(struct sensor_i2c_tag *i2c_tab, int sensor_id, bool is_user_data);
 int sprd_sensor_read_i2c(struct sensor_i2c_tag *i2c_tab, int sensor_id);
 int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c);
 void sprd_sensor_unregister_driver(void);

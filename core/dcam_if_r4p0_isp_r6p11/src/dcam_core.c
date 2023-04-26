@@ -1938,7 +1938,7 @@ static void sprd_img_set_vcm_pos(struct sprd_img_vcm_param *vcm_info)
 	i2c_tab.i2c_count = vcm_info->vcm_i2c_count;
 	i2c_tab.slave_addr = vcm_info->vcm_slave_addr;
 
-	sprd_sensor_write_i2c(&i2c_tab, 0);
+	sprd_sensor_write_i2c(&i2c_tab, 0, 0);
 }
 
 static int sprd_img_pulse_line_done(struct camera_info *info)

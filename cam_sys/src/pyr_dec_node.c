@@ -1479,20 +1479,23 @@ int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 			mutex_lock(&node->blkpm_q_lock);
 			decblk_frame = CAM_QUEUE_DEQUEUE(&node->param_buf_queue, struct cam_frame, list);
 			mutex_unlock(&node->blkpm_q_lock);
-			if (!ret)
+			if (decblk_frame)
 				pr_debug("pyr dec node deq param fid %d\n", decblk_frame->dec_blk.fid);
 		}
 
-		decblk_frame->dec_blk.fid = param_status->frame_id;
-		if (decblk_frame->dec_blk.decblk_pm)
-			memcpy(decblk_frame->dec_blk.decblk_pm, &node->decblk_param, sizeof(struct dcam_isp_k_block));
-		else
-			pr_warn("warning:get decblk frame, but not decblk_pm.\n");
-		ret = CAM_QUEUE_ENQUEUE(&node->param_buf_queue, &decblk_frame->list);
-		if (ret) {
-			pr_err("fail to enquene dec param_buf_queue:state:%d, cnt:%d\n", node->param_buf_queue.state, node->param_buf_queue.cnt);
-			CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);
-		}
+		if (decblk_frame) {
+			decblk_frame->dec_blk.fid = param_status->frame_id;
+			if (decblk_frame->dec_blk.decblk_pm) {
+				memcpy(decblk_frame->dec_blk.decblk_pm, &node->decblk_param, sizeof(struct dcam_isp_k_block));
+				ret = CAM_QUEUE_ENQUEUE(&node->param_buf_queue, &decblk_frame->list);
+				if (ret) {
+					pr_err("fail to enquene dec param_buf_queue:state:%d, cnt:%d\n", node->param_buf_queue.state, node->param_buf_queue.cnt);
+				CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);
+				}
+			} else
+				pr_warn("warning:get decblk frame, but not decblk_pm.\n");
+		} else
+			pr_warn("warning:not get decblk frame.\n");
 	}
 
 	return ret;
