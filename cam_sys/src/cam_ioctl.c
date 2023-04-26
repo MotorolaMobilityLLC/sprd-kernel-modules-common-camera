@@ -1406,7 +1406,6 @@ static int camioctl_stream_off(struct camera_module *module,
 	cam_buf_manager_buf_clear(&pool_id, (void *)module->grp->global_buf_manager);
 	if (running && atomic_dec_return(&module->grp->runner_nr) == 0) {
 		module->isp_dev_handle->isp_ops->reset(module->isp_dev_handle, hw);
-		cam_queue_frame_array_check(CAM_FRAME_CHECK_QUEUE_OUT);
 	}
 	atomic_set(&module->state, CAM_IDLE);
 
