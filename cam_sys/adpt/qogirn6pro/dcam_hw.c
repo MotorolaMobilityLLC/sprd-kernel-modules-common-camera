@@ -2684,6 +2684,11 @@ static int dcamhw_slw_fmcu_cmds(void *handle, void *arg)
 			cmd = slw->store_info[i].store_addr.addr_ch0;
 			DCAM_FMCU_PUSH(fmcu, addr, cmd);
 			break;
+		case DCAM_PATH_PDAF:
+			addr = DCAM_GET_REG(fmcu->hw_ctx_id, DCAM_PDAF_BASE_WADDR);
+			cmd = slw->store_info[i].store_addr.addr_ch0;
+			DCAM_FMCU_PUSH(fmcu, addr, cmd);
+			break;
 		case DCAM_PATH_GTM_HIST:
 			break;
 		default :

@@ -932,7 +932,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 		}
 		break;
 	}
-	pr_debug("path%s set no.%d buffer done!pitch:%d.\n", cam_port_name_get(port_id), hw_ctx->slw_idx, dcam_port->out_pitch);
+	pr_debug("path %s set no.%d buffer done!pitch:%d.\n", cam_port_name_get(port_id), hw_ctx->slw_idx, dcam_port->out_pitch);
 	return ret;
 }
 
