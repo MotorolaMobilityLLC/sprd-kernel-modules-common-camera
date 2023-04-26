@@ -861,6 +861,11 @@ static int dcamoffline_recovery(void *handle)
 	node = VOID_PTR_TO(handle, struct dcam_offline_node);
 	pr_info("offline node recovery start\n");
 
+	if (node->hw_ctx == NULL) {
+		pr_info("hw_ctx is NULL, No recovery\n");
+		return 0;
+	}
+
 	atomic_set(&node->status, STATE_ERROR);
 	if (node->hw_ctx->slice_info.slice_num > 0 && node->hw_ctx->slice_info.slice_count > 1)
 		complete(&node->slice_done);

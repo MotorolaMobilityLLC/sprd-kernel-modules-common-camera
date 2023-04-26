@@ -93,7 +93,7 @@ static irqreturn_t dcamintcommon_error_handler_param(struct dcam_hw_context *dca
 		}
 	}
 
-	if (dcam_hw_ctx->is_offline_proc) {
+	if (dcam_hw_ctx->is_offline_proc && (status & DCAMINT_FATAL_ERROR)) {
 		irq_desc.dcam_cb_type = CAM_CB_DCAM_DEV_ERR;
 		dcam_hw_ctx->dcam_irq_cb_func(&irq_desc, dcam_hw_ctx->dcam_irq_cb_handle);
 		return IRQ_HANDLED;
@@ -152,6 +152,10 @@ static irqreturn_t dcamintcommon_isr_root(int irq, void *priv)
 	/* Interrupt err pro: may need to put it into isr_root */
 	if (unlikely(DCAMINT_ALL_ERROR & irq_status.status)) {
 		dcamintcommon_error_handler_param(dcam_hw_ctx, irq_status.status);
+		if (irq_status.status & DCAMINT_FATAL_ERROR) {
+			ret = IRQ_HANDLED;
+			goto exit;
+		}
 		irq_status.status &= (~DCAMINT_ALL_ERROR);
 	}
 
