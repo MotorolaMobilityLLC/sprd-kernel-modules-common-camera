@@ -1986,12 +1986,7 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 
 	if (fbc_arg->compress_en == 0)
 		return 0;
-	if (fbc_arg->fmt & CAM_RAW_BASE) {
-		if (fbc_arg->data_bits == CAM_8_BITS)
-			afbc_mode = 9;
-		else
-			afbc_mode = 0xC;
-	} else if ((fbc_arg->fmt == CAM_YUV420_2FRAME) || (fbc_arg->fmt == CAM_YVU420_2FRAME) ||
+	if ((fbc_arg->fmt == CAM_YUV420_2FRAME) || (fbc_arg->fmt == CAM_YVU420_2FRAME) ||
 				(fbc_arg->fmt == CAM_YVU420_2FRAME_MIPI) || (fbc_arg->fmt == CAM_YVU420_2FRAME_MIPI)) {
 		if (fbc_arg->data_bits == CAM_8_BITS)
 			afbc_mode = 5;
@@ -2023,12 +2018,8 @@ static int dcamhw_fbc_ctrl(void *handle, void *arg)
 		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_6 | BIT_7, val << 6);
 		DCAM_REG_MWR(fbc_arg->idx, addr, 0xF << 16, color_format << 16);
 		DCAM_REG_MWR(fbc_arg->idx, addr, BIT_0, 0);
-		if (fbc_arg->path_id == DCAM_PATH_FULL) {
-			DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_8, BIT_8);
-			DCAM_REG_MWR(fbc_arg->idx, DCAM_STORE4_PARAM, BIT_0, 1);
-		}
-		else
-			DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_4, BIT_4);
+		DCAM_REG_MWR(fbc_arg->idx, DCAM_PATH_SEL, BIT_8, BIT_8);
+		DCAM_REG_MWR(fbc_arg->idx, DCAM_STORE4_PARAM, BIT_0, 1);
 	}
 
 	return 0;
@@ -2052,8 +2043,6 @@ static int dcamhw_fbc_addr_set(void *handle, void *arg)
 		DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_Y_HEADER, fbcadr->frame_addr[0]);
 		DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_Y_ADDR, fbcadr->frame_addr[1]);
 		DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_OFFSET, fbcadr->frame_addr[1] - fbcadr->frame_addr[0]);
-		if (fbcadr->path_id == DCAM_PATH_RAW && fbcadr->data_bits > 10)
-			DCAM_REG_WR(fbcadr->idx, DCAM_FBC_RAW_SLICE_Y_ADDR, fbcadr->frame_addr[2]);
 	}
 
 	return 0;
