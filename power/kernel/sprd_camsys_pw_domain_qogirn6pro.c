@@ -61,6 +61,7 @@ static const char * const syscon_name[] = {
 	"dcam_force_shutdown",
 	"dcam_shutdown_en",
 	"dcam_power_state",
+	"cam_soft_rst_sel",
 	"aon_apb_mm_eb"
 };
 
@@ -74,6 +75,7 @@ enum {
 	CAMSYS_DCAM_FORCE_SHUTDOWN,
 	CAMSYS_DCAM_SHUTDOWN_EN,
 	CAMSYS_DCAM_STATUS,
+	CAMSYS_SOFT_RST_SEL,
 	CAMSYS_MM_EB,
 };
 
@@ -350,6 +352,9 @@ static int sprd_cam_pw_on(struct camsys_power_info *pw_info)
 		ret = -1;
 		goto err_pw_on;
 	}
+
+	regmap_update_bits_mmsys(&pw_info->u.qogirn6pro.regs[CAMSYS_SOFT_RST_SEL], 0);
+
 	pr_info("Done, i %d k %d l %d\n", i, k, l);
 	return 0;
 
