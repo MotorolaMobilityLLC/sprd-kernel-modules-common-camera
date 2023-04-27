@@ -158,6 +158,10 @@ struct cam_port_linkage {
 	uint32_t port_id;
 };
 
+struct camera_frame_buf {
+	struct camera_buf buf;
+};
+
 struct camera_frame {
 	struct cam_port_linkage link_from;
 	struct cam_port_linkage link_to;

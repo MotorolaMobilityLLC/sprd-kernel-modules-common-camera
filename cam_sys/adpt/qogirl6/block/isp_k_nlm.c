@@ -293,8 +293,8 @@ int isp_k_nlm_imblance(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA1,
 		(imblance_info->nlm_imblance_slash_edge_thr[0] & 0xff) |
 		((imblance_info->nlm_imblance_hv_edge_thr[0] & 0xff) << 8) |
-		((imblance_info->nlm_imblance_S_baohedu[0][0] & 0xff) << 16) |
-		((imblance_info->nlm_imblance_S_baohedu[0][1] & 0xff) << 24));
+		((imblance_info->nlm_imblance_S_baohedu[0][1] & 0xff) << 16) |
+		((imblance_info->nlm_imblance_S_baohedu[0][0] & 0xff) << 24));
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA2,
 		(imblance_info->nlm_imblance_slash_flat_thr[0] & 0x3ff) |
 		((imblance_info->nlm_imblance_hv_flat_thr[0] & 0x3ff) << 10));

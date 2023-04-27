@@ -85,4 +85,54 @@ struct debug_cmd {
 int cam_debugger_init(struct cam_hw_info *hw);
 int cam_debugger_deinit(void);
 
+void camdebugger_dcam_bypass_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_dcam_bypass_read(struct seq_file *s, uint32_t idx);
+void camdebugger_isp_bypass_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_isp_bypass_read(struct seq_file *s, uint32_t idx);
+void camdebugger_pyr_dec_bypass_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_pyr_dec_bypass_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_recovery_bypass_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_recovery_bypass_read(struct seq_file *s, uint32_t idx);
+void camdebugger_isp_pyr_dec_bypass_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_isp_pyr_dec_bypass_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_dcam_reg_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_zoom_mode_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_zoom_mode_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_fbc_control_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_fbc_control_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_replace_control_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_replace_control_read(struct seq_file *s, uint32_t idx);
+void camdebugger_replace_file_fmt_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_replace_switch_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_replace_switch_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_dump_switch_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_dump_switch_read(struct seq_file *s, uint32_t idx);
+void camdebugger_dump_control_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_dump_control_read(struct seq_file *s, uint32_t idx);
+void camdebugger_dump_count_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+
+void camdebugger_dcamint_eof_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_dcamint_eof_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_memory_leak_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+
+void camdebugger_rawcap_frgb_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_rawcap_frgb_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_pipeline_log_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_pipeline_log_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_reg_buf_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_iommu_mode_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_iommu_mode_read(struct seq_file *s, uint32_t idx);
+
+void camdebugger_lbuf_len_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
+void camdebugger_lbuf_len_read(struct seq_file *s, uint32_t idx);
 #endif

@@ -1337,10 +1337,16 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	ret = dcam_init_lsc(pm, 1);
 	if (ret < 0) {
 		pr_err("fail to init lsc\n");
-		return ret;
+		goto err;
 	}
-	if (node->slw_type == DCAM_SLW_FMCU)
+
+	if (node->slw_type == DCAM_SLW_FMCU) {
 		ret = dcamonline_fmcu_slw_set(node);
+		if (ret < 0) {
+			pr_err("fail to set slw fmcu\n");
+			goto err;
+		}
+	}
 
 	if (pm->afl.afl_info.bypass == 0) {
 		port = dcam_online_node_port_get(node, PORT_AFL_OUT);
@@ -1393,6 +1399,11 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 	}
 	pr_info("dcam%d done state = %d\n", node->hw_ctx_id, atomic_read(&node->state));
+
+	return ret;
+err:
+	if (node->resbuf_get_cb && (node->nr3_frm))
+		node->resbuf_get_cb(RESERVED_BUF_SET_CB, node->nr3_frm, node->resbuf_cb_data);
 	return ret;
 }
 

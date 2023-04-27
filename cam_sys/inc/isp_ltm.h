@@ -150,7 +150,7 @@ struct isp_ltm_sync {
 	atomic_t wait_completion;
 	struct completion share_comp;
 	struct mutex share_mutex;
-	struct camera_frame ltm_frame[ISP_LTM_BUF_NUM];
+	struct camera_frame_buf ltm_frame[ISP_LTM_BUF_NUM];
 };
 
 enum isp_ltm_cfg_cmd {
@@ -199,7 +199,7 @@ struct isp_ltm_ctx_desc {
 
 	struct isp_ltm_hists hists;
 	struct isp_ltm_map map;
-	struct camera_frame ltm_frame[ISP_LTM_BUF_NUM];
+	struct camera_frame_buf ltm_frame[ISP_LTM_BUF_NUM];
 
 	struct isp_ltm_sync *sync;
 	struct isp_ltm_ops ltm_ops;

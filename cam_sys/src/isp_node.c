@@ -597,8 +597,13 @@ static int ispnode_fmcu_slw_queue_set(struct isp_fmcu_ctx_desc *fmcu, struct isp
 	port_cfg.vid_valid = vid_valid;
 	port_cfg.uinfo = &inode->uinfo;
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
-		if (atomic_read(&port->user_cnt) > 0)
+		if (atomic_read(&port->user_cnt) > 0) {
 			ret |= port->port_cfg_cb_func(&port_cfg, ISP_PORT_SLOWMOTION, port);
+			if (ret) {
+				pr_err("fail to set queue for slowmotion. port:%d\n", port->port_id);
+				return ret;
+			}
+		}
 	}
 
 	slw.fmcu_handle = fmcu;
