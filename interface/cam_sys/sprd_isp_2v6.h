@@ -42,6 +42,7 @@
 
 #define PARAM_BUF_NUM_MAX        32
 #define STATIS_BUF_NUM_MAX       8
+#define CAMERA_PARAM_NUM_MAX     20
 
 #define STATIS_AEM_HEADER_SIZE   512
 #define STATIS_HIST_HEADER_SIZE  128
@@ -446,6 +447,19 @@ struct isp_io_param {
 	void  __user  *property_param;
 };
 
+struct isp_buf_param {
+	uint32_t stream_type;
+	uint32_t frame_id;
+	uint32_t mfd;
+	uint32_t offset;
+};
+
+struct isp_buf_param_init {
+	/* for init all */
+	int32_t mfd_array[CAMERA_PARAM_NUM_MAX];
+	uint32_t offset;
+};
+
 struct isp_addr {
 	unsigned long	chn0;
 	unsigned long	chn1;
@@ -516,6 +530,7 @@ struct dcam_dev_raw_gtm_bypass {
 
 struct dcam_dev_raw_gtm_block_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t gtm_tm_out_bit_depth;
 	uint32_t gtm_tm_in_bit_depth;
 	uint32_t gtm_tm_luma_est_mode;
@@ -620,6 +635,7 @@ struct isp_cnr_h_info {
 
 struct isp_dev_cnr_h_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t radius_base;
 	struct isp_cnr_h_info layer_cnr_h[CNR_H_LAYER_NUM];
@@ -647,6 +663,7 @@ struct isp_post_cnr_h {
 
 struct isp_dev_post_cnr_h_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t radius_base;
 	struct isp_post_cnr_h param_post_cnr_h;
@@ -1066,6 +1083,7 @@ struct dcam_dev_vc2_control {
 
 struct isp_3dnr_blend_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t filter_switch;
 	uint32_t fusion_mode;
@@ -1180,6 +1198,7 @@ struct isp_3dnr_fast_me {
 
 struct isp_dev_3dnr_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	struct isp_3dnr_fast_me fast_me;
 	struct isp_3dnr_blend_info blend;
 };
@@ -1198,24 +1217,28 @@ struct isp_dev_3dnr_info_v1 {
 
 struct isp_dev_brightness_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t factor;
 };
 
 struct isp_dev_contrast_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t factor;
 };
 
 struct isp_dev_csa_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t csa_factor_u;
 	uint32_t csa_factor_v;
 };
 
 struct isp_dev_hue_info {
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t hua_cos_value;
 	uint32_t hua_sin_value;
@@ -1223,12 +1246,14 @@ struct isp_dev_hue_info {
 
 struct isp_dev_hue_info_l3 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t theta;
 };
 
 struct isp_dev_bchs_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bchs_bypass;
 	uint32_t cnta_en;
 	uint32_t brta_en;
@@ -1244,6 +1269,7 @@ struct isp_dev_bchs_info {
 
 struct isp_dev_cce_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint16_t matrix[9];
 	uint16_t y_offset;
@@ -1253,6 +1279,7 @@ struct isp_dev_cce_info {
 
 struct isp_dev_cdn_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t filter_bypass;
 	uint32_t median_writeback_en;
@@ -1270,6 +1297,7 @@ struct isp_dev_cdn_info {
 
 struct isp_dev_cfa_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t css_bypass;
 	uint32_t grid_thr;
@@ -1343,6 +1371,7 @@ struct cmc_matrix {
 
 struct isp_dev_cmc10_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	struct cmc_matrix matrix;
 };
@@ -1354,6 +1383,7 @@ struct edge_pn_config {
 
 struct isp_dev_edge_info_v2 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t flat_smooth_mode;
 	uint32_t edge_smooth_mode;
@@ -1417,6 +1447,7 @@ struct isp_dev_edge_info_v2 {
 
 struct isp_dev_edge_info_v3 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t radius_base;
 
@@ -1517,6 +1548,7 @@ struct isp_dev_edge_info_v3 {
 
 struct isp_dev_gamma_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint8_t gain_r[ISP_FRGB_GAMMA_PT_NUM];
 	uint8_t gain_g[ISP_FRGB_GAMMA_PT_NUM];
@@ -1538,6 +1570,7 @@ struct grgb_param {
 
 struct isp_dev_grgb_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t diff_thd;
 	uint32_t hv_edge_thr;
@@ -1560,6 +1593,7 @@ struct isp_dev_hist_info {
 
 struct isp_dev_hist2_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t mode;
 	uint32_t skip_num;
@@ -1584,6 +1618,7 @@ struct hsv_data {
 
 struct isp_dev_hsv_info_v2 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t  bypass;
 	struct isp_dev_hsv_curve_info curve_info;
 	uint32_t size;
@@ -1621,6 +1656,7 @@ struct hsv_buf_param{
 
 struct isp_dev_hsv_info_v3 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t  hsv_bypass;
 	struct hsv_buf_param buf_param;
 	uint32_t  hsv_delta_value_en;
@@ -1633,6 +1669,7 @@ struct isp_dev_hsv_info_v3 {
 
 struct isp_dev_hsv_info_v4 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t  hsv_bypass;
 	struct hsv_buf_param buf_param;
 	uint32_t  hsv_delta_value_en;
@@ -1647,12 +1684,14 @@ struct isp_dev_hsv_info_v4 {
 
 struct isp_dev_3dlut_info{
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t rgb3dlut_bypass;
 	uint32_t rgb3dlut_ct_table[729][6];
 };
 
 struct isp_dev_iircnr_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t mode;
 	uint32_t uv_th;
@@ -1689,6 +1728,7 @@ struct isp_dev_iircnr_info {
 
 struct isp_dev_dct_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t shrink_en;
 	uint32_t addback_en;
@@ -1746,6 +1786,7 @@ struct isp_dev_dct_info {
 
 struct isp_dev_nlm_imblance {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t nlm_imblance_en;
 	uint32_t nlm_imblance_hv_edge_thr;
 	uint32_t nlm_imblance_slash_edge_thr;
@@ -1785,6 +1826,7 @@ struct isp_dev_nlm_imblance {
 
 struct isp_dev_nlm_imblance_v1 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t nlm_imblance_bypass;
 	uint32_t imblance_radial_1D_en;
 	uint32_t nlm_imblance_hv_edge_thr[3];
@@ -1848,6 +1890,7 @@ struct isp_dev_nlm_imblance_v1 {
 
 struct isp_dev_nlm_imblance_v2 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t nlm_imblance_bypass;
 	uint32_t imblance_radial_1D_en;
 	uint32_t nlm_imblance_hv_edge_thr[3];
@@ -1923,6 +1966,7 @@ struct lum_flat_param {
 
 struct isp_dev_nlm_info_v2 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t imp_opt_bypass;
 	uint32_t flat_opt_bypass;
@@ -1988,6 +2032,7 @@ struct cdn_thruv {
 #pragma pack(4)
 struct isp_dev_post_cdn_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t downsample_bypass;
 	uint32_t mode;
@@ -2008,6 +2053,7 @@ struct isp_dev_post_cdn_info {
 #pragma pack(4)
 struct isp_dev_pre_cdn_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t mode;
 	uint32_t median_writeback_en;
@@ -2029,6 +2075,7 @@ struct isp_dev_pre_cdn_info {
 #pragma pack(4)
 struct isp_dev_posterize_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	unsigned char posterize_level_bottom[POSTERIZE_NUM];
 	unsigned char posterize_level_top[POSTERIZE_NUM];
@@ -2040,6 +2087,7 @@ struct isp_dev_posterize_info {
 #pragma pack(4)
 struct isp_dev_posterize_info_v2 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t  bypass;
 	uint32_t  sample_en;
 	uint8_t pstrz_r_data[POSTERIZE_NUM2];
@@ -2055,6 +2103,7 @@ struct uvd_th {
 
 struct isp_dev_uvd_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t chk_sum_clr_en;
 	uint32_t lum_th_h_len;
@@ -2079,6 +2128,7 @@ struct isp_dev_uvd_info {
 
 struct isp_dev_uvd_info_v2 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t chk_sum_clr_en;
 	uint32_t lum_th_h_len;
@@ -2102,6 +2152,7 @@ struct isp_dev_uvd_info_v2 {
 
 struct isp_dev_uvd_info_v1 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t y_th_l_len;
 	uint32_t y_th_h_len;
@@ -2128,12 +2179,14 @@ struct isp_dev_uvd_info_v1 {
 #pragma pack(4)
 struct isp_dev_ygamma_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint8_t gain[ISP_YUV_GAMMA_NUM];
 };
 
 struct isp_dev_ygamma_info_v1 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t gain[ISP_YUV_GAMMA_NUM_V1];
 };
@@ -2141,6 +2194,7 @@ struct isp_dev_ygamma_info_v1 {
 
 struct isp_dev_ynr_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t lowlux_bypass;
 	uint32_t nr_enable;
@@ -2175,6 +2229,7 @@ struct isp_dev_ynr_info {
 /* new ynr: all updated. */
 struct isp_dev_ynr_info_v2 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t l3_addback_enable;
 	uint32_t l2_addback_enable;
@@ -2348,6 +2403,7 @@ struct isp_ynr_layer{
 
 struct isp_dev_ynr_info_v3 {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t radius;
 	uint32_t radius_base;
@@ -2359,6 +2415,7 @@ struct isp_dev_ynr_info_v3 {
 
 struct isp_dev_yrandom_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t bypass;
 	uint32_t mode;
 	uint32_t seed;
@@ -2369,6 +2426,7 @@ struct isp_dev_yrandom_info {
 
 struct isp_dev_noise_filter_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	uint32_t yrandom_bypass;
 	uint32_t shape_mode;
 	uint32_t filter_thr_mode;
@@ -2482,6 +2540,7 @@ struct isp_dev_rgb_ltm_map_info {
 
 struct isp_dev_rgb_ltm_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	struct isp_dev_rgb_ltm_stat_info ltm_stat;
 	struct isp_dev_rgb_ltm_map_info ltm_map;
 };
@@ -2516,6 +2575,7 @@ struct isp_dev_yuv_ltm_map_info {
 
 struct isp_dev_yuv_ltm_info {
 	uint32_t isupdate;
+	uint32_t update_flag;
 	struct isp_dev_yuv_ltm_stat_info ltm_stat;
 	struct isp_dev_yuv_ltm_map_info ltm_map;
 };
