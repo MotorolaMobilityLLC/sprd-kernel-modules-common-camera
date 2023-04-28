@@ -736,6 +736,7 @@ static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
 	uint32_t  slw_mv_cnt = 0;
 	struct cam_frame *frame = NULL;
 	struct dcam_online_port *dcam_port = NULL;
+	struct isp_dev_hist2_info *p = NULL;
 
 	if (irq_proc->slw_cmds_set) {
 		ret = dcamonline_fmcu_slw_set(node);
@@ -815,6 +816,12 @@ static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
 					irq_proc->dcam_port_id = dcam_port->port_id;
 					dcamonline_frame_dispatch(irq_proc, node);
 				} else {
+					if (dcam_port->port_id == PORT_FRGB_HIST_OUT) {
+						p = &node->blk_pm.hist_roi.hist_roi_info;
+						frame->common.width = p->hist_roi.end_x & ~1;
+						frame->common.height = p->hist_roi.end_y & ~1;
+						pr_debug("w %d, h %d\n", frame->common.width, frame->common.height);
+					}
 					irq_proc->param = frame;
 					irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
 					irq_proc->dcam_port_id = dcam_port->port_id;

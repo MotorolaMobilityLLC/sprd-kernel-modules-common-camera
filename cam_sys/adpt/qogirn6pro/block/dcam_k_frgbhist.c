@@ -52,10 +52,10 @@ int dcam_k_frgbhist_block(struct dcam_isp_k_block *param)
 
 	dev = param->dev;
 	hw_ctx = &dev->hw_ctx[idx];
-	if (hw_ctx && hw_ctx->slowmotion_count) {
+	if (hw_ctx && p->skip_num > 0 && hw_ctx->slowmotion_count) {
 		pr_debug("DCAM%u frgb hist ignore skip_num %u, slowmotion_count %u\n",
 			hw_ctx->hw_ctx_id, p->skip_num, hw_ctx->slowmotion_count);
-		p->skip_num = hw_ctx->slowmotion_count - 1;
+		p->skip_num = 0;
 	}
 
 	val = (0 << 12) | ((p->skip_num & 0xff) << 4) | (1 << 2) | ((p->mode & 1) << 1);
@@ -79,43 +79,6 @@ int dcam_k_frgbhist_block(struct dcam_isp_k_block *param)
 
 	return ret;
 
-}
-
-int dcam_k_frgbhist_roi(struct dcam_isp_k_block *param)
-{
-	int ret = 0;
-	uint32_t idx = 0;
-	struct isp_dev_hist2_info *p = NULL;
-
-	if (param == NULL)
-		return -1;
-	idx = param->idx;
-	if (idx >= DCAM_HW_CONTEXT_MAX)
-		return 0;
-
-	/* update ? */
-	if (!(param->hist_roi.update & _UPDATE_ROI))
-		return 0;
-	param->hist_roi.update &= (~(_UPDATE_ROI));
-	p = &(param->hist_roi.hist_roi_info);
-	DCAM_REG_MWR(idx, DCAM_HIST_ROI_CTRL0, BIT_0, p->bypass);
-	if (p->bypass)
-		return 0;
-
-	pr_debug("dcam%d, frgb hist roi (%d %d %d %d)\n", idx,
-		p->hist_roi.start_x, p->hist_roi.start_y,
-		p->hist_roi.end_x, p->hist_roi.end_y);
-
-	DCAM_REG_MWR(idx, DCAM_HIST_ROI_START, 0x1fff1fff,
-			((p->hist_roi.start_y & 0x1fff) << 16) |
-			(p->hist_roi.start_x & 0x1fff));
-
-
-	DCAM_REG_MWR(idx, DCAM_HIST_ROI_END, 0x1fff1fff,
-			((p->hist_roi.end_y & 0x1fff) << 16) |
-			(p->hist_roi.end_x & 0x1fff));
-
-	return ret;
 }
 
 int dcam_k_cfg_frgbhist(struct isp_io_param *param, struct dcam_isp_k_block *p)
