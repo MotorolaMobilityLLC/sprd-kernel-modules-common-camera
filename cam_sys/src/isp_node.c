@@ -424,6 +424,43 @@ static int ispnode_port_param_cfg(struct isp_node *inode, struct isp_hw_context 
 	return ret;
 }
 
+static int ispcore_slw_3dnr_set(struct isp_node *inode, struct isp_3dnr_slw_mem *slw_mem_ctrl,
+	struct isp_3dnr_slw_store *nr3_slw_store, struct isp_port_cfg *port_cfg)
+{
+	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
+
+	if (inode == NULL || port_cfg == NULL) {
+		pr_err("fail to get valid parameter node %p pframe %p\n", inode, port_cfg);
+		return 0;
+	}
+
+	if (inode->uinfo.mode_3dnr != MODE_3DNR_PRE)
+		return 0 ;
+
+	pr_debug("fid %d, valid %d, x %d, y %d, w %u, h %u\n",
+		 port_cfg->src_frame->common.fid, port_cfg->src_frame->common.nr3_me.valid,
+		 port_cfg->src_frame->common.nr3_me.mv_x, port_cfg->src_frame->common.nr3_me.mv_y,
+		 port_cfg->src_frame->common.nr3_me.src_width, port_cfg->src_frame->common.nr3_me.src_height);
+
+	nr3_ctx = (struct isp_3dnr_ctx_desc *)inode->nr3_handle;
+
+	nr3_ctx->ops.cfg_param(nr3_ctx, ISP_3DNR_CFG_SLW_SET, &port_cfg->src_frame->common.nr3_me);
+	slw_mem_ctrl->last_line_mode = nr3_ctx->mem_ctrl.last_line_mode;
+	slw_mem_ctrl->first_line_mode = nr3_ctx->mem_ctrl.first_line_mode;
+	slw_mem_ctrl->ft_y_height = nr3_ctx->mem_ctrl.ft_y_height;
+	slw_mem_ctrl->ft_y_width = nr3_ctx->mem_ctrl.ft_y_width;
+	slw_mem_ctrl->ft_uv_width = nr3_ctx->mem_ctrl.ft_uv_width;
+	slw_mem_ctrl->ft_uv_height = nr3_ctx->mem_ctrl.ft_uv_height;
+	slw_mem_ctrl->mv_x = nr3_ctx->mem_ctrl.mv_x;
+	slw_mem_ctrl->mv_y = nr3_ctx->mem_ctrl.mv_y;
+	slw_mem_ctrl->ft_luma_addr = nr3_ctx->mem_ctrl.ft_luma_addr;
+	slw_mem_ctrl->ft_chroma_addr = nr3_ctx->mem_ctrl.ft_chroma_addr;
+	nr3_slw_store->st_luma_addr = nr3_ctx->nr3_store.st_luma_addr;
+	nr3_slw_store->st_chroma_addr = nr3_ctx->nr3_store.st_chroma_addr;
+
+	return 0;
+}
+
 static int ispnode_3dnr_frame_process(struct isp_node *inode, struct isp_hw_fetch_info *fetch, struct isp_port_cfg *port_cfg)
 {
 	uint32_t mv_version = 0;
@@ -435,9 +472,9 @@ static int ispnode_3dnr_frame_process(struct isp_node *inode, struct isp_hw_fetc
 	}
 
 	pr_debug("fid %d, valid %d, x %d, y %d, w %u, h %u\n",
-			port_cfg->src_frame->common.fid,port_cfg->src_frame->common.nr3_me.valid,
-			port_cfg->src_frame->common.nr3_me.mv_x, port_cfg->src_frame->common.nr3_me.mv_y,
-			port_cfg->src_frame->common.nr3_me.src_width, port_cfg->src_frame->common.nr3_me.src_height);
+		port_cfg->src_frame->common.fid,port_cfg->src_frame->common.nr3_me.valid,
+		port_cfg->src_frame->common.nr3_me.mv_x, port_cfg->src_frame->common.nr3_me.mv_y,
+		port_cfg->src_frame->common.nr3_me.src_width, port_cfg->src_frame->common.nr3_me.src_height);
 
 	mv_version = inode->dev->isp_hw->ip_isp->isphw_abt->nr3_mv_alg_version;
 	nr3_handle = (struct isp_3dnr_ctx_desc *)inode->nr3_handle;
@@ -587,6 +624,8 @@ static int ispnode_fmcu_slw_queue_set(struct isp_fmcu_ctx_desc *fmcu, struct isp
 	int ret = 0;
 	struct isp_port *port = NULL;
 	struct isp_hw_slw_fmcu_cmds slw = {0};
+	struct isp_3dnr_slw_mem slw_mem_ctrl = {0};
+	struct isp_3dnr_slw_store nr3_slw_store = {0};
 	struct isp_port_cfg port_cfg = {0};
 	if (!fmcu)
 		return -EINVAL;
@@ -606,10 +645,14 @@ static int ispnode_fmcu_slw_queue_set(struct isp_fmcu_ctx_desc *fmcu, struct isp
 		}
 	}
 
+	ispcore_slw_3dnr_set(inode, &slw_mem_ctrl, &nr3_slw_store, &port_cfg);
 	slw.fmcu_handle = fmcu;
 	slw.ctx_id = inode->cfg_id;
 	slw.fetchaddr = pctx_hw->pipe_info.fetch.addr;
 	slw.isp_store = pctx_hw->pipe_info.store;
+	slw.mode_3dnr = inode->uinfo.mode_3dnr;
+	slw.slw_mem_ctrl = slw_mem_ctrl;
+	slw.nr3_slw_store = nr3_slw_store;
 	slw.is_compressed = port_cfg.src_frame->common.is_compressed;
 	ret = inode->dev->isp_hw->isp_ioctl(inode->dev->isp_hw, ISP_HW_CFG_SLW_FMCU_CMDS, &slw);
 
@@ -1005,7 +1048,7 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 		return -EINVAL;
 	}
 
-	if (inode->isp_receive_param == NULL && io_param->scene_id == PM_SCENE_PRE) {
+	if (inode->isp_receive_param == NULL && (io_param->scene_id == PM_SCENE_PRE || io_param->scene_id == PM_SCENE_VID)) {
 		pr_warn("warning:not get recive handle, param out of range, isp%d blk %d\n", inode->cfg_id, io_param->sub_block);
 		mutex_unlock(&dev->path_mutex);
 		return 0;

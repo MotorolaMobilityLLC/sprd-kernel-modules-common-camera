@@ -65,11 +65,7 @@ static void ispint_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle
 
 	dev = (struct isp_pipe_dev *)isp_handle;
 	pctx_hw = &dev->hw_ctx[hw_idx];
-
-	if (!pctx_hw->scaler_debug)
-		ispint_hist_value_read(pctx_hw);
-	else
-		return;
+	ispint_hist_value_read(pctx_hw);
 
 	if (pctx_hw->postproc_func)
 		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_HIST_CAL_DONE);

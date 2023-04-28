@@ -2190,6 +2190,8 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_slw_fmcu_cmds *slw = NULL;
 	struct isp_hw_fmcu_cfg cfg;
+	struct isp_3dnr_slw_mem *slw_mem_ctrl = NULL;
+	struct isp_3dnr_slw_store *nr3_slw_store = NULL;
 
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
 		PRE0_SHADOW_DONE, PRE1_SHADOW_DONE,
@@ -2209,6 +2211,8 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 
 	fmcu = slw->fmcu_handle;
 	base = (fmcu->fid == 0) ? ISP_FMCU0_BASE : ISP_FMCU1_BASE;
+	slw_mem_ctrl = &slw->slw_mem_ctrl;
+	nr3_slw_store = &slw->nr3_slw_store;
 	fetch_addr = &slw->fetchaddr;
 	ctx_idx = slw->ctx_id;
 	hw = (struct cam_hw_info *)handle;
@@ -2225,6 +2229,38 @@ static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 		addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_SLICE_U_ADDR);
 		cmd = fetch_addr->addr_ch1;
 		FMCU_PUSH(fmcu, addr, cmd);
+
+		if (slw->mode_3dnr == MODE_3DNR_PRE) {
+			addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM4);
+			cmd = ((slw_mem_ctrl->ft_y_height & 0x1FFF) << 16) |
+				(slw_mem_ctrl->ft_y_width & 0x1FFF);
+			FMCU_PUSH(fmcu, addr, cmd);
+
+			addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM5);
+			cmd = (slw_mem_ctrl->ft_uv_width & 0x1FFF) |
+				((slw_mem_ctrl->ft_uv_height & 0x1FFF) << 16);
+			FMCU_PUSH(fmcu, addr, cmd);
+
+			addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_PARAM7);
+			cmd =  ((slw_mem_ctrl->mv_x  & 0xFF) << 8) | (slw_mem_ctrl->mv_y & 0xFF);
+			FMCU_PUSH(fmcu, addr, cmd);
+
+			addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_LUMA_ADDR);
+			cmd = slw_mem_ctrl->ft_luma_addr;
+			FMCU_PUSH(fmcu, addr, cmd);
+
+			addr = ISP_GET_REG(ISP_3DNR_MEM_CTRL_FT_CUR_CHROMA_ADDR);
+			cmd = slw_mem_ctrl->ft_chroma_addr;
+			FMCU_PUSH(fmcu, addr, cmd);
+
+			addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_Y_ADDR);
+			cmd = nr3_slw_store->st_luma_addr;
+			FMCU_PUSH(fmcu, addr, cmd);
+
+			addr = ISP_GET_REG(ISP_3DNR_STORE_SLICE_U_ADDR);
+			cmd = nr3_slw_store->st_chroma_addr;
+			FMCU_PUSH(fmcu, addr, cmd);
+		}
 	} else {
 		addr = ISP_GET_REG(ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_PARAM1);
 		fetch_addr->addr_ch0 = ALIGN(fetch_addr->addr_ch0, FBC_STORE_ADDR_ALIGN);

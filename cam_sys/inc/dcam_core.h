@@ -40,7 +40,7 @@
 
 /* get index of timestamp from frame index */
 #define tsid(x)                           ((x) & (DCAM_FRAME_TIMESTAMP_COUNT - 1))
-#define DCAM_NR3_MV_MAX                   10
+#define DCAM_NR3_MV_MAX                   16
 
 enum dcam_scaler_type {
 	DCAM_SCALER_BINNING = 0,

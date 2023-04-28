@@ -227,6 +227,7 @@ static void dcamint_fmcu_config_done(void *param)
 	atomic_inc(&dcam_hw_ctx->shadow_config_cnt);
 
 	while (i++ < dcam_hw_ctx->slowmotion_count) {
+		irq_proc.slw_count = i;
 		irq_proc.of = CAP_DATA_DONE;
 		irq_proc.dcam_port_id = PORT_BIN_OUT;
 		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);

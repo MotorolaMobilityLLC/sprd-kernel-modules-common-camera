@@ -193,7 +193,6 @@ void isp_int_common_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 		pr_debug("fmcu started. skip all done, hw_idx %d\n ", hw_idx);
 		return;
 	}
-
 	pr_debug("cxt_id:%d all done.\n", hw_idx);
 	if (pctx_hw->valid_slc_num) {
 		pr_debug("slice done. last %d\n", pctx_hw->is_last_slice);

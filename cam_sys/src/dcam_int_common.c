@@ -93,7 +93,7 @@ static irqreturn_t dcamintcommon_error_handler_param(struct dcam_hw_context *dca
 		}
 	}
 
-	if (dcam_hw_ctx->is_offline_proc) {
+	if (dcam_hw_ctx->is_offline_proc && (status & DCAMINT_FATAL_ERROR)) {
 		irq_desc.dcam_cb_type = CAM_CB_DCAM_DEV_ERR;
 		dcam_hw_ctx->dcam_irq_cb_func(&irq_desc, dcam_hw_ctx->dcam_irq_cb_handle);
 		return IRQ_HANDLED;
@@ -152,6 +152,10 @@ static irqreturn_t dcamintcommon_isr_root(int irq, void *priv)
 	/* Interrupt err pro: may need to put it into isr_root */
 	if (unlikely(DCAMINT_ALL_ERROR & irq_status.status)) {
 		dcamintcommon_error_handler_param(dcam_hw_ctx, irq_status.status);
+		if (irq_status.status & DCAMINT_FATAL_ERROR) {
+			ret = IRQ_HANDLED;
+			goto exit;
+		}
 		irq_status.status &= (~DCAMINT_ALL_ERROR);
 	}
 
@@ -361,7 +365,7 @@ void dcam_int_common_hist_port_done(void *param)
 void dcam_int_common_nr3_port_done(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
-	uint32_t i = 0, fid = 0;
+	uint32_t i = 0, fid = 0, pingpong_en = 0, shift_count = 0;
 	struct dcam_irq_proc irq_proc = {0};
 	struct nr3_done nr3_done_com;
 
@@ -376,14 +380,18 @@ void dcam_int_common_nr3_port_done(void *param)
 	if(nr3_done_com.hw_ctx == 1)
 		return;
 
-	/* currently ping-pong is disabled, mv will always be stored in ping */
-	dcam_hw_ctx->nr3_mv_ctrl[i].mv_x = (nr3_done_com.out0 >> 8) & 0xff;
-	dcam_hw_ctx->nr3_mv_ctrl[i].mv_y = nr3_done_com.out0 & 0xff;
+	/* if ping-pong open, all project first frame will always be stored in ping */
+	pingpong_en = (nr3_done_com.p >> 1) & 0x1;
+	if ((fid % 2) && pingpong_en)
+		shift_count = 16;
+
+	dcam_hw_ctx->nr3_mv_ctrl[i].mv_x = (nr3_done_com.out0 >> (8 + shift_count)) & 0xff;
+	dcam_hw_ctx->nr3_mv_ctrl[i].mv_y = (nr3_done_com.out0 >> shift_count) & 0xff;
 	dcam_hw_ctx->nr3_mv_ctrl[i].src_width = dcam_hw_ctx->cap_info.cap_size.size_x;
 	dcam_hw_ctx->nr3_mv_ctrl[i].src_height = dcam_hw_ctx->cap_info.cap_size.size_y;
 	dcam_hw_ctx->nr3_mv_ctrl[i].valid = 1;
-	pr_debug("dcam%d fid %d, mv_x %d, mv_y %d\n", dcam_hw_ctx->hw_ctx_id, fid,
-		dcam_hw_ctx->nr3_mv_ctrl[i].mv_x, dcam_hw_ctx->nr3_mv_ctrl[i].mv_y);
+	pr_debug("dcam%d fid %d, pingpong_en %d, mv_x %d, mv_y %d\n", dcam_hw_ctx->hw_ctx_id, fid,
+		pingpong_en, dcam_hw_ctx->nr3_mv_ctrl[i].mv_x, dcam_hw_ctx->nr3_mv_ctrl[i].mv_y);
 
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.is_nr3_done = 1;

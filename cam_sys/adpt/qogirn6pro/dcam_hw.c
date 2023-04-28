@@ -1160,6 +1160,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 static int dcamhw_path_start(void *handle, void *arg)
 {
 	int ret = 0;
+	uint32_t nr3_me_param = 0;
 	struct isp_img_rect rect;
 	struct dcam_hw_path_start *patharg = NULL;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
@@ -1251,6 +1252,12 @@ static int dcamhw_path_start(void *handle, void *arg)
 		 * nr3_ping_pong_en: 0
 		 * nr3_bypass: 0
 		 */
+		 /* slowmotion use pingpong, nr3_ping_pong_en:1 */
+		if (patharg->slowmotion_count)
+			nr3_me_param = 2;
+		else
+			nr3_me_param = 0;
+
 		if (patharg->cap_info.cap_size.size_x == 0 ||
 			patharg->cap_info.cap_size.size_y == 0)
 			break;
@@ -1264,7 +1271,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 				rect.x, rect.y, rect.w, rect.h);
 			break;
 		}
-		DCAM_REG_WR(patharg->idx, DCAM_NR3_FAST_ME_PARAM, 0);
+		DCAM_REG_WR(patharg->idx, DCAM_NR3_FAST_ME_PARAM, nr3_me_param);
 		dcam_k_3dnr_set_roi(rect, 0/* project_mode=0 */, patharg->idx);
 		break;
 	case DCAM_PATH_RAW:
@@ -2557,7 +2564,7 @@ static int dcamhw_fmcu_start(void *handle, void *arg)
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
-	DCAM_REG_MWR(startarg->idx, DCAM_INT0_EN, 0x7cff0000, 0);
+	DCAM_REG_MWR(startarg->idx, DCAM_INT0_EN, 0x6cff0000, 0);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
 	DCAM_REG_MWR(startarg->idx, DCAM_INT1_EN, BIT_0 , 0);
 

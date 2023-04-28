@@ -820,6 +820,7 @@ static int isp3dnr_cfg_param(void *handle,
 	struct img_trim *crop = NULL;
 	struct isp_3dnr_ctx_desc *nr3_ctx = NULL;
 	struct isp_hw_fetch_info *fetch_info = NULL;
+	struct nr3_me_data *nr3_me = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr\n");
@@ -869,6 +870,18 @@ static int isp3dnr_cfg_param(void *handle,
 		break;
 	case ISP_3DNR_CFG_MV_VERSION:
 		nr3_ctx->nr3_mv_version = *(uint32_t *)param;
+		break;
+	case ISP_3DNR_CFG_SLW_SET:
+		nr3_me = (struct nr3_me_data *)param;
+		nr3_ctx->mv.mv_x = nr3_me->mv_x;
+		nr3_ctx->mv.mv_y = nr3_me->mv_y;
+		nr3_ctx->mvinfo = nr3_me;
+		if (nr3_ctx->mvinfo->src_width != nr3_ctx->width ||
+			nr3_ctx->mvinfo->src_height != nr3_ctx->height)
+			isp3dnr_conversion_mv(nr3_ctx);
+		isp3dnr_blend_ctrl(nr3_ctx);
+		isp3dnr_config_gen(nr3_ctx);
+		pr_debug("nr3 mv[%d, %d]!\n", nr3_ctx->mv.mv_x, nr3_ctx->mv.mv_y);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
