@@ -106,7 +106,6 @@ extern struct cam_mem_dbg_info *g_mem_dbg;
 enum camera_slice_mode {
 	CAM_SLICE_NONE = 0,
 	CAM_OFFLINE_SLICE_HW,
-	CAM_OFFLINE_SLICE_SW
 };
 
 enum camera_cap_type {
@@ -420,6 +419,7 @@ uint32_t cam_data_bits(uint32_t dcam_out_fmt);
 uint32_t cam_is_pack(uint32_t dcam_out_fmt);
 uint32_t cam_format_get(uint32_t img_pix_fmt);
 uint32_t cam_cal_hw_pitch(uint32_t w, uint32_t format);
+uint32_t cam_byte_get(uint32_t format);
 int cam_raw_fmt_get(uint32_t fmt);
 int dcampath_bin_scaler_get(struct img_size crop, struct img_size dst, uint32_t *scaler_sel, uint32_t *bin_ratio);
 int cam_valid_fmt_get(int32_t *fmt, uint32_t default_value);
@@ -439,5 +439,6 @@ typedef int(*shutoff_cfg_cb)(void *cb_handle, uint32_t cmd, void *param);
 typedef int(*dcam_irq_proc_cb)(void *param, void *cb_handle);
 typedef int(*zoom_get_cb)(void *cb_handle, void *param);
 typedef int(*cam_zoom_get_cb)(uint32_t param, void *cb_handle, void *zoom_param);
+typedef int(*port_param_cfg)(void *cb_handle, uint32_t cmd, void *param);
 
 #endif/* _CAM_TYPES_H_ */

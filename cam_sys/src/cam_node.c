@@ -1272,6 +1272,7 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 		port = node->outport_list[node_param->port_id];
 		if (!port) {
 			pr_err("fail to get valid port id %d\n", node_param->port_id);
+			ret = -EFAULT;
 			goto exit;
 		}
 		ret = port->ops.cfg_param(port, cmd, &node_param->param);

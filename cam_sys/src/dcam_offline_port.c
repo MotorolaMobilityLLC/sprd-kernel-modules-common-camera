@@ -122,6 +122,7 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 		pr_err("fail to enqueue dcam offline port %s frame\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 		return -EFAULT;
 	}
+
 	if (dcam_port->compress_en) {
 		cal_fbc.data_bits = cam_data_bits(dcam_port->out_fmt);
 		cal_fbc.fbc_info = &frame->common.fbc_info;
@@ -168,7 +169,6 @@ static int dcamoffline_port_param_get(void *handle, void *param)
 	hw_start->in_trim = dcam_port->in_trim;
 	hw_start->endian = dcam_port->endian;
 	hw_start->out_fmt = dcam_port->out_fmt;
-
 
 	hw_fbc_ctrl->idx = hw_ctx->hw_ctx_id;
 	hw_fbc_ctrl->path_id = path_id;
@@ -282,7 +282,7 @@ int dcam_offline_port_size_cfg(void *handle, void *param)
 	return ret;
 }
 
-int dcam_offline_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
+int dcam_offline_port_param_cfg(void *handle, uint32_t cmd, void *param)
 {
 	int ret = 0;
 	struct dcam_offline_port *dcam_port = NULL;
@@ -453,6 +453,7 @@ void *dcam_offline_port_get(uint32_t port_id, struct dcam_offline_port_desc *par
 	port->type = param->transfer_type;
 	port->data_cb_handle = param->data_cb_handle;
 	port->data_cb_func = param->data_cb_func;
+	port->port_param_cfg_func = dcam_offline_port_param_cfg;
 	pr_info("port id %s node_dev %px\n", cam_port_dcam_offline_out_id_name_get(port_id), *param->port_dev);
 
 exit:
@@ -473,6 +474,7 @@ void dcam_offline_port_put(struct dcam_offline_port *port)
 		port->data_cb_handle = NULL;
 		port->data_cb_func = NULL;
 		port->zoom_cb_func = NULL;
+		port->port_param_cfg_func = NULL;
 
 		pr_debug("dcam offline port %s put success\n", cam_port_dcam_offline_out_id_name_get(port->port_id));
 		cam_buf_kernel_sys_vfree(port);

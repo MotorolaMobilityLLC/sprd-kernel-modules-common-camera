@@ -34,7 +34,7 @@
 #define DCAM_LSC_WEIGHT_TAB_SIZE          774
 
 #define DCAM_OFFLINE_TIMEOUT              msecs_to_jiffies(2000)
-#define DCAM_OFFLINE_SLC_MAX              3
+#define DCAM_OFFLINE_SLC_MAX              6
 
 #define DCAM_ADDR_RECORD_FRAME_NUM        5
 
@@ -79,8 +79,8 @@ enum slice_proc_chose {
 };
 
 struct dcam_offline_slice_info {
-	enum camera_slice_mode dcam_slice_mode;
 	uint32_t slice_num;
+	uint32_t w_slice_num;
 	uint32_t slice_count;
 	enum cam_format fetch_fmt;
 	struct img_trim *cur_slice;
@@ -109,6 +109,7 @@ struct dcam_hw_path {
 struct dcam_hw_context {
 	enum en_status is_offline_proc;
 	enum en_status is_virtualsensor_proc;
+	enum en_status offline_pre_en;
 	uint32_t fid;
 	uint32_t recovery_fid;
 	uint32_t index_to_set;
@@ -157,6 +158,7 @@ struct dcam_hw_context {
 	uint32_t frame_addr[DCAM_ADDR_RECORD_FRAME_NUM][DCAM_RECORD_PORT_INFO_MAX];
 	enum slice_proc_chose slice_proc_mode;
 	uint32_t gtm_hist_stat_bypass;
+	uint32_t relative_offset[DCAM_PATH_MAX];
 };
 
 struct dcam_pipe_dev {

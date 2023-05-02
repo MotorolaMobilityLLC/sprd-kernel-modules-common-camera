@@ -412,6 +412,21 @@ static int camcore_buffers_alloc(void *param)
 		pr_err("fail to alloc buffer for cam%d channel%d\n", module->idx, channel->ch_id);
 		atomic_inc(&channel->err_status);
 	}
+	if (channel->nonzsl_pre_pipeline) {
+		uint32_t ratio = 1;
+
+		ratio = channel->ch_uinfo.nonzsl_pre_ratio;
+		alloc_param.ch_id = 1;
+		alloc_param.width = alloc_param.width / ratio;
+		alloc_param.height = alloc_param.height / ratio;
+		alloc_param.dcamonline_buf_alloc_num = 0;
+
+		ret = cam_pipeline_buffer_alloc(channel->nonzsl_pre_pipeline, &alloc_param);
+		if (ret) {
+			pr_err("fail to alloc buffer for cam%d channel_prev\n", module->idx);
+			atomic_inc(&channel->err_status);
+		}
+	}
 
 	if (channel->ch_id != CAM_CH_PRE && module->channel[CAM_CH_PRE].enable) {
 		ret = camcore_buffer_path_cfg(module, channel->ch_id);
@@ -611,6 +626,19 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 				spin_lock_irqsave(&channel->lastest_zoom_lock, flag);
 				memcpy(zoom_param, &channel->latest_zoom_param, sizeof(struct cam_zoom_frame));
 				spin_unlock_irqrestore(&channel->lastest_zoom_lock, flag);
+			}
+			break;
+		}
+		if (channel->nonzsl_pre_pipeline && pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW) {
+			pr_debug("ch %d type %d\n", channel->ch_id, pipeline_type);
+			zoom_frame = CAM_QUEUE_DEQUEUE(&channel->nonzsl_pre.zoom_param_q, struct cam_frame, list);
+			if (zoom_frame) {
+				memcpy(zoom_param, &zoom_frame->node_zoom, sizeof(struct cam_zoom_frame));
+				cam_queue_empty_frame_put(zoom_frame);
+			} else {
+				spin_lock_irqsave(&channel->nonzsl_pre.lastest_zoom_lock, flag);
+				memcpy(zoom_param, &channel->nonzsl_pre.latest_zoom_param, sizeof(struct cam_zoom_frame));
+				spin_unlock_irqrestore(&channel->nonzsl_pre.lastest_zoom_lock, flag);
 			}
 			break;
 		}
@@ -1108,7 +1136,7 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 
 	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
 		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV;
-		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 	}
 	/* only for sharkl3 icap scene */
@@ -1303,6 +1331,23 @@ static int camcore_pipeline_init(struct camera_module *module,
 	if (pyr_dec_desc && isp_node_description)
 		camcore_pyrdec_ctxid_cfg(channel, isp_node_description->isp_node);
 
+	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {
+		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
+		dcam_offline_desc->offline_pre_en = ENABLE;
+		isp_node_description->ch_id = 1;
+		isp_node_description->port_desc.output_size.w = channel->ch_uinfo.dst_size.w / 4;
+		isp_node_description->port_desc.output_size.h = channel->ch_uinfo.dst_size.h / 4;
+		if ((channel->ch_uinfo.src_size.h / 2) > g_camctrl.isp_linebuf_len)
+			channel->ch_uinfo.nonzsl_pre_ratio = 4;
+		else
+			channel->ch_uinfo.nonzsl_pre_ratio = 2;
+		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[statis_pipe_type];
+		channel->nonzsl_pre_pipeline = cam_pipeline_creat(pipeline_desc);
+		if (!channel->nonzsl_pre_pipeline) {
+			pr_err("fail to get statis pipeline.\n");
+			return -ENOMEM;
+		}
+	}
 	pr_info("cam%d ch %d pipeline done. ret = %d pipeline_type %s\n",
 		module->idx, channel->ch_id, ret, pipeline_desc->pipeline_graph->name);
 fail:
@@ -1321,7 +1366,10 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	if (channel->ch_id == CAM_CH_RAW || channel->ch_id == CAM_CH_DCAM_VCH)
 		camscene_onlineraw_ports_disable(module, channel->dcam_port_id);
 
-	cam_pipeline_destory(channel->pipeline_handle);
+	if (channel->pipeline_handle)
+		cam_pipeline_destory(channel->pipeline_handle);
+	if (channel->nonzsl_pre_pipeline)
+		cam_pipeline_destory(channel->nonzsl_pre_pipeline);
 
 	nodes_dev->dcam_online_node_dev = NULL;
 	nodes_dev->dcam_offline_node_dev = NULL;
@@ -2144,8 +2192,7 @@ rewait:
 				ret = 0;
 				goto read_end;
 			} else {
-				pr_err("read frame buf, fail to down, %d\n",
-					ret);
+				pr_err("read frame buf, fail to down, %d\n", ret);
 				return -EPERM;
 			}
 		}

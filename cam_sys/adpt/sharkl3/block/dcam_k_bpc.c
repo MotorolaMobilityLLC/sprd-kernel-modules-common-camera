@@ -35,12 +35,6 @@ int dcam_k_bpc_block(struct dcam_isp_k_block *param)
 	if (g_dcam_bypass[idx] & (1 << _E_BPC))
 		p->bpc_bypass = 1;
 
-	if (param->dcam_slice_mode == CAM_OFFLINE_SLICE_SW) {
-		p->bpc_bypass = 1;
-		p->bpc_mode_en_gc = 0;
-		p->bpc_mode_en = 0;
-	}
-
 	val = ((p->bpc_mode_en_gc & 0x1) << 2) |
 		((p->bpc_mode_en & 0x1) << 1) |
 		(p->bpc_gc_cg_dis & 0x1);

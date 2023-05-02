@@ -847,6 +847,12 @@ int cam_zoom_channel_size_config(
 		zoom_info.dcam_crop[channel->dcam_port_id] = channel->trim_dcam;
 		zoom_info.dcam_dst[channel->dcam_port_id] = channel->dst_dcam;
 	}
+	if (channel->ch_id == CAM_CH_CAP
+		&& module->cam_uinfo.dcam_slice_mode
+		&& !module->cam_uinfo.is_4in1) {
+		zoom_info.dcam_crop[raw2yuv_port_id] = channel->trim_dcam;
+		zoom_info.dcam_dst[raw2yuv_port_id] = channel->dst_dcam;
+	}
 
 	if (need_raw_port && IS_VALID_DCAM_IMG_PORT(raw_port_id)) {
 		zoom_info.dcam_crop[raw_port_id] = raw_zoom_base.crop;
@@ -885,6 +891,29 @@ int cam_zoom_channel_size_config(
 	}
 
 	ret = cam_zoom_param_set(&zoom_info);
+
+	if (channel->nonzsl_pre_pipeline) {
+		uint32_t ratio = 1;
+
+		zoom_info.pipeline_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
+		zoom_info.pipeline_graph = &module->static_topology->pipeline_list[zoom_info.pipeline_type];
+		zoom_info.latest_zoom_info = &channel->nonzsl_pre.latest_zoom_param;
+		zoom_info.zoom_lock = &channel->nonzsl_pre.lastest_zoom_lock;
+		zoom_info.zoom_info_q = &channel->nonzsl_pre.zoom_param_q;
+
+		ratio = channel->ch_uinfo.nonzsl_pre_ratio;
+		zoom_info.dcam_crop[PORT_OFFLINE_BIN_OUT] = channel->trim_dcam;
+		zoom_info.dcam_dst[PORT_OFFLINE_BIN_OUT].w = channel->dst_dcam.w / ratio;
+		zoom_info.dcam_dst[PORT_OFFLINE_BIN_OUT].h = channel->dst_dcam.h / ratio;
+		zoom_info.isp_src_size.w = channel->ch_uinfo.src_size.w / ratio;
+		zoom_info.isp_src_size.h = channel->ch_uinfo.src_size.h / ratio;
+		zoom_info.isp_dst[PORT_PRE_OUT] = zoom_info.isp_src_size;
+		zoom_info.isp_crop[PORT_PRE_OUT].start_x = 0;
+		zoom_info.isp_crop[PORT_PRE_OUT].start_y = 0;
+		zoom_info.isp_crop[PORT_PRE_OUT].size_x = zoom_info.isp_src_size.w;
+		zoom_info.isp_crop[PORT_PRE_OUT].size_y = zoom_info.isp_src_size.h;
+		ret = cam_zoom_param_set(&zoom_info);
+	}
 
 	return ret;
 }

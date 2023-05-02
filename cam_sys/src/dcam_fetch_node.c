@@ -490,7 +490,7 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node)
 			pr_debug("slc%d, (%d %d %d %d)\n", i,
 				slice->slice_trim[i].start_x, slice->slice_trim[i].start_y,
 				slice->slice_trim[i].size_x, slice->slice_trim[i].size_y);
-			dcam_hwctx_slice_fetch_set(hw_ctx, fetch, slice);
+			dcam_hwctx_slice_set(hw_ctx, fetch, slice);
 		}
 
 		/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
@@ -551,8 +551,8 @@ static int dcamfetch_node_frame_start(void *param)
 
 	/* fetch in node may put it into hw ctx */
 	slice->fetch_fmt= node->fetch_info.fmt;
-	dcamslice_needed_info_get(online_node->hw_ctx, &lbuf_width, pframe->common.width);
-	dcam_slice_info_cal(slice, pframe, lbuf_width);
+	dcam_slice_needed_info_get(online_node->hw_ctx, &lbuf_width, pframe->common.width);
+	dcam_slice_hw_info_set(slice, pframe, lbuf_width, &online_node->blk_pm);
 	dcamfetch_hw_frame_param_set(online_node->hw_ctx);
 
 	ret = dcamfetch_slice_proc(node);

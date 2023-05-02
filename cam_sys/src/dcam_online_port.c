@@ -839,6 +839,8 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		break;
 	case PORT_VCH2_OUT:
 		port->raw_src = param->is_raw ? 1 : 0;
+		if (param->is_raw)
+			atomic_set(&port->is_work, 1);
 		break;
 	default:
 		pr_debug("get known path %s\n", cam_port_name_get(port->port_id));
@@ -932,7 +934,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 		}
 		break;
 	}
-	pr_debug("path%s set no.%d buffer done!pitch:%d.\n", cam_port_name_get(port_id), hw_ctx->slw_idx, dcam_port->out_pitch);
+	pr_debug("path %s set no.%d buffer done!pitch:%d.\n", cam_port_name_get(port_id), hw_ctx->slw_idx, dcam_port->out_pitch);
 	return ret;
 }
 

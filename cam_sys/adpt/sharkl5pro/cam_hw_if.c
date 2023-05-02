@@ -524,8 +524,9 @@ static struct path_hw_abt dcam_path_abt[DCAM_PATH_ID_MAX] = {
 
 static struct dcam_hw_abt dcamhw_ability = {
 	.slm_path = BIT(PORT_BIN_OUT) | BIT(PORT_AEM_OUT) | BIT(PORT_BAYER_HIST_OUT),
-	.aux_dcam_path = DCAM_PATH_BIN,
+	.aux_dcam_path = DCAM_PATH_FULL,
 	.dcam_raw_path_id = DCAM_PATH_FULL,
+	.sensor_raw_path_id = DCAM_PATH_VCH2,
 	.dcam_scaling_path = DCAM_PATH_BIN,
 	.fmcu_support = DISABLE,
 	.pyramid_support = DISABLE,

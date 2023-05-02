@@ -23,7 +23,6 @@ extern g_dbg_raw2frgb_switch;
 	uint32_t __s = scene;          \
 	(__s == CAPTURE_FDR            \
 	|| __s == CAPTURE_HW3DNR       \
-	|| __s == CAPTURE_FLASH        \
 	|| __s == CAPTURE_RAWALG       \
 	|| __s == CAPTURE_AI_SFNR);    \
 })
@@ -1453,6 +1452,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		if (i == CAM_CH_VID && ch_pre->enable)
 			continue;
 		CAM_QUEUE_INIT(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
+		CAM_QUEUE_INIT(&ch->nonzsl_pre.zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
 		camcore_buffer_channel_config(module, ch);
 		cam_zoom_channel_size_config(module, ch);
 	}

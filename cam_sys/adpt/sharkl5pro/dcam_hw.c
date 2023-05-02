@@ -1089,12 +1089,11 @@ exit:
 static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
 	int ret = 0;
-	uint32_t idx;
+	uint32_t idx = 0;
 	struct img_trim *cur_slice = NULL;
 	struct dcam_fetch_info *fetch = NULL;
-	struct dcam_hw_slice_fetch *slicearg = NULL;
-	uint32_t fetch_pitch, prev_picth, bfp;
-	uint32_t is_pack = 0;
+	struct dcam_hw_slice_param *slicearg = NULL;
+	uint32_t fetch_pitch = 0;
 	uint32_t val = 0;
 
 	if (!arg) {
@@ -1102,20 +1101,12 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		return -1;
 	}
 
-	slicearg = (struct dcam_hw_slice_fetch *)arg;
+	slicearg = (struct dcam_hw_slice_param *)arg;
 	fetch = slicearg->fetch;
 	cur_slice = slicearg->cur_slice;
 	idx = slicearg->idx;
-	is_pack = cam_is_pack(fetch->fmt);
-
-	if (is_pack) {
-		bfp = 5;
-	} else {
-		bfp = 8;
-	}
 
 	fetch_pitch = cam_cal_hw_pitch(fetch->size.w, fetch->fmt);
-	prev_picth = (slicearg->slice_trim.size_x * 16 + 127) / 128;
 	DCAM_REG_MWR(idx, DCAM_INT_CLR, DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 	DCAM_REG_MWR(idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 
@@ -1137,54 +1128,63 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 		break;
 	}
 
-	if (slicearg->dcam_slice_mode != CAM_OFFLINE_SLICE_SW) {
-		if (slicearg->slice_count == 2) {
-			DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG,
-				BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
-			DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, val);
-			DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
+	DCAM_REG_MWR(idx, DCAM_BAYER_INFO_CFG, BIT_5 | BIT_4, (fetch->pattern & 3) << 4);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_1 | BIT_0, val);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, BIT_3 | BIT_2, fetch->endian << 2);
 
-			/* cfg mipicap */
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_29, 0x1 << 29);
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x0 << 30);
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
+	/* cfg mipicap */
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_28, 0x1 << 28);
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_29, 0x1 << 29);
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, slicearg->is_last_slice << 30);
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_12, 0x1 << 12);
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_3, 0x0 << 3);
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1, 0x1 << 1);
 
-			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0);
-			DCAM_AXIM_WR(IMG_FETCH_SIZE,
-				(cur_slice->size_y << 16) | ((cur_slice->size_x + DCAM_OVERLAP)& 0xffff));
-			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (cur_slice->start_x & 0x1fff));
+	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0 + slicearg->fetch_offset);
+	DCAM_AXIM_WR(IMG_FETCH_SIZE, (slicearg->fetch_size.h << 16) | (slicearg->fetch_size.w & 0x1fff));
+	DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (0 & 0x1fff));
 
-			/* cfg bin path */
-			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
-				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, (0<< 16) | (0 & 0x1fff));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
-				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
-		} else {
-			uint32_t reg_val = 0;
+	return ret;
+}
 
-			DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_30, 0x1 << 30);
-			DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->addr.addr_ch0
-				+ (cur_slice->start_x - DCAM_OVERLAP) * bfp / 4);
-			DCAM_AXIM_WR(IMG_FETCH_SIZE,
-				(cur_slice->size_y  << 16) | ((cur_slice->size_x + DCAM_OVERLAP) & 0x1fff));
-			DCAM_AXIM_WR(IMG_FETCH_X, (fetch_pitch << 16) | (0 & 0x1fff));
-			DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG,
-				(0x3FF << 20) |(1 << 1), (fetch_pitch << 20) | (1 << 1));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START,
-				(0 << 16) | (DCAM_OVERLAP & 0x1fff));
-			DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
-				((cur_slice->size_y & 0x1fff) << 16) | (cur_slice->size_x & 0x1fff));
+static int dcamhw_slice_store_set(void *handle, void *arg)
+{
+	int ret = 0;
+	uint32_t idx = 0, reg_val = 0;
+	struct img_trim *cur_slice = NULL;
+	struct dcam_hw_slice_param *slicearg = NULL;
+	struct dcam_slice_store_param *bin_store = NULL;
+	struct dcam_slice_store_param *full_store = NULL;
 
-			reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
-			DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + cur_slice->start_x * bfp / 4);
-		}
-	} else {
-		pr_warn("warning: slicearg->dcam_slice_mode: %d\n", slicearg->dcam_slice_mode);
+	if (!arg) {
+		pr_err("fail to check param\n");
+		return -1;
 	}
+
+	slicearg = (struct dcam_hw_slice_param *)arg;
+	cur_slice = slicearg->cur_slice;
+	idx = slicearg->idx;
+	bin_store = &slicearg->bin_store;
+	full_store = &slicearg->full_store;
+
+	/* cfg full path */
+	DCAM_REG_MWR(idx, DCAM_FULL_CFG, (0x7FF << 20) | (1 << 1), (full_store->pitch << 20) | (1 << 1));
+	DCAM_REG_WR(idx, DCAM_FULL_CROP_START, full_store->crop.start_x & 0x1fff);
+	DCAM_REG_WR(idx, DCAM_FULL_CROP_SIZE,
+		((full_store->store_size.h & 0x1fff) << 16) | (full_store->store_size.w & 0x1fff));
+	reg_val = DCAM_REG_RD(idx, DCAM_FULL_BASE_WADDR);
+	DCAM_REG_WR(idx, DCAM_FULL_BASE_WADDR, reg_val + full_store->store_offset[0]);
+
+	/* cfg bin path */
+	if (bin_store->bin_en == 0)
+		return 0;
+	DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, 0x3ff00000, bin_store->pitch << 20);
+	DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, bin_store->crop.start_x & 0x1fff);
+	DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
+		((bin_store->store_size.h & 0x1fff) << 16) | (bin_store->store_size.w & 0x1fff));
+
+	reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
+	DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + bin_store->store_offset[0]);
 
 	return ret;
 }
@@ -1516,6 +1516,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_LBUF_SHARE_SET,        dcamhw_lbuf_share_set},
 	{DCAM_HW_CFG_LBUF_SHARE_GET,        dcamhw_lbuf_share_get},
 	{DCAM_HW_CFG_SLICE_FETCH_SET,       dcamhw_slice_fetch_set},
+	{DCAM_HW_CFG_SLICE_STORE_SET,       dcamhw_slice_store_set},
 	{DCAM_HW_CFG_GTM_LTM_EB,            dcamhw_gtm_ltm_eb},
 	{DCAM_HW_CFG_GTM_LTM_DIS,           dcamhw_gtm_ltm_dis},
 	{DCAM_HW_CFG_BLOCKS_SETALL,         dcamhw_blocks_setall},

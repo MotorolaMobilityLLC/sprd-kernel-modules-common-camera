@@ -159,7 +159,10 @@ struct isp_node {
 
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 	struct cam_buf_pool_id hist2_pool;
-	struct cam_buf_pool_id gtmhist_pool;
+	struct cam_buf_pool_id gtmhist_outpool;
+	struct cam_buf_pool_id gtmhist_resultpool;
+	struct cam_buf_pool_id ltmhist_outpool;
+	struct cam_buf_pool_id ltmhist_resultpool;
 	struct isp_int_ctxs_com ctxs_com;
 
 	void *rgb_ltm_handle;

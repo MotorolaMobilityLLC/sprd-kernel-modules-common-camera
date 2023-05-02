@@ -49,7 +49,6 @@ static int ispnode_postproc_frame_return(struct isp_node *inode)
 static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t hw_idx, void *dev)
 {
 	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
-	int wait_fid = 0;
 	struct cam_frame *frame = NULL;
 	uint32_t *buf = NULL;
 	uint32_t hist_total = 0;
@@ -61,32 +60,24 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 		return;
 	}
 
-	if (gtm_ctx->calc_mode == GTM_SW_CALC) {
-		frame  = cam_buf_manager_buf_dequeue(&inode->gtmhist_pool, NULL, inode->buf_manager_handle);
-		if (!frame) {
-			pr_warn("isp ctx_id[%d] gtmhist_result_queue buffer\n", gtm_ctx->ctx_id);
+	frame  = cam_buf_manager_buf_dequeue(&inode->gtmhist_resultpool, NULL, inode->buf_manager_handle);
+	if (!frame) {
+		pr_warn("warning:isp ctx_id[%d] gtmhist_result_queue buffer\n", gtm_ctx->ctx_id);
+		return;
+	} else {
+		buf = (uint32_t *)frame->common.buf.addr_k;
+		if (!buf) {
+			cam_buf_manager_buf_enqueue(&inode->gtmhist_outpool, frame, NULL, inode->buf_manager_handle);
 			return;
 		} else {
-			buf = (uint32_t *)frame->common.buf.addr_k;
-			if (!buf) {
-				cam_buf_manager_buf_enqueue(&inode->gtmhist_pool, frame, NULL, inode->buf_manager_handle);
+			hist_total= gtm_ctx->src.w * gtm_ctx->src.h;
+			ret = isp_hwctx_gtm_hist_result_get(frame, hw_idx, dev, hist_total, frame->common.fid);
+			if (ret) {
+				cam_buf_manager_buf_enqueue(&inode->gtmhist_outpool, frame, NULL, inode->buf_manager_handle);
 				return;
-			} else {
-				hist_total= gtm_ctx->src.w * gtm_ctx->src.h;
-				ret = isp_hwctx_gtm_hist_result_get(frame, hw_idx, dev, hist_total, gtm_ctx->fid);
-				if (ret) {
-					cam_buf_manager_buf_enqueue(&inode->gtmhist_pool, frame, NULL, inode->buf_manager_handle);
-					return;
-				}
-				inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, frame, inode->data_cb_handle);
 			}
+			inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, frame, inode->data_cb_handle);
 		}
-	} else {
-		gtm_ctx->gtm_ops.get_preview_hist_cal(gtm_ctx);
-		/*for capture*/
-		wait_fid = gtm_ctx->gtm_ops.sync_completion_get(gtm_ctx);
-		if (wait_fid)
-			gtm_ctx->gtm_ops.sync_completion_done(gtm_ctx);
 	}
 }
 
@@ -528,7 +519,6 @@ static int ispnode_gtm_frame_process(struct isp_node *inode, struct isp_port_cfg
 {
 	int ret = 0;
 	struct isp_gtm_ctx_desc *rgb_gtm = NULL;
-	struct dcam_dev_raw_gtm_block_info *gtm_rgb_info = NULL;
 
 	if (!inode || !port_cfg) {
 		pr_err("fail to get valid inode %p port_cfg %p\n", inode, port_cfg);
@@ -546,11 +536,9 @@ static int ispnode_gtm_frame_process(struct isp_node *inode, struct isp_port_cfg
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_HIST_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_gtm_hist);
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MAP_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_gtm_map);
 	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_MOD_EN, &port_cfg->src_frame->common.xtm_conflict.gtm_mod_en);
-	rgb_gtm->gtm_ops.cfg_param(rgb_gtm, ISP_GTM_CFG_CALC_MODE, &inode->isp_using_param->gtm_rgb_info.calc_mode);
-	gtm_rgb_info = &inode->isp_using_param->gtm_rgb_info;
 	rgb_gtm->src.w = port_cfg->src_crop.size_x;
 	rgb_gtm->src.h = port_cfg->src_crop.size_y;
-	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, gtm_rgb_info, &inode->isp_using_param->gtm_sw_map_info);
+	ret = rgb_gtm->gtm_ops.pipe_proc(rgb_gtm, inode->isp_using_param);
 	if (ret) {
 		inode->pipe_src.mode_gtm = MODE_GTM_OFF;
 		pr_err("fail to rgb GTM process, GTM_OFF\n");
@@ -1661,15 +1649,42 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	node->uinfo.enable_slowmotion = 0;
 	ret = cam_buf_manager_pool_reg(NULL, ISP_HIST2_BUF_Q_LEN, node->buf_manager_handle);
 	if (ret <= 0)
-		goto rgb_ltm_err;
+		goto pool_reg_err;
 	node->hist2_pool.private_pool_id = ret;
 
 	ret = cam_buf_manager_pool_reg(NULL, ISP_GTMHIST_BUF_Q_LEN, node->buf_manager_handle);
 	if (ret <= 0) {
 		cam_buf_manager_pool_unreg(&node->hist2_pool, node->buf_manager_handle);
-		goto rgb_ltm_err;
+		goto pool_reg_err;
 	}
-	node->gtmhist_pool.private_pool_id = ret;
+	node->gtmhist_outpool.private_pool_id = ret;
+
+	ret = cam_buf_manager_pool_reg(NULL, ISP_GTMHIST_BUF_Q_LEN, node->buf_manager_handle);
+	if (ret <= 0) {
+		cam_buf_manager_pool_unreg(&node->hist2_pool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->gtmhist_outpool, node->buf_manager_handle);
+		goto pool_reg_err;
+	}
+	node->gtmhist_resultpool.private_pool_id = ret;
+
+	ret = cam_buf_manager_pool_reg(NULL, ISP_LTMHIST_BUF_Q_LEN, node->buf_manager_handle);
+	if (ret <= 0) {
+		cam_buf_manager_pool_unreg(&node->hist2_pool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->gtmhist_outpool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->gtmhist_resultpool, node->buf_manager_handle);
+		goto pool_reg_err;
+	}
+	node->ltmhist_outpool.private_pool_id = ret;
+
+	ret = cam_buf_manager_pool_reg(NULL, ISP_LTMHIST_BUF_Q_LEN, node->buf_manager_handle);
+	if (ret <= 0) {
+		cam_buf_manager_pool_unreg(&node->ltmhist_outpool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->gtmhist_outpool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->gtmhist_resultpool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->hist2_pool, node->buf_manager_handle);
+		goto pool_reg_err;
+	}
+	node->ltmhist_resultpool.private_pool_id = ret;
 
 	CAM_QUEUE_INIT(&node->port_queue, PORT_ISP_MAX, NULL);
 	if (param->is_high_fps)
@@ -1706,13 +1721,16 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	}
 
 	if (node->rgb_gtm_handle == NULL && node->dev->isp_hw->ip_isp->isphw_abt->rgb_gtm_support) {
-		node->rgb_gtm_handle = ispgtm_rgb_ctx_get(node->cfg_id, node->attach_cam_id, node->dev->isp_hw);
+		node->rgb_gtm_handle = ispgtm_rgb_ctx_get(node->cfg_id, node->dev->isp_hw);
 		if (!node->rgb_gtm_handle) {
 			pr_err("fail to get memory for gtm_rgb_ctx.\n");
 			ret = -ENOMEM;
 			goto rgb_gtm_err;
 		}
 		rgb_gtm = (struct isp_gtm_ctx_desc *)node->rgb_gtm_handle;
+		rgb_gtm->outpool = &node->gtmhist_outpool;
+		rgb_gtm->resultpool = &node->gtmhist_resultpool;
+		rgb_gtm->buf_manager_handle = param->buf_manager_handle;
 	}
 	uinfo->gtm_rgb = param->gtm_rgb;
 	uinfo->mode_gtm = param->mode_gtm;
@@ -1830,6 +1848,7 @@ rgb_gtm_err:
 		node->rgb_ltm_handle = NULL;
 	}
 rgb_ltm_err:
+pool_reg_err:
 	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 	return NULL;
@@ -1878,7 +1897,10 @@ void isp_node_put(struct isp_node *node)
 		mutex_unlock(&node->blkpm_q_lock);
 
 		cam_buf_manager_pool_unreg(&node->hist2_pool, node->buf_manager_handle);
-		cam_buf_manager_pool_unreg(&node->gtmhist_pool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->gtmhist_outpool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->gtmhist_resultpool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->ltmhist_outpool, node->buf_manager_handle);
+		cam_buf_manager_pool_unreg(&node->ltmhist_resultpool, node->buf_manager_handle);
 
 		node->data_cb_func = NULL;
 		isp_int_common_irq_sw_cnt_trace(node->cfg_id);
