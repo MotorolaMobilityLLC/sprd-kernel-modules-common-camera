@@ -143,17 +143,23 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 	unsigned long flag = 0;
 	struct dcam_dummy_param dummy_param = {0};
 
-	if (!node) {
+	if (!node || !node->dev) {
 		pr_err("fail to get valid dcam offline node\n");
 		return -EFAULT;
 	}
-
 	spin_lock_irqsave(&node->dev->ctx_lock, flag);
+	if (!node->hw_ctx) {
+		pr_err("hw_ctx is NULL\n");
+		ret = -EFAULT;
+		goto exit;
+	}
+
 	ret = node->dev->dcam_pipe_ops->unbind(node->dev, node, node->node_id);
 	if (ret) {
 		pr_err("fail to context_unbind\n");
 		goto exit;
 	}
+
 	if (node->hw_ctx->dummy_slave) {
 		dummy_param.hw_ctx_id = node->hw_ctx->hw_ctx_id;
 		dummy_param.enable = DISABLE;
@@ -928,18 +934,22 @@ static int dcamoffline_recovery(void *handle)
 	struct cam_frame *frame = NULL;
 	struct dcam_offline_node *node = NULL;
 	int ret = 0, is_frm_port = 0;
+	unsigned long flag = 0;
 
 	node = VOID_PTR_TO(handle, struct dcam_offline_node);
 	pr_info("offline node recovery start\n");
 
+	spin_lock_irqsave(&node->dev->ctx_lock, flag);
 	if (node->hw_ctx == NULL) {
 		pr_info("hw_ctx is NULL, No recovery\n");
+		spin_unlock_irqrestore(&node->dev->ctx_lock, flag);
 		return 0;
 	}
 
 	atomic_set(&node->status, STATE_ERROR);
 	if (node->hw_ctx->slice_info.slice_num > 0 && node->hw_ctx->slice_info.slice_count > 1)
 		complete(&node->slice_done);
+	spin_unlock_irqrestore(&node->dev->ctx_lock, flag);
 	complete(&node->slice_done);
 	CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
 		node_param.port_id = dcam_port->port_id;
