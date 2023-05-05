@@ -190,7 +190,6 @@ int dcam_k_lsc_block(struct dcam_isp_k_block *param);
 int dcam_k_bayerhist_block(struct dcam_isp_k_block *param);
 int dcam_k_bayerhist_roi(struct dcam_isp_k_block *param);
 int dcam_k_frgbhist_block(struct dcam_isp_k_block *param);
-int dcam_k_frgbhist_roi(struct dcam_isp_k_block *param);
 
 int dcam_k_aem_bypass(struct dcam_isp_k_block *param);
 int dcam_k_aem_mode(struct dcam_isp_k_block *param);
