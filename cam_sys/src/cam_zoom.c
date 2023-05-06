@@ -409,6 +409,7 @@ static int camzoom_port_info_cfg(struct cam_zoom_port *zoom_port,
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		if (zoom_port->port_id == PORT_OFFLINE_BIN_OUT ||
@@ -867,6 +868,11 @@ int cam_zoom_channel_size_config(
 			node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
 			zoom_info.dcam_crop[node_type][raw2yuv_port_id] = channel->trim_dcam;
 			zoom_info.dcam_dst[node_type][raw2yuv_port_id] = channel->dst_dcam;
+			if (module->icap_scene) {
+				node_type = CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW;
+				zoom_info.dcam_crop[node_type][raw2yuv_port_id] = channel->trim_dcam;
+				zoom_info.dcam_dst[node_type][raw2yuv_port_id] = channel->dst_dcam;
+			}
 		}
 	}
 

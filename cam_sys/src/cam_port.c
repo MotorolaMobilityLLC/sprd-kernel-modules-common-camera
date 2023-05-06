@@ -280,6 +280,7 @@ static int camport_cfg_param(void *handle, enum cam_port_cfg_cmd cmd, void *para
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		ret = dcam_offline_port_param_cfg(port->handle, cmd, param);
@@ -315,6 +316,7 @@ int cam_port_static_portlist_get(struct cam_port_topology *param,
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		camport_dcamoffline_port_get(param, node_type, transfer_type);
@@ -372,6 +374,11 @@ int cam_port_buffers_alloc(void *handle, uint32_t node_id, struct cam_buf_alloc_
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 		ret = dcam_offline_port_buf_alloc(port->handle, param);
+		if (ret)
+			pr_err("fail to alloc port buf %s\n", cam_node_name_get(port->port_graph->node_type));
+		break;
+	case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
+		ret = dcam_offline_lsc_raw_port_buf_alloc(port->handle, param);
 		if (ret)
 			pr_err("fail to alloc port buf %s\n", cam_node_name_get(port->port_graph->node_type));
 		break;
@@ -451,6 +458,16 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 		param->dcam_offline_bpcraw->transfer_type = param->port_graph->transfer_type;
 		port->handle = dcam_offline_port_get(port->port_graph->id, param->dcam_offline_bpcraw);
 		break;
+	case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
+		param->dcam_offline_lscraw->port_dev = (void *)&nodes_dev->dcam_offline_lscraw_out_port_dev[port->port_graph->id];
+		param->dcam_offline_lscraw->zoom_cb_func = param->zoom_cb_func;
+		param->dcam_offline_lscraw->zoom_cb_handle = param->zoom_cb_handle;
+		param->dcam_offline_lscraw->data_cb_func = param->data_cb_func;
+		param->dcam_offline_lscraw->data_cb_handle = param->data_cb_handle;
+		param->dcam_offline_lscraw->buf_manager_handle = param->buf_manager_handle;
+		param->dcam_offline_lscraw->transfer_type = param->port_graph->transfer_type;
+		port->handle = dcam_offline_port_get(port->port_graph->id, param->dcam_offline_lscraw);
+		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 		param->dcam_offline_raw2frgb->port_dev = (void *)&nodes_dev->dcam_offline_raw2frgb_out_port_dev[port->port_graph->id];
 		param->dcam_offline_raw2frgb->zoom_cb_func = param->zoom_cb_func;
@@ -528,6 +545,7 @@ void cam_port_destory(struct cam_port *port)
 		break;
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		dcam_offline_port_put(port->handle);

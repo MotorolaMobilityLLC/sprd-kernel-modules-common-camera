@@ -85,6 +85,7 @@ struct cam_pipeline_topology {
 	uint32_t need_dcam_online;
 	uint32_t need_dcam_offline;
 	uint32_t need_dcam_offline_bpc;
+	uint32_t need_dcam_offline_lsc;
 	uint32_t need_isp_offline;
 	uint32_t need_frame_cache;
 	uint32_t need_pyr_dec;
@@ -102,6 +103,7 @@ struct cam_pipeline_desc {
 	struct dcam_online_node_desc dcam_online_desc;
 	struct dcam_offline_node_desc dcam_offline_desc;
 	struct dcam_offline_node_desc dcam_offline_bpcraw_desc;
+	struct dcam_offline_node_desc dcam_offline_lscraw_desc;
 	struct dcam_offline_node_desc dcam_offline_raw2frgb_desc;
 	struct dcam_offline_node_desc dcam_offline_frgb2yuv_desc;
 	struct dcam_fetch_node_desc dcam_fetch_desc;
@@ -214,6 +216,36 @@ struct cam_pipeline {
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
 	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE; \
+	param_cfg.node_param.param = (par); \
+	param_cfg.node_id = DCAM_OFFLINE_NODE_ID; \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
+#define CAM_PIPEINE_DCAM_OFFLINE_BPC_RAW_NODE_CFG(channel, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW; \
+	param_cfg.node_param.param = (par); \
+	param_cfg.node_id = DCAM_OFFLINE_NODE_ID; \
+	if ((channel)->pipeline_handle) \
+		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
+#define CAM_PIPEINE_DCAM_OFFLINE_LSC_RAW_NODE_CFG(channel, cmd, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW; \
 	param_cfg.node_param.param = (par); \
 	param_cfg.node_id = DCAM_OFFLINE_NODE_ID; \
 	if ((channel)->pipeline_handle) \
