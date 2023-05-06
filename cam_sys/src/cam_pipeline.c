@@ -464,6 +464,7 @@ static uint32_t campipeline_dump_en_cfg_get(uint32_t pipeline_type,
 		case CAM_NODE_TYPE_DCAM_ONLINE:
 		case CAM_NODE_TYPE_DCAM_OFFLINE:
 		case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+		case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
 		case CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB:
 		case CAM_NODE_TYPE_DCAM_OFFLINE_FRGB2YUV:
 		case CAM_NODE_TYPE_PYR_DEC:
@@ -504,6 +505,7 @@ static uint32_t campipeline_replace_en_cfg_get(uint32_t pipeline_type,
 	case CAM_NODE_TYPE_DCAM_ONLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE:
 	case CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW:
+	case CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW:
 		for (j = 0; j < CAM_NODE_PORT_OUT_NUM; j++) {
 			if (node_graph->outport[j].link_state != PORT_LINK_NORMAL)
 				continue;
@@ -583,6 +585,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	node_desc.dcam_online_desc = &param->dcam_online_desc;
 	node_desc.dcam_offline_desc = &param->dcam_offline_desc;
 	node_desc.dcam_offline_bpcraw_desc = &param->dcam_offline_bpcraw_desc;
+	node_desc.dcam_offline_lscraw_desc = &param->dcam_offline_lscraw_desc;
 	node_desc.dcam_offline_raw2frgb_desc = &param->dcam_offline_raw2frgb_desc;
 	node_desc.dcam_offline_frgb2yuv_desc = &param->dcam_offline_frgb2yuv_desc;
 	node_desc.dcam_fetch_desc = &param->dcam_fetch_desc;

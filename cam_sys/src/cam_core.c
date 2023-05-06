@@ -374,8 +374,10 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.dcamonline_buf_alloc_num = dcamonline_buf_num;
 	alloc_param.dcamoffline_buf_alloc_num = dcamoffline_buf_num;
 	alloc_param.stream_on_buf_com = &channel->stream_on_buf_com;
-	if (module->icap_scene && channel->ch_id == CAM_CH_CAP)
+	if (module->icap_scene && channel->ch_id == CAM_CH_CAP) {
 		alloc_param.cam_copy_buf_alloc_num = 3;
+		alloc_param.dcamoffline_lsc_buf_alloc_num = 2;
+	}
 	if (channel->ch_id == CAM_CH_PRE || channel->ch_id == CAM_CH_VID) {
 		if (channel->ch_uinfo.is_high_fps)
 			alloc_param.stream_on_need_buf_num = channel->ch_uinfo.high_fps_skip_num;
@@ -1217,6 +1219,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	struct dcam_online_node_desc *dcam_online_desc = NULL;
 	struct dcam_offline_node_desc *dcam_offline_desc = NULL;
 	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc = NULL;
+	struct dcam_offline_node_desc *dcam_offline_lscraw_desc = NULL;
 	struct isp_node_desc *isp_node_description = NULL;
 	struct frame_cache_node_desc *frame_cache_desc = NULL;
 	struct pyr_dec_node_desc *pyr_dec_desc = NULL;
@@ -1369,6 +1372,11 @@ static int camcore_pipeline_init(struct camera_module *module,
 		cam_scene_dcamoffline_bpcraw_desc_get(module, channel, dcam_offline_bpcraw_desc);
 	}
 
+	if (pipeline_desc->pipeline_graph->need_dcam_offline_lsc) {
+		dcam_offline_lscraw_desc = &pipeline_desc->dcam_offline_lscraw_desc;
+		cam_scene_dcamoffline_lscraw_desc_get(module, channel, dcam_offline_lscraw_desc);
+	}
+
 	if (pipeline_desc->pipeline_graph->need_isp_offline) {
 		isp_node_description = &pipeline_desc->isp_node_description;
 		isp_node_description->pyr_layer_num = pipeline_desc->pipeline_graph->pyr_layer_num;
@@ -1452,6 +1460,7 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	nodes_dev->dcam_online_node_dev = NULL;
 	nodes_dev->dcam_offline_node_dev = NULL;
 	nodes_dev->dcam_offline_node_bpcraw_dev = NULL;
+	nodes_dev->dcam_offline_node_lscraw_dev = NULL;
 	nodes_dev->dcam_offline_node_raw2frgb_dev = NULL;
 	nodes_dev->dcam_offline_node_frgb2yuv_dev = NULL;
 	nodes_dev->pyr_dec_node_dev = NULL;
@@ -1475,6 +1484,8 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 		nodes_dev->dcam_offline_out_port_dev[j] = NULL;
 	for (j = 0; j < PORT_DCAM_OUT_MAX; j++)
 		nodes_dev->dcam_offline_bpcraw_out_port_dev[j] = NULL;
+	for (j = 0; j < PORT_DCAM_OUT_MAX; j++)
+		nodes_dev->dcam_offline_lscraw_out_port_dev[j] = NULL;
 	for (j = 0; j < PORT_DCAM_OUT_MAX; j++)
 		nodes_dev->dcam_offline_raw2frgb_out_port_dev[j] = NULL;
 	for (j = 0; j < PORT_DCAM_OUT_MAX; j++)

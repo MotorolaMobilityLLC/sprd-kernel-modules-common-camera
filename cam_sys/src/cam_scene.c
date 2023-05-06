@@ -31,6 +31,7 @@ struct cam_pipeline_topology_info {
 	uint32_t need_dcam_online;
 	uint32_t need_dcam_offline;
 	uint32_t need_dcam_offline_bpc;
+	uint32_t need_dcam_offline_lsc;
 	uint32_t need_isp_offline;
 	uint32_t need_frame_cache;
 	uint32_t need_pyr_dec;
@@ -762,7 +763,8 @@ static void camscene_online2user2offline_pipeline_get(struct cam_pipeline_topolo
 static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_topology *param, void *input)
 {
 	int i = 0;
-	uint32_t dcam_online_raw_port_id = 0, dcam_offline_port_id = 0, raw_path_id = 0, pyrdec_support = 0, path_id = 0;
+	uint32_t dcam_offline_port_id = 0, raw_path_id = 0, pyrdec_support = 0, path_id = 0;
+	uint32_t dcam_online_raw_port_id = 0, dcam_offline_lscraw_port_id = 0;
 	struct cam_scene_topology_input *in = NULL;
 	struct cam_node_topology *cur_node = NULL;
 
@@ -776,6 +778,7 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_DATA_COPY,
+			CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW,
 			CAM_NODE_TYPE_DCAM_OFFLINE,
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_PYR_DEC,
@@ -791,6 +794,7 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_DATA_COPY,
+			CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW,
 			CAM_NODE_TYPE_DCAM_OFFLINE,
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_ISP_OFFLINE,
@@ -819,9 +823,16 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 	cur_node->outport[PORT_COPY_OUT].link.node_type = CAM_NODE_TYPE_DATA_COPY;
 	cur_node->outport[PORT_COPY_OUT].link.node_id = CAM_COPY_NODE_ID_0;
 	cur_node->outport[PORT_COPY_OUT].link.port_id = PORT_COPY_OUT;
-	cur_node->outport[PORT_COPY_OUT].switch_link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+	cur_node->outport[PORT_COPY_OUT].switch_link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW;
 	cur_node->outport[PORT_COPY_OUT].switch_link.node_id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[PORT_COPY_OUT].switch_link.port_id = PORT_DCAM_OFFLINE_IN;
+	cur_node++;
+	dcam_offline_lscraw_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	cur_node->id = DCAM_OFFLINE_NODE_ID;
+	cur_node->outport[dcam_offline_lscraw_port_id].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[dcam_offline_lscraw_port_id].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+	cur_node->outport[dcam_offline_lscraw_port_id].link.node_id = DCAM_OFFLINE_NODE_ID;
+	cur_node->outport[dcam_offline_lscraw_port_id].link.port_id = PORT_DCAM_OFFLINE_IN;
 	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
@@ -1541,68 +1552,68 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 		[CAM_PIPELINE_PREVIEW] = {
 			.name = "CAM_PIPELINE_PREVIEW", .type = CAM_PIPELINE_PREVIEW,
 			.prev_type = PIPELINE_PREVIEW_TYPE, .base_cfg_func = camscene_preview_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 1,
 		},
 		[CAM_PIPELINE_VIDEO] = {
 			.name = "CAM_PIPELINE_VIDEO", .type = CAM_PIPELINE_VIDEO,
 			.prev_type = PIPELINE_VIDEO_TYPE, .base_cfg_func = camscene_preview_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 1,
 		},
 		[CAM_PIPELINE_CAPTURE] = {
 			.name = "CAM_PIPELINE_CAPTURE", .type = CAM_PIPELINE_CAPTURE,
 			.prev_type = PIPELINE_CAPTURE_TYPE, .base_cfg_func = camscene_capture_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 1,
 		},
 		[CAM_PIPELINE_ZSL_CAPTURE] = {
 			.name = "CAM_PIPELINE_ZSL_CAPTURE", .type = CAM_PIPELINE_ZSL_CAPTURE,
 			.prev_type = PIPELINE_CAPTURE_TYPE, .base_cfg_func = camscene_zsl_capture_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 1, .need_pyr_dec = 1, .need_yuv_scaler = 1,
 		},
 		[CAM_PIPELINE_SENSOR_RAW] = {
 			.name = "CAM_PIPELINE_SENSOR_RAW", .type = CAM_PIPELINE_SENSOR_RAW,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX, .base_cfg_func = camscene_onlineraw_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 0, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_SCALER_YUV] = {
 			.name = "CAM_PIPELINE_SCALER_YUV", .type = CAM_PIPELINE_SCALER_YUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX, .base_cfg_func = NULL,
-			.need_dcam_online = 0, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 0, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 0, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 1,
 		},
 		[CAM_PIPELINE_OFFLINE_RAW2YUV] = {
 			.name = "CAM_PIPELINE_OFFLINE_RAW2YUV", .type = CAM_PIPELINE_OFFLINE_RAW2YUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX, .base_cfg_func = camscene_offlineraw2yuv_pipeline_get,
-			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV] = {
 			.name = "CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV", .type = CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX, .base_cfg_func = camscene_onlineraw2offlineyuv_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV] = {
 			.name = "CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV", .type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX, .base_cfg_func = camscene_online2user2offline_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV] = {
 			.name = "CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV", .type = CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX, .base_cfg_func = camscene_online2copy2user2offline_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 1,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV] = {
 			.name = "CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV",
 			.type = CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX, .base_cfg_func = camscene_onlinebpcraw2user2offlineyuv_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 1, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV] = {
@@ -1610,7 +1621,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.type = CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX,
 			.base_cfg_func = camscene_online2user2bpc2user2offline_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 1,
+			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 1, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV] = {
@@ -1618,7 +1629,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.type = CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX,
 			.base_cfg_func = camscene_online_normal_or_raw2user2yuv_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV] = {
@@ -1626,7 +1637,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.type = CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX,
 			.base_cfg_func = camscene_onlinezsl_or_raw2user2yuv_pipeline_get,
-			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 1, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV] = {
@@ -1634,13 +1645,13 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.type = CAM_PIPELINE_OFFLINE_RAW2FRGB_OFFLINE_FRGB2YUV,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX,
 			.base_cfg_func = camscene_offlinefrgb2yuv_pipeline_get,
-			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0,
 		},
 		[CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR] = {
 			.name = "CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR", .type = CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR,
 			.prev_type = PIPELINE_PREVIEW_TYPE, .base_cfg_func = camscene_onlineyuv_2_user_2_offlineyuv_2_nr_get,
-			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 1, .need_dcam_offline = 0, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 1,
 		},
 		[CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW] = {
@@ -1648,7 +1659,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW,
 			.prev_type = PIPELINE_SCENE_TYPE_MAX,
 			.base_cfg_func = camscene_onlineraw2offlinepreview_pipeline_get,
-			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0,
+			.need_dcam_online = 0, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 0,
 		},
 	};
@@ -1659,6 +1670,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 	param->need_dcam_online = pipeline[index].need_dcam_online;
 	param->need_dcam_offline = pipeline[index].need_dcam_offline;
 	param->need_dcam_offline_bpc = pipeline[index].need_dcam_offline_bpc;
+	param->need_dcam_offline_lsc = pipeline[index].need_dcam_offline_lsc;
 	param->need_isp_offline = pipeline[index].need_isp_offline;
 	param->need_frame_cache = pipeline[index].need_frame_cache;
 	param->need_pyr_dec = pipeline[index].need_pyr_dec;
@@ -2203,6 +2215,33 @@ int cam_scene_dcamoffline_bpcraw_desc_get(void *module_ptr,
 	dcam_offline_desc->fetch_fmt = CAM_RAW_14;
 	cam_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->dcampath_abt[rawpath_id]->format[0]);
 	dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_14;
+
+	return ret;
+}
+
+int cam_scene_dcamoffline_lscraw_desc_get(void *module_ptr,
+		void *channel_ptr, struct dcam_offline_node_desc *dcam_offline_desc)
+{
+	int ret = 0;
+	uint32_t rawpath_id = 0;
+	struct cam_hw_info *hw = NULL;
+	struct camera_module *module = NULL;
+	struct channel_context *channel = NULL;
+
+	module = (struct camera_module *)module_ptr;
+	channel = (struct channel_context *)channel_ptr;
+	hw = module->grp->hw_info;
+	rawpath_id = camcore_dcampath_id_convert(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+
+	dcam_offline_desc->dev = module->dcam_dev_handle;
+	dcam_offline_desc->buf_manager_handle = module->grp->global_buf_manager;
+	dcam_offline_desc->csi_controller_idx = CSI_ID_1;
+	dcam_offline_desc->pattern = module->cam_uinfo.sensor_if.img_ptn;
+	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
+	dcam_offline_desc->endian = ENDIAN_LITTLE;
+	dcam_offline_desc->port_desc.src_sel = PROCESS_RAW_SRC_SEL;
+	dcam_offline_desc->fetch_fmt = module->channel[CAM_CH_DCAM_VCH].ch_uinfo.sensor_raw_fmt;
+	dcam_offline_desc->port_desc.dcam_out_fmt = module->channel[CAM_CH_DCAM_VCH].ch_uinfo.sensor_raw_fmt;
 
 	return ret;
 }

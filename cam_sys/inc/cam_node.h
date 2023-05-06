@@ -148,6 +148,7 @@ struct cam_node_desc {
 	struct dcam_online_node_desc *dcam_online_desc;
 	struct dcam_offline_node_desc *dcam_offline_desc;
 	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc;
+	struct dcam_offline_node_desc *dcam_offline_lscraw_desc;
 	struct dcam_offline_node_desc *dcam_offline_raw2frgb_desc;
 	struct dcam_offline_node_desc *dcam_offline_frgb2yuv_desc;
 	struct dcam_fetch_node_desc *dcam_fetch_desc;
@@ -197,6 +198,8 @@ struct cam_nodes_dev {
 	struct dcam_offline_port *dcam_offline_out_port_dev[PORT_DCAM_OUT_MAX];
 	struct dcam_offline_node *dcam_offline_node_bpcraw_dev;
 	struct dcam_offline_port *dcam_offline_bpcraw_out_port_dev[PORT_DCAM_OUT_MAX];
+	struct dcam_offline_node *dcam_offline_node_lscraw_dev;
+	struct dcam_offline_port *dcam_offline_lscraw_out_port_dev[PORT_DCAM_OUT_MAX];
 	struct dcam_offline_node *dcam_offline_node_raw2frgb_dev;
 	struct dcam_offline_port *dcam_offline_raw2frgb_out_port_dev[PORT_DCAM_OUT_MAX];
 	struct dcam_offline_node *dcam_offline_node_frgb2yuv_dev;

@@ -479,7 +479,7 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	int ret = 0;
 	struct dcam_offline_port *port = (struct dcam_offline_port *)handle;
 	struct cam_frame *pframe = NULL;
-	uint32_t i = 0,size = 0, height = 0, width = 0, total = 0, out_fmt;
+	uint32_t i = 0, size = 0, height = 0, width = 0, total = 0, out_fmt = 0;
 	uint32_t pyr_data_bits = 0, pyr_is_pack = 0;
 
 	if (!port || !param) {
@@ -550,6 +550,69 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 
 	if (param->is_pyr_rec && port->port_id == PORT_OFFLINE_BIN_OUT && param->stream_on_buf_com)
 		complete(param->stream_on_buf_com);
+
+	ret = cam_buf_manager_pool_cnt(&port->unprocess_pool, port->buf_manager_handle);
+	if (ret > 0 || !total)
+		return 0;
+	else
+		return -1;
+}
+
+int dcam_offline_lsc_raw_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
+{
+	int ret = 0;
+	struct dcam_offline_port *port = (struct dcam_offline_port *)handle;
+	struct cam_frame *pframe = NULL;
+	uint32_t i = 0, size = 0, height = 0, width = 0, total = 0, out_fmt = 0;
+
+	if (!port || !param) {
+		pr_err("fail to get valid handle %px %px\n", handle, param);
+		return -1;
+	}
+
+	width = param->width;
+	height = param->height;
+	out_fmt = port->out_fmt;
+	if (param->compress_offline) {
+		struct dcam_compress_info fbc_info = {0};
+		struct dcam_compress_cal_para cal_fbc = {0};
+		cal_fbc.data_bits = cam_data_bits(out_fmt);
+		cal_fbc.fbc_info = &fbc_info;
+		cal_fbc.fmt = out_fmt;
+		cal_fbc.height = height;
+		cal_fbc.width = width;
+		size = dcam_if_cal_compressed_size (&cal_fbc);
+	} else {
+		size = cal_sprd_size(width, height, out_fmt);
+	}
+
+	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+
+	total = param->dcamoffline_lsc_buf_alloc_num;
+	pr_info("ch %d alloc shared buffer size: %u (w %u h %u), fmt %s, num %d\n",
+		param->ch_id, size, width, height, camport_fmt_name_get(port->out_fmt), total);
+
+	for (i = 0; i < total; i++) {
+		do {
+			pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+			pframe->common.channel_id = param->ch_id;
+			pframe->common.is_compressed = param->compress_en;
+			pframe->common.width = width;
+			pframe->common.height = height;
+			CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
+			ret = cam_buf_alloc(&pframe->common.buf, size, param->iommu_enable);
+			if (ret) {
+				pr_err("fail to alloc buf: %d ch %d\n",
+					i, param->ch_id);
+				cam_queue_empty_frame_put(pframe);
+				continue;
+			}
+			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+			pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
+
+			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL, port->buf_manager_handle);
+		} while (0);
+	}
 
 	ret = cam_buf_manager_pool_cnt(&port->unprocess_pool, port->buf_manager_handle);
 	if (ret > 0 || !total)

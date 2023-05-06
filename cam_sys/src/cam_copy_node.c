@@ -204,25 +204,25 @@ int cam_copy_node_set_opt_scene(void *handle, void *param)
 static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 {
 	int i = 0, ret = 0;
-	struct cam_frame *pframe = NULL, *raw_frame = NULL;
+	struct cam_frame *in_frame = NULL, *out_frame = NULL;
 
 	for (i = 0; i < loop_num; i++) {
-		pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
-		if (pframe == NULL) {
+		in_frame = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
+		if (in_frame == NULL) {
 			pr_err("fail to get input frame for dump node %d\n", node->node_id);
-			goto get_pframe_fail;
+			goto get_in_frame_fail;
 		}
-		raw_frame = CAM_QUEUE_DEQUEUE(&node->out_queue, struct cam_frame, list);
-		if (raw_frame == NULL) {
-			pr_debug("raw path no get out queue\n");
-			pframe->common.copy_en = 0;
+		out_frame = CAM_QUEUE_DEQUEUE(&node->out_queue, struct cam_frame, list);
+		if (out_frame == NULL) {
+			pr_debug("no get out frame\n");
+			in_frame->common.copy_en = 0;
 			switch (node->scene_id) {
 			case CAM_COPY_NORMAL_SCENE:
 			case CAM_COPY_OPT_SCENE:
-				node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+				node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
 				break;
 			case CAM_COPY_ICAP_SCENE:
-				node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+				node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
 				break;
 			default :
 				pr_err("fail to support scene id %d\n", node->scene_id);
@@ -230,54 +230,71 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 			}
 		} else {
 			pr_debug("start copy src frame data\n");
-			if (pframe->common.buf.size > raw_frame->common.buf.size) {
-				pr_err("fail to raw buff is small, frame buf size %d and raw buf size %d\n",
-					pframe->common.buf.size, raw_frame->common.buf.size);
-				goto raw_buffer_smaller_fail;
-			}
-			if (cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
-				pr_err("fail to kmap temp buf\n");
-				goto pframe_kmap_fail;
-			}
-			if (cam_buf_manager_buf_status_cfg(&raw_frame->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
-				goto raw_frame_kmap_fail;
-			}
-			memcpy((char *)raw_frame->common.buf.addr_k, (char *)pframe->common.buf.addr_k, pframe->common.buf.size);
-			/* use SOF time instead of ISP time for better accuracy */
-			raw_frame->common.width = pframe->common.width;
-			raw_frame->common.height = pframe->common.height;
-			raw_frame->common.fid = pframe->common.fid;
-			raw_frame->common.sensor_time.tv_sec = pframe->common.sensor_time.tv_sec;
-			raw_frame->common.sensor_time.tv_usec = pframe->common.sensor_time.tv_usec;
-			raw_frame->common.boot_sensor_time = pframe->common.boot_sensor_time;
-			/* end copy, out src buf*/
-			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
-			cam_buf_manager_buf_status_cfg(&raw_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
-			pframe->common.copy_en = 0;
 			switch (node->scene_id) {
 			case CAM_COPY_NORMAL_SCENE:
 			case CAM_COPY_OPT_SCENE:
-				node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-				raw_frame->common.evt = IMG_TX_DONE;
-				raw_frame->common.irq_type = CAMERA_IRQ_IMG;
-				raw_frame->common.priv_data = node;
-				raw_frame->common.channel_id = CAM_CH_RAW;
-				raw_frame->common.link_to.node_type = CAM_NODE_TYPE_USER;
-				raw_frame->common.link_to.node_id = CAM_LINK_DEFAULT_NODE_ID;
-				pr_debug("get out raw frame fd 0x%x raw fram fid %d\n", raw_frame->common.buf.mfd, raw_frame->common.fid);
-				node->copy_cb_func(CAM_CB_DCAM_DATA_DONE, raw_frame, node->copy_cb_handle);
+				if (in_frame->common.buf.size > out_frame->common.buf.size) {
+					pr_err("fail to out buff is small, in buf size %d and out buf size %d\n",
+						in_frame->common.buf.size, out_frame->common.buf.size);
+					goto out_buffer_smaller_fail;
+				}
+				if (cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
+					pr_err("fail to kmap in buf\n");
+					goto in_frame_kmap_fail;
+				}
+				if (cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
+					pr_err("fail to kmap out buf\n");
+					goto out_frame_kmap_fail;
+				}
+				memcpy((char *)out_frame->common.buf.addr_k, (char *)in_frame->common.buf.addr_k, in_frame->common.buf.size);
+				/* use SOF time instead of ISP time for better accuracy */
+				out_frame->common.width = in_frame->common.width;
+				out_frame->common.height = in_frame->common.height;
+				out_frame->common.fid = in_frame->common.fid;
+				out_frame->common.sensor_time.tv_sec = in_frame->common.sensor_time.tv_sec;
+				out_frame->common.sensor_time.tv_usec = in_frame->common.sensor_time.tv_usec;
+				out_frame->common.boot_sensor_time = in_frame->common.boot_sensor_time;
+				/* end copy, out src buf*/
+				cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
+				cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
+				in_frame->common.copy_en = 0;
+				node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
+				out_frame->common.evt = IMG_TX_DONE;
+				out_frame->common.irq_type = CAMERA_IRQ_IMG;
+				out_frame->common.priv_data = node;
+				out_frame->common.channel_id = CAM_CH_RAW;
+				out_frame->common.link_to.node_type = CAM_NODE_TYPE_USER;
+				out_frame->common.link_to.node_id = CAM_LINK_DEFAULT_NODE_ID;
+				pr_debug("get out raw frame fd 0x%x raw fram fid %d\n", out_frame->common.buf.mfd, out_frame->common.fid);
+				node->copy_cb_func(CAM_CB_DCAM_DATA_DONE, out_frame, node->copy_cb_handle);
 				break;
 			case CAM_COPY_ICAP_SCENE:
-				pr_debug("get out pframe fd 0x%x pframe fid %d\n", pframe->common.buf.mfd, pframe->common.fid);
-				node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-				raw_frame->common.link_from.node_type = CAM_NODE_TYPE_DATA_COPY;
-				raw_frame->common.link_from.port_id = PORT_COPY_OUT;
-				if (raw_frame->common.boot_sensor_time >= node->cap_param.cap_timestamp && atomic_read(&node->cap_param.cap_cnt) > 0) {
-					ret = node->copy_cb_func(CAM_CB_DCAM_DATA_DONE, raw_frame, node->copy_cb_handle);
-					atomic_dec(&node->cap_param.cap_cnt);
-				} else {
-					ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &raw_frame->list);
+				if (cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
+					pr_err("fail to kmap in buf\n");
+					goto in_frame_kmap_fail;
 				}
+				if (cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
+					pr_err("fail to kmap out buf\n");
+					goto out_frame_kmap_fail;
+				}
+				memcpy((char *)out_frame->common.buf.addr_k, (char *)in_frame->common.buf.addr_k, out_frame->common.buf.size);
+				/* use SOF time instead of ISP time for better accuracy */
+				out_frame->common.width = in_frame->common.width;
+				out_frame->common.height = in_frame->common.height;
+				out_frame->common.fid = in_frame->common.fid;
+				out_frame->common.sensor_time.tv_sec = in_frame->common.sensor_time.tv_sec;
+				out_frame->common.sensor_time.tv_usec = in_frame->common.sensor_time.tv_usec;
+				out_frame->common.boot_sensor_time = in_frame->common.boot_sensor_time;
+				/* end copy, out src buf*/
+				cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
+				cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
+				in_frame->common.copy_en = 0;
+				pr_debug("get out pframe fd 0x%x pframe fid %d\n", in_frame->common.buf.mfd, in_frame->common.fid);
+				node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
+				out_frame->common.link_from.node_type = CAM_NODE_TYPE_DATA_COPY;
+				out_frame->common.link_from.port_id = PORT_COPY_OUT;
+				ret = node->copy_cb_func(CAM_CB_DCAM_DATA_DONE, out_frame, node->copy_cb_handle);
+				atomic_dec(&node->cap_param.cap_cnt);
 				break;
 			default :
 				pr_err("fail to support scene id %d\n", node->scene_id);
@@ -288,14 +305,14 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 
 	return ret;
 
-raw_frame_kmap_fail:
-	cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
-pframe_kmap_fail:
-raw_buffer_smaller_fail:
-	pframe->common.copy_en = 0;
-	node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-	CAM_QUEUE_ENQUEUE(&node->out_queue, &raw_frame->list);
-get_pframe_fail:
+out_frame_kmap_fail:
+	cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
+in_frame_kmap_fail:
+out_buffer_smaller_fail:
+	in_frame->common.copy_en = 0;
+	node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
+	CAM_QUEUE_ENQUEUE(&node->out_queue, &out_frame->list);
+get_in_frame_fail:
 
 	return -EFAULT;
 }
@@ -362,6 +379,14 @@ static int camcopy_node_frame_start(void *param)
 				}
 			}
 		}
+		pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
+		if (atomic_read(&node->cap_param.cap_cnt) == 0) {
+			pr_debug("time or cnt canot meet the conditions\n");
+			pframe->common.copy_en = 0;
+			node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+			return ret;
+		} else
+			CAM_QUEUE_ENQUEUE_HEAD(&node->in_queue, &pframe->list);
 		break;
 	default :
 		pr_err("fail to support scene id %d\n", node->scene_id);

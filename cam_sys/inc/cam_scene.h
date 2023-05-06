@@ -33,6 +33,7 @@ uint32_t cam_scene_dcamoffline_buffers_alloc_num(void *channel_ptr, void *module
 int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t pipeline_type, struct dcam_online_node_desc *dcam_online_desc);
 int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr, uint32_t pipeline_type, struct dcam_offline_node_desc *dcam_offline_desc);
 int cam_scene_dcamoffline_bpcraw_desc_get(void *module_ptr, void *channel_ptr, struct dcam_offline_node_desc *dcam_offline_desc);
+int cam_scene_dcamoffline_lscraw_desc_get(void *module_ptr, void *channel_ptr, struct dcam_offline_node_desc *dcam_offline_desc);
 int cam_scene_ispoffline_desc_get(void *module_ptr, void *channel_ptr, uint32_t pipeline_type, struct isp_node_desc *isp_node_description);
 int cam_scene_isp_yuv_scaler_desc_get(void *module_ptr, void *channel_ptr, struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc);
 

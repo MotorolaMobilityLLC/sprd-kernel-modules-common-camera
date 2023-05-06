@@ -367,6 +367,7 @@ struct cam_capture_param {
 	int64_t cap_timestamp;
 	uint32_t need_skip_scene;
 	uint32_t cap_opt_frame_scene;
+	uint32_t icap_scene;
 	struct sprd_img_rect cap_user_crop;
 	uint32_t skip_first_num;
 	uint32_t zsl_num;
@@ -386,6 +387,7 @@ struct cam_buf_alloc_desc {
 	uint32_t cam_idx;
 	uint32_t dcamonline_buf_alloc_num;
 	uint32_t dcamoffline_buf_alloc_num;
+	uint32_t dcamoffline_lsc_buf_alloc_num;
 	uint32_t cam_copy_buf_alloc_num;
 	uint32_t share_buffer;
 	uint32_t iommu_enable;
