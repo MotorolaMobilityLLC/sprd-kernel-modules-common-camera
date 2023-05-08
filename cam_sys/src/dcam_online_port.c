@@ -582,9 +582,9 @@ static void dcamonline_port_aem_update_statis_head(struct dcam_online_port *dcam
 	unsigned long flags = 0;
 
 	/* Re-config aem win if it is updated */
-	spin_lock_irqsave(&blk_dcam_pm->aem.aem_win_lock, flags);
+	spin_lock_irqsave(&blk_dcam_pm->aem_win_lock, flags);
 	dcam_k_aem_win(blk_dcam_pm);
-	spin_unlock_irqrestore(&blk_dcam_pm->aem.aem_win_lock, flags);
+	spin_unlock_irqrestore(&blk_dcam_pm->aem_win_lock, flags);
 }
 
 static void dcamonline_port_hist_update_statis_head(struct dcam_online_port *dcam_port,

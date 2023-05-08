@@ -2588,6 +2588,41 @@ struct isp_rrgb {
 	uint32_t gb;
 };
 
+struct isp_dev_pdaf_info {
+	uint32_t bypass;
+	uint32_t corrector_bypass;
+	uint32_t phase_map_corr_en;
+	struct isp_img_size block_size;
+	uint32_t grid_mode;
+	struct isp_coord win;
+	struct isp_coord block;
+	struct isp_rrgb gain_upperbound;
+	uint32_t phase_txt_smooth;
+	uint32_t phase_gfilter;
+	uint32_t phase_flat_smoother;
+	uint32_t hot_pixel_th[3];
+	uint32_t dead_pixel_th[3];
+	uint32_t flat_th;
+	uint32_t edge_ratio_hv;
+	uint32_t edge_ratio_rd;
+	uint32_t edge_ratio_hv_rd;
+	uint32_t phase_left_addr;
+	uint32_t phase_right_addr;
+	uint32_t phase_pitch;
+	uint32_t pattern_pixel_is_right[PDAF_PPI_NUM];
+	uint32_t pattern_pixel_row[PDAF_PPI_NUM];
+	uint32_t pattern_pixel_col[PDAF_PPI_NUM];
+	uint32_t gain_ori_left[2];
+	uint32_t gain_ori_right[2];
+	uint32_t extractor_bypass;
+	uint32_t mode_sel;
+	uint32_t skip_num;
+	uint32_t phase_data_dword_num;
+	struct isp_rrgb pdaf_blc;
+	uint32_t data_ptr_left[2];
+	uint32_t data_ptr_right[2];
+};
+
 struct pdaf_ppi_info {
 	struct isp_img_size block_size;
 	struct isp_coord block;
@@ -2858,6 +2893,291 @@ struct isp_param_data_l6 {
 	struct dcam_dev_raw_gtm_block_info gtm_info;
 	uint32_t vst_buf[ISP_VST_IVST_NUM2];
 	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
+};
+
+struct dcam_dev_aem_param {
+	uint32_t update_flag;
+	uint32_t mode;
+	uint32_t bypass;
+	uint32_t update;
+	uint32_t skip_num;
+	struct dcam_dev_aem_win win_info;
+	struct dcam_dev_aem_thr aem_info;
+};
+
+struct afm_win_param {
+	uint32_t crop_eb;
+	struct isp_img_rect crop_size;
+	struct isp_img_size win_num;
+	struct isp_img_size done_tile_num;
+	struct isp_img_rect win;
+};
+
+struct dcam_dev_afm_param {
+	uint32_t update_flag;
+	struct dcam_dev_afm_info af_param;
+	uint32_t mode;
+	uint32_t bypass;
+	uint32_t skip_num;
+	struct dcam_dev_afm_iir_info af_iir_info;
+	struct afm_win_param win_parm;
+};
+
+struct dcam_dev_pdaf_param {
+	uint32_t update_flag;
+	uint32_t bypass;
+	uint32_t mode;
+	uint32_t skip_num;
+	uint32_t pdaf_type;
+	struct isp_dev_pdaf_info pdaf_info;
+	struct dev_dcam_vc2_control vch2_info;
+	struct pdaf_ppi_info ppi_info;
+	struct pdaf_roi_info roi_info;
+	struct dcam_ppe_ppc_info ppe_ppc_info;
+};
+
+struct isp_pipeline_param_l3 {
+	uint32_t stream_type;
+	uint32_t frame_id;
+	uint32_t real_index;
+
+	/* 3A owner: */
+	struct dcam_dev_aem_param aem_info;
+	struct dcam_dev_afm_param afm_info;
+	struct isp_dev_anti_flicker_new_info afl_param;
+	struct dcam_dev_hist_info bhist_info;
+	struct isp_dev_hist_info hist_info;
+	struct dcam_dev_pdaf_param pdaf_info;
+
+	/* dcam related tuning blocks */
+	struct dcam_dev_awbc_info awbc_param;
+	struct dcam_dev_rgb_gain_info gain_param;
+	struct dcam_dev_blc_info blc_param;
+	struct dcam_dev_lsc_info lsc_param;
+	struct dcam_dev_rgb_dither_info dither_param;
+	struct dcam_dev_bpc_info_l3 bpc_param;
+	struct isp_dev_grgb_info grgb_param;
+	/* dcam blocks end. */
+
+	/* isp blocks below */
+	struct isp_dev_posterize_info posterize_param;
+	struct isp_dev_3dnr_info nr3_param;
+	struct isp_dev_contrast_info c_param;
+	struct isp_dev_csa_info s_param;
+	struct isp_dev_brightness_info b_param;
+	struct isp_dev_hue_info_l3 h_param;
+	struct isp_dev_cce_info cce_param;
+	struct isp_dev_cfa_info cfa_param;
+	struct isp_dev_cmc10_info cmc10_param;
+	struct isp_dev_edge_info_v2 edge_param;
+	struct isp_dev_gamma_info gamma_param;
+	struct isp_dev_hsv_info_v2 hsv_param;
+	struct isp_dev_iircnr_info iircnr_param;
+	struct isp_dev_yrandom_info yrandom_param;
+	struct isp_dev_nlm_info_v2 nlm_param;
+	struct isp_dev_pre_cdn_info precdn_param;
+	struct isp_dev_cdn_info cdn_param;
+	struct isp_dev_post_cdn_info postcdn_param;
+	struct isp_dev_uvd_info uvd_param;
+	struct isp_dev_ynr_info ynr_param;
+	struct isp_dev_noise_filter_info nf_param;
+	struct isp_dev_ygamma_info ygamma_param;
+};
+
+struct isp_pipeline_param_l5 {
+	uint32_t stream_type;
+	uint32_t frame_id;
+	uint32_t real_index;
+
+	/* 3A owner: */
+	struct dcam_dev_aem_param aem_info;
+	struct dcam_dev_afm_param afm_info;
+	struct isp_dev_anti_flicker_new_info afl_param;
+	struct dcam_dev_hist_info bhist_info;
+	struct isp_dev_hist2_info hist_info;
+	struct dcam_dev_pdaf_param pdaf_info;
+
+	/* dcam related tuning blocks */
+	struct dcam_dev_awbc_info awbc_param;
+	struct dcam_dev_rgb_gain_info gain_param;
+	struct dcam_dev_blc_info blc_param;
+	struct dcam_dev_lsc_info lsc_param;
+	struct dcam_dev_rgb_dither_info dither_param;
+	struct dcam_dev_bpc_info bpc_param;
+	struct isp_dev_grgb_info grgb_param;
+	struct dcam_bpc_ppi_info ppi_param;
+	/* dcam blocks end. */
+
+	/* isp blocks below */
+	struct isp_dev_nlm_imblance imbalance_param;
+	struct isp_dev_ltm_info ltm_param;
+	struct isp_dev_posterize_info_v2 posterize_param;
+	struct isp_dev_3dnr_info nr3_param;
+	struct isp_dev_bchs_info bchs_param;
+	struct isp_dev_cce_info cce_param;
+	struct isp_dev_cfa_info cfa_param;
+	struct isp_dev_cmc10_info cmc10_param;
+	struct isp_dev_edge_info_v2 edge_param;
+	struct isp_dev_gamma_info gamma_param;
+	struct isp_dev_hsv_info_v2 hsv_param;
+	struct isp_dev_iircnr_info iircnr_param;
+	struct isp_dev_yrandom_info yrandom_param;
+	struct isp_dev_nlm_info_v2 nlm_param;
+	struct isp_dev_pre_cdn_info precdn_param;
+	struct isp_dev_cdn_info cdn_param;
+	struct isp_dev_post_cdn_info postcdn_param;
+	struct isp_dev_uvd_info_v2 uvd_param;
+	struct isp_dev_ynr_info_v2 ynr_param;
+	struct isp_dev_noise_filter_info nf_param;
+	struct isp_dev_ygamma_info ygamma_param;
+};
+
+struct isp_pipeline_param_l5pro {
+	uint32_t stream_type;
+	uint32_t frame_id;
+	uint32_t real_index;
+
+	/* 3A owner: */
+	struct dcam_dev_aem_param aem_info;
+	struct dcam_dev_afm_param afm_info;
+	struct isp_dev_anti_flicker_new_info afl_param;
+	struct dcam_dev_lscm_param lscm_info;
+	struct dcam_dev_hist_info bhist_info;
+	struct isp_dev_hist2_info hist_info;
+	struct dcam_dev_pdaf_param pdaf_info;
+
+	/* dcam related tuning blocks */
+	struct dcam_dev_awbc_info awbc_param;
+	struct dcam_dev_rgb_gain_info gain_param;
+	struct dcam_dev_blc_info blc_param;
+	struct dcam_dev_rgb_dither_info dither_param;
+	struct dcam_dev_bpc_info bpc_param;
+	struct dcam_bpc_ppi_info ppi_param;
+	struct dcam_dev_lsc_info lsc_param;
+	struct isp_dev_grgb_info grgb_param;
+	/* dcam blocks end. */
+
+	/* isp blocks below */
+	struct  isp_dev_posterize_info_v2 posterize_param;
+	struct isp_dev_3dnr_info nr3_param;
+	struct isp_dev_bchs_info bchs_param;
+	struct isp_dev_cce_info cce_param;
+	struct isp_dev_cfa_info cfa_param;
+	struct isp_dev_cmc10_info cmc10_param;
+	struct isp_dev_edge_info_v2 edge_param;
+	struct isp_dev_gamma_info gamma_param;
+	struct isp_dev_hsv_info_v2 hsv_param;
+	struct isp_dev_iircnr_info iircnr_param;
+	struct isp_dev_yrandom_info yrandom_param;
+	struct isp_dev_rgb_ltm_info ltm_param;
+	struct dcam_dev_raw_gtm_block_info gtm_param;
+	struct isp_dev_nlm_info_v2 nlm_param;
+	struct isp_dev_nlm_imblance_v1 imbalance_param;
+	struct isp_dev_pre_cdn_info precdn_param;
+	struct isp_dev_cdn_info cdn_param;
+	struct isp_dev_post_cdn_info postcdn_param;
+	struct isp_dev_uvd_info_v2 uvd_param;
+	struct isp_dev_ynr_info_v2 ynr_param;
+	struct isp_dev_noise_filter_info nf_param;
+	struct isp_dev_ygamma_info ygamma_param;
+};
+
+struct isp_pipeline_param_l6 {
+	uint32_t stream_type;
+	uint32_t frame_id;
+	uint32_t real_index;
+
+	/* 3A owner: */
+	struct dcam_dev_aem_param aem_info;
+	struct dcam_dev_afm_param afm_info;
+	struct dcam_dev_pdaf_param pdaf_info;
+	struct dcam_dev_lscm_param lscm_info;
+	struct isp_dev_hist2_info hist_info;
+	struct dcam_dev_hist_info bhist_info;
+	struct isp_dev_anti_flicker_new_info afl_param;
+
+	/* dcam related tuning blocks */
+	struct dcam_dev_awbc_info awbc_param;
+	struct dcam_dev_rgb_gain_info gain_param;
+	struct dcam_dev_lsc_info lsc_param;
+	struct dcam_dev_blc_info blc_param;
+	struct dcam_dev_rgb_dither_info dither_param;
+	struct dcam_dev_bpc_info bpc_param;
+	struct dcam_bpc_ppi_info ppi_param;
+	/* dcam blocks end. */
+
+	/* isp blocks below */
+	struct isp_dev_3dnr_info nr3_param;
+	struct isp_dev_bchs_info bchs_param;
+	struct isp_dev_cce_info cce_param;
+	struct isp_dev_cfa_info cfa_param;
+	struct isp_dev_cmc10_info cmc10_param;
+	struct isp_dev_edge_info_v2 edge_param;
+	struct isp_dev_gamma_info gamma_param;
+	struct isp_dev_hsv_info_v3 hsv3_param;
+	struct isp_dev_iircnr_info iircnr_param;
+	struct isp_dev_yrandom_info yrandom_param;
+	struct isp_dev_rgb_ltm_info ltm_param;
+	struct dcam_dev_raw_gtm_block_info gtm_param;
+	struct isp_dev_nlm_info_v2 nlm_param;
+	struct isp_dev_nlm_imblance_v2 imbalance_param;
+	struct isp_dev_pre_cdn_info precdn_param;
+	struct isp_dev_cdn_info cdn_param;
+	struct isp_dev_post_cdn_info postcdn_param;
+	struct isp_dev_uvd_info_v2 uvd_param;
+	struct isp_dev_ynr_info_v2 ynr_param;
+	struct isp_dev_noise_filter_info nf_param;
+	struct isp_dev_ygamma_info ygamma_param;
+};
+
+struct isp_pipeline_param_n6pro {
+	uint32_t stream_type;
+	uint32_t frame_id;
+	uint32_t real_index;
+
+	/* DCAM BLOCK */
+	struct dcam_dev_aem_param aem_info;
+	struct dcam_dev_afm_param afm_info;
+	struct dcam_dev_pdaf_param pdaf_info;
+	struct dcam_dev_lscm_param lscm_info;
+	struct isp_dev_hist2_info hist_info;
+	struct dcam_dev_hist_info bhist_info;
+
+	struct dcam_dev_blc_info blc_param;
+	struct dcam_dev_rgb_gain_info gain_param;
+	struct dcam_dev_rgb_dither_info dither_param;
+	struct dcam_dev_lsc_info lsc_param;
+	struct isp_dev_anti_flicker_new_info afl_param;
+	struct dcam_dev_awbc_info awbc_param;
+	struct dcam_dev_bpc_info_v1 bpc_param;
+	struct dcam_bpc_ppi_info ppi_param;
+	struct dcam_dev_rgb_gtm_block_info gtm_param;
+	struct isp_dev_gamma_info_v1 gamma_param;
+	struct isp_dev_cmc10_info cmc10_param;
+	struct isp_dev_cfa_info_v1 cfa_param;
+	struct isp_dev_nlm_info_v2 nlm_param;
+	struct isp_dev_nlm_imblance_v2 imbalance_param;
+	struct isp_dev_cce_info cce_param;
+
+	/* ISP BLOCK */
+	struct isp_dev_rgb_ltm_info ltm_param;
+	struct isp_dev_bchs_info bchs_param;
+	struct isp_dev_cnr_h_info cnr_param;
+	struct isp_dev_post_cnr_h_info pcnr_param;
+	struct isp_dev_cdn_info cdn_param;
+	struct isp_dev_edge_info_v3 edge_param;
+	struct isp_dev_3dlut_info lut3d_param;
+	struct isp_dev_uvd_info_v1 uvd_param;
+	struct isp_dev_ygamma_info_v1 ygamma_param;
+	struct isp_dev_yrandom_info yrandom_param;
+	struct isp_dev_ynr_info_v3 ynr_param;
+	struct isp_dev_hsv_info_v3 hsv3_param;
+	struct isp_dev_hsv_info_v4 hsv4_param;
+	struct isp_dev_3dnr_info_v1 nr3_param;
+	struct isp_dev_noise_filter_info nf_param;
+	struct isp_pyramid_onl_info pyronl_param;
+	struct isp_pyramid_offl_info pyroffl_param;
+	struct isp_dev_dct_info dct_param;
 };
 
 /************* debug data start ***********/

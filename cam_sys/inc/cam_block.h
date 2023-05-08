@@ -37,6 +37,7 @@ struct isp_blkparam_adapt {
 
 struct dcam_isp_k_block {
 	struct mutex param_lock;
+	spinlock_t aem_win_lock;
 	struct img_trim in_size;
 	uint32_t idx;/* dcam dev idx */
 	void *dev;/* dcam_pipe_dev dev */

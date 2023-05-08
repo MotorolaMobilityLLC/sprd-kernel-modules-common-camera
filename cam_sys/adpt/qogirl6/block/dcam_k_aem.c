@@ -220,10 +220,10 @@ int dcam_k_cfg_aem(struct isp_io_param *param, struct dcam_isp_k_block *p)
 			cur.blk_num_x, cur.blk_num_y,
 			cur.blk_width, cur.blk_height);
 
-		spin_lock_irqsave(&p->aem.aem_win_lock, flags);
+		spin_lock_irqsave(&p->aem_win_lock, flags);
 		p->aem.win_info = cur;
 		p->aem.update |= _UPDATE_WIN;
-		spin_unlock_irqrestore(&p->aem.aem_win_lock, flags);
+		spin_unlock_irqrestore(&p->aem_win_lock, flags);
 
 		return ret;
 	}
