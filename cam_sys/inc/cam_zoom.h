@@ -48,8 +48,8 @@ struct cam_zoom_desc {
 	uint32_t zoom_ratio_width;
 	uint32_t total_crop_width;
 	struct img_size dcam_src_size;
-	struct img_trim dcam_crop[ZOOM_PORT_DCAM_MAX];
-	struct img_size dcam_dst[ZOOM_PORT_DCAM_MAX];
+	struct img_trim dcam_crop[CAM_NODE_TYPE_MAX][ZOOM_PORT_DCAM_MAX];
+	struct img_size dcam_dst[CAM_NODE_TYPE_MAX][ZOOM_PORT_DCAM_MAX];
 	struct img_size isp_src_size;
 	struct img_trim isp_crop[ZOOM_PORT_ISP_MAX];
 	struct img_size isp_dst[ZOOM_PORT_ISP_MAX];
