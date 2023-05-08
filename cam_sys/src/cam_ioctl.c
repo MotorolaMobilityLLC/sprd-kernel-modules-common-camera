@@ -1223,10 +1223,13 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				pframe->common.img_fmt = pixel_fmt;
 			if (module->cam_uinfo.is_raw_alg && channel_id != CAM_CH_DCAM_VCH) {
 				pframe->common.irq_property = CAM_FRAME_ORIGINAL_RAW;
-				if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR)
+				if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR) {
 					pframe->common.irq_property = CAM_FRAME_PROCESS_RAW;
-				ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
-					CAM_PIPELINE_CFG_BUF, pframe);
+					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, ch->dcam_port_id,
+						CAM_PIPELINE_CFG_BUF, pframe);
+				} else
+					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
+						CAM_PIPELINE_CFG_BUF, pframe);
 			} else if (module->icap_scene) {
 				/* only for sharkl3 icap scene */
 				ret = camcore_icap_buffer_set(module, ch, pframe);
