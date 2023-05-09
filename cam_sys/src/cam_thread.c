@@ -84,6 +84,7 @@ int camthread_stop(struct cam_thread_info *thrd)
 		else
 			pr_info("thread %s stopped. wait %d ms\n", thrd->thread_name, ret);
 		thrd->thread_task = NULL;
+		thrd = NULL;
 	}
 	return 0;
 }
