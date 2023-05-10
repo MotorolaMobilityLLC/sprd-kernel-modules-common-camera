@@ -46,10 +46,8 @@ static int ispdev_sec_cfg(struct isp_pipe_dev *dev, void *param)
 		isp_cfg_poll_addr[i] = &s_isp_regbase[0];
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
 		atomic_set(&dev->hw_ctx[i].user_cnt, 0);
-		if (i != ISP_CONTEXT_HW_P0) {
+		if (i != ISP_CONTEXT_HW_P0)
 			atomic_set(&dev->hw_ctx[i].user_cnt, 1);
-			continue;
-		}
 	}
 
 	pr_debug("camca: isp sec_mode=%d\n", dev->sec_mode);
