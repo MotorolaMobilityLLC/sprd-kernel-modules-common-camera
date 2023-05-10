@@ -174,15 +174,13 @@ static int camcore_resframe_set(struct camera_module *module)
 static void camcore_compression_cal(struct camera_module *module)
 {
 	struct cam_hw_info *hw = NULL;
-	uint32_t nr3_compress_eb = 0, rawpath_id = 0;
-	struct channel_context *ch_pre = NULL, *ch_cap = NULL, *ch_vid = NULL, *ch_raw = NULL;
+	uint32_t nr3_compress_eb = 0;
+	struct channel_context *ch_pre = NULL, *ch_cap = NULL, *ch_vid = NULL;
 
 	hw = module->grp->hw_info;
-	rawpath_id = camcore_dcampath_id_convert(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
-	ch_raw = &module->channel[CAM_CH_RAW];
 
 	/* Enable compression for DCAM path by default. Full path is prior to bin path. */
 	ch_cap->compress_en = ch_cap->enable
@@ -197,16 +195,9 @@ static void camcore_compression_cal(struct camera_module *module)
 		&& !module->cam_uinfo.is_4in1
 		&& hw->ip_dcam[0]->dcampath_abt[DCAM_BIN_OUT_PATH]->fbc_sup
 		&& !(g_dbg_fbc_control & DEBUG_FBC_CRL_BIN);
-	ch_raw->compress_en = ch_raw->enable
-		&& ch_raw->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
-		&& !ch_raw->ch_uinfo.is_high_fps
-		&& !module->cam_uinfo.is_4in1
-		&& hw->ip_dcam[0]->dcampath_abt[rawpath_id]->fbc_sup
-		&& !(g_dbg_fbc_control & DEBUG_FBC_CRL_RAW);
 
 	ch_cap->compress_offline = hw->ip_dcam[0]->dcamhw_abt->dcam_offline_fbc_support;
 	ch_vid->compress_en = ch_pre->compress_en;
-	ch_raw->compress_en = ch_cap->compress_en ? 0 : ch_raw->compress_en;
 
 	/* Disable compression for 3DNR by default */
 	nr3_compress_eb = hw->ip_isp->isphw_abt->nr3_compress_support;
@@ -216,19 +207,15 @@ static void camcore_compression_cal(struct camera_module *module)
 		ch_pre->compress_3dnr = nr3_compress_eb;
 		ch_vid->compress_3dnr = ch_pre->compress_3dnr;
 	}
-	ch_raw->compress_3dnr = 0;
 
 	/* dcam not support fbc when dcam need fetch */
 	if (module->cam_uinfo.dcam_slice_mode ||
 		module->cam_uinfo.is_4in1 || module->cam_uinfo.is_raw_alg) {
 		ch_cap->compress_en = 0;
-		ch_raw->compress_en = 0;
 	}
 
-	pr_info("cam%d: cap %u, pre %u, vid %u, raw %u, offline %u, 3dnr %u %u %u.\n",
-		module->idx, ch_cap->compress_en, ch_pre->compress_en, ch_vid->compress_en,
-		ch_raw->compress_en, ch_cap->compress_offline, ch_cap->compress_3dnr,
-		ch_pre->compress_3dnr, ch_vid->compress_3dnr);
+	pr_info("cam%d: cap %u, pre %u, vid %u, offline %u, 3dnr %u %u %u.\n",
+		module->idx, ch_cap->compress_en, ch_pre->compress_en, ch_vid->compress_en, ch_cap->compress_offline, ch_cap->compress_3dnr, ch_pre->compress_3dnr, ch_vid->compress_3dnr);
 }
 
 static int camcore_buffer_channel_config(
@@ -1027,11 +1014,6 @@ static int camcore_pyrdec_desc_get(struct camera_module *module, struct channel_
 	int ret = 0;
 	uint32_t format = 0, temp_format = 0, rawpath_id = 0;
 	struct cam_hw_info *hw = NULL;
-
-	if (!module || !channel || !pyr_dec_desc) {
-		pr_err("fail to get valid inptr %p %p %p\n", module, channel, pyr_dec_desc);
-		return -EINVAL;
-	}
 
 	hw = module->grp->hw_info;
 	format = module->cam_uinfo.sensor_if.img_fmt;

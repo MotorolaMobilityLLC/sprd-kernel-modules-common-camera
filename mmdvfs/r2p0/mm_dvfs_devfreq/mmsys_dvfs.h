@@ -39,6 +39,7 @@ struct mmsys_dvfs {
     struct notifier_block pw_nb;
 };
 
+extern u8 mm_power_flag;
 extern struct ip_dvfs_ops mmsys_dvfs_ops;
 extern struct devfreq_governor mmsys_dvfs_gov;
 extern int cpp_dvfs_init(void);

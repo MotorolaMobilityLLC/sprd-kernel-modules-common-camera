@@ -47,6 +47,11 @@ ssize_t set_mmsys_power_store(struct device *dev, struct device_attribute *attr,
     pr_info("%s: enter mmsys_power_store\n", __func__);
     mmsys = dev_get_drvdata(devfreq->dev.parent);
 
+    if (!mm_power_flag) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
 
     err = sscanf(buf, "%lu\n", &power_ctrl);
@@ -133,6 +138,11 @@ ssize_t set_sys_dvfs_hold_en_store(struct device *dev,
     int err;
 
     mmsys = dev_get_drvdata(devfreq->dev.parent);
+
+    if (!mm_power_flag) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
 
     mutex_lock(&devfreq->lock);
 
@@ -232,6 +242,11 @@ ssize_t set_sys_dvfs_clk_gate_ctrl_store(struct device *dev,
 
     mmsys = dev_get_drvdata(devfreq->dev.parent);
 
+    if (!mm_power_flag) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
 
     err = sscanf(buf, "%lu\n", &sys_dvfs_clk_gate_ctrl);
@@ -285,6 +300,11 @@ ssize_t set_sys_dvfs_wait_window_store(struct device *dev,
 
     mmsys = dev_get_drvdata(devfreq->dev.parent);
 
+    if (!mm_power_flag) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
 
     err = sscanf(buf, "%lu\n", &sys_dvfs_wait_window);
@@ -334,6 +354,11 @@ ssize_t set_sys_dvfs_min_volt_store(struct device *dev,
     int err;
 
     mmsys = dev_get_drvdata(devfreq->dev.parent);
+
+    if (!mm_power_flag) {
+        pr_info("dvfs not enable.\n");
+        return -EINVAL;
+    }
 
     mutex_lock(&devfreq->lock);
 

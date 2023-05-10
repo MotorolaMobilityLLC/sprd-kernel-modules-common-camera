@@ -645,6 +645,10 @@ static int isphw_default_param_cfg(void *handle, void *arg)
 	uint32_t bypass = 1;
 
 	idx = *(uint32_t *)arg;
+	if (idx >= ISP_CONTEXT_SW_NUM) {
+		pr_err("fail to get idx %d\n", idx);
+		return 0;
+	}
 
 	ISP_REG_MWR(idx, ISP_STORE_DEBUG_BASE + ISP_STORE_PARAM, BIT_0, bypass);
 

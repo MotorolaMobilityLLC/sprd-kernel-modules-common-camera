@@ -2237,11 +2237,6 @@ int cam_scene_isp_yuv_scaler_desc_get(void *module_ptr,
 	struct camera_module *module = NULL;
 	struct channel_context *channel = NULL;
 
-	if (!module_ptr || !channel_ptr || !isp_yuv_scaler_desc) {
-		pr_err("fail to get valid inptr %p %p %p\n", module, channel, isp_yuv_scaler_desc);
-		return -EINVAL;
-	}
-
 	module = (struct camera_module *)module_ptr;
 	channel = (struct channel_context *)channel_ptr;
 	uframe_sync = channel->ch_id != CAM_CH_CAP;
