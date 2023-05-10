@@ -1820,7 +1820,7 @@ int dcam_online_node_pmctx_init(struct dcam_online_node *node)
 	mutex_init(&blk_pm_ctx->lsc.lsc_lock);
 	mutex_init(&blk_pm_ctx->param_lock);
 	spin_lock_init(&blk_pm_ctx->hist.param_update_lock);
-	spin_lock_init(&blk_pm_ctx->aem.aem_win_lock);
+	spin_lock_init(&blk_pm_ctx->aem_win_lock);
 
 	cam_block_dcam_init(blk_pm_ctx);
 

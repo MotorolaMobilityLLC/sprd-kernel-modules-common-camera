@@ -389,6 +389,7 @@ int sprd_isp_k_ioctl(void *isp_pipe_dev_handle,
 			ret = sprd_isp_cfg_statis_buf(dev, &parm_inptr);
 			dev->statis_module_info.img_statis_buf.dev_fd =
 				parm_inptr.dev_fd;
+			dev->statis_buf_inited = true;
 		} else if (is_stream_on){
 			ret = sprd_isp_set_statis_addr(dev, &parm_inptr);
 		} else
@@ -469,6 +470,7 @@ int sprd_isp_dev_init(void **isp_pipe_dev_handle)
 	ret = isp_block_buf_alloc(isp_k_param);
 	if (ret != 0)
 		goto exit;
+	dev->statis_buf_inited = false;
 	ret = isp_statis_queue_init(&dev->statis_module_info.aem_statis_queue);
 	ret = isp_statis_queue_init(&dev->statis_module_info.afl_statis_queue);
 	ret = isp_statis_queue_init(&dev->statis_module_info.afm_statis_queue);
@@ -564,6 +566,9 @@ int sprd_isp_unmap_buf(void *isp_pipe_dev_handle)
 	}
 
 	dev = (struct isp_pipe_dev *)isp_pipe_dev_handle;
+	if (!dev->statis_buf_inited)
+		return 0;
+
 	isp_k_param = &dev->isp_k_param;
 	statis_module_info = &dev->statis_module_info;
 /*
@@ -586,6 +591,7 @@ int sprd_isp_unmap_buf(void *isp_pipe_dev_handle)
 	pfiommu_free_addr_with_id(&isp_k_param->store_pfinfo,
 					SPRD_IOMMU_EX_CH_WRITE, STORE_WR_CH_ID);
 	memset(&isp_k_param->store_pfinfo, 0, sizeof(struct pfiommu_info));
+	dev->statis_buf_inited = false;
 
 	return 0;
 }

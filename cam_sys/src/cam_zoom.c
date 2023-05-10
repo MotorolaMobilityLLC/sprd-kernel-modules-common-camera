@@ -365,8 +365,8 @@ static int camzoom_port_info_cfg(struct cam_zoom_port *zoom_port,
 			zoom_port->port_id == PORT_RAW_OUT ||
 			zoom_port->port_id == PORT_FULL_OUT) {
 			zoom_base->src = param->sn_rect_size;
-			zoom_base->crop = param->dcam_crop[zoom_port->port_id];
-			zoom_base->dst = param->dcam_dst[zoom_port->port_id];
+			zoom_base->crop = param->dcam_crop[node_type][zoom_port->port_id];
+			zoom_base->dst = param->dcam_dst[node_type][zoom_port->port_id];
 			zoom_base->ratio_width = param->zoom_ratio_width;
 			zoom_base->total_crop_width = param->total_crop_width;
 			valid = 1;
@@ -415,8 +415,8 @@ static int camzoom_port_info_cfg(struct cam_zoom_port *zoom_port,
 			zoom_port->port_id == PORT_OFFLINE_RAW_OUT ||
 			zoom_port->port_id == PORT_OFFLINE_FULL_OUT) {
 			zoom_base->src = param->dcam_src_size;
-			zoom_base->crop = param->dcam_crop[zoom_port->port_id];
-			zoom_base->dst = param->dcam_dst[zoom_port->port_id];
+			zoom_base->crop = param->dcam_crop[node_type][zoom_port->port_id];
+			zoom_base->dst = param->dcam_dst[node_type][zoom_port->port_id];
 			valid = 1;
 			CAM_ZOOM_DEBUG("%s: port_id %d size %d %d trim %d %d %d %d dst %d %d\n",
 				cam_node_name_get(node_type), zoom_port->port_id, zoom_base->src.w, zoom_base->src.h,
@@ -802,6 +802,7 @@ int cam_zoom_channel_size_config(
 {
 	int ret = 0;
 	uint32_t need_raw_port = 0, raw_port_id = 0, raw2yuv_port_id = 0;
+	uint32_t node_type = CAM_NODE_TYPE_MAX;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_vir = NULL;
 	struct camera_uchannel *ch_uinfo = NULL;
@@ -829,8 +830,9 @@ int cam_zoom_channel_size_config(
 	raw_zoom_base.crop.start_y = 0;
 	raw_zoom_base.crop.size_x = ch_uinfo->src_size.w;
 	raw_zoom_base.crop.size_y = ch_uinfo->src_size.h;
-	if (channel->ch_id == CAM_CH_RAW || channel->dcam_port_id == PORT_RAW_OUT
-		|| module->cam_uinfo.alg_type || module->cam_uinfo.is_4in1 || (module->icap_scene && channel->ch_id == CAM_CH_CAP)) {
+	if (channel->ch_id == CAM_CH_RAW || module->cam_uinfo.alg_type || module->cam_uinfo.is_4in1
+		|| (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1)
+		|| (module->icap_scene && channel->ch_id == CAM_CH_CAP)) {
 		need_raw_port = 1;
 	}
 
@@ -844,25 +846,22 @@ int cam_zoom_channel_size_config(
 	zoom_info.total_crop_width = channel->total_trim_dcam.size_x;
 	zoom_info.dcam_src_size = zoom_info.sn_rect_size;
 	if (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id)) {
-		zoom_info.dcam_crop[channel->dcam_port_id] = channel->trim_dcam;
-		zoom_info.dcam_dst[channel->dcam_port_id] = channel->dst_dcam;
-	}
-	if (channel->ch_id == CAM_CH_CAP
-		&& module->cam_uinfo.dcam_slice_mode
-		&& !module->cam_uinfo.is_4in1) {
-		zoom_info.dcam_crop[raw2yuv_port_id] = channel->trim_dcam;
-		zoom_info.dcam_dst[raw2yuv_port_id] = channel->dst_dcam;
+		node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+		zoom_info.dcam_crop[node_type][channel->dcam_port_id] = channel->trim_dcam;
+		zoom_info.dcam_dst[node_type][channel->dcam_port_id] = channel->dst_dcam;
 	}
 
-	if (need_raw_port && IS_VALID_DCAM_IMG_PORT(raw_port_id)) {
-		zoom_info.dcam_crop[raw_port_id] = raw_zoom_base.crop;
-		zoom_info.dcam_dst[raw_port_id] = raw_zoom_base.dst;
+	if (need_raw_port && (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id) || channel->dcam_port_id == PORT_VCH2_OUT)) {
+		node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+		zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
+		zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
 		if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.alg_type ||
 			(channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1)
 			|| (module->icap_scene && channel->ch_id == CAM_CH_CAP))
 			&& IS_VALID_DCAM_IMG_PORT(raw2yuv_port_id)) {
-			zoom_info.dcam_crop[raw2yuv_port_id] = channel->trim_dcam;
-			zoom_info.dcam_dst[raw2yuv_port_id] = channel->dst_dcam;
+			node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+			zoom_info.dcam_crop[node_type][raw2yuv_port_id] = channel->trim_dcam;
+			zoom_info.dcam_dst[node_type][raw2yuv_port_id] = channel->dst_dcam;
 		}
 	}
 
@@ -902,9 +901,10 @@ int cam_zoom_channel_size_config(
 		zoom_info.zoom_info_q = &channel->nonzsl_pre.zoom_param_q;
 
 		ratio = channel->ch_uinfo.nonzsl_pre_ratio;
-		zoom_info.dcam_crop[PORT_OFFLINE_BIN_OUT] = channel->trim_dcam;
-		zoom_info.dcam_dst[PORT_OFFLINE_BIN_OUT].w = channel->dst_dcam.w / ratio;
-		zoom_info.dcam_dst[PORT_OFFLINE_BIN_OUT].h = channel->dst_dcam.h / ratio;
+		node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+		zoom_info.dcam_crop[node_type][PORT_OFFLINE_BIN_OUT] = channel->trim_dcam;
+		zoom_info.dcam_dst[node_type][PORT_OFFLINE_BIN_OUT].w = channel->dst_dcam.w / ratio;
+		zoom_info.dcam_dst[node_type][PORT_OFFLINE_BIN_OUT].h = channel->dst_dcam.h / ratio;
 		zoom_info.isp_src_size.w = channel->ch_uinfo.src_size.w / ratio;
 		zoom_info.isp_src_size.h = channel->ch_uinfo.src_size.h / ratio;
 		zoom_info.isp_dst[PORT_PRE_OUT] = zoom_info.isp_src_size;

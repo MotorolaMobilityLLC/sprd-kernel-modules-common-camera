@@ -2857,6 +2857,7 @@ static int sprd_img_stream_off(struct file *file)
 
 	if (unlikely(atomic_read(&dev->stream_on) == 0)) {
 		pr_info("stream not on.\n");
+		sprd_isp_unmap_buf(dev->isp_dev_handle);
 		ret = sprd_img_local_deinit(dev);
 		mutex_unlock(&dev->dcam_mutex);
 		goto exit;

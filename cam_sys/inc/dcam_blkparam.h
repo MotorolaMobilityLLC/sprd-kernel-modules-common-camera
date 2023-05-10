@@ -57,16 +57,6 @@ struct dcam_dev_hist_roi_param {
 	struct isp_dev_hist2_info hist_roi_info;
 };
 
-struct dcam_dev_aem_param {
-	uint32_t mode;
-	uint32_t bypass;
-	uint32_t update;
-	uint32_t skip_num;
-	spinlock_t aem_win_lock;
-	struct dcam_dev_aem_win win_info;
-	struct dcam_dev_aem_thr aem_info;
-};
-
 struct dcam_dev_afl_param {
 	struct isp_dev_anti_flicker_new_info afl_info;
 };
@@ -99,23 +89,6 @@ struct dcam_dev_3dnr_param {
 	struct dcam_dev_3dnr_me nr3_me;
 };
 
-struct afm_win_param {
-	uint32_t crop_eb;
-	struct isp_img_rect crop_size;
-	struct isp_img_size win_num;
-	struct isp_img_size done_tile_num;
-	struct isp_img_rect win;
-};
-
-struct dcam_dev_afm_param {
-	struct dcam_dev_afm_info af_param;
-	uint32_t mode;
-	uint32_t bypass;
-	uint32_t skip_num;
-	struct dcam_dev_afm_iir_info af_iir_info;
-	struct afm_win_param win_parm;
-};
-
 struct dcam_dev_gtm_param {
 	uint32_t gtm_calc_mode;
 	struct dcam_dev_raw_gtm_block_info gtm_info;
@@ -124,53 +97,6 @@ struct dcam_dev_gtm_param {
 struct dcam_dev_rgb_gtm_param {
 	uint32_t gtm_calc_mode;
 	struct dcam_dev_rgb_gtm_block_info rgb_gtm_info;
-};
-
-struct isp_dev_pdaf_info {
-	uint32_t bypass;
-	uint32_t corrector_bypass;
-	uint32_t phase_map_corr_en;
-	struct isp_img_size block_size;
-	uint32_t grid_mode;
-	struct isp_coord win;
-	struct isp_coord block;
-	struct isp_rrgb gain_upperbound;
-	uint32_t phase_txt_smooth;
-	uint32_t phase_gfilter;
-	uint32_t phase_flat_smoother;
-	uint32_t hot_pixel_th[3];
-	uint32_t dead_pixel_th[3];
-	uint32_t flat_th;
-	uint32_t edge_ratio_hv;
-	uint32_t edge_ratio_rd;
-	uint32_t edge_ratio_hv_rd;
-	uint32_t phase_left_addr;
-	uint32_t phase_right_addr;
-	uint32_t phase_pitch;
-	uint32_t pattern_pixel_is_right[PDAF_PPI_NUM];
-	uint32_t pattern_pixel_row[PDAF_PPI_NUM];
-	uint32_t pattern_pixel_col[PDAF_PPI_NUM];
-	uint32_t gain_ori_left[2];
-	uint32_t gain_ori_right[2];
-	uint32_t extractor_bypass;
-	uint32_t mode_sel;
-	uint32_t skip_num;
-	uint32_t phase_data_dword_num;
-	struct isp_rrgb pdaf_blc;
-	uint32_t data_ptr_left[2];
-	uint32_t data_ptr_right[2];
-};
-
-struct dcam_dev_pdaf_param {
-	uint32_t bypass;
-	uint32_t mode;
-	uint32_t skip_num;
-	uint32_t pdaf_type;
-	struct isp_dev_pdaf_info pdaf_info;
-	struct dev_dcam_vc2_control vch2_info;
-	struct pdaf_ppi_info ppi_info;
-	struct pdaf_roi_info roi_info;
-	struct dcam_ppe_ppc_info ppe_ppc_info;
 };
 
 #endif

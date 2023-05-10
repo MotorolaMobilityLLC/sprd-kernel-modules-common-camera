@@ -254,6 +254,7 @@ struct isp_pipe_dev {
 	struct mutex isp_mutex;
 	struct isp_k_block isp_k_param;
 	struct isp_statis_module statis_module_info;
+	bool statis_buf_inited;
 };
 
 typedef void(*isp_isr)(void *param);
