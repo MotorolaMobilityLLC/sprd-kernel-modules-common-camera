@@ -111,12 +111,19 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.l5.syscon_regs[_e_qos_aw],
 		tmp << SHIFT_MASK(pw_info->u.l5.syscon_regs[_e_qos_aw].mask));
 
+	/* change register read from register */
+	regcache_cache_only(pw_info->u.l5.ahb_map, false);
+	udelay(200);
+
 	return 0;
 }
 
-
 static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 {
+	/* change register read from cache */
+	regcache_cache_only(pw_info->u.l5.ahb_map, true);
+	udelay(200);
+
 	/* ahb clk */
 	clk_set_parent(pw_info->u.l5.ahb_clk, pw_info->u.l5.ahb_clk_default);
 	clk_disable_unprepare(pw_info->u.l5.ahb_clk);
@@ -239,6 +246,12 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 	int ret = 0;
 
 	pr_info("E\n");
+
+	/* read cam-ahb-syscon register*/
+	pw_info->u.l5.ahb_map = syscon_regmap_lookup_by_phandle(np, "sprd,cam-ahb-syscon");
+	if (IS_ERR_OR_NULL(pw_info->u.l5.ahb_map))
+		pr_err("fail to get sprd,cam-ahb-syscon\n");
+
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 		pname = syscon_name[i];

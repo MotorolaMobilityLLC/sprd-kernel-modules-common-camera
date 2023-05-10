@@ -255,7 +255,7 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 		pname = syscon_name[i];
-		tregmap =  syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
+		tregmap = syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
 		if (IS_ERR_OR_NULL(tregmap)) {
 			pr_err("fail to read %s regmap\n", pname);
 			continue;

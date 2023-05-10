@@ -119,12 +119,22 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 	if (ret)
 		pr_err("fail to power on blk_cfg_en");
 
+	/* change register read from register */
+	regcache_cache_only(pw_info->u.qogirn6l.switch_map, false);
+	regcache_cache_only(pw_info->u.qogirn6l.ahb_map, false);
+	udelay(200);
+
 	return 0;
 }
 
 static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 {
 	pr_info("cb %pS\n", __builtin_return_address(0));
+
+	/* change register read from cache */
+	regcache_cache_only(pw_info->u.qogirn6l.switch_map, true);
+	regcache_cache_only(pw_info->u.qogirn6l.ahb_map, true);
+	udelay(200);
 
 	/* mm bus enable */
 	clk_disable_unprepare(pw_info->u.qogirn6l.blk_cfg_en);
@@ -402,10 +412,19 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 	if (IS_ERR_OR_NULL(pw_info->u.qogirn6l.mm_mtx_clk_parent))
 		return PTR_ERR(pw_info->u.qogirn6l.mm_mtx_clk_parent);
 
+	/* read csi-switch and cam-ahb-syscon registers*/
+	pw_info->u.qogirn6l.switch_map = syscon_regmap_lookup_by_phandle(np, "sprd,csi-switch");
+	if (IS_ERR_OR_NULL(pw_info->u.qogirn6l.switch_map))
+		pr_err("fail to get sprd,csi-switch\n");
+
+	pw_info->u.qogirn6l.ahb_map = syscon_regmap_lookup_by_phandle(np, "sprd,cam-ahb-syscon");
+	if (IS_ERR_OR_NULL(pw_info->u.qogirn6l.ahb_map))
+		pr_err("fail to get sprd,cam-ahb-syscon\n");
+
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 		pname = syscon_name[i];
-		tregmap =  syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
+		tregmap = syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
 		if (IS_ERR_OR_NULL(tregmap)) {
 			pr_err("fail to read %s regmap\n", pname);
 			continue;

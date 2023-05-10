@@ -68,6 +68,10 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 
 	clk_prepare_enable(pw_info->u.l3.cam_clk_cphy_cfg_gate_eb);
 
+	/* change register read from register */
+	regcache_cache_only(pw_info->u.l3.ahb_map, false);
+	udelay(200);
+
 	return 0;
 }
 
@@ -83,6 +87,10 @@ static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 	struct register_gpr *preg_gpr;
 
 	pr_info("cb %pS\n", __builtin_return_address(0));
+
+	/* change register read from cache */
+	regcache_cache_only(pw_info->u.l3.ahb_map, true);
+	udelay(200);
 
 	pmu_mm_handshake_bit = 19;
 	pmu_mm_handshake_state = 0x1;
@@ -278,10 +286,15 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 	if (IS_ERR_OR_NULL(pw_info->u.l3.cam_emc_clk_default))
 		return PTR_ERR(pw_info->u.l3.cam_emc_clk_default);
 
+	/* read cam-ahb-syscon register*/
+	pw_info->u.l3.ahb_map = syscon_regmap_lookup_by_phandle(np, "sprd,cam-ahb-syscon");
+	if (IS_ERR_OR_NULL(pw_info->u.l3.ahb_map))
+		pr_err("fail to get sprd,cam-ahb-syscon\n");
+
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
 		pname = syscon_name[i];
-		tregmap =  syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
+		tregmap = syscon_regmap_lookup_by_phandle_args(np, pname, 2, args);
 		if (IS_ERR_OR_NULL(tregmap)) {
 			pr_err("fail to read %s regmap\n", pname);
 			continue;

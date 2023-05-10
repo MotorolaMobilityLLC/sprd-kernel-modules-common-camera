@@ -105,6 +105,10 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 	regmap_update_bits_mmsys(&pw_info->u.l5pro.regs[QOS_AW],
 		tmp << SHIFT_MASK(pw_info->u.l5pro.regs[QOS_AW].mask));
 
+	/* change register read from register */
+	regcache_cache_only(pw_info->u.l5pro.ahb_map, false);
+	udelay(200);
+
 	return ret;
 }
 
@@ -113,6 +117,10 @@ static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 	int ret = 0;
 
 	pr_info("cb %pS\n", __builtin_return_address(0));
+
+	/* change register read from cache */
+	regcache_cache_only(pw_info->u.l5pro.ahb_map, true);
+	udelay(200);
 
 	clk_disable_unprepare(pw_info->u.l5pro.isppll_clk);
 
@@ -267,6 +275,11 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 	pw_info->u.l5pro.isppll_clk = of_clk_get_by_name(np, "clk_isppll");
 	if (IS_ERR_OR_NULL(pw_info->u.l5pro.isppll_clk))
 		return PTR_ERR(pw_info->u.l5pro.isppll_clk);
+
+	/* read cam-ahb-syscon register*/
+	pw_info->u.l5pro.ahb_map = syscon_regmap_lookup_by_phandle(np, "sprd,cam-ahb-syscon");
+	if (IS_ERR_OR_NULL(pw_info->u.l5pro.ahb_map))
+		pr_err("fail to get sprd,cam-ahb-syscon\n");
 
 	/* read global register */
 	for (i = 0; i < ARRAY_SIZE(syscon_name); i++) {
