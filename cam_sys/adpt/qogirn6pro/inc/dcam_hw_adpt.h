@@ -78,6 +78,18 @@
 #define CAL_FULLRGB14_PITCH(w)         ((w) * 8)
 #endif
 
+enum dcam_hwformat_val {
+	CAM_FRGB14BIT = 0,
+	CAM_TWOPLANE_YUV422 = 1,
+	CAM_TWOPLANE_YVU422 = 2,
+	CAM_TWOPLANE_YUV420 = 4,
+	CAM_TWOPLANE_YVU420 = 5,
+	CAM_RAW10PACK_RAW,
+	CAM_HALFWORD_RAW10,
+	CAM_HALFWORD_RAW14,
+	CAM_RAW8,
+};
+
 enum dcam_ctrl_id {
 	DCAM_CTRL_CAP = (1 << 0),
 	DCAM_CTRL_COEF = (1 << 1),
