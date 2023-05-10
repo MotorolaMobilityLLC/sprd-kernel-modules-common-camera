@@ -1164,6 +1164,7 @@ static int dcamonline_ctx_bind(struct dcam_online_node *node)
 
 	node->hw_ctx = &node->dev->hw_ctx[node->hw_ctx_id];
 	node->hw_ctx->slowmotion_count = node->slowmotion_count;
+	node->hw_ctx->dcam_slice_mode = node->dcam_slice_mode;
 	node->hw_ctx->cap_info = node->cap_info;
 	node->hw_ctx->is_pyr_rec = node->is_pyr_rec;
 	node->hw_ctx_id = node->hw_ctx->hw_ctx_id;
@@ -1200,6 +1201,7 @@ static int dcamonline_ctx_unbind(struct dcam_online_node *node)
 	if (node->hw_ctx == NULL)
 		goto exit;
 
+	node->hw_ctx->dcam_slice_mode = CAM_SLICE_NONE;
 	node->hw_ctx->dcam_irq_cb_func = NULL;
 	node->hw_ctx->dcam_irq_cb_handle = NULL;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
@@ -2286,6 +2288,7 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 		node->slw_type = DCAM_SLW_OFF;
 	else
 		node->slw_type = DCAM_SLW_AP;
+	node->dcam_slice_mode = param->dcam_slice_mode;
 	node->is_4in1 = param->is_4in1;
 	node->is_3dnr = param->enable_3dnr;
 	node->nr3_frm = NULL;

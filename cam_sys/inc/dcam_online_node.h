@@ -64,6 +64,7 @@ struct dcam_online_node_desc {
 	uint32_t pattern;
 	enum cam_data_endian endian;
 	enum en_status enable_3dnr;
+	enum camera_slice_mode dcam_slice_mode;
 	enum en_status is_4in1;
 	struct img_size input_size;
 	struct img_trim input_trim;
@@ -103,6 +104,7 @@ struct dcam_online_node {
 	enum dcam_csi_state csi_connect_stat;
 	uint32_t in_irq_proc;
 	enum dcam_slowmotion_type slw_type;
+	enum camera_slice_mode dcam_slice_mode;
 
 	struct camera_queue port_queue;
 	void *data_cb_handle;

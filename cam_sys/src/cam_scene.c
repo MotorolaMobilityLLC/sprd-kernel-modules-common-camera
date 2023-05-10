@@ -2012,6 +2012,7 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 	dcam_online_desc->resbuf_get_cb = cam_scene_reserved_buf_cfg;
 	dcam_online_desc->resbuf_cb_data = module;
 	camscene_cap_info_set(module, &dcam_online_desc->cap_info);
+	dcam_online_desc->dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
 	dcam_online_desc->is_4in1 = module->cam_uinfo.is_4in1;
 	dcam_online_desc->offline = 0;
 	dcam_online_desc->slowmotion_count = channel->ch_uinfo.high_fps_skip_num;
@@ -2119,6 +2120,7 @@ int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr,
 	dcam_offline_desc->dev = module->dcam_dev_handle;
 	dcam_offline_desc->buf_manager_handle = module->grp->global_buf_manager;
 	dcam_offline_desc->pattern = module->cam_uinfo.sensor_if.img_ptn;
+	dcam_offline_desc->dcam_slice_mode = module->cam_uinfo.dcam_slice_mode;
 	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_desc->endian = ENDIAN_LITTLE;
 	dcam_offline_desc->port_desc.src_sel = PROCESS_RAW_SRC_SEL;
