@@ -766,7 +766,7 @@ int cam_buf_manager_init(uint32_t cam_id, void *buf_manager_handle)
 	struct camera_queue *tmp_q = NULL;
 	struct cam_buf_manager **buf_manager = (struct cam_buf_manager **)buf_manager_handle;
 
-	if (cam_id >= CAM_COUNT_MAX) {
+	if ((cam_id + 1) >= CAM_COUNT_MAX) {
 		pr_err("fail to support cam%d\n", cam_id);
 		return -1;
 	}
@@ -810,7 +810,7 @@ int cam_buf_manager_deinit(uint32_t cam_id, void *buf_manager_handle)
 	struct cam_buf_pool_id pool_id = {0};
 	struct cam_buf_manager *buf_manager = (struct cam_buf_manager *)buf_manager_handle;
 
-	if (cam_id >= CAM_COUNT_MAX || !buf_manager) {
+	if ((cam_id + 1) >= CAM_COUNT_MAX || !buf_manager) {
 		pr_err("fail to support cam%d\n", cam_id);
 		return -1;
 	}

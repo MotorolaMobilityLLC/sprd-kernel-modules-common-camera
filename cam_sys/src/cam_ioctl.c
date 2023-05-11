@@ -1548,7 +1548,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	int dcam_idx, retry = 1;
+	int dcam_idx = 1;
 	struct sprd_img_res res = {0};
 	struct camera_group *grp = module->grp;
 	void *dcam = NULL;
@@ -1598,10 +1598,8 @@ check:
 	if (dcam == NULL) {
 		dcam = dcam_core_pipe_dev_get(grp->hw_info, (void *)&grp->s_dcam_dev);
 		if (IS_ERR_OR_NULL(dcam)) {
-			if (retry) {
-				dcam_idx++;
-				goto check;
-			}
+			dcam_idx++;
+			goto check;
 		}
 		module->dcam_dev_handle = dcam;
 		module->dcam_idx = dcam_idx;

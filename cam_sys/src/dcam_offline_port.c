@@ -520,6 +520,10 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	for (i = 0; i < total; i++) {
 		do {
 			pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+			if (!pframe) {
+				pr_err("fail to get frame\n");
+				break;
+			}
 			pframe->common.channel_id = param->ch_id;
 			pframe->common.is_compressed = param->compress_en;
 			pframe->common.width = width;

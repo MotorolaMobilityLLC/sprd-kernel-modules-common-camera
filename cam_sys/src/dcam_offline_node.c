@@ -863,6 +863,10 @@ static int dcamoffline_pmbuf_init(struct dcam_offline_node *node)
 
 	for (i = 0; i < DCAM_OFFLINE_PARAM_Q_LEN; i++) {
 		param_frm = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		if (!param_frm) {
+			pr_err("fail to get param_frm.\n");
+			return -1;
+		}
 		param_frm->common.blkparam_info.param_block = cam_buf_kernel_sys_vzalloc(sizeof(struct dcam_isp_k_block));
 		param_frm->common.fid = 0xffff;
 		if (param_frm->common.blkparam_info.param_block) {

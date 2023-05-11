@@ -24,7 +24,7 @@
 /* dcam dec pyramid layer num */
 #define DCAM_PYR_DEC_LAYER_NUM          4
 
-#define is_dcam_id(idx)                 ((idx) < DCAM_ID_MAX)
+#define is_dcam_id(idx)                 ((idx) < DCAM_HW_CONTEXT_MAX)
 #define is_csi_id(idx)                  ((idx) < CSI_ID_MAX)
 #define is_path_id(id) ((id) >= DCAM_PATH_FULL && (id) < DCAM_PATH_MAX)
 
