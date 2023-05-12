@@ -48,9 +48,6 @@ static void framecache_capzslframe_deal(struct frame_cache_node *node)
 {
 	struct cam_frame *pframe = NULL;
 
-	if (!node)
-		pr_err("fail to get input handle:%p.\n", node);
-
 	do {
 		pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->cache_buf_queue, struct cam_frame, list);
 		if (!pframe) {
@@ -73,6 +70,7 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 {
 	struct cam_frame *pftmp = NULL;
 
+	pftmp = pframe;
 	if (node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL &&
 		pframe->common.boot_sensor_time >= node->cap_param.cap_timestamp) {
 		framecache_capzslframe_deal(node);
@@ -88,7 +86,7 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 	}
 
 	if (node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL &&
-		pframe->common.boot_sensor_time < node->cap_param.cap_timestamp)
+		pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp)
 		return NULL;
 
 	do {
