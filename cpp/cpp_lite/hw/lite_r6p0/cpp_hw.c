@@ -101,9 +101,7 @@ static int cpphw_qos_set(void *cpp_soc_handle)
 	}
 	soc_cpp = (struct cpp_hw_soc_info *)cpp_soc_handle;
 	qos = soc_cpp->awrqos;
-	CPP_REG_MWR(CPP_AXIM_CHN_SET,
-			CPP_AXIM_CHN_SET_QOS_MASK,
-			qos);
+	CPP_REG_MWR(CPP_AXIM_CHN_SET, CPP_AXIM_CHN_SET_QOS_MASK, qos << 24);
 	return 0;
 }
 
