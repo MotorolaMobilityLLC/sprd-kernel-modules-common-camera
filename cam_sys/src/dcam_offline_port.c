@@ -541,6 +541,10 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			pframe->common.buf.bypass_iova_ops = ENABLE;
 
 			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL, port->buf_manager_handle);
+			if (ret) {
+				pr_err("fail to enqueue unprocess_pool\n");
+				cam_queue_empty_frame_put(pframe);
+			}
 		} while (0);
 	}
 

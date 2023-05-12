@@ -132,7 +132,9 @@ static void dcamfetch_frame_dispatch(void *param, void *handle)
 			if (ret) {
 				struct cam_buf_pool_id pool_id = {0};
 				pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
-				cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 				pr_err("fail to enqueue %s frame, q_cnt:%d.\n", cam_port_name_get(irq_proc->dcam_port_id), cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle));
 			}
 			return;

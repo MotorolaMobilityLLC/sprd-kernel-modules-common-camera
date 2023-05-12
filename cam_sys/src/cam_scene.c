@@ -1886,7 +1886,11 @@ int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void
 						newfrm->common.user_fid = pframe->common.user_fid;
 						memcpy(&newfrm->common.buf, &pframe->common.buf, sizeof(struct camera_buf));
 						newfrm->common.buf.type = CAM_BUF_NONE;
-						cam_buf_manager_buf_enqueue(&pool_id, newfrm, NULL, (void *)module->grp->global_buf_manager);
+						ret = cam_buf_manager_buf_enqueue(&pool_id, newfrm, NULL, (void *)module->grp->global_buf_manager);
+						if (ret) {
+							pr_err("fail to enqueue frame, reserved_pool_id %d\n", pool_id.reserved_pool_id);
+							cam_queue_empty_frame_put(newfrm);
+						}
 						j++;
 					}
 				}
@@ -1900,6 +1904,8 @@ int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void
 		if (pframe->common.is_reserved) {
 			pframe->common.priv_data = NULL;
 			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, (void *)module->grp->global_buf_manager);
+			if (ret)
+				pr_err("fail to enqueue reserved buf\n");
 			pr_debug("cam %d dcam %d set reserved_pool_id %d frame id %d\n", module->idx, pool_id.reserved_pool_id, pframe->common.fid);
 		}
 		break;

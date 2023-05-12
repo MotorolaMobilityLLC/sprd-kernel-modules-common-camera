@@ -72,6 +72,7 @@ static int ispgtm_cfg_param(void *handle,
 
 static void ispgtm_histbuf_param_cfg(struct isp_gtm_ctx_desc *gtm_ctx, struct dcam_dev_raw_gtm_block_info *gtm_param)
 {
+	int ret = 0;
 	struct cam_frame *frame = NULL;
 	uint32_t mod_en = 0, hist_bypass = 0;
 
@@ -82,7 +83,9 @@ static void ispgtm_histbuf_param_cfg(struct isp_gtm_ctx_desc *gtm_ctx, struct dc
 		frame = cam_buf_manager_buf_dequeue(gtm_ctx->outpool, NULL, gtm_ctx->buf_manager_handle);
 		if (frame) {
 			frame->common.fid = gtm_ctx->fid;
-			cam_buf_manager_buf_enqueue(gtm_ctx->resultpool, frame, NULL, gtm_ctx->buf_manager_handle);
+			ret = cam_buf_manager_buf_enqueue(gtm_ctx->resultpool, frame, NULL, gtm_ctx->buf_manager_handle);
+			if (ret)
+				pr_err("fail to enqueue gtm frame\n");
 		} else
 			pr_warn("warning:there is no frame in gtm  outpool:%d.\n", gtm_ctx->outpool->private_pool_id);
 	} else

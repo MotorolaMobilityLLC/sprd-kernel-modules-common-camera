@@ -1008,6 +1008,8 @@ static int dcamoffline_recovery(void *handle)
 		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 		buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
 		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, &buf_desc, node->buf_manager_handle);
+		if (ret)
+			pr_err("fail to enqueue port %s unprocess pool\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 	}
 
 	frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL, node->buf_manager_handle);

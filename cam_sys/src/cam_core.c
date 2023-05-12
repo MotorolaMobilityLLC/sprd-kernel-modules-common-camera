@@ -752,11 +752,13 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 					pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 					buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 					buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-					cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
+					ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
 				} else
 					cam_queue_empty_frame_put(pframe);
 			} else
-				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			if (ret)
+				pr_err("fail to enqueue frame\n");
 			return ret;
 		}
 
@@ -773,7 +775,9 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 		if (ret) {
 			pr_err("fail to frm_queue overflow\n");
-			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			if (ret)
+				pr_err("fail to enqueue recycle_pool\n");
 		} else {
 			complete(&module->frm_com);
 		}
@@ -793,12 +797,14 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 			if (ret) {
 				pr_warn("warning: frm_queue overflow\n");
-				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 			} else {
 				complete(&module->frm_com);
 			}
 		} else
-			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	case CAM_CB_DCAM_IRQ_EVENT:
 		if (pframe->common.irq_property == IRQ_DCAM_SN_EOF) {
@@ -845,13 +851,17 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 				buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-				cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 			} else
 				cam_queue_empty_frame_put(pframe);
 		} else {
 			if (pframe->common.buf.type == CAM_BUF_USER) {
 				pr_info("dcam src buf return mfd %d\n", pframe->common.buf.mfd);
-				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				if (ret)
+					pr_err("fail to enqueue recycle_pool\n");
 			} else
 				ret = camcore_dcam_online_buf_cfg(channel, pframe, module);
 		}
@@ -874,20 +884,26 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				}
 				ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 				if (ret)
-					cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+					ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 				else
 					complete(&module->frm_com);
 			}
 		} else
-			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	case CAM_CB_DCAM_RET_SRC_BUF:
 		pr_debug("user buf return type:%d mfd %d\n", type, pframe->common.buf.mfd);
-		cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
 		pr_debug("user buf return type:%d mfd %d\n", type, pframe->common.buf.mfd);
-		cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	default:
 		pr_err("fail to get cb cmd: %d\n", type);

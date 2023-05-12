@@ -274,7 +274,9 @@ static void dcamonline_frame_dispatch(void *param, void *handle)
 			if (ret) {
 				struct cam_buf_pool_id pool_id = {0};
 				pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
-				cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 				pr_err("fail to enqueue %s frame, q_cnt:%d.\n", cam_port_name_get(irq_proc->dcam_port_id),
 					cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle));
 			}
@@ -426,7 +428,9 @@ static int dcamonline_index(struct dcam_online_node *node,
 				frame->common.fid += 1;
 			}
 			hw_ctx->fid = frame->common.fid;
-			cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
+			ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
+			if (ret)
+				pr_err("fail to enqueue result_pool, frame id %d\n", frame->common.fid);
 		}
 	}
 
@@ -489,7 +493,7 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 
 	if (!node->slowmotion_count) {
 		struct cam_frame *frame = NULL;
-		int vote = 0;
+		int ret = 0, vote = 0;
 		uint32_t reg_value = 0;
 
 		/* fix index for last 1 frame */
@@ -515,8 +519,11 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 			frame->common.fid = hw_ctx->fid;
 			if (frame->common.is_reserved)
 				dcam_port->port_cfg_cb_func((void *)frame, DCAM_PORT_RES_BUF_CFG_SET, dcam_port);
-			else
-				cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, node->buf_manager_handle);
+			else {
+				ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue port %s result_pool\n", cam_port_name_get(dcam_port->port_id));
+			}
 		}
 
 		if (vote) {
@@ -1122,7 +1129,9 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			h = hw_ctx->cap_info.cap_size.size_y;
 			if (sum != (w * h)) {
 				pr_debug("pixel num check wrong, fid %d, sum %d, should be %d\n", frame->common.fid, sum, (w * h));
-				cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, NULL, node->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue unprocess_pool\n");
 				break;
 			}
 			buf[GTM_HIST_ITEM_NUM + 1] = frame->common.fid;
@@ -2117,7 +2126,9 @@ int dcam_online_node_share_buf(void *handle, void *param)
 					port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
 					if (frame == NULL)
 						break;
-					cam_buf_manager_buf_enqueue(&share_pool, frame, &buf_desc, node->buf_manager_handle);
+					ret = cam_buf_manager_buf_enqueue(&share_pool, frame, &buf_desc, node->buf_manager_handle);
+					if (ret)
+						pr_err("fail to enqueue share_pool\n");
 				}
 
 			} while (1);

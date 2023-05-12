@@ -168,6 +168,7 @@ uint32_t cam_cal_hw_pitch(uint32_t w, uint32_t format)
 		break;
 	case CAM_RAW_8:
 		pitch = w;
+		break;
 	case CAM_RAW_PACK_10:
 	case CAM_YUV420_2FRAME_MIPI:
 	case CAM_YVU420_2FRAME_MIPI:
