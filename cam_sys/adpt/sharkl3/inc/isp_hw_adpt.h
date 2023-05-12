@@ -19,6 +19,7 @@
 
 #define ISP_WIDTH_MAX                           4672
 #define ISP_HEIGHT_MAX                          3504
+#define ISP_SLCIE_HEIGHT_MAX                    3504
 
 #define ISP_SCALER_UP_MAX                       4
 

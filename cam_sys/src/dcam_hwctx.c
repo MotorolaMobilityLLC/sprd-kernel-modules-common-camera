@@ -116,7 +116,9 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 		}
 		store_p->store_offset[0] = store_offset[0];
 		store_p->store_offset[1] = store_offset[1];
-		store_p->crop.start_x = 0;
+		store_p->crop.start_x = in_trim.start_x;
+		store_p->crop.size_x = store_p->store_size.w * ratio;
+		store_p->crop.size_y = store_p->store_size.h * ratio;
 		store_p->out_border.left_border = 0;
 		store_p->out_border.right_border = DCAM_OVERLAP / ratio;
 		store_p->fbc_border.left_border = 0;
@@ -135,6 +137,8 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 		}
 		store_p->store_offset[0] = store_p->store_offset[1] = (slice->cur_slice->start_x - relative_offset) / ratio * data_byte / 4;
 		store_p->crop.start_x = DCAM_OVERLAP;
+		store_p->crop.size_x = store_p->store_size.w * ratio;
+		store_p->crop.size_y = store_p->store_size.h * ratio;
 		store_p->out_border.left_border = DCAM_OVERLAP / ratio;
 		store_p->out_border.right_border = 0;
 		store_p->fbc_border.left_border = DCAM_OVERLAP / ratio;
@@ -149,6 +153,8 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 		store_p->store_size.h = scaler_p->dst_size.h;
 		store_p->store_offset[0] = store_p->store_offset[1] = (slice->cur_slice->start_x - relative_offset) / ratio * data_byte / 4;
 		store_p->crop.start_x = DCAM_OVERLAP;
+		store_p->crop.size_x = store_p->store_size.w * ratio;
+		store_p->crop.size_y = store_p->store_size.h * ratio;
 		store_p->out_border.left_border = DCAM_OVERLAP / ratio;
 		store_p->out_border.right_border = DCAM_OVERLAP / ratio;
 		store_p->fbc_border.left_border = DCAM_OVERLAP / ratio;

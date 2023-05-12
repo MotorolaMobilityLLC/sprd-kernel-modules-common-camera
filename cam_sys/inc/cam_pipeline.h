@@ -95,6 +95,7 @@ struct cam_pipeline_topology {
 struct cam_pipeline_desc {
 	void *nodes_dev;
 	cam_zoom_get_cb zoom_cb_func;
+	cam_slice_cb slice_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;
@@ -120,6 +121,7 @@ struct cam_pipeline_ops {
 
 struct cam_pipeline {
 	cam_zoom_get_cb zoom_cb_func;
+	cam_slice_cb slice_cb_func;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;

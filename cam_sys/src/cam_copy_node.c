@@ -320,8 +320,14 @@ static int camcopy_node_frame_start(void *param)
 			if (node->pre_raw_flag == PRE_RAW_CACHE) {
 				if (node->in_queue.cnt > node->opt_buffer_num) {
 					pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
-					pframe->common.copy_en = 0;
-					ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+					if (pframe) {
+						pframe->common.copy_en = 0;
+						ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+						return ret;
+					} else {
+						pr_err("fail to dequeue frame for node %d\n", node->node_id);
+						return -EFAULT;
+					}
 				}
 				return ret;
 			} else if (atomic_read(&node->opt_frame_done) == 0 && node->pre_raw_flag == PRE_RAW_DEAL) {
@@ -331,9 +337,14 @@ static int camcopy_node_frame_start(void *param)
 				loop_num = node->opt_buffer_num;
 			} else {
 				pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->in_queue, struct cam_frame, list);
-				pframe->common.copy_en = 0;
-				ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
-				return ret;
+				if (pframe) {
+					pframe->common.copy_en = 0;
+					ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+					return ret;
+				} else {
+					pr_err("fail to dequeue frame for node %d\n", node->node_id);
+					return -EFAULT;
+				}
 			}
 		}
 		break;
@@ -341,10 +352,15 @@ static int camcopy_node_frame_start(void *param)
 		if (node->cap_param.cap_type == DCAM_CAPTURE_STOP) {
 			if (node->in_queue.cnt > node->cache_num) {
 				pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
-				pframe->common.copy_en = 0;
-				node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+				if (pframe) {
+					pframe->common.copy_en = 0;
+					ret = node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+					return ret;
+				} else {
+					pr_err("fail to dequeue frame for node %d\n", node->node_id);
+					return -EFAULT;
+				}
 			}
-			return ret;
 		}
 		break;
 	default :

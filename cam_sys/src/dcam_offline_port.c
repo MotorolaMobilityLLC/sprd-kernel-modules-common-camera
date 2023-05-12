@@ -252,6 +252,7 @@ int dcam_offline_port_size_cfg(void *handle, void *param)
 					pr_err("fail to support scaler, in width %d, out width %d\n",
 							port->in_trim.size_x, dst_size.w);
 					ret = -1;
+					return ret;
 				}
 				port->scaler_sel = DCAM_SCALER_BY_YUVSCALER;
 				port->scaler_info.scaler_factor_in = port->in_trim.size_x;

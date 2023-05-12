@@ -58,6 +58,7 @@ struct dcam_online_port_desc {
 	uint32_t reserved_pool_id;
 	uint32_t share_full_path;
 	void *dev;
+	enum en_status update_state;
 };
 
 struct dcam_online_port {

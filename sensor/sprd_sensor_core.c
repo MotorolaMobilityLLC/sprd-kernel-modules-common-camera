@@ -55,6 +55,7 @@ extern int sprd_cam_pw_off(struct generic_pm_domain *domain);
 	current->pid, __func__, __LINE__
 
 static int csi_pattern = 0;
+struct mutex vga_sensor_mutex;
 
 static int sprd_sensor_mipi_if_open(struct sprd_sensor_file_tag *p_file,
 				    struct sensor_if_cfg_tag *if_cfg)
@@ -126,6 +127,9 @@ static unsigned int sprd_sensor_get_voltage_value(unsigned int vdd_val)
 		break;
 	case SPRD_SENSOR_VDD_2500MV:
 		volt_value = SPRD_SENSOR_VDD_2500MV_VAL;
+		break;
+	case SPRD_SENSOR_VDD_2200MV:
+		volt_value = SPRD_SENSOR_VDD_2200MV_VAL;
 		break;
 	case SPRD_SENSOR_VDD_2000MV:
 		volt_value = SPRD_SENSOR_VDD_2000MV_VAL;
@@ -866,6 +870,42 @@ static ssize_t sprd_sensor_set_sensor_name_info(struct device *dev,
 
 static DEVICE_ATTR(camera_sensor_name, 0644, sprd_get_sensor_name_info,
 		   sprd_sensor_set_sensor_name_info);
+
+static char vga_sensor_bv[255];
+
+static ssize_t sprd_vga_sensor_read_bv(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	ssize_t len = 0;
+	mutex_lock(&vga_sensor_mutex);
+	pr_info("sprd_sensor: vga_sensor_bv %s\n", vga_sensor_bv);
+	len = scnprintf(buf, PAGE_SIZE, "%s\n",  vga_sensor_bv);
+	mutex_unlock(&vga_sensor_mutex);
+	return len;
+}
+
+static ssize_t sprd_vga_sensor_write_bv(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t size)
+{
+	mutex_lock(&vga_sensor_mutex);
+	if (strlen(buf) >= 255) {
+		mutex_unlock(&vga_sensor_mutex);
+		pr_err("out of the maxnum 255.\n");
+		return -EINVAL;
+	}
+	memset(vga_sensor_bv, 0, 255);
+	memcpy(vga_sensor_bv, buf, strlen(buf));
+	mutex_unlock(&vga_sensor_mutex);
+	return size;
+
+}
+
+static DEVICE_ATTR(vga_sensor_bv_value, 0644, sprd_vga_sensor_read_bv,
+		   sprd_vga_sensor_write_bv);
+
 static int sprd_sensor_core_module_init(void)
 {
 	struct sprd_sensor_core_module_tag *p_data = NULL;
@@ -893,6 +933,10 @@ static int sprd_sensor_core_module_init(void)
 				 &dev_attr_camera_sensor_name);
 	if (ret < 0)
 		pr_err("fail to create sensor name list file");
+	ret = device_create_file(sensor_dev.this_device,
+				 &dev_attr_vga_sensor_bv_value);
+	if (ret < 0)
+		pr_err("fail to create _vga_sensor_bv_value file");
 
 	return 0;
 }
@@ -905,6 +949,8 @@ static void sprd_sensor_core_module_exit(void)
 
 	device_remove_file(sensor_dev.this_device,
 			   &dev_attr_camera_sensor_name);
+	device_remove_file(sensor_dev.this_device,
+		   &dev_attr_vga_sensor_bv_value);
 	sprd_sensor_unregister_driver();
 	if (p_data) {
 		mutex_destroy(&p_data->sensor_id_lock);

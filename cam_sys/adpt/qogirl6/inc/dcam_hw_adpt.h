@@ -32,6 +32,7 @@
 #define RAW_OVERLAP_RIGHT              138
 #define DCAM_SW_SLICE_HEIGHT_MAX       8192
 #define DCAM_HW_SLICE_WIDTH_MAX        8192
+#define DCAM_HW_WIDTH_MAX              8192
 
 #define DCAM_PATH_CROP_ALIGN           8
 #define DCAM_FBC_TILE_WIDTH            64

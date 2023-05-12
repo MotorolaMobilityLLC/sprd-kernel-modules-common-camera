@@ -265,7 +265,7 @@ int isp_k_cfg_rgb_gtm(struct isp_io_param *param,
 		break;
 	}
 
-		return ret;
+	return ret;
 }
 
 int isp_k_cpy_rgb_gtm(struct dcam_isp_k_block *param_block, struct dcam_isp_k_block *isp_k_param)

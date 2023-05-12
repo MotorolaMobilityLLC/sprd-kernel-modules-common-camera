@@ -2083,7 +2083,7 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 		}
 	}
 
-	ret = camcore_frame_start_proc(module, postproc_param.src_frm, postproc_param.node_type, ch);
+	ret = camcore_frame_start_proc(postproc_param.src_frm, postproc_param.node_type, ch);
 	if (ret) {
 		pr_err("fail to start pipeline or cfg dcam out buffer.\n");
 		goto start_proc_err;
@@ -2260,7 +2260,7 @@ static int camioctl_4in1_post_proc(struct camera_module *module,
 		pframe->common.fid, pframe->common.buf.mfd, pframe->common.buf.addr_vir[0],
 		pframe->common.buf.iova);
 
-	ret = camcore_frame_start_proc(module, pframe, CAM_NODE_TYPE_DCAM_OFFLINE, channel);
+	ret = camcore_frame_start_proc(pframe, CAM_NODE_TYPE_DCAM_OFFLINE, channel);
 	if (ret) {
 		pr_err("fail to start dcam for raw proc\n");
 		cam_queue_empty_frame_put(pframe);

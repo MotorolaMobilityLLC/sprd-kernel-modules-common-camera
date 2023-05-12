@@ -42,6 +42,11 @@ void camdebugger_dcam_reg_read(struct seq_file *s, uint32_t idx)
 		return;
 	}
 
+	if (idx >= HW_CTX_MAX) {
+		pr_err("fail to get right hw_ctx\n");
+		return;
+	}
+
 	if (idx >= 3 && idx < 5) {
 		seq_printf(s, "-----dcam axi%d and fetch----\n", idx - 3);
 		for (addr = 0; addr < addr_end[idx]; addr += 4)

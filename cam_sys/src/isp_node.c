@@ -40,8 +40,22 @@ static int ispnode_postproc_frame_return(struct isp_node *inode)
 	struct isp_node_postproc_param post_param = {0};
 
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
-		if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0)
+		if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0) {
+			if (port->slice_info.slice_num) {
+				if (port->slice_info.slice_cnt != port->slice_info.slice_num - 1) {
+					pr_debug("slice %d done\n", port->slice_info.slice_cnt);
+					port->slice_info.slice_cnt++;
+					if (port->type == PORT_TRANSFER_OUT)
+						return 0;
+				} else {
+					pr_debug("lastslice %d done\n", port->slice_info.slice_cnt);
+					port->slice_info.slice_no = 0;
+					port->slice_info.slice_num = 0;
+					port->slice_info.slice_cnt = 0;
+				}
+			}
 			port->port_cfg_cb_func(&post_param, ISP_PORT_IRQ_POSTPORC, port);
+		}
 	}
 	return 0;
 }
@@ -400,9 +414,9 @@ static int ispnode_port_param_cfg(struct isp_node *inode, struct isp_hw_context 
 	port_cfg->scaler_bypass_ctrl = inode->dev->isp_hw->ip_isp->isphw_abt->scaler_bypass_ctrl;
 	port_cfg->uinfo = &inode->uinfo;
 	port_cfg->superzoom_frame = inode->postproc_buf;
-	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list)
 		ret |= port->port_cfg_cb_func(port_cfg, ISP_PORT_PIPEINFO_GET, port);
-	}
+
 	if (inode->pipe_src.uframe_sync)
 		port_cfg->target_fid = ispnode_fid_across_context_get(inode, inode->attach_cam_id);
 

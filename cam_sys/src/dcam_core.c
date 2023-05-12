@@ -8,7 +8,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU General Public License for more details. 
  */
 
 #include "dcam_core.h"
@@ -71,13 +71,14 @@ static void dcamcore_put_fmcu(struct dcam_hw_context *pctx_hw)
 static void dcamcore_get_dummy_slave(struct dcam_hw_context *pctx_hw)
 {
 	struct dcam_dummy_slave *dummy_slave = NULL;
-	uint32_t hw_ctx_id = pctx_hw->hw_ctx_id;
+	uint32_t hw_ctx_id = 0;
 
 	if (!pctx_hw) {
 		pr_err("fail to get valid input ptr\n");
 		return;
 	}
 
+	hw_ctx_id = pctx_hw->hw_ctx_id;
 	if(pctx_hw->hw->ip_dcam[hw_ctx_id]->dcamhw_abt->dummy_slave_support) {
 		dummy_slave = dcam_dummy_ctx_desc_get(pctx_hw->hw, DCAM_DUMMY_0);
 		if (dummy_slave && dummy_slave->dummy_ops) {

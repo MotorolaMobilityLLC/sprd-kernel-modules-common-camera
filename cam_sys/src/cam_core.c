@@ -358,6 +358,8 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.is_pyr_rec = module->cam_uinfo.is_pyr_rec;
 	alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
 	alloc_param.is_static_map = hw->ip_isp->isphw_abt->static_map_support;
+	if (module->cam_uinfo.dcam_slice_mode)
+		alloc_param.is_static_map = DISABLE;
 	alloc_param.pyr_out_fmt = channel->ch_uinfo.pyr_out_fmt;
 	alloc_param.pyr_layer_num = channel->pipeline_handle->pipeline_graph->pyr_layer_num;
 	alloc_param.iommu_enable = module->iommu_enable;
@@ -569,7 +571,7 @@ static int camcore_cap_frame_status(uint32_t param, void *priv_data)
 	return ret;
 }
 
-static uint32_t camcore_frame_start_proc(struct camera_module *module, struct cam_frame *pframe,
+static uint32_t camcore_frame_start_proc(struct cam_frame *pframe,
 		enum cam_node_type node_type, struct channel_context *ch)
 {
 	int ret = 0;
@@ -579,6 +581,55 @@ static uint32_t camcore_frame_start_proc(struct camera_module *module, struct ca
 	param.node_param.param = pframe;
 	param.node_param.port_id = ch->dcam_port_id;
 	ret = ch->pipeline_handle->ops.streamon(ch->pipeline_handle, &param);
+
+	return ret;
+}
+
+static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
+{
+	int ret = 0, i = 0, slice_num = 0;
+	struct camera_module *module = NULL;
+	struct channel_context *ch = NULL;
+	struct cam_frame *pframe = NULL;
+	struct cam_frame *pframe1 = NULL;
+	struct img_trim in_trim[SLICE_NUM_MAX] = {0};
+	struct cam_pipeline_cfg_param cfg_param = {0};
+
+	if (!param || !priv_data) {
+		pr_err("fail to get valid param %p %p\n", param, priv_data);
+		return -EFAULT;
+	}
+	module = (struct camera_module *)priv_data;
+	ch = &module->channel[CAM_CH_CAP];
+	if (!ch->enable) {
+		pr_err("fail to get cap channel on nonzsl\n");
+		return -EFAULT;
+	}
+
+	pframe = (struct cam_frame *)param;
+	slice_num = pframe->common.height / ISP_SLCIE_HEIGHT_MAX + 1;
+	for (i = 0; i < slice_num; i++) {
+		in_trim[i].start_x = 0;
+		in_trim[i].start_y = pframe->common.height / slice_num * i;
+		in_trim[i].size_x = pframe->common.width;
+		in_trim[i].size_y = pframe->common.height / slice_num;
+
+		if (i == slice_num - 1)
+			pframe1 = pframe;
+		else {
+			pframe1 = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+			memcpy(pframe1, pframe, sizeof(struct camera_frame));
+			pframe1->common.buf.type = CAM_BUF_NONE;
+		}
+		pframe1->common.slice_info.slice_num = slice_num;
+		pframe1->common.slice_info.slice_no = i;
+		pframe1->common.slice_info.in_trim = in_trim[i];
+
+		cfg_param.node_type = pframe1->common.link_to.node_type;
+		cfg_param.node_param.param = pframe1;
+		cfg_param.node_param.port_id = pframe1->common.link_to.port_id;
+		ret = ch->pipeline_handle->ops.streamon(ch->pipeline_handle, &cfg_param);
+	}
 
 	return ret;
 }
@@ -1094,7 +1145,10 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 
 	if (module->cam_uinfo.is_4in1) {
 		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
-		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		if (module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX)
+			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id);
+		else
+			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 	}
 
@@ -1118,7 +1172,10 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 
 	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
 		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV;
-		*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		if (module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX)
+			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id);
+		else
+			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 	}
 	/* only for sharkl3 icap scene */
@@ -1251,6 +1308,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	pipeline_desc->nodes_dev = &module->nodes_dev;
 	pipeline_desc->zoom_cb_func = camcore_zoom_param_get_callback;
+	pipeline_desc->slice_cb_func = camcore_nonzsl_frame_slice;
 	pipeline_desc->data_cb_func = camcore_pipeline_callback;
 	pipeline_desc->data_cb_handle = module;
 	pipeline_desc->buf_manager_handle = buf_manager_handle;
@@ -1330,8 +1388,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 			return -ENOMEM;
 		}
 	}
-	pr_info("cam%d ch %d pipeline done. ret = %d pipeline_type %s\n",
-		module->idx, channel->ch_id, ret, pipeline_desc->pipeline_graph->name);
+	pr_info("cam%d ch %d pipeline done. ret = %d pipeline_type %s, nonzsl_pre_ratio %d\n",
+		module->idx, channel->ch_id, ret, pipeline_desc->pipeline_graph->name, channel->ch_uinfo.nonzsl_pre_ratio);
 fail:
 	cam_buf_kernel_sys_vfree(pipeline_desc);
 	return ret;

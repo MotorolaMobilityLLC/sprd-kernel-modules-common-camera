@@ -142,10 +142,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 			break;
 	}
 
-	if (online) {
-		/* clear lens_load_flag */
-		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_1, (1 << 1));
-	}
+	/* clear lens_load_flag */
+	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_1, (1 << 1));
 
 	/* force copy must be after first load done and load clear */
 	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
@@ -164,10 +162,8 @@ int dcam_init_lsc(void *in, uint32_t online)
 	 * is applied, then image corruption will be observed.
 	 * therefore we trigger loading to another buffer to avoid this case.
 	 */
-	if (online) {
-		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_2 | BIT_0, (1 << 2) | 1);
-		param->load_trigger = 1;
-	}
+	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_2 | BIT_0, (1 << 2) | 1);
+	param->load_trigger = 1;
 
 	return 0;
 

@@ -21,6 +21,77 @@
 #endif
 #define pr_fmt(fmt) "ISP_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
+static int ispport_slice_fetch_prepare(struct isp_port *port, void *param)
+{
+	uint32_t ret = 0, width = 0, height = 0;
+	struct isp_port_cfg *port_cfg = NULL;
+	struct isp_hw_fetch_info *fetch = NULL;
+	struct img_slice_info *slice = NULL;
+
+	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
+	fetch = &port_cfg->pipe_info->fetch;
+	slice = &port_cfg->src_frame->common.slice_info;
+	width = port_cfg->src_frame->common.width;
+	height = port_cfg->src_frame->common.height;
+	port->slice_info.slice_num = slice->slice_num;
+	port->slice_info.slice_no = slice->slice_no;
+
+	fetch->pitch.pitch_ch0 = cam_cal_hw_pitch(width, port->fmt);
+	fetch->in_trim = slice->in_trim;
+	fetch->src.w = slice->in_trim.size_x;
+	fetch->src.h = slice->in_trim.size_y;
+	fetch->trim_off.addr_ch0 =
+		(slice->slice_no / (slice->slice_num / 2)) * fetch->pitch.pitch_ch0 * (height - fetch->in_trim.start_y);
+
+	pr_info("fetch src %d, %d, in_trim(%d, %d, %d, %d)\n",
+		fetch->src.w, fetch->src.h, fetch->in_trim.start_x, fetch->in_trim.start_y,
+		fetch->in_trim.size_x, fetch->in_trim.size_y);
+
+	return ret;
+}
+
+static int ispport_slice_store_prepare(struct isp_port *port, void *param)
+{
+	uint32_t ret = 0, width = 0, height = 0;
+	struct isp_port_cfg *port_cfg = NULL;
+	struct isp_store_info *store = NULL;
+	struct isp_hw_path_scaler *path = NULL;
+	struct img_slice_info *slice = NULL;
+	uint32_t path_id = isp_port_id_switch(port->port_id);
+
+	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
+	store = &port_cfg->pipe_info->store[path_id].store;
+	path = &port_cfg->pipe_info->scaler[path_id];
+	slice = &port_cfg->src_frame->common.slice_info;
+	width = port_cfg->src_frame->common.width;
+	height = port_cfg->src_frame->common.height;
+	port->slice_info.slice_num = slice->slice_num;
+	port->slice_info.slice_no = slice->slice_no;
+
+	path->src.w = slice->in_trim.size_x;
+	path->src.h = slice->in_trim.size_y;
+	path->in_trim = slice->in_trim;
+	path->dst.w = path->in_trim.size_x;
+	path->dst.h = path->in_trim.size_y;
+	path->out_trim = slice->in_trim;
+
+	store->pitch.pitch_ch0 = width;
+	store->pitch.pitch_ch1 = width;
+	store->size.w = ALIGN(path->out_trim.size_x, 2);
+	store->size.h = ALIGN(path->out_trim.size_y, 2);
+	store->slice_offset.addr_ch0 = slice->in_trim.start_x
+		+ (slice->slice_no / (slice->slice_num / 2)) * store->pitch.pitch_ch0 * (height - store->size.h);
+	store->slice_offset.addr_ch1 = slice->in_trim.start_x
+		+ (slice->slice_no / (slice->slice_num / 2)) * store->pitch.pitch_ch1 * (height - store->size.h) / 2;
+	pr_info("scaler src %d, %d, in_trim(%d, %d, %d, %d), dst %d, %d, out_trim(%d, %d, %d, %d), store %d, %d\n",
+		path->src.w, path->src.h, path->in_trim.start_x, path->in_trim.start_y,
+		path->in_trim.size_x, path->in_trim.size_y, path->dst.w, path->dst.h,
+		path->out_trim.start_x, path->out_trim.start_y, path->out_trim.size_x, path->out_trim.size_y,
+		store->size.w, store->size.h);
+
+	return ret;
+}
+
 static void ispport_frame_ret(void *param)
 {
 	struct cam_frame * pframe = NULL;
@@ -306,13 +377,16 @@ static struct cam_frame *ispport_out_frame_get(struct isp_port *port, struct isp
 
 normal_out_put:
 
-	if (port->uframe_sync && port_cfg->target_fid != CAMERA_RESERVE_FRAME_NUM) {
-		buf_desc.q_ops_cmd = CAM_QUEUE_IF;
-		buf_desc.filter = ispport_fid_check;
-		buf_desc.target_fid = port_cfg->target_fid;
-		out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, &buf_desc, port->buf_manager_handle);
-	} else {
-		out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, NULL, port->buf_manager_handle);
+	if (port->slice_info.slice_num && port->slice_info.slice_no != 0)
+		out_frame = cam_buf_manager_buf_dequeue(&port->store_result_pool, NULL, port->buf_manager_handle);
+	else {
+		if (port->uframe_sync && port_cfg->target_fid != CAMERA_RESERVE_FRAME_NUM) {
+			buf_desc.q_ops_cmd = CAM_QUEUE_IF;
+			buf_desc.filter = ispport_fid_check;
+			buf_desc.target_fid = port_cfg->target_fid;
+			out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, &buf_desc, port->buf_manager_handle);
+		} else
+			out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, NULL, port->buf_manager_handle);
 	}
 
 	if (out_frame)
@@ -421,6 +495,7 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 	out_frame->common.sensor_time = port_cfg->src_frame->common.sensor_time;
 	out_frame->common.boot_sensor_time = port_cfg->src_frame->common.boot_sensor_time;
 	out_frame->common.link_from.port_id = port->port_id;
+	out_frame->common.slice_info.slice_num = port->slice_info.slice_num;
 
 	if (!port->need_post_proc) {
 		do {
@@ -629,11 +704,13 @@ static int ispport_scaler_get(struct isp_port *port, struct isp_hw_path_scaler *
 	else
 		path->path_sel = 0;
 	path->frm_deci = 0;
-	path->dst = port->size;
-	path->out_trim.start_x = 0;
-	path->out_trim.start_y = 0;
-	path->out_trim.size_x = port->size.w;
-	path->out_trim.size_y = port->size.h;
+	if (!port->slice_info.slice_num) {
+		path->dst = port->size;
+		path->out_trim.start_x = 0;
+		path->out_trim.start_y = 0;
+		path->out_trim.size_x = port->size.w;
+		path->out_trim.size_y = port->size.h;
+	}
 	path->regular_info.regular_mode = port->regular_mode;
 	ret = ispport_scaler_param_calc(&path->in_trim, &path->dst,
 		&path->scaler, &path->deci);
@@ -695,11 +772,14 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 	port = VOID_PTR_TO(cfg_in, struct isp_port);
 	fetch = (struct isp_hw_fetch_info *)cfg_out;
 	src = &port->size;
-	intrim = &port->trim;
 	if (frame->common.pframe_data)
 		pframe_data = &((struct cam_frame *)frame->common.pframe_data)->common;
 	fetch->src = *src;
-	fetch->in_trim = *intrim;
+	if (!port->slice_info.slice_num) {
+		intrim = &port->trim;
+		fetch->in_trim = *intrim;
+	} else
+		intrim = &fetch->in_trim;
 	fetch->fetch_fmt = port->fmt;
 	fetch->fetch_pyr_fmt = port->pyr_out_fmt;
 	fetch->fetch_3dnr_fmt = port->store_3dnr_fmt;
@@ -887,6 +967,7 @@ static int ispport_store_normal_get(struct isp_port *port,
 	struct isp_hw_path_store *store_info, struct isp_port_cfg *port_cfg)
 {
 	int ret = 0, path_id = 0;
+	uint32_t width = 0, height = 0;
 	struct isp_store_info *store = NULL;
 
 	if (!port || !store_info || !port_cfg || !port_cfg->src_frame) {
@@ -915,50 +996,53 @@ static int ispport_store_normal_get(struct isp_port *port,
 	store->shadow_clr = 1;
 	store->store_res = 1;
 	store->rd_ctrl = 0;
-	store->size = port->size;
+	width = port->size.w;
+	height = port->size.h;
+	if (!port->slice_info.slice_num)
+		store->size = port->size;
 	switch (store->color_fmt) {
 	case CAM_UYVY_1FRAME:
-		store->pitch.pitch_ch0 = store->size.w * 2;
-		store->total_size = store->size.w * store->size.h * 2;
+		store->pitch.pitch_ch0 = width * 2;
+		store->total_size = width * height * 2;
 		break;
 	case CAM_YUV422_2FRAME:
 	case CAM_YVU422_2FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w;
-		store->total_size = store->size.w * store->size.h * 2;
+		store->pitch.pitch_ch0 = width;
+		store->pitch.pitch_ch1 = width;
+		store->total_size = width * height * 2;
 		break;
 	case CAM_YUV420_2FRAME:
 	case CAM_YVU420_2FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w;
-		store->total_size = store->size.w * store->size.h * 3 / 2;
+		store->pitch.pitch_ch0 = width;
+		store->pitch.pitch_ch1 = width;
+		store->total_size = width * height * 3 / 2;
 		break;
 	case CAM_YUV420_2FRAME_10:
 	case CAM_YVU420_2FRAME_10:
-		store->pitch.pitch_ch0 = store->size.w * 2;
-		store->pitch.pitch_ch1 = store->size.w * 2;
-		store->total_size = store->size.w * store->size.h * 3 / 2;
+		store->pitch.pitch_ch0 = width * 2;
+		store->pitch.pitch_ch1 = width * 2;
+		store->total_size = width * height * 3 / 2;
 		break;
 	case CAM_YUV420_2FRAME_MIPI:
 	case CAM_YVU420_2FRAME_MIPI:
-		store->pitch.pitch_ch0 = store->size.w * 10 / 8;
-		store->pitch.pitch_ch1 = store->size.w * 10 / 8 ;
-		store->total_size = store->size.w * store->size.h * 3 / 2;
+		store->pitch.pitch_ch0 = width * 10 / 8;
+		store->pitch.pitch_ch1 = width * 10 / 8 ;
+		store->total_size = width * height * 3 / 2;
 		break;
 	case CAM_YUV422_3FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w / 2;
-		store->pitch.pitch_ch2 = store->size.w / 2;
-		store->total_size = store->size.w * store->size.h * 2;
+		store->pitch.pitch_ch0 = width;
+		store->pitch.pitch_ch1 = width / 2;
+		store->pitch.pitch_ch2 = width / 2;
+		store->total_size = width * height * 2;
 		break;
 	case CAM_YUV420_3FRAME:
-		store->pitch.pitch_ch0 = store->size.w;
-		store->pitch.pitch_ch1 = store->size.w / 2;
-		store->pitch.pitch_ch2 = store->size.w / 2;
-		store->total_size = store->size.w * store->size.h * 3 / 2;
+		store->pitch.pitch_ch0 = width;
+		store->pitch.pitch_ch1 = width / 2;
+		store->pitch.pitch_ch2 = width / 2;
+		store->total_size = width * height * 3 / 2;
 		break;
 	case CAM_FULL_RGB14:
-		store->pitch.pitch_ch0 = store->size.w * 8;
+		store->pitch.pitch_ch0 = width * 8;
 		break;
 	default:
 		pr_err("fail to get support store fmt: %s\n", camport_fmt_name_get(store->color_fmt));
@@ -1137,6 +1221,8 @@ static int ispport_fetch_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 	pipe_in->fetch.sec_mode = port_cfg->sec_mode;
 	if (port->fetch_path_sel == ISP_FETCH_PATH_NORMAL)
 		pipe_in->fetch_fbd_yuv.fetch_fbd_bypass = 1;
+	if (port_cfg->src_frame->common.slice_info.slice_num)
+		ispport_slice_fetch_prepare(port, port_cfg);
 	ret = ispport_fetch_normal_get(port, &pipe_in->fetch, port_cfg->src_frame);
 	if (ret) {
 		pr_err("fail to get pipe fetch info\n");
@@ -1155,11 +1241,6 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 	pipe_in = port_cfg->pipe_info;
 	pipe_in->store[path_id].ctx_id = port_cfg->cfg_id;
 	pipe_in->store[path_id].spath_id = path_id;
-	ret = ispport_store_normal_get(port, &pipe_in->store[path_id], port_cfg);
-	if (ret) {
-		pr_err("fail to get pipe store normal info\n");
-		return -EFAULT;
-	}
 
 	pipe_in->scaler[path_id].ctx_id = port_cfg->cfg_id;
 	pipe_in->scaler[path_id].spath_id = path_id;
@@ -1172,6 +1253,15 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 		pipe_in->scaler[path_id].in_trim.size_y = port_cfg->src_crop.size_y;
 	} else {
 		pipe_in->scaler[path_id].in_trim = port->trim;
+	}
+
+	if (port_cfg->src_frame->common.slice_info.slice_num)
+		ispport_slice_store_prepare(port, port_cfg);
+
+	ret = ispport_store_normal_get(port, &pipe_in->store[path_id], port_cfg);
+	if (ret) {
+		pr_err("fail to get pipe store normal info\n");
+		return -EFAULT;
 	}
 
 	port->scaler_coeff_ex = port_cfg->scaler_coeff_ex;

@@ -279,7 +279,7 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 		isp_pyr_rec_buffer_alloc(rec_ctx, &alloc_param, isp_node->buf_manager_handle);
 	}
 
-	ret = camcore_frame_start_proc(module, src_frame, CAM_NODE_TYPE_DCAM_OFFLINE, ch);
+	ret = camcore_frame_start_proc(src_frame, CAM_NODE_TYPE_DCAM_OFFLINE, ch);
 	if (ret) {
 		pr_err("fail to start dcam/isp for raw proc\n");
 		goto src_fail;
@@ -625,7 +625,7 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 		isp_pyr_rec_buffer_alloc(rec_ctx, &alloc_param, isp_node->buf_manager_handle);
 	}
 
-	ret = camcore_frame_start_proc(module, src_frame, CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB, ch);
+	ret = camcore_frame_start_proc(src_frame, CAM_NODE_TYPE_DCAM_OFFLINE_RAW2FRGB, ch);
 	if (ret)
 		pr_err("fail to start dcam/isp for raw proc\n");
 

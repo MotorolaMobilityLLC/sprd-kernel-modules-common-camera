@@ -684,8 +684,6 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_MIPI_CAP_END, reg_val);
 
 	/* frame skip before capture */
-	if (cap_info->frm_skip == 0)
-		cap_info->frm_skip = 1;
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
 			BIT_8 | BIT_9 | BIT_10 | BIT_11,
 				cap_info->frm_skip << 8);
@@ -1176,7 +1174,7 @@ static int dcamhw_slice_store_set(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_FULL_CFG, (0x7FF << 20) | (1 << 1), (full_store->pitch << 20) | (1 << 1));
 	DCAM_REG_WR(idx, DCAM_FULL_CROP_START, full_store->crop.start_x & 0x1fff);
 	DCAM_REG_WR(idx, DCAM_FULL_CROP_SIZE,
-		((full_store->store_size.h & 0x1fff) << 16) | (full_store->store_size.w & 0x1fff));
+		((full_store->crop.size_y & 0x1fff) << 16) | (full_store->crop.size_x & 0x1fff));
 	reg_val = DCAM_REG_RD(idx, DCAM_FULL_BASE_WADDR);
 	DCAM_REG_WR(idx, DCAM_FULL_BASE_WADDR, reg_val + full_store->store_offset[0]);
 
@@ -1186,7 +1184,7 @@ static int dcamhw_slice_store_set(void *handle, void *arg)
 	DCAM_REG_MWR(idx, DCAM_CAM_BIN_CFG, 0x3ff00000, bin_store->pitch << 20);
 	DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_START, bin_store->crop.start_x & 0x1fff);
 	DCAM_REG_WR(idx, DCAM_CAM_BIN_CROP_SIZE,
-		((bin_store->store_size.h & 0x1fff) << 16) | (bin_store->store_size.w & 0x1fff));
+		((bin_store->crop.size_y & 0x1fff) << 16) | (bin_store->crop.size_x & 0x1fff));
 
 	reg_val = DCAM_REG_RD(idx, DCAM_BIN_BASE_WADDR0);
 	DCAM_REG_WR(idx, DCAM_BIN_BASE_WADDR0, reg_val + bin_store->store_offset[0]);
@@ -1363,6 +1361,7 @@ static int dcamhw_csi_connect(void *handle, void *arg)
 
 	pr_info("DCAM%d connect to csi%d\n", idx, csi_idx);
 
+	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, 0xf00, 1 << 8);
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_9 | BIT_10, csi_idx << 9);/* select csi for dcam */
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, BIT_0);
 	regmap_update_bits(hw->soc_dcam->cam_ahb_gpr, 0x48 + idx *4, BIT_0, ~BIT_0);
