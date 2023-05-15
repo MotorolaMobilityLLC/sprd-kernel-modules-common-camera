@@ -1288,6 +1288,7 @@ struct dcam_hw_abt {
 	enum cam_en_status bpc_raw_support;
 	enum cam_en_status superzoom_support;
 	enum cam_en_status lbuf_share_support;
+	enum cam_en_status rgb_gtm_support;
 	uint32_t recovery_support;
 	uint32_t dummy_slave_support;
 	enum cam_en_status offline_slice_support;

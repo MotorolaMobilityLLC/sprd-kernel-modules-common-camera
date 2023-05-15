@@ -545,6 +545,7 @@ static struct dcam_hw_abt dcamhw_ability = {
 	.dcam_zoom_mode = ZOOM_BINNING2,
 	.save_band_for_bigsize = 0,
 	.output_strategy = IMG_POWER_CONSUM_PRI,
+	.rgb_gtm_support = CAM_ENABLE,
 	.dcam_block[0] = DCAM_BLOCK_BLC,
 	.dcam_block[1] = DCAM_BLOCK_RGBG,
 	.dcam_block[2] = DCAM_BLOCK_RGBG_DITHER,

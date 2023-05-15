@@ -1381,9 +1381,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (hw->ip_isp->isphw_abt->frbg_hist_support)
 		DCAMONLINE_STATIS_WORK_SET(pm->hist_roi.hist_roi_info.bypass, node, PORT_FRGB_HIST_OUT);
 	DCAMONLINE_STATIS_WORK_SET(pm->pdaf.bypass, node, PORT_PDAF_OUT);
-	if (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0)
-		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
-	if (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0)
+	if (hw_ctx->hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt->rgb_gtm_support == CAM_ENABLE)
 		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
 
 	hw_ctx->fid = pm->recovery_fid ? pm->recovery_fid : 0;
