@@ -584,7 +584,7 @@ struct dcam_hw_scaler {
 };
 
 struct dcam_slice_store_param {
-	enum en_status bin_en;
+	enum cam_en_status bin_en;
 	uint32_t pitch;
 	uint32_t store_offset[2];
 	struct store_border out_border;
@@ -600,7 +600,7 @@ struct dcam_hw_slice_param {
 	uint32_t path_id;
 	uint32_t relative_offset;
 	uint32_t fetch_offset;
-	enum en_status is_last_slice;
+	enum cam_en_status is_last_slice;
 	struct dcam_fetch_info *fetch;
 	struct img_trim *cur_slice;
 	struct img_size fetch_size;
@@ -927,7 +927,7 @@ struct isp_3dnr_slw_store {
 struct isp_hw_slw_fmcu_cmds {
 	uint32_t ctx_id;
 	enum isp_3dnr_mode mode_3dnr;
-	enum en_status is_compressed;
+	enum cam_en_status is_compressed;
 	struct img_addr fetchaddr;
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct isp_store_info store[ISP_SPATH_NUM];
@@ -1207,7 +1207,7 @@ enum isp_alldone_ctrl_int {
 
 struct isp_hw_alldone_ctrl {
 	uint32_t hw_ctx_id;
-	enum en_status wait;
+	enum cam_en_status wait;
 	enum isp_alldone_ctrl_int int_bit;
 };
 
@@ -1283,17 +1283,17 @@ struct dcam_hw_abt {
 	uint32_t dcam_raw_path_id;
 	uint32_t sensor_raw_path_id;
 	uint32_t dcam_scaling_path;
-	enum en_status fmcu_support;
-	enum en_status pyramid_support;
-	enum en_status bpc_raw_support;
-	enum en_status superzoom_support;
-	enum en_status lbuf_share_support;
+	enum cam_en_status fmcu_support;
+	enum cam_en_status pyramid_support;
+	enum cam_en_status bpc_raw_support;
+	enum cam_en_status superzoom_support;
+	enum cam_en_status lbuf_share_support;
 	uint32_t recovery_support;
 	uint32_t dummy_slave_support;
-	enum en_status offline_slice_support;
-	enum en_status dcam_offline_fbc_support;
-	enum en_status vch3_output_pdaf_support;
-	enum en_status mul_raw_output_support;
+	enum cam_en_status offline_slice_support;
+	enum cam_en_status dcam_offline_fbc_support;
+	enum cam_en_status vch3_output_pdaf_support;
+	enum cam_en_status mul_raw_output_support;
 	uint32_t sensor_raw_fmt;
 	uint32_t store_pyr_fmt;
 	uint32_t store_3dnr_fmt[CAM_FORMAT_MAX];
@@ -1310,17 +1310,17 @@ struct dcamlite_hw_abt {
 };
 
 struct isp_hw_abt {
-	enum en_status slm_cfg_support;
-	enum en_status *ctx_fmcu_support;
-	enum en_status fetch_raw_support;
-	enum en_status pyr_rec_support;
-	enum en_status pyr_dec_support;
-	enum en_status rgb_ltm_support;
-	enum en_status rgb_gtm_support;
-	enum en_status frbg_hist_support;
-	enum en_status nr3_compress_support;
-	enum en_status pyr_rec_lay0_support;
-	enum en_status static_map_support;
+	enum cam_en_status slm_cfg_support;
+	enum cam_en_status *ctx_fmcu_support;
+	enum cam_en_status fetch_raw_support;
+	enum cam_en_status pyr_rec_support;
+	enum cam_en_status pyr_dec_support;
+	enum cam_en_status rgb_ltm_support;
+	enum cam_en_status rgb_gtm_support;
+	enum cam_en_status frbg_hist_support;
+	enum cam_en_status nr3_compress_support;
+	enum cam_en_status pyr_rec_lay0_support;
+	enum cam_en_status static_map_support;
 	uint32_t nr3_mv_alg_version;
 	uint32_t dyn_overlap_version;
 	uint32_t thumb_scaler_cal_version;

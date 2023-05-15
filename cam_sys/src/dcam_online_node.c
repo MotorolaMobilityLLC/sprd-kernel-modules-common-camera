@@ -466,7 +466,7 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 		if (node->slowmotion_count && !node->need_fix) {
 			hw_ctx->handled_bits = 0xFFFFFFFF;
 			hw_ctx->handled_bits_on_int1 = 0xFFFFFFFF;
-			node->need_fix = ENABLE;
+			node->need_fix = CAM_ENABLE;
 			return DEFER_TO_NEXT;
 		}
 
@@ -535,7 +535,7 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 		return INDEX_FIXED;
 	}
 
-	node->need_fix = DISABLE;
+	node->need_fix = CAM_DISABLE;
 
 	end = hw_ctx->fid;
 	begin = max(rounddown(end, node->slowmotion_count), old_index + 1);
@@ -1489,7 +1489,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (node->hw_ctx->dummy_slave) {
 		dummy_param.resbuf_get_cb = node->resbuf_get_cb;
 		dummy_param.resbuf_cb_data = node->resbuf_cb_data;
-		dummy_param.enable = ENABLE;
+		dummy_param.enable = CAM_ENABLE;
 		node->dev->dcam_pipe_ops->dummy_cfg(hw_ctx, &dummy_param);
 	}
 
@@ -1834,7 +1834,7 @@ int dcam_online_node_pmctx_init(struct dcam_online_node *node)
 	ret = cam_buf_manager_buf_status_cfg(&blk_pm_ctx->lsc.buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 	if (ret)
 		goto map_fail;
-	blk_pm_ctx->lsc.buf.bypass_iova_ops = ENABLE;
+	blk_pm_ctx->lsc.buf.bypass_iova_ops = CAM_ENABLE;
 	blk_pm_ctx->offline = 0;
 	blk_pm_ctx->idx = node->hw_ctx_id;
 	blk_pm_ctx->dev = (void *)node->dev;

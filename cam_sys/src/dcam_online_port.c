@@ -434,7 +434,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		if (layer_num == 0)
 			break;
 	}
-	frame->common.pyr_status = (layer_num == 0) ? DISABLE : ENABLE;
+	frame->common.pyr_status = (layer_num == 0) ? CAM_DISABLE : CAM_ENABLE;
 
 	align_w = dcamonline_dec_align_width(dcam_port->out_size.w, layer_num);
 	align_h = dcamonline_dec_align_heigh(dcam_port->out_size.h, layer_num);
@@ -890,7 +890,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	atomic_inc(&dcam_port->set_frm_cnt);
 
 	out_frame->common.fid = hw_ctx->index_to_set + hw_ctx->slw_idx;
-	out_frame->common.pyr_status = DISABLE;
+	out_frame->common.pyr_status = CAM_DISABLE;
 
 	path_id = dcamonline_portid_convert_to_pathid(port_id);
 	if (out_frame->common.is_compressed) {
@@ -1264,7 +1264,7 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		if ((ch_id != CAM_CH_CAP) || (param->is_static_map)) {
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-			pframe->common.buf.bypass_iova_ops = ENABLE;
+			pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 		}
 
 		if (param->share_buffer && (port->port_id == PORT_FULL_OUT)) {

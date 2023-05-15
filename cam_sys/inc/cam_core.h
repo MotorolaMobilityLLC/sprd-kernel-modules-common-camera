@@ -106,7 +106,7 @@ struct camera_uchannel {
 	uint32_t sn_fmt;
 	uint32_t dst_fmt;
 
-	enum en_status is_high_fps;/* for DCAM slow motion feature */
+	enum cam_en_status is_high_fps;/* for DCAM slow motion feature */
 	uint32_t high_fps_skip_num;/* for DCAM slow motion feature */
 	uint32_t slowmotion_stage_a_num;/* for DCAM slow motion feature 60 frame*/
 	uint32_t slowmotion_stage_a_valid_num;/* for DCAM slow motion feature */
@@ -140,28 +140,28 @@ struct camera_uinfo {
 	struct sprd_img_rect sn_rect;
 	uint32_t capture_mode;
 	uint32_t capture_skip;
-	enum en_status is_longexp;
-	enum en_status is_4in1;
-	enum en_status is_rgb_ltm;
-	enum en_status is_pyr_rec;
-	enum en_status is_pyr_dec;
-	enum en_status is_rgb_gtm;
-	enum en_status is_dual;
+	enum cam_en_status is_longexp;
+	enum cam_en_status is_4in1;
+	enum cam_en_status is_rgb_ltm;
+	enum cam_en_status is_pyr_rec;
+	enum cam_en_status is_pyr_dec;
+	enum cam_en_status is_rgb_gtm;
+	enum cam_en_status is_dual;
 	enum camera_slice_mode dcam_slice_mode;/*1: hw,  2:sw*/
 	uint32_t slice_num;
 	uint32_t slice_count;
 	uint32_t zsl_num;
 	uint32_t zsk_skip_num;
-	enum en_status need_share_buf;
+	enum cam_en_status need_share_buf;
 	uint32_t zoom_conflict_with_ltm;
 	/* for raw alg*/
-	enum en_status is_raw_alg;
+	enum cam_en_status is_raw_alg;
 	enum alg_types alg_type;
 	enum cam_rawdata_src rawdata_src;
 	uint32_t param_frame_sync;
 	/* for dcam raw*/
-	enum en_status need_dcam_raw;
-	enum en_status virtualsensor;/* 1: virtual sensor 0: normal */
+	enum cam_en_status need_dcam_raw;
+	enum cam_en_status virtualsensor;/* 1: virtual sensor 0: normal */
 	uint32_t opt_buffer_num;
 };
 
@@ -182,20 +182,20 @@ struct nonzsl_pre_info {
 
 struct channel_context {
 	enum cam_ch_id ch_id;
-	enum en_status enable;
+	enum cam_en_status enable;
 	uint32_t frm_base_id;
 	uint32_t frm_cnt;
 	atomic_t err_status;
 
-	enum en_status compress_en;
-	enum en_status compress_3dnr;
-	enum en_status compress_offline;
+	enum cam_en_status compress_en;
+	enum cam_en_status compress_3dnr;
+	enum cam_en_status compress_offline;
 
 	int32_t dcam_port_id;
 	int32_t aux_dcam_port_id;
 	int32_t aux_raw_port_id;
 	int32_t isp_port_id;
-	enum en_status need_framecache;
+	enum cam_en_status need_framecache;
 
 	uint32_t zsl_buffer_num;
 	uint32_t zsl_skip_num;
@@ -212,16 +212,16 @@ struct channel_context {
 	struct img_size dst_dcam;
 	enum cam_format dcam_out_fmt; /*for online path*/
 
-	enum en_status alloc_start;
+	enum cam_en_status alloc_start;
 	struct completion alloc_com;
 	struct completion stream_on_buf_com;
 	struct completion fast_stop;
-	enum en_status uinfo_3dnr;/* set by hal, 1:hw 3dnr; */
+	enum cam_en_status uinfo_3dnr;/* set by hal, 1:hw 3dnr; */
 	enum cam_3dnr_type type_3dnr;/* CAM_3DNR_HW:enable hw,and alloc buffer */
 	enum isp_ltm_mode mode_ltm;
-	enum en_status ltm_rgb;
+	enum cam_en_status ltm_rgb;
 	enum isp_gtm_mode mode_gtm;
-	enum en_status gtm_rgb;
+	enum cam_en_status gtm_rgb;
 	struct cam_zoom_frame latest_zoom_param;
 	struct sprd_img_rect latest_user_crop;/*use to compare with current crop*/
 	spinlock_t lastest_zoom_lock;
@@ -237,12 +237,12 @@ struct camera_module {
 	atomic_t timeout_flag;
 	uint32_t timeout_num;
 	struct mutex ioctl_lock;
-	enum en_status master_flag; /* master cam capture flag */
-	enum en_status compat_flag;
+	enum cam_en_status master_flag; /* master cam capture flag */
+	enum cam_en_status compat_flag;
 	struct camera_group *grp;
-	enum en_status private_key;
+	enum cam_en_status private_key;
 	int attach_sensor_id;
-	enum en_status iommu_enable;
+	enum cam_en_status iommu_enable;
 
 	enum cam_format raw_cap_fetch_fmt;
 	enum cam_cap_type capture_type;
@@ -281,13 +281,13 @@ struct camera_module {
 	atomic_t dual_select_frame_done;
 	int64_t capture_times;/* *ns, timestamp get from start_capture */
 	enum capture_scene cap_scene;
-	enum en_status auto_3dnr;/* 1: enable hw,and alloc buffer before stream on */
+	enum cam_en_status auto_3dnr;/* 1: enable hw,and alloc buffer before stream on */
 	struct sprd_img_flash_info flash_info;
 	uint32_t flash_skip_fid;
 	enum dcam_path_state path_state;
-	enum en_status icap_scene;
+	enum cam_en_status icap_scene;
 
-	enum en_status raw_callback;
+	enum cam_en_status raw_callback;
 	struct mutex zoom_lock;
 	/* cam data path topology info */
 	struct cam_scene *static_topology;
@@ -303,7 +303,7 @@ struct camera_module {
 
 struct camera_group {
 	atomic_t camera_opened;
-	enum en_status ca_conn;
+	enum cam_en_status ca_conn;
 
 	struct mutex module_lock;
 	uint32_t module_used;
@@ -319,7 +319,7 @@ struct camera_group {
 	struct sprd_cam_sec_cfg camsec_cfg;
 	struct cam_hw_info *hw_info;
 	struct img_size mul_sn_max_size;
-	enum en_status is_mul_buf_share;
+	enum cam_en_status is_mul_buf_share;
 	struct wakeup_source *ws;
 
 	atomic_t recovery_state;

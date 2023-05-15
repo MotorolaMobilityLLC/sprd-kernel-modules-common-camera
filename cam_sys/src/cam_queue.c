@@ -115,7 +115,7 @@ static int cam_queue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
 }
 
 struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q,
-	enum en_status (*filter)(struct cam_frame *, void *), void *data)
+	enum cam_en_status (*filter)(struct cam_frame *, void *), void *data)
 {
 	int fatal_err = 0;
 	unsigned long flags = 0;

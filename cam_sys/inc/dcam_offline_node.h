@@ -30,9 +30,9 @@ struct dcam_offline_node_desc {
 	uint32_t pattern;
 	enum cam_data_endian endian;
 	enum cam_format fetch_fmt;
-	enum en_status statis_en;
-	enum en_status offline_pre_en;
-	enum en_status enable_3dnr;
+	enum cam_en_status statis_en;
+	enum cam_en_status offline_pre_en;
+	enum cam_en_status enable_3dnr;
 	enum camera_slice_mode dcam_slice_mode;
 	struct img_size input_size;
 	struct img_trim input_trim;
@@ -60,9 +60,9 @@ struct dcam_offline_node {
 	atomic_t user_cnt;
 	atomic_t status;
 	atomic_t port_done[PORT_DCAM_OFFLINE_OUT_MAX];
-	enum en_status statis_en;
-	enum en_status offline_pre_en;
-	enum en_status is_3dnr;
+	enum cam_en_status statis_en;
+	enum cam_en_status offline_pre_en;
+	enum cam_en_status is_3dnr;
 	enum camera_slice_mode dcam_slice_mode;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;

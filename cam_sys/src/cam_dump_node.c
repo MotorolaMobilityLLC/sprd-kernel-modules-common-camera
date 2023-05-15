@@ -381,7 +381,7 @@ static int camdump_node_frame_start(void *param)
 		}
 		node->dump_cnt--;
 	}
-	pframe->common.dump_en = DISABLE;
+	pframe->common.dump_en = CAM_DISABLE;
 	pr_debug("cam dump node %d frame start, count = %d\n", node->node_id, node->dump_cnt);
 
 	if (IS_STATIS_PORT(pframe->common.link_from.port_id))

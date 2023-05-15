@@ -46,19 +46,19 @@ struct dcam_online_port_desc {
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
 	uint32_t dcam_path_id;
-	enum en_status is_raw;
+	enum cam_en_status is_raw;
 	enum dcam_full_src_sel_type raw_src;
 	uint32_t bayer_pattern;
 	enum cam_format dcam_out_fmt;
 	uint32_t frm_skip;
 	enum cam_data_endian endian;
 	enum cam_format pyr_out_fmt;
-	enum en_status compress_en;
-	enum en_status is_pyr_rec;
+	enum cam_en_status compress_en;
+	enum cam_en_status is_pyr_rec;
 	uint32_t reserved_pool_id;
 	uint32_t share_full_path;
 	void *dev;
-	enum en_status update_state;
+	enum cam_en_status update_state;
 };
 
 struct dcam_online_port {
@@ -68,7 +68,7 @@ struct dcam_online_port {
 	atomic_t is_work; /* dynamic switch counter of port */
 	atomic_t is_shutoff;
 	spinlock_t state_lock;
-	enum en_status state_update;
+	enum cam_en_status state_update;
 	enum dcam_port_state port_state;
 	uint32_t share_full_path;
 
@@ -79,12 +79,12 @@ struct dcam_online_port {
 	enum cam_data_endian endian;
 	uint32_t bayer_pattern;
 	enum cam_format pyr_out_fmt;
-	enum en_status compress_en;
+	enum cam_en_status compress_en;
 	uint32_t src_sel;
 	enum dcam_full_src_sel_type raw_src;
 	enum cam_format dcamout_fmt;
 	enum cam_port_dcam_online_out_id port_id;
-	enum en_status is_pyr_rec;
+	enum cam_en_status is_pyr_rec;
 	uint32_t bin_ratio;
 	uint32_t out_pitch;
 	uint32_t scaler_sel;/* 0: bining, 1: RDS, 2&3: bypass */

@@ -128,7 +128,7 @@ struct cam_pipeline {
 	struct cam_pipeline_topology *pipeline_graph;
 	struct cam_node *node_list[CAM_PIPELINE_NODE_NUM];
 	struct cam_pipeline_ops ops;
-	enum en_status debug_log_switch;
+	enum cam_en_status debug_log_switch;
 };
 
 #define CAM_PIPEINE_ISP_NODE_CFG(channel, cmd, nodeid, par)  ({ \

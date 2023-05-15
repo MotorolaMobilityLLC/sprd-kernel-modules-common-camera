@@ -40,7 +40,7 @@ static uint32_t ispscaler_port_deci_factor_get(uint32_t src_size, uint32_t dst_s
 	return factor;
 }
 
-static enum en_status ispscaler_port_fid_check(struct cam_frame *frame, void *data)
+static enum cam_en_status ispscaler_port_fid_check(struct cam_frame *frame, void *data)
 {
 	uint32_t target_fid;
 

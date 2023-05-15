@@ -60,7 +60,7 @@ struct isp_hw_context {
 	uint32_t is_last_slice;
 	uint32_t valid_slc_num;
 	uint32_t pyr_layer_num;
-	enum en_status enable_slowmotion;
+	enum cam_en_status enable_slowmotion;
 	uint32_t slowmotion_count;
 	uint32_t nr3_fbc_fbd;
 	uint32_t iommu_status;

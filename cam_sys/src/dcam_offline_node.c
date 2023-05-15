@@ -162,13 +162,13 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 
 	if (node->hw_ctx->dummy_slave) {
 		dummy_param.hw_ctx_id = node->hw_ctx->hw_ctx_id;
-		dummy_param.enable = DISABLE;
+		dummy_param.enable = CAM_DISABLE;
 		node->hw_ctx->dummy_slave->dummy_ops->dummy_enable(node->hw_ctx->dummy_slave, &dummy_param);
 	}
 	node->hw_ctx->dcam_slice_mode = CAM_SLICE_NONE;
 	node->hw_ctx->is_offline_proc = 0;
 	node->hw_ctx->err_count = 0;
-	node->hw_ctx->offline_pre_en = DISABLE;
+	node->hw_ctx->offline_pre_en = CAM_DISABLE;
 	node->hw_ctx->is_3dnr = 0;
 	node->hw_ctx->dcam_irq_cb_func = NULL;
 	node->hw_ctx->dcam_irq_cb_handle = NULL;
@@ -731,7 +731,7 @@ static int dcamoffline_node_frame_start(void *param)
 	atomic_set(&node->status, STATE_RUNNING);
 
 	if (node->hw_ctx->dummy_slave) {
-		dummy_param.enable = ENABLE;
+		dummy_param.enable = CAM_ENABLE;
 		node->dev->dcam_pipe_ops->dummy_cfg(node->hw_ctx, &dummy_param);
 	}
 
@@ -772,7 +772,7 @@ static int dcamoffline_pmctx_init(struct dcam_offline_node *node)
 		goto alloc_fail;
 
 	ret = cam_buf_manager_buf_status_cfg(&blk_pm->lsc.buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
-	blk_pm->lsc.buf.bypass_iova_ops = ENABLE;
+	blk_pm->lsc.buf.bypass_iova_ops = CAM_ENABLE;
 	if (ret)
 		goto map_fail;
 

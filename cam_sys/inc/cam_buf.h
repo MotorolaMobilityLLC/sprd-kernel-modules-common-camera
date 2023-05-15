@@ -78,7 +78,7 @@ enum cam_buf_status {
 };
 
 struct camera_buf {
-	enum en_status buf_sec;
+	enum cam_en_status buf_sec;
 	/* user buffer info */
 	int32_t mfd;
 	struct dma_buf *dmabuf_p;
@@ -93,7 +93,7 @@ struct camera_buf {
 	struct dma_buf_attachment *attachment[CAM_BUF_IOMMUDEV_MAX];
 	struct sg_table *table[CAM_BUF_IOMMUDEV_MAX];
 	enum cam_buf_status status;
-	enum en_status bypass_iova_ops;
+	enum cam_en_status bypass_iova_ops;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	struct dma_buf_map map;/* for k515 dambuf */
 #endif

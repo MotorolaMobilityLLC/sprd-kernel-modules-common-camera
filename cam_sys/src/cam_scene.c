@@ -1696,7 +1696,7 @@ static int camscene_static_pipelinelist_get(struct cam_pipeline_topology *param,
 	return ret;
 }
 
-int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_id channel_id, enum en_status enable)
+int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_id channel_id, enum cam_en_status enable)
 {
 	struct cam_hw_info *hw = NULL;
 	struct camera_module *module = NULL;
@@ -2043,11 +2043,11 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 		if (channel->dcam_port_id == PORT_VCH2_OUT) {
 			outport_graph = &module->static_topology->pipeline_list[pipeline_type].nodes[CAM_NODE_TYPE_DCAM_ONLINE].outport[rawport_id];
 			outport_graph->link_state = PORT_LINK_IDLE;
-			dcam_online_desc->port_desc[rawport_id].update_state = ENABLE;
+			dcam_online_desc->port_desc[rawport_id].update_state = CAM_ENABLE;
 		} else {
 			outport_graph = &module->static_topology->pipeline_list[pipeline_type].nodes[CAM_NODE_TYPE_DCAM_ONLINE].outport[PORT_VCH2_OUT];
 			outport_graph->link_state = PORT_LINK_IDLE;
-			dcam_online_desc->port_desc[PORT_VCH2_OUT].update_state = ENABLE;
+			dcam_online_desc->port_desc[PORT_VCH2_OUT].update_state = CAM_ENABLE;
 		}
 	}
 	for (i = 0; i < PORT_DCAM_OUT_MAX; i++) {

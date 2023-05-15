@@ -166,11 +166,11 @@ struct camera_frame_buf {
 struct camera_frame {
 	struct cam_port_linkage link_from;
 	struct cam_port_linkage link_to;
-	enum en_status dump_en;
+	enum cam_en_status dump_en;
 	uint32_t dump_node_id;
-	enum en_status replace_en;
+	enum cam_en_status replace_en;
 	uint32_t replace_node_id;
-	enum en_status copy_en;
+	enum cam_en_status copy_en;
 	uint32_t copy_node_id;
 	uint32_t fid;
 	uint32_t width;
@@ -183,8 +183,8 @@ struct camera_frame {
 	uint32_t irq_property;
 	enum cam_postproc_mode proc_mode;
 	enum cam_reserved_buf_type is_reserved;
-	enum en_status is_compressed;
-	enum en_status pyr_status;
+	enum cam_en_status is_compressed;
+	enum cam_en_status pyr_status;
 	/*use for isp ltm ctrl*/
 	struct isp_xtm_conflict_info xtm_conflict;
 	uint32_t not_use_isp_reserved_buf;
@@ -290,7 +290,7 @@ struct cam_queue_frame_manager {
 
 #define CAM_QUEUE_LIST_ADD(_list, head, is_tail) ({ \
 	struct cam_q_head *__list = (_list); \
-	enum en_status __is_tail = (is_tail); \
+	enum cam_en_status __is_tail = (is_tail); \
 	uint32_t is_check = 0; \
 	uint32_t ret = -1; \
 	if (atomic_cmpxchg(&__list->status, CAM_Q_FREE, CAM_Q_USED) == CAM_Q_FREE) { \
@@ -553,7 +553,7 @@ struct cam_queue_frame_manager {
 		param_next = container_of(list_next_entry(&param_next->node, list), typeof(*param), node))
 
 int cam_queue_enqueue_front(struct camera_queue *q, struct cam_q_head *list);
-struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, enum en_status (*filter)(struct cam_frame *, void *), void *data);
+struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, enum cam_en_status (*filter)(struct cam_frame *, void *), void *data);
 int cam_queue_same_frame_get(struct camera_queue *q0, struct cam_frame **pf0, int64_t t_sec, int64_t t_usec);
 int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe);
 struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);

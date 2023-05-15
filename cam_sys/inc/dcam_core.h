@@ -95,7 +95,7 @@ struct dcam_online_start_param {
 };
 
 struct dcam_hw_path {
-	enum en_status need_update;
+	enum cam_en_status need_update;
 	uint32_t frm_deci;
 	uint32_t frm_deci_cnt;
 	struct img_trim in_trim;
@@ -107,16 +107,16 @@ struct dcam_hw_path {
 };
 
 struct dcam_hw_context {
-	enum en_status is_offline_proc;
-	enum en_status is_virtualsensor_proc;
-	enum en_status offline_pre_en;
+	enum cam_en_status is_offline_proc;
+	enum cam_en_status is_virtualsensor_proc;
+	enum cam_en_status offline_pre_en;
 	uint32_t fid;
 	uint32_t recovery_fid;
 	uint32_t index_to_set;
 	uint32_t slw_idx;
 	atomic_t user_cnt;
 	uint32_t irq;
-	enum en_status irq_enable;
+	enum cam_en_status irq_enable;
 	uint32_t node_id;
 	uint32_t hw_ctx_id;
 	uint32_t handled_bits;
@@ -124,7 +124,7 @@ struct dcam_hw_context {
 	uint32_t in_irq_proc;
 	uint32_t nr3_path_mv_ready;
 	uint32_t nr3_path_cnt;
-	enum en_status is_3dnr;
+	enum cam_en_status is_3dnr;
 	enum camera_slice_mode dcam_slice_mode;
 	uint32_t slowmotion_count;
 	spinlock_t glb_reg_lock;
@@ -134,15 +134,15 @@ struct dcam_hw_context {
 	uint32_t zoom_ratio;
 	uint32_t total_zoom;
 	struct img_trim next_roi;
-	enum en_status is_pyr_rec;
+	enum cam_en_status is_pyr_rec;
 	uint32_t iommu_status;
 	uint32_t err_count;/* iommu register dump count in dcam_err */
-	enum en_status dec_all_done;
-	enum en_status dec_layer0_done;
+	enum cam_en_status dec_all_done;
+	enum cam_en_status dec_layer0_done;
 	atomic_t shadow_done_cnt;
 	atomic_t shadow_config_cnt;
-	enum en_status prev_fbc_done;
-	enum en_status cap_fbc_done;
+	enum cam_en_status prev_fbc_done;
+	enum cam_en_status cap_fbc_done;
 	spinlock_t fbc_lock;
 	struct dcam_offline_slice_info slice_info;
 	struct dcam_fmcu_ctx_desc *fmcu;
@@ -190,7 +190,7 @@ enum camera_csi_switch_mode {
 struct dcam_switch_param {
 	uint32_t csi_id;
 	uint32_t dcam_id;
-	enum en_status is_recovery;
+	enum cam_en_status is_recovery;
 };
 
 struct dcam_csi_reset_param {
@@ -329,7 +329,7 @@ static inline uint32_t cal_dcamhw_format(uint32_t fmt)
 
 struct dcam_dummy_param {
 	uint32_t hw_ctx_id;
-	enum en_status enable;
+	enum cam_en_status enable;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
 };

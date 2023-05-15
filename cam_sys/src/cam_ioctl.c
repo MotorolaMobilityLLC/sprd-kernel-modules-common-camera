@@ -535,7 +535,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 {
 	int ret = 0;
 	int sec_ret = 0;
-	enum en_status vaor_bp_en = DISABLE;
+	enum cam_en_status vaor_bp_en = CAM_DISABLE;
 	int ca_conn = 0;
 	struct sprd_cam_sec_cfg uparam = {0};
 
@@ -562,7 +562,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		uparam.camsec_mode, uparam.work_mode);
 
 	if (uparam.camsec_mode == SEC_UNABLE) {
-		vaor_bp_en = DISABLE;
+		vaor_bp_en = CAM_DISABLE;
 	}  else {
 		if (!module->grp->ca_conn) {
 			ca_conn = cam_trusty_connect();
@@ -584,7 +584,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
 			ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
 
-		vaor_bp_en = ENABLE;
+		vaor_bp_en = CAM_ENABLE;
 	}
 
 	module->grp->camsec_cfg.work_mode = uparam.work_mode;

@@ -114,15 +114,15 @@ struct pyr_dec_overlap_info {
 };
 
 struct pyr_dec_fetch_info {
-	enum en_status bypass;
+	enum cam_en_status bypass;
 	enum cam_format color_format;
 	uint32_t width;
 	uint32_t height;
 	uint32_t pitch[2];
 	uint32_t addr[2];
-	enum en_status chk_sum_clr_en;
-	enum en_status ft1_axi_reorder_en;
-	enum en_status ft0_axi_reorder_en;
+	enum cam_en_status chk_sum_clr_en;
+	enum cam_en_status ft1_axi_reorder_en;
+	enum cam_en_status ft0_axi_reorder_en;
 	uint32_t substract;
 	uint32_t ft1_max_len_sel;
 	uint32_t ft1_retain_num;
@@ -131,15 +131,15 @@ struct pyr_dec_fetch_info {
 };
 
 struct pyr_dec_offline_info {
-	enum en_status bypass;
+	enum cam_en_status bypass;
 	uint32_t fmcu_path_sel;
 	uint32_t fetch_path_sel;
 	uint32_t vector_channel_idx;
 	uint32_t chksum_wrk_mode;
 	uint32_t chksum_clr_mode;
-	enum en_status hor_padding_en;
+	enum cam_en_status hor_padding_en;
 	uint32_t hor_padding_num;
-	enum en_status ver_padding_en;
+	enum cam_en_status ver_padding_en;
 	uint32_t ver_padding_num;
 	uint32_t dispatch_dbg_mode_ch0;
 	uint32_t dispatch_done_cfg_mode;
@@ -153,9 +153,9 @@ struct pyr_dec_offline_info {
 };
 
 struct slice_pyr_dec_node_info {
-	enum en_status hor_padding_en;
+	enum cam_en_status hor_padding_en;
 	uint32_t hor_padding_num;
-	enum en_status ver_padding_en;
+	enum cam_en_status ver_padding_en;
 	uint32_t ver_padding_num;
 	uint32_t dispatch_dly_width_num;
 	uint32_t dispatch_dly_height_num;
@@ -174,20 +174,20 @@ struct pyr_dec_slice_desc {
 };
 
 struct pyr_dec_store_info {
-	enum en_status bypass;
+	enum cam_en_status bypass;
 	uint32_t endian;
-	enum en_status mono_en;
+	enum cam_en_status mono_en;
 	enum cam_format color_format;
 	uint32_t burst_len;
-	enum en_status mirror_en;
-	enum en_status flip_en;
+	enum cam_en_status mirror_en;
+	enum cam_en_status flip_en;
 	uint32_t speed2x;
 	uint32_t shadow_clr_sel;
-	enum en_status last_frm_en;
+	enum cam_en_status last_frm_en;
 	uint32_t pitch[2];
 	uint32_t addr[2];
 	uint32_t data_10b;
-	enum en_status mipi_en;
+	enum cam_en_status mipi_en;
 	uint32_t width;
 	uint32_t height;
 	uint32_t border_up;
@@ -235,10 +235,10 @@ struct pyr_dec_node {
 	uint32_t isp_node_cfg_id;
 	atomic_t user_cnt;
 	uint32_t dcam_slice_mode;
-	enum en_status is_4in1;
-	enum en_status is_rawcap;
-	enum en_status is_bind;
-	enum en_status is_fast_stop;
+	enum cam_en_status is_4in1;
+	enum cam_en_status is_rawcap;
+	enum cam_en_status is_bind;
+	enum cam_en_status is_fast_stop;
 	struct completion *fast_stop_done;
 	struct completion frm_done;
 	struct isp_pipe_dev *dev;
@@ -302,8 +302,8 @@ struct pyr_dec_node_desc {
 	enum cam_format pyr_out_fmt;
 	uint32_t layer_num;
 	uint32_t dcam_slice_mode;
-	enum en_status is_4in1;
-	enum en_status is_rawcap;
+	enum cam_en_status is_4in1;
+	enum cam_en_status is_rawcap;
 	uint32_t blkparam_buf_num;
 	struct img_size sn_size;
 

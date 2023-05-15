@@ -59,13 +59,13 @@ struct dcam_statis_param {
 
 struct dcam_online_node_desc {
 	enum cam_node_type node_type;
-	enum en_status offline;
+	enum cam_en_status offline;
 	uint32_t slowmotion_count;
 	uint32_t pattern;
 	enum cam_data_endian endian;
-	enum en_status enable_3dnr;
+	enum cam_en_status enable_3dnr;
 	enum camera_slice_mode dcam_slice_mode;
-	enum en_status is_4in1;
+	enum cam_en_status is_4in1;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
@@ -82,7 +82,7 @@ struct dcam_online_node_desc {
 	void *port_cfg_cb_handle;
 	shutoff_cfg_cb shutoff_cfg_cb_func;
 	void *shutoff_cfg_cb_handle;
-	enum en_status is_pyr_rec;
+	enum cam_en_status is_pyr_rec;
 	uint32_t csi_controller_idx;
 	enum alg_types alg_type;
 	uint32_t param_frame_sync;
@@ -94,13 +94,13 @@ struct dcam_online_node {
 	atomic_t user_cnt;
 	atomic_t state;
 	atomic_t ch_enable_cnt;
-	enum en_status need_fix;
+	enum cam_en_status need_fix;
 	enum cam_node_type node_type;
 	uint32_t node_id;
-	enum en_status is_3dnr;
-	enum en_status is_4in1;
+	enum cam_en_status is_3dnr;
+	enum cam_en_status is_4in1;
 	uint32_t slowmotion_count;
-	enum en_status is_pyr_rec;
+	enum cam_en_status is_pyr_rec;
 	enum dcam_csi_state csi_connect_stat;
 	uint32_t in_irq_proc;
 	enum dcam_slowmotion_type slw_type;

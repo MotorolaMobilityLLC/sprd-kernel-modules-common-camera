@@ -529,7 +529,7 @@ static int ispnode_ltm_frame_process(struct isp_node *inode, struct isp_port_cfg
 	ret = rgb_ltm->ltm_ops.core_ops.pipe_proc(rgb_ltm, &inode->isp_using_param->ltm_rgb_info);
 	if (ret == -1) {
 		inode->pipe_src.mode_ltm = MODE_LTM_OFF;
-		pr_err("fail to rgb LTM cfg frame, DISABLE\n");
+		pr_err("fail to rgb LTM cfg frame, CAM_DISABLE\n");
 	}
 
 	return ret;
@@ -1279,7 +1279,7 @@ int isp_node_postproc_buffer_alloc(void *handle, struct cam_buf_alloc_desc *para
 		pr_err("fail to alloc superzoom buf\n");
 	}
 	cam_buf_manager_buf_status_cfg(&inode->postproc_buf->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-	inode->postproc_buf->common.buf.bypass_iova_ops = ENABLE;
+	inode->postproc_buf->common.buf.bypass_iova_ops = CAM_ENABLE;
 
 	pr_info("node_id %d, superzoom w %d, h %d, inode->postproc_buf->common.buf.status %d\n",
 		inode->node_id, postproc_w, postproc_h, inode->postproc_buf->common.buf.status);
@@ -1355,7 +1355,7 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 				cam_buf_free(&nr3_ctx->nr3_frame[i].buf);
 				return -1;
 			}
-			nr3_ctx->nr3_frame[i].buf.bypass_iova_ops = ENABLE;
+			nr3_ctx->nr3_frame[i].buf.bypass_iova_ops = CAM_ENABLE;
 
 			pr_debug("3DNR CFGB[%d][0x%p] = 0x%lx\n",i, nr3_ctx->nr3_frame[i], nr3_ctx->nr3_frame[i].buf.iova);
 		}
@@ -1393,7 +1393,7 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 						cam_buf_free(&rgb_ltm->ltm_frame[i].buf);
 						return -1;
 					}
-					rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = ENABLE;
+					rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = CAM_ENABLE;
 					pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", rgb_ltm->ctx_id, i, rgb_ltm->ltm_frame[i], rgb_ltm->ltm_frame[i].buf.iova);
 				}
 

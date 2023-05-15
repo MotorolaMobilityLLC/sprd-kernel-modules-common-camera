@@ -100,9 +100,9 @@ enum dcam_of {
 struct dcam_irq_proc {
 	uint32_t dcam_port_id;
 	void *hw_ctx;
-	enum en_status dummy_enable;
+	enum cam_en_status dummy_enable;
 	uint32_t dummy_int_status;
-	enum en_status not_dispatch;
+	enum cam_en_status not_dispatch;
 	void *param;
 	enum cam_cb_type type;
 	enum dcam_of of;
@@ -115,7 +115,7 @@ struct dcam_irq_proc {
 	uint32_t handled_bits_on_int1;
 	uint32_t slw_cmds_set;
 	uint32_t slw_count;
-	enum en_status is_nr3_done;
+	enum cam_en_status is_nr3_done;
 };
 
 /*

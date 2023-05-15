@@ -52,7 +52,7 @@ const char *cam_node_name_get(enum cam_node_type type)
 	return IS_CAM_NODE(type) ? CAM_NODE_NAMES[type] : "(null)";
 }
 
-static enum en_status camnode_capture_skip_condition(struct cam_frame *pframe, struct cam_capture_param *cap_param)
+static enum cam_en_status camnode_capture_skip_condition(struct cam_frame *pframe, struct cam_capture_param *cap_param)
 {	/* TBD： other scene need cover*/
 	if (((cap_param->cap_scene == CAPTURE_COMMON && !cap_param->need_skip_scene) ||
 		cap_param->cap_scene == CAPTURE_MFSR ||
@@ -63,13 +63,13 @@ static enum en_status camnode_capture_skip_condition(struct cam_frame *pframe, s
 		pr_info("cap type[%d], fid %d, frame width %d %d, latest user crop %d %d, cap cnt %d\n",
 			cap_param->cap_scene, pframe->common.fid, pframe->common.width, pframe->common.height,
 			cap_param->cap_user_crop.w, cap_param->cap_user_crop.h, cap_param->cap_cnt);
-		return DISABLE;
+		return CAM_DISABLE;
 	}
 
 	if (cap_param->skip_first_num && pframe->common.fid < 1)
-		return DISABLE;
+		return CAM_DISABLE;
 
-	return ENABLE;
+	return CAM_ENABLE;
 
 }
 
@@ -1177,11 +1177,11 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 			if (node->node_graph->outport[cur_port_id].dynamic_link_en)
 				camnode_dynamic_link_update(node, pframe);
 			if (node->node_graph->outport[cur_port_id].dump_en) {
-				pframe->common.dump_en = ENABLE;
+				pframe->common.dump_en = CAM_ENABLE;
 				pframe->common.dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
 			}
 			if (node->node_graph->outport[cur_port_id].replace_en) {
-				pframe->common.replace_en = ENABLE;
+				pframe->common.replace_en = CAM_ENABLE;
 				pframe->common.replace_node_id = node->node_graph->outport[cur_port_id].replace_node_id;
 			}
 		}
@@ -1192,7 +1192,7 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 			return -EFAULT;
 		}
 		if (node->node_graph->outport[cur_port_id].dump_en) {
-			pframe->common.dump_en = ENABLE;
+			pframe->common.dump_en = CAM_ENABLE;
 			pframe->common.dump_node_id = node->node_graph->outport[cur_port_id].dump_node_id;
 		}
 		break;

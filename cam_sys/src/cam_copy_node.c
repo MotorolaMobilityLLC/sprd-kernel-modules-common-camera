@@ -32,7 +32,7 @@ int cam_copy_node_buffer_cfg(void *handle, void *param)
 	}
 
 	node = (struct cam_copy_node *)handle;
-	node->copy_flag = ENABLE;
+	node->copy_flag = CAM_ENABLE;
 	pframe = (struct cam_frame *)param;
 	ret = cam_buf_ionbuf_get(&pframe->common.buf);
 	if (ret) {
@@ -88,7 +88,7 @@ int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		}
 
 		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
-		pframe->common.buf.bypass_iova_ops = ENABLE;
+		pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 		ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
 	}
 
@@ -154,7 +154,7 @@ int cam_copy_node_set_icap_scene(void *handle, void *param)
 
 	icap_buffer_num = *(uint32_t *)param;
 	node = (struct cam_copy_node *)handle;
-	node->copy_flag = ENABLE;
+	node->copy_flag = CAM_ENABLE;
 	node->cache_num = icap_buffer_num ;
 	node->scene_id = CAM_COPY_ICAP_SCENE;
 
@@ -194,7 +194,7 @@ int cam_copy_node_set_opt_scene(void *handle, void *param)
 
 	opt_buffer_num = *(uint32_t *)param;
 	node = (struct cam_copy_node *)handle;
-	node->copy_flag = ENABLE;
+	node->copy_flag = CAM_ENABLE;
 	node->opt_buffer_num = opt_buffer_num;
 	node->scene_id = CAM_COPY_OPT_SCENE;
 
@@ -436,7 +436,7 @@ void *cam_copy_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 	CAM_QUEUE_INIT(&node->in_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
 	CAM_QUEUE_INIT(&node->out_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
 	node->node_id = node_id;
-	node->copy_flag = DISABLE;
+	node->copy_flag = CAM_DISABLE;
 	node->pre_raw_flag = PRE_RAW_CACHE;
 	node->opt_buffer_num = 0;
 	node->scene_id = CAM_COPY_NORMAL_SCENE;

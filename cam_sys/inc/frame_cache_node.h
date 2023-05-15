@@ -26,8 +26,8 @@ struct frame_cache_node_desc {
 	enum cam_node_type node_type;
 	uint32_t cache_real_num;
 	uint32_t cache_skip_num;
-	enum en_status is_share_buf;
-	enum en_status need_dual_sync;
+	enum cam_en_status is_share_buf;
+	enum cam_en_status need_dual_sync;
 	void *data_cb_handle;
 	void *buf_manager_handle;
 	cam_data_cb data_cb_func;
@@ -42,8 +42,8 @@ struct frame_cache_node {
 	uint32_t cur_cache_skip_num;
 	uint32_t cache_real_num;
 	uint32_t cache_skip_num;
-	enum en_status is_share_buf;
-	enum en_status need_dual_sync;
+	enum cam_en_status is_share_buf;
+	enum cam_en_status need_dual_sync;
 	enum pre_raw_status pre_raw_flag;
 	uint32_t opt_frame_fid;
 	atomic_t opt_frame_done;

@@ -311,7 +311,7 @@ static int ispport_port_postproc(struct isp_port *port, void *param)
 	return 0;
 }
 
-static enum en_status ispport_fid_check(struct cam_frame *frame, void *data)
+static enum cam_en_status ispport_fid_check(struct cam_frame *frame, void *data)
 {
 	uint32_t target_fid;
 
