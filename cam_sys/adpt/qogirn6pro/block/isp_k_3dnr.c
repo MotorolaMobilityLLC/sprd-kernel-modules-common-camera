@@ -29,7 +29,7 @@ static void isp_3dnr_blend_param_debug(struct isp_dev_3dnr_info_v1 *pnr3)
 
 	pr_debug("3dnr_blend param: bypass %d, filter_switch %d, fusion_mode %d\n",
 		pnr3->blend.bypass, pnr3->blend.filter_switch, pnr3->blend.fusion_mode);
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < PIXEL_SRC_WEIGHT_NUM; i++)
 		pr_debug("pixel_src_weight: i %d, y %d, u %d, v %d\n",
 			i, pnr3->blend.y_pixel_src_weight[i], pnr3->blend.u_pixel_src_weight[i], pnr3->blend.v_pixel_src_weight[i]);
 	pr_debug("noise_threshold: y %d, u %d, v %d\n",
@@ -182,11 +182,11 @@ void isp_3dnr_config_blend(uint32_t idx, struct isp_3dnr_blend_info *blend)
 		return;
 	}
 
-	if (blend->isupdate == 0) {
+	if (blend->isupdate == ISP_3DNR_ISUPDATE_STAUE_IDLE) {
 		pr_debug("ctx_id %d blend is not update, return\n", idx);
 		return;
 	}
-	blend->isupdate = 0;
+	blend->isupdate = ISP_3DNR_ISUPDATE_STAUE_IDLE;
 	pr_debug("ctx_id %d config blend regs\n", idx);
 
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, blend->bypass);
@@ -543,7 +543,7 @@ static int isp_k_3dnr_block(struct isp_io_param *param,
 		return -EPERM;
 	}
 
-	pnr3->blend.isupdate = 1;
+	pnr3->blend.isupdate = ISP_3DNR_ISUPDATE_STAUE_WORK;
 	memcpy(&isp_k_param->nr3d_info_v1, pnr3, sizeof(struct isp_dev_3dnr_info_v1));
 
 	isp_3dnr_blend_param_debug(pnr3);
@@ -693,12 +693,12 @@ int isp_k_cfg_3dnr(struct isp_io_param *param,
 int isp_k_cpy_3dnr(struct dcam_isp_k_block *param_block, struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
-	if (isp_k_param->nr3_info_base_v1.blend.isupdate == 1) {
+	if (isp_k_param->nr3_info_base_v1.blend.isupdate == ISP_3DNR_ISUPDATE_STAUE_WORK) {
 		pr_debug("ctx_id %d copy 3dnr_blend param from receive_param to isp_k_param of node\n", param_block->cfg_id);
 		memcpy(&param_block->nr3_info_base_v1, &isp_k_param->nr3_info_base_v1, sizeof(struct isp_dev_3dnr_info_v1));
 		memcpy(&param_block->nr3d_info_v1, &isp_k_param->nr3_info_base_v1, sizeof(struct isp_dev_3dnr_info_v1));
-		isp_k_param->nr3_info_base_v1.blend.isupdate = 0;
-		param_block->nr3_info_base_v1.blend.isupdate = 1;
+		isp_k_param->nr3_info_base_v1.blend.isupdate = ISP_3DNR_ISUPDATE_STAUE_IDLE;
+		param_block->nr3_info_base_v1.blend.isupdate = ISP_3DNR_ISUPDATE_STAUE_WORK;
 	}
 
 	return ret;

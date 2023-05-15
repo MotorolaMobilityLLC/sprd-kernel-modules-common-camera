@@ -37,6 +37,7 @@ extern "C" {
 #define FBD_BAYER_HEIGHT               4
 #define NR3_BLEND_CNT                  5
 #define MAX_SLICE_NUM                  16
+#define PIXEL_SRC_WEIGHT_NUM           4
 
 struct isp_3dnr_mem_ctrl {
 	uint32_t bypass;
@@ -276,6 +277,12 @@ enum isp_3dnr_cfg_cmd {
 	ISP_3DNR_CFG_MV_VERSION,
 	ISP_3DNR_CFG_SLW_SET,
 	ISP_3DNR_CFG_MAX,
+};
+
+enum isp_3dnr_isupdate_state {
+	ISP_3DNR_ISUPDATE_STAUE_IDLE,
+	ISP_3DNR_ISUPDATE_STAUE_WORK,
+	ISP_3DNR_ISUPDATE_STAUE_MAX,
 };
 
 struct isp_3dnr_ops {
