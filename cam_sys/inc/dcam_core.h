@@ -122,6 +122,9 @@ struct dcam_hw_context {
 	uint32_t handled_bits;
 	uint32_t handled_bits_on_int1;
 	uint32_t in_irq_proc;
+	uint32_t nr3_path_mv_ready;
+	uint32_t nr3_path_cnt;
+	enum en_status is_3dnr;
 	enum camera_slice_mode dcam_slice_mode;
 	uint32_t slowmotion_count;
 	spinlock_t glb_reg_lock;

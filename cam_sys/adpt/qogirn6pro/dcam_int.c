@@ -202,6 +202,72 @@ static void dcamint_dec_done(void *param)
 	}
 }
 
+static void dcamint_offline_proc(struct dcam_hw_context *dcam_hw_ctx, struct dcam_irq_info *irq_info)
+{
+	uint32_t i = 0, fid = 0;
+	struct nr3_done nr3_done_com = {0};
+
+	if (irq_info->status & BIT(DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE)) {
+		dcam_hw_ctx->dec_layer0_done = 1;
+		if (!dcam_hw_ctx->is_pyr_rec && dcam_hw_ctx->is_3dnr)
+			dcam_hw_ctx->nr3_path_cnt++;
+	}
+	if (irq_info->status1 & BIT(DCAM_IF_IRQ_INT1_DEC_DONE)) {
+		dcam_hw_ctx->dec_all_done = 1;
+		if (dcam_hw_ctx->dec_layer0_done)
+			irq_info->status |= BIT(DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE);
+	}
+	if (dcam_hw_ctx->dec_all_done && dcam_hw_ctx->dec_layer0_done) {
+		dcam_hw_ctx->dec_layer0_done = 0;
+		dcam_hw_ctx->dec_all_done = 0;
+		if (dcam_hw_ctx->is_3dnr)
+			dcam_hw_ctx->nr3_path_cnt++;
+	} else {
+		if (dcam_hw_ctx->is_pyr_rec && !dcam_hw_ctx->is_3dnr) {
+			irq_info->status = 0;
+			irq_info->status1 = 0;
+			return;
+		}
+	}
+
+	if (irq_info->status & BIT(DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE))
+		dcam_hw_ctx->nr3_path_cnt++;
+	if (irq_info->status & BIT(DCAM_IF_IRQ_INT0_NR3_TX_DONE)) {
+		dcam_hw_ctx->nr3_path_mv_ready = 1;
+		fid = dcam_hw_ctx->fid - 1;
+		i = fid % DCAM_NR3_MV_MAX;
+		nr3_done_com = dcam_int_nr3_done_rd(dcam_hw_ctx, i);
+		dcam_hw_ctx->nr3_mv_ctrl[i].sub_me_bypass = (nr3_done_com.p >> 3) & 0x1;
+		dcam_hw_ctx->nr3_mv_ctrl[i].project_mode = (nr3_done_com.p >> 4) & 0x3;
+		/* currently ping-pong is disabled, mv will always be stored in ping */
+		dcam_hw_ctx->nr3_mv_ctrl[i].mv_x = (nr3_done_com.out0 >> 8) & 0xff;
+		dcam_hw_ctx->nr3_mv_ctrl[i].mv_y = nr3_done_com.out0 & 0xff;
+		dcam_hw_ctx->nr3_mv_ctrl[i].src_width = dcam_hw_ctx->cap_info.cap_size.size_x;
+		dcam_hw_ctx->nr3_mv_ctrl[i].src_height = dcam_hw_ctx->cap_info.cap_size.size_y;
+		dcam_hw_ctx->nr3_mv_ctrl[i].valid = 1;
+		pr_debug("dcam%d fid %d, mv_x %d, mv_y %d src_size=%dx%d\n", dcam_hw_ctx->hw_ctx_id, fid,
+			dcam_hw_ctx->nr3_mv_ctrl[i].mv_x, dcam_hw_ctx->nr3_mv_ctrl[i].mv_y, dcam_hw_ctx->cap_info.cap_size.size_x,
+			dcam_hw_ctx->cap_info.cap_size.size_y);
+		if (dcam_hw_ctx->nr3_path_cnt) {
+			irq_info->status &= ~BIT(DCAM_IF_IRQ_INT0_NR3_TX_DONE);
+			if ((DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE0_PARAM) & BIT_0) == 0)
+				irq_info->status |= BIT(DCAM_IF_IRQ_INT0_PREVIEW_PATH_TX_DONE);
+			if ((DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_STORE4_PARAM) & BIT_0) == 0)
+				irq_info->status |= BIT(DCAM_IF_IRQ_INT0_CAPTURE_PATH_TX_DONE);
+		}
+	}
+
+	if (dcam_hw_ctx->nr3_path_cnt & dcam_hw_ctx->nr3_path_mv_ready) {
+		dcam_hw_ctx->nr3_path_cnt = 0;
+		dcam_hw_ctx->nr3_path_mv_ready = 0;
+	} else {
+		if (dcam_hw_ctx->is_3dnr) {
+			irq_info->status = 0;
+			irq_info->status1 = 0;
+		}
+	}
+}
+
 static void dcamint_dummy_start(void *param)
 {
 	pr_debug("dcamint_dummy_start\n");
@@ -597,6 +663,9 @@ struct dcam_irq_info dcam_int_isr_handle(void *param)
 		pr_debug("warning: to clean first frame DCAM%u 0x%x overflow\n", dcam_hw_ctx->hw_ctx_id, irq_info.status);
 		irq_info.status &= (~BIT(DCAM_IF_IRQ_INT0_DCAM_OVF));
 	}
+
+	if (dcam_hw_ctx->is_offline_proc && (dcam_hw_ctx->is_3dnr || dcam_hw_ctx->is_pyr_rec))
+		dcamint_offline_proc(dcam_hw_ctx, &irq_info);
 
 	return irq_info;
 }

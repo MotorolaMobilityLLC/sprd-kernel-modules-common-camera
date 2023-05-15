@@ -56,6 +56,7 @@ enum camera_module_state {
 	CAM_STREAM_ON,
 	CAM_STREAM_OFF,
 	CAM_RUNNING,
+	CAM_FORCE_CLOSE,
 	CAM_ERROR,
 };
 

@@ -97,6 +97,11 @@ static int camstatis_isp_port_buffer_init(void *isp_handle, void *node,
 			if (ret)
 				continue;
 			pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+			if (!pframe) {
+				pr_err("fail to get pframe.\n");
+				ret = -EINVAL;
+				break;
+			}
 			pframe->common.channel_id = inode->ch_id;
 			pframe->common.irq_property = stats_type;
 			pframe->common.buf = *ion_buf;
@@ -281,6 +286,11 @@ int camstatis_dcam_port_buffer_init(
 				continue;
 
 			pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+			if (!pframe) {
+				pr_err("fail to get frame\n");
+				ret = -EINVAL;
+				break;
+			}
 			pframe->common.channel_id = 0;
 			pframe->common.irq_property = stats_type;
 			pframe->common.buf = *ion_buf;
@@ -401,6 +411,11 @@ int cam_statis_dcam_port_buffer_cfg(
 		}
 
 		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		if (!pframe) {
+			pr_err("fail to get pframe.\n");
+			ret = -EINVAL;
+			goto exit;
+		}
 		pframe->common.irq_property = input->type;
 		pframe->common.buf = *ion_buf;
 		pframe->common.buf.type = CAM_BUF_NONE;

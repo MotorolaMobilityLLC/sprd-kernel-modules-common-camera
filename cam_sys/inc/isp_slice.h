@@ -22,6 +22,10 @@
 #define SLICE_NUM_MAX                   5
 #define SLICE_W_NUM_MAX                 5
 #define SLICE_H_NUM_MAX                 1
+/* Dec alg slice calc can not cover different slice_height
+   and isp dec not slice height, therefore static config slice_h as max. */
+#define SLICE_HEIGHT_STATIC_MAX         16383
+
 #define SLICE_OVERLAP_W_MAX             64
 
 #define YUV_OVERLAP_UP                  46

@@ -46,8 +46,8 @@
 /*Total lbuf DCAM0+DCAM1: 5184+5184 */
 #define DCAM_TOTAL_LBUF                10368
 
- /* dcamoffline limit hw: 1500us(1.5ms)/M, node:30ms*/
-#define DCAMOFFLINE_HW_TIME_RATIO      1500
+ /* dcamoffline limit hw: 1700us(1.7ms)/M, node:30ms*/
+#define DCAMOFFLINE_HW_TIME_RATIO      1700
 #define DCAMOFFLINE_NODE_TIME          30000
 
 /*

@@ -117,6 +117,11 @@ int pyr_dec_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	buffer_size = dcam_if_cal_pyramid_size(param->width, param->height, param->pyr_out_fmt, 0, ISP_PYR_DEC_LAYER_NUM);
 	buffer_size = ALIGN(buffer_size, CAM_BUF_ALIGN_SIZE);
 	pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+	if (!pframe) {
+		pr_err("fail to get pframe.\n");
+		ret = -EINVAL;
+		goto exit;
+	}
 	pframe->common.width = param->width;
 	pframe->common.height = param->height;
 	pframe->common.channel_id = param->ch_id;

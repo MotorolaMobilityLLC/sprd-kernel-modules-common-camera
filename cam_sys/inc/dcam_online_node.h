@@ -54,6 +54,7 @@ struct dcam_statis_param {
 	enum dcam_statis_ioctl_cmd statis_cmd;
 	void *param;
 	uint32_t *buf_size;
+	uint32_t port_id;
 };
 
 struct dcam_online_node_desc {

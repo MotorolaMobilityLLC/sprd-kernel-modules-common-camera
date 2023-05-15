@@ -359,7 +359,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	if (atomic_read(&module->state) == CAM_STREAM_OFF)
 		return 0;
 
-	if (param.scene_id == PM_SCENE_PRE) {
+	if (param.scene_id == PM_SCENE_PRE || param.scene_id == PM_SCENE_VID) {
 		channel = &module->channel[CAM_CH_PRE];
 		if (!channel->enable && module->cam_uinfo.is_longexp)
 			channel = &module->channel[CAM_CH_CAP];
@@ -421,11 +421,13 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 			}
 			goto exit;
 		}
-		if (for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
+		if ((for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
 			|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
 			|| (param.scene_id == PM_SCENE_OFFLINE_CAP)
-			|| (param.scene_id == PM_SCENE_SFNR))) {
+			|| (param.scene_id == PM_SCENE_SFNR)))
+			|| (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR
+			&& param.scene_id == PM_SCENE_VID)) {
 			if (g_dbg_raw2frgb_switch == DEBUG_FRGB_MODE) {
 				ret = CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 				ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
@@ -1221,7 +1223,8 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		} else {
 			if ((ch->ch_id == CAM_CH_CAP) && pixel_fmt == IMG_PIX_FMT_GREY)
 				pframe->common.img_fmt = pixel_fmt;
-			if (module->cam_uinfo.is_raw_alg && channel_id != CAM_CH_DCAM_VCH) {
+			if ((module->cam_uinfo.is_raw_alg && channel_id != CAM_CH_DCAM_VCH) ||
+				(module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)) {
 				pframe->common.irq_property = CAM_FRAME_ORIGINAL_RAW;
 				if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR) {
 					pframe->common.irq_property = CAM_FRAME_PROCESS_RAW;
@@ -1300,9 +1303,10 @@ static int camioctl_stream_off(struct camera_module *module,
 	struct cam_buf_pool_id pool_id = {0};
 	struct cam_pipeline_cfg_param pipe_param = {0};
 	struct dcam_statis_param statis_param = {0};
-	enum dcam_stop_cmd stop_cmd = DCAM_STOP;
+	enum dcam_stop_cmd stop_cmd = DCAM_NORMAL_STOP;
 
 	if ((atomic_read(&module->state) != CAM_RUNNING) &&
+		(atomic_read(&module->state) != CAM_FORCE_CLOSE) &&
 		(atomic_read(&module->state) != CAM_CFG_CH)) {
 		pr_info("cam%d state: %d\n", module->idx,
 			atomic_read(&module->state));
@@ -1311,6 +1315,11 @@ static int camioctl_stream_off(struct camera_module *module,
 
 	if (atomic_read(&module->state) == CAM_RUNNING)
 		running = 1;
+	else if (atomic_read(&module->state) == CAM_FORCE_CLOSE) {
+		running = 1;
+		stop_cmd = DCAM_FORCE_STOP;
+	} else
+		running = 0;
 
 	pr_info("cam %d stream off. state: %d\n",module->idx, atomic_read(&module->state));
 
@@ -1539,7 +1548,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	int dcam_idx, retry = 1;
+	int dcam_idx = 1;
 	struct sprd_img_res res = {0};
 	struct camera_group *grp = module->grp;
 	void *dcam = NULL;
@@ -1589,10 +1598,8 @@ check:
 	if (dcam == NULL) {
 		dcam = dcam_core_pipe_dev_get(grp->hw_info, (void *)&grp->s_dcam_dev);
 		if (IS_ERR_OR_NULL(dcam)) {
-			if (retry) {
-				dcam_idx++;
-				goto check;
-			}
+			dcam_idx++;
+			goto check;
 		}
 		module->dcam_dev_handle = dcam;
 		module->dcam_idx = dcam_idx;
@@ -2417,6 +2424,7 @@ static int camioctl_path_rect_get(struct camera_module *module,
 {
 	int ret = 0;
 	struct sprd_img_path_rect parm = {0};
+	struct dcam_statis_param statis_param = {0};
 	struct channel_context *ch = NULL;
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
@@ -2443,7 +2451,10 @@ static int camioctl_path_rect_get(struct camera_module *module,
 		return -EFAULT;
 	}
 
-	ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_RECT_GET, &parm);
+	statis_param.port_id = ch->dcam_port_id;
+	statis_param.param = &parm;
+	ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_RECT_GET, &statis_param);
+
 	pr_debug("TRIM rect info x %d y %d w %d h %d\n",
 		parm.trim_valid_rect.x, parm.trim_valid_rect.y,
 		parm.trim_valid_rect.w, parm.trim_valid_rect.h);
@@ -2785,7 +2796,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 		param.scene_id, param.update);
 	if (param.status == 0) {
 		if (module->isp_dev_handle->cfg_handle) {
-			if (param.scene_id == PM_SCENE_PRE) {
+			if (param.scene_id == PM_SCENE_PRE || param.scene_id == PM_SCENE_VID) {
 				channel = &module->channel[CAM_CH_PRE];
 				if (channel->enable == 0)
 					return 0;
@@ -2806,7 +2817,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 
 	if (param.status) {
 		if (module->isp_dev_handle->cfg_handle) {
-			if (param.scene_id == PM_SCENE_PRE) {
+			if (param.scene_id == PM_SCENE_PRE || param.scene_id == PM_SCENE_VID) {
 				channel = &module->channel[CAM_CH_PRE];
 				if (channel->enable == 0)
 					return 0;

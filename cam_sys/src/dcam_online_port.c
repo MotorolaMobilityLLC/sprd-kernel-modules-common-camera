@@ -459,7 +459,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, dec_store);
 
 		pr_debug("dcam %d dec_layer %d w %d h %d\n", dec_store->idx, i, dec_store->size_t[i].w, dec_store->size_t[i].h);
-		pr_debug("dcam %d dec_layer %d w %x h %x\n", dec_store->idx, i, dec_store->addr[0], dec_store->addr[1]);
+		pr_debug("dcam %d dec_layer %d addr %08x %08xn", dec_store->idx, i, dec_store->addr[0], dec_store->addr[1]);
 	}
 
 	return ret;
@@ -1233,6 +1233,11 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		complete(param->stream_on_buf_com);
 	for (i = 0; i < total; i++) {
 		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		if (!pframe) {
+			pr_err("fail to get frame\n");
+			ret = -EINVAL;
+			break;
+		}
 		pframe->common.channel_id = ch_id;
 		pframe->common.is_compressed = param->compress_en;
 		pframe->common.width = param->width;

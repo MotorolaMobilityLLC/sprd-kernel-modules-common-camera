@@ -970,8 +970,8 @@ static int ispport_store_normal_get(struct isp_port *port,
 	uint32_t width = 0, height = 0;
 	struct isp_store_info *store = NULL;
 
-	if (!port || !store_info || !port_cfg || !port_cfg->src_frame) {
-		pr_err("fail to get valid input ptr %px %px %px %px\n", port, store_info, port_cfg, port_cfg->src_frame);
+	if (!port || !store_info) {
+		pr_err("fail to get valid input ptr %px %px\n", port, store_info);
 		return -EFAULT;
 	}
 

@@ -822,7 +822,10 @@ int cam_zoom_channel_size_config(
 
 	raw_port_id = hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
 	raw_port_id = dcamonline_pathid_convert_to_portid(raw_port_id);
-	raw2yuv_port_id = hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
+	if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
+		raw2yuv_port_id = hw->ip_dcam[0]->dcamhw_abt->dcam_scaling_path;
+	else
+		raw2yuv_port_id = hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
 	raw2yuv_port_id = dcamoffline_pathid_convert_to_portid(raw2yuv_port_id);
 	raw_zoom_base.src = ch_uinfo->src_size;
 	raw_zoom_base.dst = ch_uinfo->src_size;
@@ -853,8 +856,13 @@ int cam_zoom_channel_size_config(
 
 	if (need_raw_port && (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id) || channel->dcam_port_id == PORT_VCH2_OUT)) {
 		node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-		zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
-		zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
+		if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
+			zoom_info.dcam_crop[node_type][raw_port_id] = channel->trim_dcam;
+			zoom_info.dcam_dst[node_type][raw_port_id] = channel->dst_dcam;
+		} else {
+			zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
+			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
+		}
 		if ((module->cam_uinfo.is_4in1 || module->cam_uinfo.alg_type ||
 			(channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1)
 			|| (module->icap_scene && channel->ch_id == CAM_CH_CAP))
@@ -1021,7 +1029,7 @@ int cam_zoom_param_set(struct cam_zoom_desc *in_ptr)
 
 int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_index *zoom_index)
 {
-	int ret = 0, i = 0, j = 0;
+	int ret = 0, i = NODE_ZOOM_CNT_MAX, j = PORT_ZOOM_CNT_MAX;
 	struct cam_zoom_frame *cur_zoom = NULL;
 	struct cam_zoom_node *zoom_node = NULL;
 	struct cam_zoom_port *zoom_port = NULL;
@@ -1054,7 +1062,7 @@ int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_ind
 	}
 
 	if (i == NODE_ZOOM_CNT_MAX && j == PORT_ZOOM_CNT_MAX)
-		pr_warn("warning: not find correct zoom data\n");
+		pr_warn("warning: not find correct zoom data i %d j %d\n", i, j);
 
 	return ret;
 }

@@ -193,6 +193,7 @@ static void camcore_compression_cal(struct camera_module *module)
 		&& ch_pre->ch_uinfo.sn_fmt == IMG_PIX_FMT_GREY
 		&& !ch_pre->ch_uinfo.is_high_fps
 		&& !module->cam_uinfo.is_4in1
+		&& module->cam_uinfo.alg_type != ALG_TYPE_VID_NR
 		&& hw->ip_dcam[0]->dcampath_abt[DCAM_BIN_OUT_PATH]->fbc_sup
 		&& !(g_dbg_fbc_control & DEBUG_FBC_CRL_BIN);
 
@@ -1229,13 +1230,18 @@ static int camcore_pipeline_init(struct camera_module *module,
 	case CAM_CH_PRE:
 		if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV)
 			dcam_port_id = PORT_FULL_OUT;
+		else if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
+			dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		else
 			dcam_port_id = PORT_BIN_OUT;
 
 		isp_port_id = PORT_PRE_OUT;
-		pipeline_type = CAM_PIPELINE_PREVIEW;
 		if (module->cam_uinfo.alg_type == ALG_TYPE_VID_DR)
 			pipeline_type = CAM_PIPELINE_ONLINEYUV_2_USER_2_OFFLINEYUV_2_NR;
+		else if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
+			pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
+		else
+			pipeline_type = CAM_PIPELINE_PREVIEW;
 		break;
 	case CAM_CH_VID:
 		if (channel_prev->enable) {
@@ -1245,7 +1251,10 @@ static int camcore_pipeline_init(struct camera_module *module,
 			pr_info("vid channel enable without preview\n");
 		}
 		isp_port_id = PORT_VID_OUT;
-		pipeline_type = CAM_PIPELINE_VIDEO;
+		if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
+			pipeline_type = CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV;
+		else
+			pipeline_type = CAM_PIPELINE_VIDEO;
 		break;
 	case CAM_CH_CAP:
 		dcam_port_id = PORT_FULL_OUT;
@@ -1271,7 +1280,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 			pr_info("ITS Only open preview pipeline,shoud open raw channel\n");
 		else if (module->cam_uinfo.need_dcam_raw && hw->ip_isp->isphw_abt->fetch_raw_support)
 			goto fail;
-		camscene_onlineraw_ports_enable(module, dcam_port_id);
+		cam_scene_onlineraw_ports_enable(module, dcam_port_id);
 		break;
 	case CAM_CH_VIRTUAL:
 		channel->isp_port_id = PORT_VID_OUT;
@@ -1282,7 +1291,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 		dcam_port_id = PORT_VCH2_OUT;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
-		camscene_onlineraw_ports_enable(module, dcam_port_id);
+		cam_scene_onlineraw_ports_enable(module, dcam_port_id);
 		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0)
 			goto fail;
 		break;
@@ -1292,6 +1301,14 @@ static int camcore_pipeline_init(struct camera_module *module,
 		goto fail;
 	}
 
+	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV) {
+		ret = cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, ENABLE);
+		if (ret) {
+			pr_err("fail to config onlineraw_2_offlineyuv pipeline\n");
+			ret = -ENOMEM;
+			goto fail;
+		}
+	}
 	camcore_compression_cal(module);
 	if ((hw->ip_isp->isphw_abt->fetch_raw_support == 0 && channel->ch_id != CAM_CH_RAW)
 		|| (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV))
@@ -1359,18 +1376,6 @@ static int camcore_pipeline_init(struct camera_module *module,
 		cam_scene_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
 	}
 
-	channel->pipeline_type = pipeline_type;
-	channel->pipeline_handle = cam_pipeline_creat(pipeline_desc);
-	if (!channel->pipeline_handle) {
-		pr_err("fail to get cam pipeline\n");
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	/*TEMP: config ispctxid to pyrdec node*/
-	if (pyr_dec_desc && isp_node_description)
-		camcore_pyrdec_ctxid_cfg(channel, isp_node_description->isp_node);
-
 	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {
 		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
 		dcam_offline_desc->offline_pre_en = ENABLE;
@@ -1387,7 +1392,23 @@ static int camcore_pipeline_init(struct camera_module *module,
 			pr_err("fail to get statis pipeline.\n");
 			return -ENOMEM;
 		}
+		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
+		dcam_offline_desc->offline_pre_en = DISABLE;
+		isp_node_description->ch_id = channel->ch_id;
+		isp_node_description->port_desc.output_size = channel->ch_uinfo.dst_size;
 	}
+
+	channel->pipeline_type = pipeline_type;
+	channel->pipeline_handle = cam_pipeline_creat(pipeline_desc);
+	if (!channel->pipeline_handle) {
+		pr_err("fail to get cam pipeline\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	/*TEMP: config ispctxid to pyrdec node*/
+	if (pyr_dec_desc && isp_node_description)
+		camcore_pyrdec_ctxid_cfg(channel, isp_node_description->isp_node);
 	pr_info("cam%d ch %d pipeline done. ret = %d pipeline_type %s, nonzsl_pre_ratio %d\n",
 		module->idx, channel->ch_id, ret, pipeline_desc->pipeline_graph->name, channel->ch_uinfo.nonzsl_pre_ratio);
 fail:
@@ -1403,14 +1424,15 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 
 	nodes_dev = &module->nodes_dev;
 
-	if (channel->ch_id == CAM_CH_RAW || channel->ch_id == CAM_CH_DCAM_VCH)
-		camscene_onlineraw_ports_disable(module, channel->dcam_port_id);
-
 	if (channel->pipeline_handle)
 		cam_pipeline_destory(channel->pipeline_handle);
 	if (channel->nonzsl_pre_pipeline)
 		cam_pipeline_destory(channel->nonzsl_pre_pipeline);
 
+	if (channel->ch_id == CAM_CH_RAW || channel->ch_id == CAM_CH_DCAM_VCH)
+		cam_scene_onlineraw_ports_disable(module, channel->dcam_port_id);
+	if (channel->pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV && channel->ch_id != CAM_CH_PRE)
+		cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, DISABLE);
 	nodes_dev->dcam_online_node_dev = NULL;
 	nodes_dev->dcam_offline_node_dev = NULL;
 	nodes_dev->dcam_offline_node_bpcraw_dev = NULL;
@@ -1789,7 +1811,8 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 		return -EFAULT;
 	}
 
-	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD) {
+	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD ||
+		module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
 		postproc_param->ch = &module->channel[CAM_CH_PRE];
 		/* Tmp change, it will be changed when hal porting dr func after dispatch change back a14*/
 		/*ret |= get_user(postproc_blkpm.blk_property, &uparam->blk_param);
@@ -1819,8 +1842,13 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 			pframe->common.width = postproc_param->ch->ch_uinfo.dst_size.w;
 			pframe->common.height  = postproc_param->ch->ch_uinfo.dst_size.h;
 		} else {
-			pframe->common.width = postproc_param->ch->ch_uinfo.src_size.w;
-			pframe->common.height  = postproc_param->ch->ch_uinfo.src_size.h;
+			if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
+				pframe->common.width = postproc_param->ch->trim_dcam.size_x;
+				pframe->common.height  = postproc_param->ch->trim_dcam.size_y;
+			} else {
+				pframe->common.width = postproc_param->ch->ch_uinfo.src_size.w;
+				pframe->common.height  = postproc_param->ch->ch_uinfo.src_size.h;
+			}
 		}
 		ret |= get_user(pframe->common.buf.addr_vir[0], &uparam->frame_addr_vir_array[i].y);
 		ret |= get_user(pframe->common.buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
@@ -1850,17 +1878,20 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 		postproc_param->src_frm = pfrm[0];
 		postproc_param->mid_frm = pfrm[1];
 		postproc_param->dst_frm = pfrm[2];
-		postproc_param->need_cfg_dcam = 1;
 		if (postproc_param->scene_mode == CAM_POSTPROC_CAP_PROC_RAW) {
 			postproc_param->node_type = CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW;
 			postproc_param->mid_frm->common.irq_property = CAM_FRAME_PROCESS_RAW;
 			postproc_param->dcam_port_id = postproc_param->ch->aux_raw_port_id;
+			postproc_param->need_cfg_dcam = 1;
 		} else {
 			postproc_param->node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
-			postproc_param->mid_frm->common.irq_property = CAM_FRAME_FDRH;
-			postproc_param->dcam_port_id = postproc_param->ch->aux_dcam_port_id;
-			postproc_param->need_cfg_isp = 1;
-			postproc_param->need_cfg_zoom = 1;
+			if (module->cam_uinfo.alg_type != ALG_TYPE_VID_NR) {
+				postproc_param->mid_frm->common.irq_property = CAM_FRAME_FDRH;
+				postproc_param->dcam_port_id = postproc_param->ch->aux_dcam_port_id;
+				postproc_param->need_cfg_dcam = 1;
+				postproc_param->need_cfg_isp = 1;
+				postproc_param->need_cfg_zoom = 1;
+			}
 		}
 		postproc_param->postproc_mode = CAM_POSTPROC_PARALLEL;
 		postproc_param->isp_port_id = postproc_param->ch->isp_port_id;
@@ -2675,6 +2706,8 @@ static int camcore_release(struct inode *node, struct file *file)
 		return -EFAULT;
 	}
 
+	if (atomic_read(&module->state) == CAM_RUNNING)
+		atomic_set(&module->state, CAM_FORCE_CLOSE);
 	down_read(&group->switch_recovery_lock);
 	ret = camioctl_stream_off(module, 0L);
 	up_read(&group->switch_recovery_lock);

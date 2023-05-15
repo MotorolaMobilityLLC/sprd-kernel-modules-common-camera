@@ -101,6 +101,7 @@ static int cam_queue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
 				CAM_QUEUE_DEQUEUE_TAIL(&frame_manager->empty_frame_q, struct cam_frame, list);
 			}
 			cam_buf_kernel_sys_kfree(frame_array);
+			frame_array = NULL;
 			spin_unlock(&frame_manager->frame_lock);
 			return -1;
 		}
@@ -344,7 +345,7 @@ int cam_queue_empty_frame_deinit()
 	spin_lock(&frame_manager->frame_lock);
 	cam_queue_frame_array_check(CAM_FRAME_CHECK_ALL);
 	CAM_QUEUE_CLEAN(&frame_manager->empty_frame_q, struct cam_frame, list);
-	while (i <= CAM_EMP_ARRAY_LEN_MAX && frame_manager->frame_array[i]) {
+	while (i < CAM_EMP_ARRAY_LEN_MAX && frame_manager->frame_array[i]) {
 		cam_buf_kernel_sys_kfree(frame_manager->frame_array[i]);
 		frame_manager->frame_array[i] = NULL;
 		i++;
