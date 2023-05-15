@@ -1328,7 +1328,7 @@ int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param)
 		if (--layer_num == 0)
 			break;
 	}
-	if (!layer_num || !node->hw->ip_isp->isphw_abt->pyr_dec_support) {
+	if ((pframe->common.width >= DCAM_64M_WIDTH) || !layer_num || !node->hw->ip_isp->isphw_abt->pyr_dec_support) {
 		pframe->common.pyr_status = DISABLE;
 		pframe->common.link_to.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		pframe->common.link_to.node_id = ISP_NODE_MODE_CAP_ID;

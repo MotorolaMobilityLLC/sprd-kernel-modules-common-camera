@@ -487,8 +487,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	}
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->isphw_abt->rgb_ltm_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->isphw_abt->rgb_gtm_support;
-	if (g_pyr_dec_offline_bypass || module->channel[CAM_CH_CAP].ch_uinfo.is_high_fps
-		|| module->cam_uinfo.sn_size.w > DCAM_64M_WIDTH)
+	if (g_pyr_dec_offline_bypass || module->channel[CAM_CH_CAP].ch_uinfo.is_high_fps)
 		module->cam_uinfo.is_pyr_dec = 0;
 	else
 		module->cam_uinfo.is_pyr_dec = hw->ip_isp->isphw_abt->pyr_dec_support;
