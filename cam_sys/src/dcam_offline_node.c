@@ -370,7 +370,7 @@ static int dcamoffline_ctx_bind(struct dcam_offline_node *node)
 
 	spin_lock_irqsave(&node->dev->ctx_lock, flag);
 	ret = node->dev->dcam_pipe_ops->bind(node->dev, node, node->node_id,
-			node->dcam_idx, slw_cnt, &node->hw_ctx_id, &slw_type);
+			node->csi_controller_idx, slw_cnt, &node->hw_ctx_id, &slw_type);
 	if (ret) {
 		pr_warn("warning: bind ctx %d fail\n", node->node_id);
 		goto exit;
@@ -1296,7 +1296,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 
 	node->dcam_slice_mode = param->dcam_slice_mode;
 	node->dev = param->dev;
-	node->dcam_idx = param->dcam_idx;
+	node->csi_controller_idx = param->csi_controller_idx;
 	node->fetch.fmt = param->fetch_fmt;
 	node->fetch.pattern = param->pattern;
 	node->fetch.endian = param->endian;

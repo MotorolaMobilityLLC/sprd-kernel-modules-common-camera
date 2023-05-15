@@ -83,7 +83,7 @@ struct dcam_online_node_desc {
 	shutoff_cfg_cb shutoff_cfg_cb_func;
 	void *shutoff_cfg_cb_handle;
 	enum en_status is_pyr_rec;
-	uint32_t dcam_idx;
+	uint32_t csi_controller_idx;
 	enum alg_types alg_type;
 	uint32_t param_frame_sync;
 	struct dcam_isp_k_block *blk_pm;
@@ -117,7 +117,7 @@ struct dcam_online_node {
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 	void *nr3_frm;
 
-	uint32_t dcam_idx;
+	uint32_t csi_controller_idx;
 	uint32_t hw_ctx_id;
 	struct dcam_pipe_dev *dev;
 	struct dcam_hw_context *hw_ctx;

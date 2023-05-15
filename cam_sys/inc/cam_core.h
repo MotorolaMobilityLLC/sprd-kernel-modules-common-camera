@@ -251,7 +251,7 @@ struct camera_module {
 	struct dcam_pipe_dev *dcam_dev_handle;
 	struct pyrdec_pipe_dev *pyrdec_dev_handle;
 	struct cam_flash_task_info *flash_core_handle;
-	uint32_t dcam_idx;
+	uint32_t csi_controller_idx;
 
 	enum cam_zoom_type zoom_solution;/* for dynamic zoom type swicth. */
 	uint32_t binning_limit;

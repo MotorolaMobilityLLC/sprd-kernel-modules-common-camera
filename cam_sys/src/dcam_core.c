@@ -261,7 +261,7 @@ static void dcamcore_dev_recovery(void *dcam_handle)
 }
 
 static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
-		uint32_t dcam_idx, uint32_t slw_cnt, uint32_t *hw_id, uint32_t *slw_type)
+		uint32_t csi_controller_idx, uint32_t slw_cnt, uint32_t *hw_id, uint32_t *slw_type)
 {
 	int i = 0;
 	uint32_t hw_ctx_id = DCAM_HW_CONTEXT_MAX, mode = 0;
@@ -271,11 +271,12 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 	dev = (struct dcam_pipe_dev *)dev_handle;
 	mode = dev->hw->csi_connect_type;
 	if (mode == DCAM_BIND_FIXED) {
-		pctx_hw = &dev->hw_ctx[dcam_idx];
+		hw_ctx_id = csi_controller_idx;
+		pctx_hw = &dev->hw_ctx[hw_ctx_id];
 		if (node_id == pctx_hw->node_id && pctx_hw->node == node) {
 			atomic_inc(&pctx_hw->user_cnt);
 			pr_info("node %d & hw %d are already binded, cnt=%d\n",
-				node_id, dcam_idx, atomic_read(&pctx_hw->user_cnt));
+				node_id, hw_ctx_id, atomic_read(&pctx_hw->user_cnt));
 			return 0;
 		}
 		if (atomic_inc_return(&pctx_hw->user_cnt) == 1) {

@@ -104,7 +104,7 @@ static int dcamonline_gtm_ltm_bypass_cfg(struct dcam_online_node *node, struct i
 	else
 		ret = copy_from_user((void *)(&gtm_bypass_info), io_param->property_param, sizeof(struct dcam_dev_raw_gtm_bypass));
 	if (ret) {
-		pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
+		pr_err("fail to copy, ret= %d\n", ret);
 		return -EPERM;
 	}
 
@@ -116,7 +116,7 @@ static int dcamonline_gtm_ltm_bypass_cfg(struct dcam_online_node *node, struct i
 	if (port)
 		port->port_cfg_cb_func((void *)&frame, DCAM_PORT_NEXT_FRM_BUF_GET, port);
 	else
-		pr_warn("warning: %s is null.\n", cam_port_name_get(port->port_id));
+		pr_warn("warning: gtm or ltm port is null.\n");
 
 	if (frame) {
 		if (io_param->sub_block == ISP_BLOCK_RGB_LTM) {
@@ -132,7 +132,7 @@ static int dcamonline_gtm_ltm_bypass_cfg(struct dcam_online_node *node, struct i
 				cam_port_name_get(port->port_id), frame->common.fid, gtm_bypass_info.gtm_mod_en, gtm_bypass_info.gtm_hist_stat_bypass, gtm_bypass_info.gtm_map_bypass);
 		}
 	} else
-		pr_warn("warning: %s dont have buffer\n", cam_port_name_get(port->port_id));
+		pr_warn("warning: gtm or ltm port dont have buffer\n");
 
 	return ret;
 }
@@ -1155,7 +1155,7 @@ static int dcamonline_ctx_bind(struct dcam_online_node *node)
 	pr_debug("online ctx_bind enter\n");
 	spin_lock_irqsave(&node->dev->ctx_lock, flag);
 	slw_cnt = node->slowmotion_count;
-	ret = node->dev->dcam_pipe_ops->bind(node->dev, node, node->node_id, node->dcam_idx,
+	ret = node->dev->dcam_pipe_ops->bind(node->dev, node, node->node_id, node->csi_controller_idx,
 			slw_cnt, &node->hw_ctx_id, &node->slw_type);
 	if (ret) {
 		pr_warn("warning: bind ctx %d fail\n", node->node_id);
@@ -1176,7 +1176,7 @@ static int dcamonline_ctx_bind(struct dcam_online_node *node)
 
 exit:
 	spin_unlock_irqrestore(&node->dev->ctx_lock, flag);
-	pr_info("csi%d, hw_ctx_id %d, node_id %d online ctx_bind done\n", node->dcam_idx,
+	pr_info("csi control idx%d, hw_ctx_id %d, node_id %d online ctx_bind done\n", node->csi_controller_idx,
 		node->hw_ctx_id, node->node_id);
 	return ret;
 }
@@ -1326,7 +1326,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	}
 
 	if (hw->csi_connect_type == DCAM_BIND_DYNAMIC && node->csi_connect_stat != DCAM_CSI_RESUME) {
-		csi_switch.csi_id = node->dcam_idx;
+		csi_switch.csi_id = node->csi_controller_idx;
 		csi_switch.dcam_id= node->hw_ctx_id;
 		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 		/* switch connect */
@@ -1516,7 +1516,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 
 	if (is_csi_connect && node->csi_connect_stat == DCAM_CSI_RESUME) {
 		/* switch connect */
-		csi_switch.csi_id = node->dcam_idx;
+		csi_switch.csi_id = node->csi_controller_idx;
 		csi_switch.dcam_id= node->hw_ctx_id;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_CONECT_CSI, &csi_switch);
 		pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
@@ -1552,7 +1552,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 	hw = node->dev->hw;
 	hw_ctx = node->hw_ctx;
 	state = atomic_read(&node->state);
-	csi_switch.csi_id = node->dcam_idx;
+	csi_switch.csi_id = node->csi_controller_idx;
 	csi_switch.dcam_id = node->hw_ctx_id;
 
 	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
@@ -2148,7 +2148,7 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 	csi_p = (struct dcam_csi_reset_param *)param;
 	mode = csi_p->mode;
 	node->csi_connect_stat = csi_p->csi_connect_stat;
-	csi_switch.csi_id = node->dcam_idx;
+	csi_switch.csi_id = node->csi_controller_idx;
 	csi_switch.dcam_id = node->hw_ctx_id;
 
 	if (mode == CAM_CSI_RECOVERY_SWITCH)
@@ -2294,7 +2294,7 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 	node->nr3_frm = NULL;
 	node->cap_info = param->cap_info;
 	node->is_pyr_rec = param->is_pyr_rec;
-	node->dcam_idx = param->dcam_idx;
+	node->csi_controller_idx = param->csi_controller_idx;
 	node->dev = param->dev;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	node->alg_type = param->alg_type;

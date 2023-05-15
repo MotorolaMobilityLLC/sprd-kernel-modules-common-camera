@@ -736,7 +736,7 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 	node->online_node.nr3_frm = NULL;
 	node->online_node.cap_info = param->online_node_desc->cap_info;
 	node->online_node.is_pyr_rec = param->online_node_desc->is_pyr_rec;
-	node->online_node.dcam_idx = param->online_node_desc->dcam_idx;
+	node->online_node.csi_controller_idx = param->online_node_desc->csi_controller_idx;
 	node->online_node.dev = param->online_node_desc->dev;
 	node->online_node.hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	node->online_node.alg_type = param->online_node_desc->alg_type;

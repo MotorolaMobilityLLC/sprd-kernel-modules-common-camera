@@ -26,7 +26,7 @@ enum dcam_offline_node_id {
 
 struct dcam_offline_node_desc {
 	enum cam_node_type node_type;
-	uint32_t dcam_idx;
+	uint32_t csi_controller_idx;
 	uint32_t pattern;
 	enum cam_data_endian endian;
 	enum cam_format fetch_fmt;
@@ -84,7 +84,7 @@ struct dcam_offline_node {
 	struct completion slice_done;
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 
-	uint32_t dcam_idx;
+	uint32_t csi_controller_idx;
 	uint32_t hw_ctx_id;
 	uint32_t in_irq_proc;
 	struct dcam_pipe_dev *dev;
