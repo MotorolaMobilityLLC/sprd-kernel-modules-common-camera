@@ -2382,6 +2382,7 @@ static int sprd_img_set_crop(struct file *file, struct sprd_img_parm __user *upa
 	}
 
 	info = &dev->dcam_cxt;
+	memset((void *)&crop_rect, 0, sizeof(struct sprd_img_rect));
 
 	ret = get_user(channel_id, &uparam->channel_id);
 	ret |= copy_from_user(&crop_rect,
@@ -2393,7 +2394,7 @@ static int sprd_img_set_crop(struct file *file, struct sprd_img_parm __user *upa
 	}
 	if (!sprd_get_ver_id()) {
 		if (crop_rect.x == 0 && crop_rect.y == 0
-			&& channel_id != DCAM_PATH0) {
+			&& channel_id != DCAM_PATH0 && crop_rect.h != 0) {
 			ratio = crop_rect.w * 100 / crop_rect.h;
 			if (ratio == 133) {
 				crop_rect.x = 8;
