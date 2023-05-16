@@ -403,6 +403,7 @@ struct cam_buf_alloc_desc {
 	uint32_t ltm_mode;
 	uint32_t ltm_rgb_enable;
 	uint32_t is_static_map;
+	uint32_t not_to_isp;
 };
 
 struct slowmotion_960fps_info {

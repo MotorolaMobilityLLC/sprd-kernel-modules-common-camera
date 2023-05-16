@@ -315,6 +315,8 @@ exit:
 	}
 	pctx_hw->node = node;
 	pctx_hw->node_id = node_id;
+	for (i = DCAM_PATH_FULL; i < DCAM_PATH_MAX; i++)
+		atomic_set(&pctx_hw->path_done[i], 0);
 	*hw_id = hw_ctx_id;
 	pr_info("node_id=%d, hw_ctx_id=%d, mode=%d, cnt=%d\n", pctx_hw->node_id, hw_ctx_id, mode, atomic_read(&pctx_hw->user_cnt));
 	return 0;
@@ -364,6 +366,8 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 			}
 			pctx_hw->node = NULL;
 			pctx_hw->node_id = 0xFFFFFFFF;
+			for (i = DCAM_PATH_FULL; i < DCAM_PATH_MAX; i++)
+				atomic_set(&pctx_hw->path_done[i], 0);
 			goto exit;
 		}
 
@@ -407,7 +411,7 @@ void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 		struct dcam_irq_info *irq_info)
 {
 	int i = 0, ret = 0;
-	uint32_t irq_status = 0, dummy_status = 0;
+	uint32_t irq_status = 0, dummy_status = 0, path_id = 0;
 	struct dcam_irq_proc_desc irq_desc = {0};
 
 	if (!dcam_hw_ctx || !irq_info) {
@@ -432,6 +436,8 @@ void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 				irq_status &= ~BIT(i);
 				continue;
 			}
+			path_id = dcamoffline_portid_convert_to_pathid(irq_desc.dcam_port_id);
+			atomic_inc(&dcam_hw_ctx->path_done[path_id]);
 			if (dcam_hw_ctx->dcam_irq_cb_func)
 				dcam_hw_ctx->dcam_irq_cb_func(&irq_desc, dcam_hw_ctx->dcam_irq_cb_handle);
 		}

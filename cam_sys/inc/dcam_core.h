@@ -162,6 +162,7 @@ struct dcam_hw_context {
 	enum slice_proc_chose slice_proc_mode;
 	uint32_t gtm_hist_stat_bypass;
 	uint32_t relative_offset[DCAM_PATH_MAX];
+	atomic_t path_done[DCAM_PATH_MAX];
 };
 
 struct dcam_pipe_dev {

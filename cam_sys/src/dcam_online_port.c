@@ -1266,7 +1266,8 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 
 		if ((ch_id != CAM_CH_CAP) || (param->is_static_map)) {
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
-			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
+			if (!param->not_to_isp)
+				cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
 			pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 		}
 

@@ -141,7 +141,6 @@ slices:
 		slice->slice_count = i;
 	}
 	slice->w_slice_num = slice->slice_num / h_slice_num;
-	slice->slice_count = slice->slice_num;
 
 	return ret;
 }

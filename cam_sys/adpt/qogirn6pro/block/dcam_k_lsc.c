@@ -301,11 +301,6 @@ int dcam_update_lsc(void *in)
 	}
 
 	hw_ctx = &dev->hw_ctx[blk_dcam_pm->idx];
-	if (idx == 1 && hw_ctx->dcam_slice_mode == CAM_OFFLINE_SLICE_HW)
-		grid_x_num_slice = info->grid_x_num / 2;
-	else
-		grid_x_num_slice = info->grid_x_num;
-
 	w_buff_x = (uint16_t *)param->weight_tab_x;
 	w_buff_y = (uint16_t *)param->weight_tab_y;
 	gain_tab = (uint16_t *)param->buf.addr_k;
@@ -383,6 +378,7 @@ int dcam_update_lsc(void *in)
 
 	/* only for slice mode */
 	DCAM_REG_WR(idx, DCAM_LENS_SLICE_CTRL0, 0x0);
+	grid_x_num_slice = info->grid_x_num;
 	DCAM_REG_MWR(idx, DCAM_LENS_SLICE_CTRL1, 0xff, grid_x_num_slice);
 	pr_debug("update grid_width_x %d x %d y %d\n", info->grid_width_x,
 			info->grid_x_num, info->grid_y_num);

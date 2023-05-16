@@ -359,8 +359,6 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.is_pyr_rec = module->cam_uinfo.is_pyr_rec;
 	alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
 	alloc_param.is_static_map = hw->ip_isp->isphw_abt->static_map_support;
-	if (module->cam_uinfo.dcam_slice_mode)
-		alloc_param.is_static_map = CAM_DISABLE;
 	alloc_param.pyr_out_fmt = channel->ch_uinfo.pyr_out_fmt;
 	alloc_param.pyr_layer_num = channel->pipeline_handle->pipeline_graph->pyr_layer_num;
 	alloc_param.iommu_enable = module->iommu_enable;
@@ -374,6 +372,7 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.dcamonline_buf_alloc_num = dcamonline_buf_num;
 	alloc_param.dcamoffline_buf_alloc_num = dcamoffline_buf_num;
 	alloc_param.stream_on_buf_com = &channel->stream_on_buf_com;
+	alloc_param.not_to_isp = (module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1);
 	if (module->icap_scene && channel->ch_id == CAM_CH_CAP) {
 		alloc_param.cam_copy_buf_alloc_num = 3;
 		alloc_param.dcamoffline_lsc_buf_alloc_num = 2;
