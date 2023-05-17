@@ -1816,7 +1816,7 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 	int ret = 0;
 	uint32_t i = 0, reserved[4] = {0};
 	struct cam_frame *pframe = NULL;
-	struct sprd_img_parm __user *uparam = NULL;
+	struct sprd_img_postproc_param __user *uparam = NULL;
 	struct cam_frame *pfrm[3] = {NULL, NULL, NULL};
 
 	if (!module || !postproc_param) {
@@ -1824,7 +1824,7 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 		return -EFAULT;
 	}
 
-	uparam = (struct sprd_img_parm __user *)arg;
+	uparam = (struct sprd_img_postproc_param __user *)arg;
 	ret |= get_user(postproc_param->fid, &uparam->index);
 	ret |= get_user(postproc_param->scene_mode, &uparam->scene_mode);
 	ret |= get_user(postproc_param->dst_size.w, &uparam->dst_size.w);
@@ -1841,12 +1841,11 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD ||
 		module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
 		postproc_param->ch = &module->channel[CAM_CH_PRE];
-		/* Tmp change, it will be changed when hal porting dr func after dispatch change back a14*/
-		/*ret |= get_user(postproc_blkpm.blk_property, &uparam->blk_param);
+		ret |= get_user(postproc_param->blk_property, &uparam->blk_param);
 		if (ret) {
 			pr_err("fail to get postproc blk param addr\n");
-			goto blkpm_cfg_err;
-		}*/
+			return -EFAULT;
+		}
 	} else
 		postproc_param->ch = &module->channel[CAM_CH_CAP];
 
