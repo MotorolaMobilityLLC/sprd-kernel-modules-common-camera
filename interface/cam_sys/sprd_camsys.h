@@ -645,7 +645,7 @@ struct sprd_img_function_mode {
 	uint32_t dual_cam;
 	uint32_t need_afbc;
 	uint32_t is_raw_alg;
-	uint32_t raw_alg_type;
+	uint32_t alg_type;
 	uint32_t fdr_preview_captured_num;
 	uint32_t zoom_conflict_with_ltm;
 	uint32_t need_dcam_raw;/* 1: dcam_raw 0: normal */

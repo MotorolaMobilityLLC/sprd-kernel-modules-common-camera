@@ -473,7 +473,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->cam_uinfo.is_4in1, &uparam->need_4in1);
 	ret |= get_user(module->cam_uinfo.is_dual, &uparam->dual_cam);
 	ret |= get_user(module->cam_uinfo.is_raw_alg, &uparam->is_raw_alg);
-	ret |= get_user(module->cam_uinfo.alg_type, &uparam->raw_alg_type);
+	ret |= get_user(module->cam_uinfo.alg_type, &uparam->alg_type);
 	ret |= get_user(module->cam_uinfo.param_frame_sync, &uparam->param_frame_sync);
 	ret |= get_user(module->cam_uinfo.zoom_conflict_with_ltm, &uparam->zoom_conflict_with_ltm);
 	ret |= get_user(module->cam_uinfo.need_dcam_raw, &uparam->need_dcam_raw);
