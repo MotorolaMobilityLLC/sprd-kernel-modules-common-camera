@@ -941,6 +941,9 @@ int cam_zoom_start_proc(void *param)
 	ch_vid = &module->channel[CAM_CH_VID];
 next:
 	update_pv = update_c = 0;
+	if (ch_prev->enable && ch_vid->enable
+		&& (CAM_QUEUE_CNT_GET(&ch_prev->zoom_user_crop_q) == 0 || CAM_QUEUE_CNT_GET(&ch_vid->zoom_user_crop_q) == 0))
+		goto update_cap;
 	/* Get node from the preview/video/cap coef queue if exist */
 	if (ch_prev->enable)
 		pre_zoom_coeff = CAM_QUEUE_DEQUEUE(&ch_prev->zoom_user_crop_q, struct cam_frame, list);
@@ -959,6 +962,7 @@ next:
 		cam_queue_empty_frame_put(vid_zoom_coeff);
 	}
 
+update_cap:
 	if (ch_cap->enable)
 		cap_zoom_coeff = CAM_QUEUE_DEQUEUE(&ch_cap->zoom_user_crop_q, struct cam_frame, list);
 	if (cap_zoom_coeff) {

@@ -1158,6 +1158,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	struct dcam_hw_path_start *patharg = NULL;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t val = 0;
+	uint32_t hwfmt = 0;
 	uint32_t data_bits = 0, is_pack = 0;
 
 	pr_debug("enter.");
@@ -1180,17 +1181,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 			BIT_9 |  BIT_8, patharg->endian << 8);
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_2, BIT_2);
 
-		if (patharg->out_fmt == CAM_FULL_RGB14)
-			val = 0;
-		else if (patharg->out_fmt == CAM_YUV422_2FRAME)
-			val = 1;
-		else if (patharg->out_fmt == CAM_YVU422_2FRAME)
-			val = 2;
-		else if ((patharg->out_fmt == CAM_YUV420_2FRAME) || (patharg->out_fmt == CAM_YUV420_2FRAME_MIPI))
-			val = 4;
-		else if ((patharg->out_fmt == CAM_YVU420_2FRAME) || (patharg->out_fmt == CAM_YVU420_2FRAME_MIPI))
-			val = 5;
-		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, 0x70, val << 4);
+		hwfmt = cal_dcamhw_format(patharg->out_fmt);
+		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, 0x70, hwfmt << 4);
 		val = (data_bits > CAM_8_BITS) ? 1 : 0;
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_11, val << 11);
 		val = (is_pack) ? 1 : 0;
@@ -1210,17 +1202,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 			BIT_9 |  BIT_8, patharg->endian << 8);
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, BIT_2, BIT_2);
 
-		if (patharg->out_fmt == CAM_FULL_RGB14)
-			val = 0;
-		else if (patharg->out_fmt == CAM_YUV422_2FRAME)
-			val = 1;
-		else if (patharg->out_fmt == CAM_YVU422_2FRAME)
-			val = 2;
-		else if ((patharg->out_fmt == CAM_YUV420_2FRAME) || (patharg->out_fmt == CAM_YUV420_2FRAME_MIPI))
-			val = 4;
-		else if ((patharg->out_fmt == CAM_YVU420_2FRAME) || (patharg->out_fmt == CAM_YVU420_2FRAME_MIPI))
-			val = 5;
-		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, 0x70, val << 4);
+		hwfmt = cal_dcamhw_format(patharg->out_fmt);
+		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, 0x70, hwfmt << 4);
 
 		val = (is_pack) ? 1 : 0;
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE0_PARAM, BIT_7, (is_pack) << 7);

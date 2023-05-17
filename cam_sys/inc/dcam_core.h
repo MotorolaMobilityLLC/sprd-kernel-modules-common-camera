@@ -284,6 +284,49 @@ static inline uint32_t cal_sprd_size(uint32_t w, uint32_t h, uint32_t fmt)
 
 	return size;
 }
+
+static inline uint32_t cal_dcamhw_format(uint32_t fmt)
+{
+	uint32_t hwfmt = 0;
+
+	switch (fmt) {
+	case CAM_FULL_RGB14:
+		hwfmt = CAM_FRGB14BIT;
+		break;
+	case CAM_RAW_PACK_10:
+		hwfmt = CAM_RAW10PACK_RAW;
+		break;
+	case CAM_RAW_HALFWORD_10:
+		hwfmt = CAM_HALFWORD_RAW10;
+		break;
+	case CAM_YUV422_2FRAME:
+		hwfmt = CAM_TWOPLANE_YUV422;
+		break;
+	case CAM_YVU422_2FRAME:
+		hwfmt = CAM_TWOPLANE_YVU422;
+		break;
+	case CAM_YUV420_2FRAME:
+	case CAM_YUV420_2FRAME_MIPI:
+		hwfmt = CAM_TWOPLANE_YUV420;
+		break;
+	case CAM_YVU420_2FRAME:
+	case CAM_YVU420_2FRAME_MIPI:
+		hwfmt = CAM_TWOPLANE_YVU420;
+		break;
+	case CAM_RAW_8:
+		hwfmt = CAM_RAW8;
+		break;
+	case CAM_RAW_14:
+		hwfmt = CAM_HALFWORD_RAW14;
+		break;
+	default :
+		pr_err("fail to get fmt : %d\n", fmt);
+		break;
+	}
+
+	return hwfmt;
+}
+
 struct dcam_dummy_param {
 	uint32_t hw_ctx_id;
 	enum en_status enable;

@@ -40,8 +40,7 @@ int isp_k_cfa_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	if (cfa_info->bypass)
 		return 0;
 
-	val = (cfa_info->grid_thr & 0xFFFF) |
-			((cfa_info->min_grid_new & 0x1FFF) << 16);
+	val = (cfa_info->grid_thr & 0xFFFF);
 	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG0, val);
 
 	val = ((cfa_info->weight_control_bypass & 0x1) << 31) |
@@ -66,8 +65,6 @@ int isp_k_cfa_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	val = (cfa_info->round_diff_12_thr & 0xFFF) |
 			((cfa_info->low_lux_12_thr & 0x3FF) << 16);
 	ISP_REG_WR(idx, ISP_CFAE_INTP_CFG5, val);
-
-	ISP_REG_MWR(idx, ISP_CFAE_NEW_CFG0, BIT_2, cfa_info->css_bypass << 2);
 
 	val = (cfa_info->css_weak_edge_thr & 0x1FFF) |
 			((cfa_info->css_edge_thr & 0x1FFF) << 16);

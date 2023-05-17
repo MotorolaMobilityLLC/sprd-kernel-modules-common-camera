@@ -58,6 +58,18 @@
 #define DCAMOFFLINE_HW_TIME_RATIO               0xFFFFFFFF
 #define DCAMOFFLINE_NODE_TIME                   0xFFFFFFFF
 
+enum dcam_hwformat_val {
+	CAM_RAW10PACK_RAW = 0,
+	CAM_HALFWORD_RAW10 = 1,
+	CAM_HALFWORD_RAW14,
+	CAM_RAW8,
+	CAM_FRGB14BIT,
+	CAM_TWOPLANE_YUV422,
+	CAM_TWOPLANE_YVU422,
+	CAM_TWOPLANE_YUV420,
+	CAM_TWOPLANE_YVU420,
+};
+
 /*
  *DCAM_CONTROL register bit map id
  * for force_cpy/auto_cpy control

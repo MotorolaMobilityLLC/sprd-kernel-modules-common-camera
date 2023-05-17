@@ -33,6 +33,7 @@ struct dcam_offline_node_desc {
 	enum en_status statis_en;
 	enum en_status offline_pre_en;
 	enum en_status enable_3dnr;
+	enum camera_slice_mode dcam_slice_mode;
 	struct img_size input_size;
 	struct img_trim input_trim;
 	struct img_size output_size;
@@ -62,6 +63,7 @@ struct dcam_offline_node {
 	enum en_status statis_en;
 	enum en_status offline_pre_en;
 	enum en_status is_3dnr;
+	enum camera_slice_mode dcam_slice_mode;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;

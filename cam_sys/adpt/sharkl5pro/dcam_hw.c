@@ -745,7 +745,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	struct dcam_hw_path_start *patharg = NULL;
 	uint32_t image_data_type = IMG_TYPE_RAW10;
 	uint32_t data_bits = 0;
-	uint32_t val = 0;
+	uint32_t hwfmt = 0;
 
 	pr_debug("enter.");
 
@@ -756,24 +756,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 
 	patharg = (struct dcam_hw_path_start *)arg;
 	data_bits = cam_data_bits(patharg->out_fmt);
-
-	switch (patharg->out_fmt) {
-	case CAM_RAW_PACK_10:
-		val = 0;
-		break;
-	case CAM_RAW_HALFWORD_10:
-		val = 1;
-		break;
-	case CAM_RAW_14:
-		val = 2;
-		break;
-	case CAM_RAW_8:
-		val = 3;
-		break;
-	default:
-		pr_err("fail to get fetch->fetch_info->fmt:%s, val:%d\n", camport_fmt_name_get(patharg->out_fmt), val);
-		break;
-	}
+	hwfmt = cal_dcamhw_format(patharg->out_fmt);
 
 	if (data_bits == CAM_8_BITS)
 		image_data_type = IMG_TYPE_RAW8;
@@ -785,7 +768,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 			BIT_17 |  BIT_16, patharg->endian << 16);
 
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG,
-			BIT_2 | BIT_3, val << 2);
+			BIT_2 | BIT_3, hwfmt << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_4, patharg->src_sel << 4);
 
 		/* full_path_en */
@@ -801,7 +784,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN,
 			BIT_3 | BIT_2, patharg->endian << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
-			BIT_2 | BIT_3, val << 2);
+			BIT_2 | BIT_3, hwfmt << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
 				BIT_16, !!patharg->slowmotion_count << 16);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,

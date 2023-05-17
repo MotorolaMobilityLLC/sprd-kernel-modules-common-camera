@@ -165,6 +165,7 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 		dummy_param.enable = DISABLE;
 		node->hw_ctx->dummy_slave->dummy_ops->dummy_enable(node->hw_ctx->dummy_slave, &dummy_param);
 	}
+	node->hw_ctx->dcam_slice_mode = CAM_SLICE_NONE;
 	node->hw_ctx->is_offline_proc = 0;
 	node->hw_ctx->err_count = 0;
 	node->hw_ctx->offline_pre_en = DISABLE;
@@ -377,6 +378,7 @@ static int dcamoffline_ctx_bind(struct dcam_offline_node *node)
 
 	node->hw_ctx = &node->dev->hw_ctx[node->hw_ctx_id];
 	node->pm_ctx.blk_pm.idx = node->hw_ctx_id;
+	node->hw_ctx->dcam_slice_mode = node->dcam_slice_mode;
 	node->hw_ctx->is_offline_proc = 1;
 	node->hw_ctx->is_3dnr = node->is_3dnr;
 	node->hw_ctx->nr3_path_cnt = 0;
@@ -1292,6 +1294,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 	node->proc_pool.private_pool_id = ret;
 	pr_debug("reg pool %d %d\n", node->in_pool.private_pool_id, node->proc_pool.private_pool_id);
 
+	node->dcam_slice_mode = param->dcam_slice_mode;
 	node->dev = param->dev;
 	node->dcam_idx = param->dcam_idx;
 	node->fetch.fmt = param->fetch_fmt;

@@ -1404,8 +1404,10 @@ static int ispport_start_error(struct isp_port *port, void *param)
 			/* ret frame to original queue */
 			if (pframe->common.is_reserved)
 				port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
-			else
-				cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, NULL, port->buf_manager_handle);
+			else {
+				buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
+				cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
+			}
 		}
 	}
 	return 0;
