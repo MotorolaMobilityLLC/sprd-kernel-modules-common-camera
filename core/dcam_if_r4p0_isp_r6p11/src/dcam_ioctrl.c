@@ -295,17 +295,26 @@ static int dcamio_set_output_size(struct camera_file *camerafile,
 	idx = camerafile->idx;
 
 	uparam = (struct sprd_img_parm __user *)arg;
-	get_user(info->pxl_fmt, &uparam->pixel_fmt);
-	get_user(info->need_isp_tool, &uparam->need_isp_tool);
-	get_user(info->raw_callback, &uparam->raw_callback);
-	get_user(info->need_isp, &uparam->need_isp);
-	get_user(info->rt_refocus, &uparam->rt_refocus);
-	get_user(info->scene_mode, &uparam->scene_mode);
-	get_user(info->is_slow_motion, &uparam->slowmotion);
-	ret = copy_from_user(&info->path_input_rect,
+	ret  = get_user(info->pxl_fmt, &uparam->pixel_fmt);
+	ret |= get_user(info->need_isp_tool, &uparam->need_isp_tool);
+	ret |= get_user(info->raw_callback, &uparam->raw_callback);
+	ret |= get_user(info->need_isp, &uparam->need_isp);
+	ret |= get_user(info->rt_refocus, &uparam->rt_refocus);
+	ret |= get_user(info->scene_mode, &uparam->scene_mode);
+	ret |= get_user(info->is_slow_motion, &uparam->slowmotion);
+	ret |= copy_from_user(&info->path_input_rect,
 		     &uparam->crop_rect, sizeof(struct sprd_img_rect));
-	ret = copy_from_user(&info->dst_size,
+	ret |= copy_from_user(&info->dst_size,
 		     &uparam->dst_size, sizeof(struct sprd_img_size));
+	if (unlikely(ret)) {
+		pr_err("fail to get user info, ret = %d, path_input_rect w:%d h:%d x:%d y:%d, "
+			"dst_size w:%d h:%d\n", ret, info->path_input_rect.w,
+			info->path_input_rect.h, info->path_input_rect.x, info->path_input_rect.y,
+			info->dst_size.w, info->dst_size.h);
+		ret = -EFAULT;
+		goto exit;
+	}
+
 	pr_debug("SPRD_IMG_IO_SET_OUTPUT_SIZE, scene_mode %d, slowmotion %d\n",
 		 info->scene_mode, info->is_slow_motion);
 
@@ -1541,7 +1550,7 @@ static int dcamio_set_path_skip_num(struct camera_file *camerafile,
 		ret = -EFAULT;
 		goto exit;
 	}
-	DCAM_TRACE("path %d skip number %d\n", channel_id,
+	DCAM_TRACE("channel_id %d skip number %d\n", channel_id,
 		   info->skip_number);
 
 exit:
