@@ -1163,6 +1163,9 @@ int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *pa
 	case PORT_CFG_ZOOM_SET:
 		ret = dcamonline_port_zoom_cfg(dcam_port, param);
 		break;
+	case PORT_CFG_FLASH_SKIP_FID:
+		dcam_port->flash_skip_fid = *(uint32_t *)param;
+		break;
 	default:
 		pr_err("fail to support port type %d\n", cmd);
 		ret = -EFAULT;
@@ -1351,6 +1354,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 		port->share_full_path = param->share_full_path;
 	else
 		port->share_full_path = 0;
+	port->flash_skip_fid = 0;
 
 	*param->port_dev = port;
 	pr_info("port %s reg pool %d %d\n", cam_port_name_get(port_id), port->unprocess_pool.private_pool_id, port->result_pool.private_pool_id);

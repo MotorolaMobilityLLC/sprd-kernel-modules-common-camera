@@ -289,6 +289,14 @@ static void dcamonline_frame_dispatch(void *param, void *handle)
 		return;
 	}
 
+	if (dcam_port->flash_skip_fid == frame->common.fid && dcam_port->flash_skip_fid != 0) {
+		pr_debug("flash scene skip frame fid %d\n",frame->common.fid);
+		ret = dcam_online_port_buffer_cfg(dcam_port, frame);
+		if (ret)
+			pr_err("fail to set dcam online port outbuf_queue\n");
+		return;
+	}
+
 	if (dcam_port->data_cb_func)
 		dcam_port->data_cb_func(irq_proc->type, frame, dcam_port->data_cb_handle);
 }

@@ -110,6 +110,7 @@ struct dcam_online_port {
 	port_cfg_cb port_cfg_cb_func;
 	shutoff_cb shutoff_cb_func;
 	void *shutoff_cb_handle;
+	uint32_t flash_skip_fid;
 };
 
 int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct cam_frame *frame);

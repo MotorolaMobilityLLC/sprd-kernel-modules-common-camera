@@ -807,6 +807,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	case CAM_CB_DCAM_IRQ_EVENT:
+		channel = &module->channel[CAM_CH_PRE];
 		if (pframe->common.irq_property == IRQ_DCAM_SN_EOF) {
 			cam_queue_empty_frame_put(pframe);
 			break;
@@ -820,6 +821,9 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				if (module->flash_info.flash_last_status != module->flash_info.led0_status) {
 					module->flash_skip_fid = pframe->common.fid;
 					module->is_flash_status = module->flash_info.led0_status;
+					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(channel, PORT_BIN_OUT, CAM_PIPELINE_CFG_FLASH_SKIP_FID, &module->flash_skip_fid);
+					if (ret)
+						pr_err("fail to cfg flash skip fid\n");
 				} else
 					pr_info("do not need skip");
 				pr_info("skip_fram=%d\n", pframe->common.fid);
