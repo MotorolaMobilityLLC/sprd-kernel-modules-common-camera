@@ -40,9 +40,9 @@
 #define PERFORMANCE_DEBUG pr_debug
 #endif
 
-/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 128;
+/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 256;
  isp fetch burst_lens = 16, then MIN_PYR_WIDTH >= 256. */
-#define MIN_PYR_WIDTH                   128
+#define MIN_PYR_WIDTH                   256
 #define MIN_PYR_HEIGHT                  16
 #define ALIGN_UP(a, x)                  (((a) + (x) - 1) & (~((x) - 1)))
 
