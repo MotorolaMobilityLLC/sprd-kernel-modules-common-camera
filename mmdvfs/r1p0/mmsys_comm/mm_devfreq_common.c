@@ -123,6 +123,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL)
         err = sprintf(buf, "%d\n", module->module_dvfs_para.u_dvfs_en);
@@ -182,6 +183,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL)
         err = sprintf(buf, "%d\n", module->module_dvfs_para.u_auto_tune_en);
@@ -236,6 +238,10 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
     mutex_lock(&devfreq->lock);
 
     if (module != NULL)
@@ -261,6 +267,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     err = sscanf(buf, "%lu\n", &user_freq);
     if (err != 1) {
@@ -273,7 +280,6 @@
     err = update_devfreq(devfreq);
     if (err == 0)
         err = count;
-
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -290,6 +296,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL)
         err = sprintf(buf, "%d\n", module->module_dvfs_para.u_idle_freq);
@@ -313,6 +320,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     err = sscanf(buf, "%lu\n", &idle_freq);
     if (err == 0) {
@@ -336,7 +344,6 @@
 
     if (err == 0)
         err = count;
-
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -353,6 +360,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL)
         err = sprintf(buf, "%d\n", module->module_dvfs_para.u_work_index);
@@ -378,7 +386,6 @@
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, "%lu\n", &work_index);
 
     if (err != 1) {
@@ -414,6 +421,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL)
         err = sprintf(buf, "%d\n", module->module_dvfs_para.u_idle_index);
@@ -439,7 +447,6 @@
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, "%lu\n", &idle_index);
     if (err != 1) {
         mutex_unlock(&devfreq->lock);
@@ -468,6 +475,11 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL)
         err = sprintf(buf, "%d\n", module->module_dvfs_para.u_fix_volt);
@@ -493,7 +505,6 @@
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, "%lu\n", &fix_volt);
     if (err != 1) {
         mutex_unlock(&devfreq->lock);
@@ -521,8 +532,12 @@
     int len = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
-    mutex_lock(&devfreq->lock);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
 
+    mutex_lock(&devfreq->lock);
     len = sprintf(buf, "IP_dvfs_coffe_show\n");
 
     len += sprintf(buf + len, "%d\n", module->module_dvfs_para.ip_coffe.auto_tune);
@@ -541,7 +556,6 @@
     len +=
         sprintf(buf + len, "%d\n", module->module_dvfs_para.ip_coffe.work_index_def);
     len += sprintf(buf + len, "%d\n", module->module_dvfs_para.ip_coffe.sw_trig_en);
-
     mutex_unlock(&devfreq->lock);
 
     return len;
@@ -560,6 +574,7 @@
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
+
     mutex_lock(&devfreq->lock);
     err = sscanf(buf, "%d,%d,%d,%d,%d,%d,%d,%d\n", &dvfs_coffe.gfree_wait_delay,
                  &dvfs_coffe.freq_upd_hdsk_en, &dvfs_coffe.freq_upd_delay_en,
@@ -643,8 +658,12 @@
     int err = 0, i = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
-    mutex_lock(&devfreq->lock);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
 
+    mutex_lock(&devfreq->lock);
     if (module->dvfs_ops != NULL && module->dvfs_ops->get_ip_dvfs_table != NULL) {
 
         err = module->dvfs_ops->get_ip_dvfs_table(devfreq, dvfs_table);
@@ -676,6 +695,11 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     /* To do */
     err = sscanf(buf, " %d,%lu,%d,%d,%d,%d,%d,%d,\n", &dvfs_table.map_index,
@@ -711,6 +735,11 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL) {
         err =
@@ -733,11 +762,10 @@
     module = dev_get_drvdata(devfreq->dev.parent);
     if (!module->dvfs_enable) {
         pr_info("dvfs power off\n");
-	return -EINVAL;
+        return -EINVAL;
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, " %lu\n", &gfree_wait_delay);
     pr_info("%s:err=%d,gfree_wait_delay=%lu,count=%d", __func__, err,
             gfree_wait_delay, (int)count);
@@ -777,7 +805,6 @@
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, "%lu\n", &freq_upd_hdsk_en);
     if (err != 1) {
         mutex_unlock(&devfreq->lock);
@@ -807,6 +834,11 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL) {
         err =
@@ -833,7 +865,6 @@
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, " %lu\n", &freq_upd_delay_en);
     if (err != 1) {
         mutex_unlock(&devfreq->lock);
@@ -865,6 +896,11 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL) {
         err =
@@ -891,7 +927,6 @@
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, " %lu\n", &freq_upd_en_byp);
     if (err != 1) {
         mutex_unlock(&devfreq->lock);
@@ -921,6 +956,11 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL) {
         err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.freq_upd_en_byp);
@@ -946,7 +986,6 @@
     }
 
     mutex_lock(&devfreq->lock);
-
     err = sscanf(buf, "%lu\n", &sw_trig_en);
     if (err != 1) {
         mutex_unlock(&devfreq->lock);
@@ -972,6 +1011,11 @@
     int err = 0;
 
     module = dev_get_drvdata(devfreq->dev.parent);
+    if (!module->dvfs_enable) {
+        pr_info("dvfs power off\n");
+        return -EINVAL;
+    }
+
     mutex_lock(&devfreq->lock);
     if (module != NULL) {
         err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.sw_trig_en);
