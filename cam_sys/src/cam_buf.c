@@ -135,7 +135,7 @@ static void cambuf_adapt_buffer_free(struct dma_buf *dmabuf)
 #endif
 }
 
-static int cambuf_adapt_ion_get_buffer(int fd, enum en_status buf_sec, struct dma_buf *dmabuf,
+static int cambuf_adapt_ion_get_buffer(int fd, enum cam_en_status buf_sec, struct dma_buf *dmabuf,
 		void **buf, size_t *size)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))

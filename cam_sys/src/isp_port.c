@@ -311,7 +311,7 @@ static int ispport_port_postproc(struct isp_port *port, void *param)
 	return 0;
 }
 
-static enum en_status ispport_fid_check(struct cam_frame *frame, void *data)
+static enum cam_en_status ispport_fid_check(struct cam_frame *frame, void *data)
 {
 	uint32_t target_fid;
 
@@ -527,7 +527,9 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 		} else {
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
-			cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, out_frame, &buf_desc, port->buf_manager_handle);
+			ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, out_frame, &buf_desc, port->buf_manager_handle);
+			if (ret)
+				pr_err("fail to enqueue frame\n");
 		}
 		return -EINVAL;
 	}
@@ -1370,6 +1372,7 @@ static int ispport_blksize_get(struct isp_port *port, void *param)
 
 static int ispport_start_error(struct isp_port *port, void *param)
 {
+	int ret = 0;
 	struct cam_frame *pframe = NULL;
 	struct cam_frame *pframe_data = NULL;
 	struct isp_port_cfg *port_cfg = NULL;
@@ -1406,7 +1409,9 @@ static int ispport_start_error(struct isp_port *port, void *param)
 				port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
 			else {
 				buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
-				cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 			}
 		}
 	}
@@ -1526,7 +1531,9 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 			buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
-			cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
+			ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
+			if (ret)
+				pr_err("fail to enqueue frame\n");
 		}
 	}
 	return ret;
@@ -1579,7 +1586,7 @@ static int ispport_cfg_callback(void *param, uint32_t cmd, void *handle)
 
 uint32_t isp_port_id_switch(uint32_t port_id)
 {
-	int hw_path_id = -1;
+	enum isp_sub_path_id hw_path_id = ISP_SPATH_NUM;
 	switch (port_id) {
 	case PORT_PRE_OUT:
 		hw_path_id = ISP_SPATH_CP;

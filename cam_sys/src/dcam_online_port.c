@@ -394,7 +394,9 @@ static inline struct cam_frame *dcamonline_port_frame_cycle(struct dcam_online_p
 		if (frame->common.is_reserved)
 			dcam_online_port_reserved_buf_set(dcam_port, frame);
 		else
-			cam_buf_manager_buf_enqueue(&pool_id, frame, &buf_desc, dcam_port->buf_manager_handle);
+			ret = cam_buf_manager_buf_enqueue(&pool_id, frame, &buf_desc, dcam_port->buf_manager_handle);
+		if (ret)
+			pr_err("fail to enqueue frame\n");
 		return NULL;
 	}
 
@@ -432,7 +434,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		if (layer_num == 0)
 			break;
 	}
-	frame->common.pyr_status = (layer_num == 0) ? DISABLE : ENABLE;
+	frame->common.pyr_status = (layer_num == 0) ? CAM_DISABLE : CAM_ENABLE;
 
 	align_w = dcamonline_dec_align_width(dcam_port->out_size.w, layer_num);
 	align_h = dcamonline_dec_align_heigh(dcam_port->out_size.h, layer_num);
@@ -888,7 +890,7 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	atomic_inc(&dcam_port->set_frm_cnt);
 
 	out_frame->common.fid = hw_ctx->index_to_set + hw_ctx->slw_idx;
-	out_frame->common.pyr_status = DISABLE;
+	out_frame->common.pyr_status = CAM_DISABLE;
 
 	path_id = dcamonline_portid_convert_to_pathid(port_id);
 	if (out_frame->common.is_compressed) {
@@ -967,6 +969,7 @@ static inline int dcamonline_port_frm_set(struct dcam_online_port *dcam_port, st
 
 static int dcamonline_port_store_reconfig(struct dcam_online_port *dcam_port, void *param)
 {
+	int ret = 0;
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct cam_frame *frame = NULL;
 
@@ -976,9 +979,13 @@ static int dcamonline_port_store_reconfig(struct dcam_online_port *dcam_port, vo
 	if (IS_ERR_OR_NULL(frame))
 		return PTR_ERR(frame);
 
-	cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
+	ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
+	if (ret == 0)
+		ret = dcamonline_port_frm_set(dcam_port, frame, hw_ctx);
+	else
+		pr_err("fail to enqueue port %s result_pool\n", cam_port_name_get(dcam_port->port_id));
 
-	return dcamonline_port_frm_set(dcam_port, frame, hw_ctx);
+	return ret;
 }
 
 static int dcamonline_port_store_set(void *handle, void *param)
@@ -1124,7 +1131,9 @@ int dcam_online_port_buffer_cfg(void *handle, void *param)
 	if (ret) {
 		struct cam_buf_pool_id pool_id = {0};
 		pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
-		cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, dcam_online_port->buf_manager_handle);
+		ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, dcam_online_port->buf_manager_handle);
+		if (ret)
+			pr_err("fail to enqueue frame\n");
 		pr_err("fail to enqueue frame of online port %s\n", cam_port_name_get(dcam_online_port->port_id));
 		return ret;
 	}
@@ -1255,7 +1264,7 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		if ((ch_id != CAM_CH_CAP) || (param->is_static_map)) {
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-			pframe->common.buf.bypass_iova_ops = ENABLE;
+			pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 		}
 
 		if (param->share_buffer && (port->port_id == PORT_FULL_OUT)) {
@@ -1354,6 +1363,7 @@ exit:
 
 void dcam_online_port_put(struct dcam_online_port *port)
 {
+	int ret = 0;
 	uint32_t port_id = 0;
 
 	if (!port) {
@@ -1377,7 +1387,9 @@ void dcam_online_port_put(struct dcam_online_port *port)
 				if (!frame_unprocess)
 					break;
 				frame_unprocess->common.blkparam_info.param_block = NULL;
-				cam_buf_manager_buf_enqueue(&pool_id, frame_unprocess, &buf_desc, port->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, frame_unprocess, &buf_desc, port->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue port %s frame\n", cam_port_name_get(port_id));
 			} while(1);
 
 			do {
@@ -1388,7 +1400,9 @@ void dcam_online_port_put(struct dcam_online_port *port)
 				if (frame_result_pool->common.is_reserved)
 					dcam_online_port_reserved_buf_set(port, frame_result_pool);
 				else
-					cam_buf_manager_buf_enqueue(&pool_id, frame_result_pool, &buf_desc, port->buf_manager_handle);
+					ret = cam_buf_manager_buf_enqueue(&pool_id, frame_result_pool, &buf_desc, port->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue port %s frame\n", cam_port_name_get(port_id));
 			} while(1);
 		}
 

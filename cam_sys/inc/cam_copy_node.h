@@ -34,7 +34,7 @@ enum cam_copy_scene {
 
 struct cam_copy_node {
 	uint32_t node_id;
-	enum en_status copy_flag;
+	enum cam_en_status copy_flag;
 	enum cam_copy_scene scene_id;
 	enum pre_raw_status pre_raw_flag;
 	uint32_t opt_buffer_num;

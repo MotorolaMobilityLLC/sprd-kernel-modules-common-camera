@@ -206,14 +206,14 @@ struct cam_port_topology {
 	enum cam_port_transfer_type transfer_type;
 	enum cam_port_link_state link_state;
 	uint32_t id;
-	enum en_status dump_en;
+	enum cam_en_status dump_en;
 	uint32_t dump_node_id;
 	uint32_t replace_en;
 	uint32_t replace_node_id;
-	enum en_status copy_en;
+	enum cam_en_status copy_en;
 	uint32_t copy_node_id;
-	enum en_status dynamic_link_en;
-	enum en_status to_user_en;
+	enum cam_en_status dynamic_link_en;
+	enum cam_en_status to_user_en;
 	enum export_type depend_type;
 	struct cam_port_linkage link;
 	struct cam_port_linkage switch_link;

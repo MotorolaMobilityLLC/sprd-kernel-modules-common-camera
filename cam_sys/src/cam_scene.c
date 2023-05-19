@@ -1696,7 +1696,7 @@ static int camscene_static_pipelinelist_get(struct cam_pipeline_topology *param,
 	return ret;
 }
 
-int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_id channel_id, enum en_status enable)
+int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_id channel_id, enum cam_en_status enable)
 {
 	struct cam_hw_info *hw = NULL;
 	struct camera_module *module = NULL;
@@ -1886,7 +1886,11 @@ int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void
 						newfrm->common.user_fid = pframe->common.user_fid;
 						memcpy(&newfrm->common.buf, &pframe->common.buf, sizeof(struct camera_buf));
 						newfrm->common.buf.type = CAM_BUF_NONE;
-						cam_buf_manager_buf_enqueue(&pool_id, newfrm, NULL, (void *)module->grp->global_buf_manager);
+						ret = cam_buf_manager_buf_enqueue(&pool_id, newfrm, NULL, (void *)module->grp->global_buf_manager);
+						if (ret) {
+							pr_err("fail to enqueue frame, reserved_pool_id %d\n", pool_id.reserved_pool_id);
+							cam_queue_empty_frame_put(newfrm);
+						}
 						j++;
 					}
 				}
@@ -1900,6 +1904,8 @@ int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void
 		if (pframe->common.is_reserved) {
 			pframe->common.priv_data = NULL;
 			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, (void *)module->grp->global_buf_manager);
+			if (ret)
+				pr_err("fail to enqueue reserved buf\n");
 			pr_debug("cam %d dcam %d set reserved_pool_id %d frame id %d\n", module->idx, pool_id.reserved_pool_id, pframe->common.fid);
 		}
 		break;
@@ -2021,9 +2027,9 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 	dcam_online_desc->endian = ENDIAN_LITTLE;
 	dcam_online_desc->pattern = module->cam_uinfo.sensor_if.img_ptn;
 	if ((module->grp->hw_info->prj_id == SHARKL3) && module->cam_uinfo.virtualsensor)
-		dcam_online_desc->dcam_idx = 0;
+		dcam_online_desc->csi_controller_idx = CSI_ID_0;
 	else
-		dcam_online_desc->dcam_idx = module->dcam_idx;
+		dcam_online_desc->csi_controller_idx = module->csi_controller_idx;
 	dcam_online_desc->alg_type = module->cam_uinfo.alg_type;
 	dcam_online_desc->param_frame_sync = module->cam_uinfo.param_frame_sync;
 
@@ -2037,11 +2043,11 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 		if (channel->dcam_port_id == PORT_VCH2_OUT) {
 			outport_graph = &module->static_topology->pipeline_list[pipeline_type].nodes[CAM_NODE_TYPE_DCAM_ONLINE].outport[rawport_id];
 			outport_graph->link_state = PORT_LINK_IDLE;
-			dcam_online_desc->port_desc[rawport_id].update_state = ENABLE;
+			dcam_online_desc->port_desc[rawport_id].update_state = CAM_ENABLE;
 		} else {
 			outport_graph = &module->static_topology->pipeline_list[pipeline_type].nodes[CAM_NODE_TYPE_DCAM_ONLINE].outport[PORT_VCH2_OUT];
 			outport_graph->link_state = PORT_LINK_IDLE;
-			dcam_online_desc->port_desc[PORT_VCH2_OUT].update_state = ENABLE;
+			dcam_online_desc->port_desc[PORT_VCH2_OUT].update_state = CAM_ENABLE;
 		}
 	}
 	for (i = 0; i < PORT_DCAM_OUT_MAX; i++) {
@@ -2101,7 +2107,7 @@ int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr,
 	uint32_t pipeline_type, struct dcam_offline_node_desc *dcam_offline_desc)
 {
 	int ret = 0;
-	uint32_t dcam_idx = 0, rawpath_id = 0;
+	uint32_t csi_controller_idx = 0, rawpath_id = 0;
 	struct cam_hw_info *hw = NULL;
 	struct camera_module *module = NULL;
 	struct channel_context *channel = NULL;
@@ -2111,9 +2117,9 @@ int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr,
 	hw = module->grp->hw_info;
 	rawpath_id = camcore_dcampath_id_convert(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 
-	for (dcam_idx = 0; dcam_idx < DCAM_HW_CONTEXT_MAX; dcam_idx++) {
-		if (dcam_idx != module->dcam_idx) {
-			dcam_offline_desc->dcam_idx = dcam_idx;
+	for (csi_controller_idx = 0; csi_controller_idx < CSI_ID_MAX; csi_controller_idx++) {
+		if (csi_controller_idx != module->csi_controller_idx) {
+			dcam_offline_desc->csi_controller_idx = csi_controller_idx;
 			break;
 		}
 	}
@@ -2188,7 +2194,7 @@ int cam_scene_dcamoffline_bpcraw_desc_get(void *module_ptr,
 
 	dcam_offline_desc->dev = module->dcam_dev_handle;
 	dcam_offline_desc->buf_manager_handle = module->grp->global_buf_manager;
-	dcam_offline_desc->dcam_idx = DCAM_HW_CONTEXT_1;
+	dcam_offline_desc->csi_controller_idx = CSI_ID_1;
 	dcam_offline_desc->pattern = module->cam_uinfo.sensor_if.img_ptn;
 	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_desc->endian = ENDIAN_LITTLE;

@@ -75,9 +75,9 @@ extern uint32_t g_dbg_recovery;
 	__a = (type *)(from_param); \
 })
 
-enum en_status {
-	DISABLE,
-	ENABLE,
+enum cam_en_status {
+	CAM_DISABLE,
+	CAM_ENABLE,
 };
 
 /* for global camera control */
@@ -377,7 +377,7 @@ struct cam_buf_alloc_desc {
 	uint32_t height;
 	uint32_t width;
 	uint32_t ch_id;
-	enum en_status compress_en;
+	enum cam_en_status compress_en;
 	uint32_t compress_offline;
 	uint32_t is_pyr_rec;
 	uint32_t is_pyr_dec;

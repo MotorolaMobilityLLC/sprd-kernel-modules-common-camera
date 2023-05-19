@@ -162,13 +162,13 @@ static int dcamoffline_ctx_unbind(struct dcam_offline_node *node)
 
 	if (node->hw_ctx->dummy_slave) {
 		dummy_param.hw_ctx_id = node->hw_ctx->hw_ctx_id;
-		dummy_param.enable = DISABLE;
+		dummy_param.enable = CAM_DISABLE;
 		node->hw_ctx->dummy_slave->dummy_ops->dummy_enable(node->hw_ctx->dummy_slave, &dummy_param);
 	}
 	node->hw_ctx->dcam_slice_mode = CAM_SLICE_NONE;
 	node->hw_ctx->is_offline_proc = 0;
 	node->hw_ctx->err_count = 0;
-	node->hw_ctx->offline_pre_en = DISABLE;
+	node->hw_ctx->offline_pre_en = CAM_DISABLE;
 	node->hw_ctx->is_3dnr = 0;
 	node->hw_ctx->dcam_irq_cb_func = NULL;
 	node->hw_ctx->dcam_irq_cb_handle = NULL;
@@ -370,7 +370,7 @@ static int dcamoffline_ctx_bind(struct dcam_offline_node *node)
 
 	spin_lock_irqsave(&node->dev->ctx_lock, flag);
 	ret = node->dev->dcam_pipe_ops->bind(node->dev, node, node->node_id,
-			node->dcam_idx, slw_cnt, &node->hw_ctx_id, &slw_type);
+			node->csi_controller_idx, slw_cnt, &node->hw_ctx_id, &slw_type);
 	if (ret) {
 		pr_warn("warning: bind ctx %d fail\n", node->node_id);
 		goto exit;
@@ -731,7 +731,7 @@ static int dcamoffline_node_frame_start(void *param)
 	atomic_set(&node->status, STATE_RUNNING);
 
 	if (node->hw_ctx->dummy_slave) {
-		dummy_param.enable = ENABLE;
+		dummy_param.enable = CAM_ENABLE;
 		node->dev->dcam_pipe_ops->dummy_cfg(node->hw_ctx, &dummy_param);
 	}
 
@@ -772,7 +772,7 @@ static int dcamoffline_pmctx_init(struct dcam_offline_node *node)
 		goto alloc_fail;
 
 	ret = cam_buf_manager_buf_status_cfg(&blk_pm->lsc.buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
-	blk_pm->lsc.buf.bypass_iova_ops = ENABLE;
+	blk_pm->lsc.buf.bypass_iova_ops = CAM_ENABLE;
 	if (ret)
 		goto map_fail;
 
@@ -1008,6 +1008,8 @@ static int dcamoffline_recovery(void *handle)
 		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 		buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
 		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, &buf_desc, node->buf_manager_handle);
+		if (ret)
+			pr_err("fail to enqueue port %s unprocess pool\n", cam_port_dcam_offline_out_id_name_get(dcam_port->port_id));
 	}
 
 	frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL, node->buf_manager_handle);
@@ -1296,7 +1298,7 @@ void *dcam_offline_node_get(uint32_t node_id, struct dcam_offline_node_desc *par
 
 	node->dcam_slice_mode = param->dcam_slice_mode;
 	node->dev = param->dev;
-	node->dcam_idx = param->dcam_idx;
+	node->csi_controller_idx = param->csi_controller_idx;
 	node->fetch.fmt = param->fetch_fmt;
 	node->fetch.pattern = param->pattern;
 	node->fetch.endian = param->endian;

@@ -26,13 +26,13 @@ enum dcam_offline_node_id {
 
 struct dcam_offline_node_desc {
 	enum cam_node_type node_type;
-	uint32_t dcam_idx;
+	uint32_t csi_controller_idx;
 	uint32_t pattern;
 	enum cam_data_endian endian;
 	enum cam_format fetch_fmt;
-	enum en_status statis_en;
-	enum en_status offline_pre_en;
-	enum en_status enable_3dnr;
+	enum cam_en_status statis_en;
+	enum cam_en_status offline_pre_en;
+	enum cam_en_status enable_3dnr;
 	enum camera_slice_mode dcam_slice_mode;
 	struct img_size input_size;
 	struct img_trim input_trim;
@@ -60,9 +60,9 @@ struct dcam_offline_node {
 	atomic_t user_cnt;
 	atomic_t status;
 	atomic_t port_done[PORT_DCAM_OFFLINE_OUT_MAX];
-	enum en_status statis_en;
-	enum en_status offline_pre_en;
-	enum en_status is_3dnr;
+	enum cam_en_status statis_en;
+	enum cam_en_status offline_pre_en;
+	enum cam_en_status is_3dnr;
 	enum camera_slice_mode dcam_slice_mode;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
@@ -84,7 +84,7 @@ struct dcam_offline_node {
 	struct completion slice_done;
 	struct camera_buf statis_buf_array[STATIS_TYPE_MAX][STATIS_BUF_NUM_MAX];
 
-	uint32_t dcam_idx;
+	uint32_t csi_controller_idx;
 	uint32_t hw_ctx_id;
 	uint32_t in_irq_proc;
 	struct dcam_pipe_dev *dev;

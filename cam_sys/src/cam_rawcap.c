@@ -57,9 +57,9 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	dcam_offline_desc->dev = module->dcam_dev_handle;
 	dcam_offline_desc->buf_manager_handle = pipeline_desc->buf_manager_handle;
 	if (hw->prj_id == SHARKL3)
-		dcam_offline_desc->dcam_idx = 0;
+		dcam_offline_desc->csi_controller_idx = CSI_ID_0;
 	else
-		dcam_offline_desc->dcam_idx = module->dcam_idx;
+		dcam_offline_desc->csi_controller_idx = module->csi_controller_idx;
 	dcam_offline_desc->endian = proc_info->src_y_endian;
 	dcam_offline_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_desc->pattern = proc_info->src_pattern;
@@ -391,7 +391,7 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 
 	/* dcam offline raw2frgb desc */
 	dcam_offline_raw2frgb_desc->dev = module->dcam_dev_handle;
-	dcam_offline_raw2frgb_desc->dcam_idx = module->dcam_idx;
+	dcam_offline_raw2frgb_desc->csi_controller_idx = module->csi_controller_idx;
 	dcam_offline_raw2frgb_desc->endian = proc_info->src_y_endian;
 	dcam_offline_raw2frgb_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_raw2frgb_desc->pattern = proc_info->src_pattern;
@@ -401,7 +401,7 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 
 	/* dcam offline frgb2yuv desc */
 	dcam_offline_frgb2yuv_desc->dev = module->dcam_dev_handle;
-	dcam_offline_frgb2yuv_desc->dcam_idx = module->dcam_idx;
+	dcam_offline_frgb2yuv_desc->csi_controller_idx = module->csi_controller_idx;
 	dcam_offline_frgb2yuv_desc->endian = proc_info->src_y_endian;
 	dcam_offline_frgb2yuv_desc->port_desc.endian = ENDIAN_LITTLE;
 	dcam_offline_frgb2yuv_desc->pattern = proc_info->src_pattern;

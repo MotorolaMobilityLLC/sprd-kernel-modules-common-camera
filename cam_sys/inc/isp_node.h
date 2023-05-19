@@ -59,13 +59,13 @@ struct isp_node_slwm960fps_frame_num {
 };
 
 struct isp_node_uinfo {
-	enum en_status ltm_rgb;
+	enum cam_en_status ltm_rgb;
 	enum isp_ltm_mode mode_ltm;
-	enum en_status gtm_rgb;
+	enum cam_en_status gtm_rgb;
 	enum isp_gtm_mode mode_gtm;
 	enum isp_3dnr_mode mode_3dnr;
 	enum cam_slw_state slw_state;
-	enum en_status enable_slowmotion;
+	enum cam_en_status enable_slowmotion;
 	uint32_t slowmotion_240fp_count;
 	uint32_t slowmotion_count;
 	struct slowmotion_960fps_info slw_960desc;
@@ -74,32 +74,32 @@ struct isp_node_uinfo {
 	uint32_t uframe_sync;
 	uint32_t scaler_coeff_ex;
 	uint32_t pyr_layer_num;
-	enum en_status nr3_fbc_fbd;
+	enum cam_en_status nr3_fbc_fbd;
 	enum isp_fetch_path_select fetch_path_sel;
 };
 
 struct isp_node_desc {
-	enum en_status is_dual;
+	enum cam_en_status is_dual;
 	enum cam_node_type node_type;
 	enum isp_3dnr_mode mode_3dnr;
 	enum isp_ltm_mode mode_ltm;
-	enum en_status ltm_rgb;
+	enum cam_en_status ltm_rgb;
 	enum isp_gtm_mode mode_gtm;
-	enum en_status gtm_rgb;
+	enum cam_en_status gtm_rgb;
 	enum cam_format in_fmt;
 	uint32_t bayer_pattern;
-	enum en_status enable_slowmotion;
+	enum cam_en_status enable_slowmotion;
 	enum cam_slw_state slw_state;
 	uint32_t slowmotion_count;
 	enum cam_format pyr_out_fmt;
 	enum cam_format store_3dnr_fmt;
-	enum en_status nr3_fbc_fbd;
+	enum cam_en_status nr3_fbc_fbd;
 	uint32_t share_buffer;
 	uint32_t pyr_layer_num;
 	enum isp_fetch_path_select fetch_path_sel;
 	enum cam_ch_id ch_id;
 	struct img_size sn_size;
-	enum en_status is_high_fps;
+	enum cam_en_status is_high_fps;
 	uint32_t cam_id;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
@@ -120,8 +120,8 @@ struct isp_node {
 	enum cam_node_type node_type;
 	uint32_t node_id;
 	atomic_t user_cnt;
-	enum en_status is_bind;
-	enum en_status is_dual;
+	enum cam_en_status is_bind;
+	enum cam_en_status is_dual;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;

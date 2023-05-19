@@ -104,7 +104,7 @@ static int dcamonline_gtm_ltm_bypass_cfg(struct dcam_online_node *node, struct i
 	else
 		ret = copy_from_user((void *)(&gtm_bypass_info), io_param->property_param, sizeof(struct dcam_dev_raw_gtm_bypass));
 	if (ret) {
-		pr_err("fail to copy, ret=0x%x\n", (unsigned int)ret);
+		pr_err("fail to copy, ret= %d\n", ret);
 		return -EPERM;
 	}
 
@@ -116,7 +116,7 @@ static int dcamonline_gtm_ltm_bypass_cfg(struct dcam_online_node *node, struct i
 	if (port)
 		port->port_cfg_cb_func((void *)&frame, DCAM_PORT_NEXT_FRM_BUF_GET, port);
 	else
-		pr_warn("warning: %s is null.\n", cam_port_name_get(port->port_id));
+		pr_warn("warning: gtm or ltm port is null.\n");
 
 	if (frame) {
 		if (io_param->sub_block == ISP_BLOCK_RGB_LTM) {
@@ -132,7 +132,7 @@ static int dcamonline_gtm_ltm_bypass_cfg(struct dcam_online_node *node, struct i
 				cam_port_name_get(port->port_id), frame->common.fid, gtm_bypass_info.gtm_mod_en, gtm_bypass_info.gtm_hist_stat_bypass, gtm_bypass_info.gtm_map_bypass);
 		}
 	} else
-		pr_warn("warning: %s dont have buffer\n", cam_port_name_get(port->port_id));
+		pr_warn("warning: gtm or ltm port dont have buffer\n");
 
 	return ret;
 }
@@ -274,7 +274,9 @@ static void dcamonline_frame_dispatch(void *param, void *handle)
 			if (ret) {
 				struct cam_buf_pool_id pool_id = {0};
 				pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
-				cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 				pr_err("fail to enqueue %s frame, q_cnt:%d.\n", cam_port_name_get(irq_proc->dcam_port_id),
 					cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle));
 			}
@@ -426,7 +428,9 @@ static int dcamonline_index(struct dcam_online_node *node,
 				frame->common.fid += 1;
 			}
 			hw_ctx->fid = frame->common.fid;
-			cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
+			ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
+			if (ret)
+				pr_err("fail to enqueue result_pool, frame id %d\n", frame->common.fid);
 		}
 	}
 
@@ -462,7 +466,7 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 		if (node->slowmotion_count && !node->need_fix) {
 			hw_ctx->handled_bits = 0xFFFFFFFF;
 			hw_ctx->handled_bits_on_int1 = 0xFFFFFFFF;
-			node->need_fix = ENABLE;
+			node->need_fix = CAM_ENABLE;
 			return DEFER_TO_NEXT;
 		}
 
@@ -489,7 +493,7 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 
 	if (!node->slowmotion_count) {
 		struct cam_frame *frame = NULL;
-		int vote = 0;
+		int ret = 0, vote = 0;
 		uint32_t reg_value = 0;
 
 		/* fix index for last 1 frame */
@@ -515,8 +519,11 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 			frame->common.fid = hw_ctx->fid;
 			if (frame->common.is_reserved)
 				dcam_port->port_cfg_cb_func((void *)frame, DCAM_PORT_RES_BUF_CFG_SET, dcam_port);
-			else
-				cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, node->buf_manager_handle);
+			else {
+				ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue port %s result_pool\n", cam_port_name_get(dcam_port->port_id));
+			}
 		}
 
 		if (vote) {
@@ -528,7 +535,7 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 		return INDEX_FIXED;
 	}
 
-	node->need_fix = DISABLE;
+	node->need_fix = CAM_DISABLE;
 
 	end = hw_ctx->fid;
 	begin = max(rounddown(end, node->slowmotion_count), old_index + 1);
@@ -1122,7 +1129,9 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			h = hw_ctx->cap_info.cap_size.size_y;
 			if (sum != (w * h)) {
 				pr_debug("pixel num check wrong, fid %d, sum %d, should be %d\n", frame->common.fid, sum, (w * h));
-				cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, NULL, node->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue unprocess_pool\n");
 				break;
 			}
 			buf[GTM_HIST_ITEM_NUM + 1] = frame->common.fid;
@@ -1155,7 +1164,7 @@ static int dcamonline_ctx_bind(struct dcam_online_node *node)
 	pr_debug("online ctx_bind enter\n");
 	spin_lock_irqsave(&node->dev->ctx_lock, flag);
 	slw_cnt = node->slowmotion_count;
-	ret = node->dev->dcam_pipe_ops->bind(node->dev, node, node->node_id, node->dcam_idx,
+	ret = node->dev->dcam_pipe_ops->bind(node->dev, node, node->node_id, node->csi_controller_idx,
 			slw_cnt, &node->hw_ctx_id, &node->slw_type);
 	if (ret) {
 		pr_warn("warning: bind ctx %d fail\n", node->node_id);
@@ -1176,7 +1185,7 @@ static int dcamonline_ctx_bind(struct dcam_online_node *node)
 
 exit:
 	spin_unlock_irqrestore(&node->dev->ctx_lock, flag);
-	pr_info("csi%d, hw_ctx_id %d, node_id %d online ctx_bind done\n", node->dcam_idx,
+	pr_info("csi control idx%d, hw_ctx_id %d, node_id %d online ctx_bind done\n", node->csi_controller_idx,
 		node->hw_ctx_id, node->node_id);
 	return ret;
 }
@@ -1326,7 +1335,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	}
 
 	if (hw->csi_connect_type == DCAM_BIND_DYNAMIC && node->csi_connect_stat != DCAM_CSI_RESUME) {
-		csi_switch.csi_id = node->dcam_idx;
+		csi_switch.csi_id = node->csi_controller_idx;
 		csi_switch.dcam_id= node->hw_ctx_id;
 		pr_info("csi_switch.csi_id = %d, csi_switch.dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
 		/* switch connect */
@@ -1480,7 +1489,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (node->hw_ctx->dummy_slave) {
 		dummy_param.resbuf_get_cb = node->resbuf_get_cb;
 		dummy_param.resbuf_cb_data = node->resbuf_cb_data;
-		dummy_param.enable = ENABLE;
+		dummy_param.enable = CAM_ENABLE;
 		node->dev->dcam_pipe_ops->dummy_cfg(hw_ctx, &dummy_param);
 	}
 
@@ -1516,7 +1525,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 
 	if (is_csi_connect && node->csi_connect_stat == DCAM_CSI_RESUME) {
 		/* switch connect */
-		csi_switch.csi_id = node->dcam_idx;
+		csi_switch.csi_id = node->csi_controller_idx;
 		csi_switch.dcam_id= node->hw_ctx_id;
 		hw->dcam_ioctl(hw, DCAM_HW_CFG_CONECT_CSI, &csi_switch);
 		pr_info("Connect csi_id = %d, dcam_id = %d\n", csi_switch.csi_id, csi_switch.dcam_id);
@@ -1552,7 +1561,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 	hw = node->dev->hw;
 	hw_ctx = node->hw_ctx;
 	state = atomic_read(&node->state);
-	csi_switch.csi_id = node->dcam_idx;
+	csi_switch.csi_id = node->csi_controller_idx;
 	csi_switch.dcam_id = node->hw_ctx_id;
 
 	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
@@ -1825,7 +1834,7 @@ int dcam_online_node_pmctx_init(struct dcam_online_node *node)
 	ret = cam_buf_manager_buf_status_cfg(&blk_pm_ctx->lsc.buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_DCAM);
 	if (ret)
 		goto map_fail;
-	blk_pm_ctx->lsc.buf.bypass_iova_ops = ENABLE;
+	blk_pm_ctx->lsc.buf.bypass_iova_ops = CAM_ENABLE;
 	blk_pm_ctx->offline = 0;
 	blk_pm_ctx->idx = node->hw_ctx_id;
 	blk_pm_ctx->dev = (void *)node->dev;
@@ -2117,7 +2126,9 @@ int dcam_online_node_share_buf(void *handle, void *param)
 					port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
 					if (frame == NULL)
 						break;
-					cam_buf_manager_buf_enqueue(&share_pool, frame, &buf_desc, node->buf_manager_handle);
+					ret = cam_buf_manager_buf_enqueue(&share_pool, frame, &buf_desc, node->buf_manager_handle);
+					if (ret)
+						pr_err("fail to enqueue share_pool\n");
 				}
 
 			} while (1);
@@ -2148,7 +2159,7 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 	csi_p = (struct dcam_csi_reset_param *)param;
 	mode = csi_p->mode;
 	node->csi_connect_stat = csi_p->csi_connect_stat;
-	csi_switch.csi_id = node->dcam_idx;
+	csi_switch.csi_id = node->csi_controller_idx;
 	csi_switch.dcam_id = node->hw_ctx_id;
 
 	if (mode == CAM_CSI_RECOVERY_SWITCH)
@@ -2294,7 +2305,7 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 	node->nr3_frm = NULL;
 	node->cap_info = param->cap_info;
 	node->is_pyr_rec = param->is_pyr_rec;
-	node->dcam_idx = param->dcam_idx;
+	node->csi_controller_idx = param->csi_controller_idx;
 	node->dev = param->dev;
 	node->hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	node->alg_type = param->alg_type;

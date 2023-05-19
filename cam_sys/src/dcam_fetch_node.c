@@ -132,7 +132,9 @@ static void dcamfetch_frame_dispatch(void *param, void *handle)
 			if (ret) {
 				struct cam_buf_pool_id pool_id = {0};
 				pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
-				cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, frame, NULL, node->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 				pr_err("fail to enqueue %s frame, q_cnt:%d.\n", cam_port_name_get(irq_proc->dcam_port_id), cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle));
 			}
 			return;
@@ -736,7 +738,7 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 	node->online_node.nr3_frm = NULL;
 	node->online_node.cap_info = param->online_node_desc->cap_info;
 	node->online_node.is_pyr_rec = param->online_node_desc->is_pyr_rec;
-	node->online_node.dcam_idx = param->online_node_desc->dcam_idx;
+	node->online_node.csi_controller_idx = param->online_node_desc->csi_controller_idx;
 	node->online_node.dev = param->online_node_desc->dev;
 	node->online_node.hw_ctx_id = DCAM_HW_CONTEXT_MAX;
 	node->online_node.alg_type = param->online_node_desc->alg_type;

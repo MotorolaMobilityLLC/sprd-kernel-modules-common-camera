@@ -63,7 +63,7 @@ struct isp_port_cfg {
 	uint32_t cfg_id;
 	uint32_t in_fmt;
 	uint32_t vid_valid;
-	enum en_status out_buf_clear;
+	enum cam_en_status out_buf_clear;
 	int valid_out_frame;
 	int hw_ctx_id;
 	uint32_t target_fid;
@@ -101,7 +101,7 @@ struct isp_port_desc {
 	enum cam_format store_3dnr_fmt;
 	uint32_t bayer_pattern;
 	struct img_size sn_size;
-	enum en_status is_high_fps;
+	enum cam_en_status is_high_fps;
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
 	struct cam_hw_info *hw;

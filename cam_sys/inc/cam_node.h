@@ -128,7 +128,7 @@ struct cam_node_shutoff_ctrl {
 struct cam_node_topology {
 	enum cam_node_type type;
 	enum cam_node_state state;
-	enum en_status dump_en;
+	enum cam_en_status dump_en;
 	uint32_t dump_node_id;
 	uint32_t id;
 	enum cam_node_buf_type buf_type;
@@ -183,7 +183,7 @@ struct cam_node {
 	struct cam_capture_param cap_param;
 	struct cam_node_shutoff_ctrl node_shutoff;
 
-	enum en_status need_fetch;
+	enum cam_en_status need_fetch;
 };
 
 /* the global all main node/port index for different

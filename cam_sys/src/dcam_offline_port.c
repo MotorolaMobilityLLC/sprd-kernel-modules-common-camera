@@ -131,7 +131,7 @@ static int dcamoffline_port_pyr_dec_addr_set(struct dcam_offline_port *dcam_port
 			break;
 	}
 
-	hw_ctx->is_pyr_rec = frame->common.pyr_status = (layer_num > 0) ? ENABLE : DISABLE;
+	hw_ctx->is_pyr_rec = frame->common.pyr_status = (layer_num > 0) ? CAM_ENABLE : CAM_DISABLE;
 	align_w = dcamonline_dec_align_width(dcam_port->out_size.w, layer_num);
 	align_h = dcamonline_dec_align_heigh(dcam_port->out_size.h, layer_num);
 	size = dcam_port->out_pitch * dcam_port->out_size.h;
@@ -538,9 +538,13 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			}
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-			pframe->common.buf.bypass_iova_ops = ENABLE;
+			pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 
 			ret = cam_buf_manager_buf_enqueue(&port->unprocess_pool, pframe, NULL, port->buf_manager_handle);
+			if (ret) {
+				pr_err("fail to enqueue unprocess_pool\n");
+				cam_queue_empty_frame_put(pframe);
+			}
 		} while (0);
 	}
 

@@ -228,7 +228,7 @@ static int camreplace_node_frame_start(void *param)
 			memset(file_name1, 0, sizeof(file_name1));
 		}
 	}
-	pframe->common.replace_en = DISABLE;
+	pframe->common.replace_en = CAM_DISABLE;
 	pr_debug("cam replace node %d frame start\n", node->node_id);
 	node->replace_cb_func(CAM_CB_REPLACE_DATA_DONE, pframe, node->replace_cb_handle);
 

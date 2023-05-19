@@ -535,7 +535,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 {
 	int ret = 0;
 	int sec_ret = 0;
-	enum en_status vaor_bp_en = DISABLE;
+	enum cam_en_status vaor_bp_en = CAM_DISABLE;
 	int ca_conn = 0;
 	struct sprd_cam_sec_cfg uparam = {0};
 
@@ -562,7 +562,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		uparam.camsec_mode, uparam.work_mode);
 
 	if (uparam.camsec_mode == SEC_UNABLE) {
-		vaor_bp_en = DISABLE;
+		vaor_bp_en = CAM_DISABLE;
 	}  else {
 		if (!module->grp->ca_conn) {
 			ca_conn = cam_trusty_connect();
@@ -584,7 +584,7 @@ static int camioctl_cam_security_set(struct camera_module *module,
 		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
 			ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
 
-		vaor_bp_en = ENABLE;
+		vaor_bp_en = CAM_ENABLE;
 	}
 
 	module->grp->camsec_cfg.work_mode = uparam.work_mode;
@@ -1530,7 +1530,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	atomic_set(&module->state, CAM_RUNNING);
 	atomic_inc(&module->grp->runner_nr);
 
-	pr_info("stream on done cam%d csi %d.\n", module->idx, module->dcam_idx);
+	pr_info("stream on done cam%d csi controller idx %d.\n", module->idx, module->csi_controller_idx);
 	cam_buf_mdbg_check();
 	return 0;
 
@@ -1547,7 +1547,7 @@ static int camioctl_cam_res_get(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	int dcam_idx = 1;
+	int csi_controller_idx = 1;
 	struct sprd_img_res res = {0};
 	struct camera_group *grp = module->grp;
 	void *dcam = NULL;
@@ -1580,14 +1580,14 @@ static int camioctl_cam_res_get(struct camera_module *module,
 
 	pr_info("cam%d get res sensor id %d\n", module->idx, res.sensor_id);
 
-	dcam_idx = -1;
+	csi_controller_idx = -1;
 	if (res.sensor_id < SPRD_SENSOR_ID_MAX) {
-		dcam_idx = sprd_sensor_find_dcam_id(res.sensor_id);
-		pr_debug("get csi id %d\n", dcam_idx);
+		csi_controller_idx = sprd_sensor_find_dcam_id(res.sensor_id);
+		pr_debug("get csi controller idx %d\n", csi_controller_idx);
 	}
 
 check:
-	if (!is_csi_id(dcam_idx) || (dcam_idx < 0)) {
+	if (!is_csi_id(csi_controller_idx) || (csi_controller_idx < 0)) {
 		pr_err("fail to get dcam id for sensor: %d\n", res.sensor_id);
 		ret = -EFAULT;
 		goto stop_thrd;
@@ -1597,11 +1597,11 @@ check:
 	if (dcam == NULL) {
 		dcam = dcam_core_pipe_dev_get(grp->hw_info, (void *)&grp->s_dcam_dev);
 		if (IS_ERR_OR_NULL(dcam)) {
-			dcam_idx++;
+			csi_controller_idx++;
 			goto check;
 		}
 		module->dcam_dev_handle = dcam;
-		module->dcam_idx = dcam_idx;
+		module->csi_controller_idx = csi_controller_idx;
 		module->attach_sensor_id = res.sensor_id;
 		res.flag = 1;
 	}
@@ -1631,8 +1631,8 @@ check:
 		goto isp_fail;
 	}
 
-	pr_info("sensor %d w %u h %u, cam %d, csi_idx %d, res.flag %x\n",
-		res.sensor_id, res.width, res.height, module->idx, module->dcam_idx, res.flag);
+	pr_info("sensor %d w %u h %u, cam %d, csi controller idx %d, res.flag %x\n",
+		res.sensor_id, res.width, res.height, module->idx, module->csi_controller_idx, res.flag);
 
 	ret = copy_to_user((void __user *)arg, &res, sizeof(struct sprd_img_res));
 	if (ret) {
@@ -2514,7 +2514,7 @@ static int camioctl_path_pause(struct camera_module *module,
 	struct channel_context *ch = NULL;
 	unsigned long flag = 0;
 
-	pr_debug("pause cam%d with csi_id %d\n", module->idx, module->dcam_idx);
+	pr_debug("pause cam%d with csi controller idx %d\n", module->idx, module->csi_controller_idx);
 	module->path_state = dcam_path_state;
 	ch = &module->channel[CAM_CH_CAP];
 	if (atomic_read(&module->state) == CAM_RUNNING) {
@@ -2547,7 +2547,7 @@ static int camioctl_path_resume(struct camera_module *module,
 	struct dcam_online_port *port = NULL;
 	unsigned long flag = 0;
 
-	pr_debug("resume cam%d with csi_id %d\n", module->idx, module->dcam_idx);
+	pr_debug("resume cam%d with csi controller idx %d\n", module->idx, module->csi_controller_idx);
 	module->path_state = dcam_path_state;
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		if (module->channel[CAM_CH_CAP].enable) {

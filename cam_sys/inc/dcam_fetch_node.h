@@ -26,8 +26,8 @@
 
 struct dcam_fetch_node_desc {
 	struct dcam_online_node_desc *online_node_desc;
-	enum en_status virtualsensor;
-	enum en_status virtualsensor_cap_en;
+	enum cam_en_status virtualsensor;
+	enum cam_en_status virtualsensor_cap_en;
 	void **node_dev;
 };
 
@@ -35,7 +35,7 @@ struct dcam_fetch_node {
 	atomic_t user_cnt;
 	struct dcam_online_node online_node;
 	struct dcam_hw_context *hw_ctx;
-	enum en_status virtualsensor_cap_en;
+	enum cam_en_status virtualsensor_cap_en;
 
 	struct dcam_fetch_info fetch_info;
 	struct camera_queue in_queue;

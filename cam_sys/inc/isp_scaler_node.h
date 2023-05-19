@@ -87,7 +87,7 @@ struct isp_yuv_scaler_node {
 	uint32_t cfg_id;//cfg_id mean p0 c0 p1 c1 buffer
 	enum cam_ch_id ch_id;
 	enum camera_id attach_cam_id;
-	enum en_status is_bind;
+	enum cam_en_status is_bind;
 	atomic_t user_cnt;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
@@ -95,7 +95,7 @@ struct isp_yuv_scaler_node {
 	reserved_buf_get_cb resbuf_get_cb;
 	void *resbuf_cb_data;
 	struct completion *fast_stop_done;
-	enum en_status is_fast_stop;
+	enum cam_en_status is_fast_stop;
 	struct isp_pipe_dev *dev;
 	struct isp_scaler_uinfo pipe_src;
 	struct isp_scaler_uinfo uinfo;
@@ -104,7 +104,7 @@ struct isp_yuv_scaler_node {
 	struct camera_queue in_queue;
 	struct camera_queue proc_queue;
 	struct camera_queue port_queue;
-	enum en_status started;
+	enum cam_en_status started;
 	struct mutex blkpm_lock;
 	struct img_size output_size;
 	void *slice_ctx;

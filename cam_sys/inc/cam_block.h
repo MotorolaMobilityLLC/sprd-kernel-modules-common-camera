@@ -44,9 +44,9 @@ struct dcam_isp_k_block {
 	uint32_t cfg_id;/*isp cfg idx*/
 	enum camera_slice_mode dcam_slice_mode;
 	uint32_t raw_fetch_count;
-	enum en_status offline;
+	enum cam_en_status offline;
 	uint32_t recovery_fid;
-	enum en_status is_high_fps;
+	enum cam_en_status is_high_fps;
 	uint32_t seed0_for_mode1;
 	uint32_t yrandom_mode;
 	uint32_t gtm_calc_mode;

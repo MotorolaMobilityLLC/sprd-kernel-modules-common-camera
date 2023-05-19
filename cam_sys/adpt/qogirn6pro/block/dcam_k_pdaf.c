@@ -94,10 +94,10 @@ static int isp_k_pdaf_type2_block(
 	if (idx == DCAM_HW_CONTEXT_MAX)
 		return 0;
 
-	DCAM_REG_WR(idx, DCAM_VCH3_CONTROL,
+	DCAM_REG_MWR(idx, DCAM_VCH3_CONTROL, 0x33f30,
 		(vch2_info->vch2_vc & 0x03) << 16
 		|(vch2_info->vch2_data_type & 0x3f) << 8
-		|(vch2_info->vch2_mode & 0x03));
+		|(vch2_info->vch2_mode & 0x03) << 4);
 
 	return ret;
 }

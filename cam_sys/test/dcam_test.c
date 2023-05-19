@@ -122,7 +122,7 @@ static int get_dcam_path_id(unsigned int camt_dcam_path_id)
 static int cfg_dcam_path_size(struct dcamt_context *cxt, struct camt_info *test_info, int i)
 {
 	int ret = 0;
-	enum en_status invalid = DISABLE;
+	enum cam_en_status invalid = CAM_DISABLE;
 	struct img_size crop_size, dst_size;
 	struct cam_hw_info *hw = NULL;
 	struct dcamt_context_comm *dcamt_comm_info = NULL;

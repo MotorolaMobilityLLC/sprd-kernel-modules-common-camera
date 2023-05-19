@@ -40,7 +40,7 @@ static uint32_t ispscaler_port_deci_factor_get(uint32_t src_size, uint32_t dst_s
 	return factor;
 }
 
-static enum en_status ispscaler_port_fid_check(struct cam_frame *frame, void *data)
+static enum cam_en_status ispscaler_port_fid_check(struct cam_frame *frame, void *data)
 {
 	uint32_t target_fid;
 
@@ -200,9 +200,14 @@ static struct cam_frame *ispscaler_port_out_frame_get(struct isp_scaler_port *po
 	struct isp_yuv_scaler_node *inode = NULL;
 	struct cam_frame *out_frame = NULL;
 
+	if (!port || !port_cfg) {
+		pr_err("fail to get valid input port %p, port_cfg %p\n", port, port_cfg);
+		return NULL;
+	}
+
 	inode = (struct isp_yuv_scaler_node *)port_cfg->node_handle;
-	if (!inode || !port || !port_cfg) {
-		pr_err("fail to get valid input pctx %p, path %p\n", inode, port);
+	if (!inode) {
+		pr_err("fail to get valid input\n");
 		return NULL;
 	}
 
@@ -360,11 +365,12 @@ static int ispscaler_port_store_frame_cycle(struct isp_scaler_port *port, void *
 	struct cam_frame *out_frame = NULL;
 
 	port_cfg = VOID_PTR_TO(param, struct isp_scaler_port_cfg);
+	if (!port || !port_cfg) {
+		pr_err("fail to get valid port %p, port_cfg %p\n", port, port_cfg);
+		return -EINVAL;
+	}
 	inode = (struct isp_yuv_scaler_node *)port_cfg->node_handle;
-
-	if (!port_cfg || !inode)
-
- {
+	if (!inode) {
 		pr_err("fail to get valid in_ptr\n");
 		return -EINVAL;
 	}

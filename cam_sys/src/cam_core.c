@@ -148,7 +148,7 @@ static int camcore_resframe_set(struct camera_module *module)
 		ret = -EFAULT;
 		return ret;
 	}
-	pframe->common.buf.bypass_iova_ops = ENABLE;
+	pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable || ch->ch_id == CAM_CH_VIRTUAL)
@@ -294,7 +294,7 @@ static int camcore_faceid_secbuf(uint32_t sec, struct camera_buf *buf, struct ca
 		return -EFAULT;
 
 	if (sec) {
-		buf->buf_sec = ENABLE;
+		buf->buf_sec = CAM_ENABLE;
 		ret = hw->isp_ioctl(hw, ISP_HW_CFG_MMU_FACEID_RECFG, NULL);
 		if (unlikely(ret)) {
 			pr_err("fail to enable vaor bypass mode, ret %d\n", ret);
@@ -360,7 +360,7 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
 	alloc_param.is_static_map = hw->ip_isp->isphw_abt->static_map_support;
 	if (module->cam_uinfo.dcam_slice_mode)
-		alloc_param.is_static_map = DISABLE;
+		alloc_param.is_static_map = CAM_DISABLE;
 	alloc_param.pyr_out_fmt = channel->ch_uinfo.pyr_out_fmt;
 	alloc_param.pyr_layer_num = channel->pipeline_handle->pipeline_graph->pyr_layer_num;
 	alloc_param.iommu_enable = module->iommu_enable;
@@ -752,11 +752,13 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 					pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 					buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 					buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-					cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
+					ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
 				} else
 					cam_queue_empty_frame_put(pframe);
 			} else
-				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			if (ret)
+				pr_err("fail to enqueue frame\n");
 			return ret;
 		}
 
@@ -773,7 +775,9 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 		if (ret) {
 			pr_err("fail to frm_queue overflow\n");
-			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			if (ret)
+				pr_err("fail to enqueue recycle_pool\n");
 		} else {
 			complete(&module->frm_com);
 		}
@@ -793,12 +797,14 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 			if (ret) {
 				pr_warn("warning: frm_queue overflow\n");
-				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 			} else {
 				complete(&module->frm_com);
 			}
 		} else
-			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	case CAM_CB_DCAM_IRQ_EVENT:
 		if (pframe->common.irq_property == IRQ_DCAM_SN_EOF) {
@@ -845,13 +851,17 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				pool_id.tag_id = CAM_BUF_POOL_SHARE_FULL_PATH;
 				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 				buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
-				cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, &buf_desc, (void *)module->grp->global_buf_manager);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 			} else
 				cam_queue_empty_frame_put(pframe);
 		} else {
 			if (pframe->common.buf.type == CAM_BUF_USER) {
 				pr_info("dcam src buf return mfd %d\n", pframe->common.buf.mfd);
-				cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+				if (ret)
+					pr_err("fail to enqueue recycle_pool\n");
 			} else
 				ret = camcore_dcam_online_buf_cfg(channel, pframe, module);
 		}
@@ -874,20 +884,26 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				}
 				ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
 				if (ret)
-					cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+					ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 				else
 					complete(&module->frm_com);
 			}
 		} else
-			cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	case CAM_CB_DCAM_RET_SRC_BUF:
 		pr_debug("user buf return type:%d mfd %d\n", type, pframe->common.buf.mfd);
-		cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	case CAM_CB_ISP_SCALE_RET_ISP_BUF:
 		pr_debug("user buf return type:%d mfd %d\n", type, pframe->common.buf.mfd);
-		cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
+		if (ret)
+			pr_err("fail to enqueue recycle_pool\n");
 		break;
 	default:
 		pr_err("fail to get cb cmd: %d\n", type);
@@ -956,7 +972,7 @@ static int camcore_link_change(struct camera_module *module, enum camera_raw_sce
 			node_graph = &pipeline_graph->nodes[i];
 			port_graph = &node_graph->inport[PORT_ISP_OFFLINE_IN];
 		}
-		port_graph->to_user_en = ENABLE;
+		port_graph->to_user_en = CAM_ENABLE;
 		break;
 	case CAM_SENSOR_RAW:
 		/* cam_copy_node */
@@ -966,7 +982,7 @@ static int camcore_link_change(struct camera_module *module, enum camera_raw_sce
 		}
 		node_graph = &pipeline_graph->nodes[i];
 		port_graph = &node_graph->inport[PORT_COPY_IN];
-		port_graph->to_user_en = ENABLE;
+		port_graph->to_user_en = CAM_ENABLE;
 		break;
 	default:
 		pr_err("fail to get type %d\n", type);
@@ -1183,7 +1199,7 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 	if (module->channel[CAM_CH_DCAM_VCH].enable && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0) {
 		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV;
 		*dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-		module->icap_scene = ENABLE;
+		module->icap_scene = CAM_ENABLE;
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 	}
 }
@@ -1302,7 +1318,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	}
 
 	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV) {
-		ret = cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, ENABLE);
+		ret = cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, CAM_ENABLE);
 		if (ret) {
 			pr_err("fail to config onlineraw_2_offlineyuv pipeline\n");
 			ret = -ENOMEM;
@@ -1378,7 +1394,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {
 		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
-		dcam_offline_desc->offline_pre_en = ENABLE;
+		dcam_offline_desc->offline_pre_en = CAM_ENABLE;
 		isp_node_description->ch_id = 1;
 		isp_node_description->port_desc.output_size.w = channel->ch_uinfo.dst_size.w / 4;
 		isp_node_description->port_desc.output_size.h = channel->ch_uinfo.dst_size.h / 4;
@@ -1393,7 +1409,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 			return -ENOMEM;
 		}
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
-		dcam_offline_desc->offline_pre_en = DISABLE;
+		dcam_offline_desc->offline_pre_en = CAM_DISABLE;
 		isp_node_description->ch_id = channel->ch_id;
 		isp_node_description->port_desc.output_size = channel->ch_uinfo.dst_size;
 	}
@@ -1432,7 +1448,7 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	if (channel->ch_id == CAM_CH_RAW || channel->ch_id == CAM_CH_DCAM_VCH)
 		cam_scene_onlineraw_ports_disable(module, channel->dcam_port_id);
 	if (channel->pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV && channel->ch_id != CAM_CH_PRE)
-		cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, DISABLE);
+		cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, CAM_DISABLE);
 	nodes_dev->dcam_online_node_dev = NULL;
 	nodes_dev->dcam_offline_node_dev = NULL;
 	nodes_dev->dcam_offline_node_bpcraw_dev = NULL;

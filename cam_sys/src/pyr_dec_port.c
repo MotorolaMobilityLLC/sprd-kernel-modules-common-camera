@@ -55,7 +55,9 @@ int pyr_dec_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param)
 			ret = cam_buf_manager_buf_enqueue(&port->result_pool, *frame, NULL, port->buf_manager_handle);
 			if (ret) {
 				pr_err("fail to enqueue store result pool\n");
-				cam_buf_manager_buf_enqueue(&pool_id, *frame, NULL, port->buf_manager_handle);
+				ret = cam_buf_manager_buf_enqueue(&pool_id, *frame, NULL, port->buf_manager_handle);
+				if (ret)
+					pr_err("fail to enqueue frame\n");
 			}
 		}
 		break;
@@ -185,6 +187,7 @@ void *pyr_dec_port_get(uint32_t port_id, struct pyr_dec_port_desc *param)
 	if (ret <= 0) {
 		pr_err("fail to reg result pool for dcam offline node\n");
 		cam_buf_kernel_sys_vfree(port);
+		port = NULL;
 		return NULL;
 	}
 	port->result_pool.private_pool_id = ret;
