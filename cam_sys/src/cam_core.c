@@ -1214,19 +1214,21 @@ static int camcore_pipeline_init(struct camera_module *module,
 	int dcam_port_id = 0, isp_port_id = 0;
 	uint32_t pipeline_type = 0, pyrdec_support = 0;
 	struct cam_hw_info *hw = NULL;
-	struct channel_context *channel_prev = NULL;
 	struct channel_context *channel_cap = NULL;
+	struct channel_context *channel_prev = NULL;
 	struct cam_pipeline_desc *pipeline_desc = NULL;
+	struct pyr_dec_node_desc *pyr_dec_desc = NULL;
+	struct cam_copy_node_desc *cam_copy_desc = NULL;
+	struct isp_node_desc *isp_node_description = NULL;
+	struct cam_buf_manager *buf_manager_handle = NULL;
+	struct dcam_fetch_node_desc *dcam_fetch_desc = NULL;
 	struct dcam_online_node_desc *dcam_online_desc = NULL;
 	struct dcam_offline_node_desc *dcam_offline_desc = NULL;
-	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc = NULL;
-	struct dcam_offline_node_desc *dcam_offline_lscraw_desc = NULL;
-	struct isp_node_desc *isp_node_description = NULL;
 	struct frame_cache_node_desc *frame_cache_desc = NULL;
-	struct pyr_dec_node_desc *pyr_dec_desc = NULL;
 	struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc = NULL;
-	struct dcam_fetch_node_desc *dcam_fetch_desc = NULL;
-	struct cam_buf_manager *buf_manager_handle = NULL;
+	struct dcam_offline_node_desc *dcam_offline_lscraw_desc = NULL;
+	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc = NULL;
+
 
 	if (!module || !channel) {
 		pr_err("fail to get valid inptr %p %p\n", module, channel);
@@ -1298,8 +1300,11 @@ static int camcore_pipeline_init(struct camera_module *module,
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
 		if (!channel_cap->enable)
 			pr_info("ITS Only open preview pipeline,shoud open raw channel\n");
-		else if (module->cam_uinfo.need_dcam_raw && hw->ip_isp->isphw_abt->fetch_raw_support)
-			goto fail;
+		else {
+			if (module->cam_uinfo.need_dcam_raw &&
+				(hw->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR)))
+				goto fail;
+		}
 		cam_scene_onlineraw_ports_enable(module, dcam_port_id);
 		break;
 	case CAM_CH_VIRTUAL:
@@ -1399,6 +1404,11 @@ static int camcore_pipeline_init(struct camera_module *module,
 		isp_yuv_scaler_desc = &pipeline_desc->isp_yuv_scaler_desc;
 		isp_yuv_scaler_desc->hw_path_id = isp_port_id_switch(isp_port_id);
 		cam_scene_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
+	}
+
+	if (pipeline_desc->pipeline_graph->need_copy_node) {
+		cam_copy_desc = &pipeline_desc->cam_copy_desc;
+		cam_scene_camcopy_desc_get(cam_copy_desc, pipeline_type);
 	}
 
 	channel->pipeline_type = pipeline_type;

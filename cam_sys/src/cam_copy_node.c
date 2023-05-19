@@ -214,12 +214,15 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 		}
 		out_frame = CAM_QUEUE_DEQUEUE(&node->out_queue, struct cam_frame, list);
 		if (out_frame == NULL) {
-			pr_debug("no get out frame\n");
+			pr_debug("no get out frame copy mode:%d\n", node->copy_mode);
 			in_frame->common.copy_en = 0;
 			switch (node->scene_id) {
 			case CAM_COPY_NORMAL_SCENE:
 			case CAM_COPY_OPT_SCENE:
-				node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
+				if (node->copy_mode == CAM_COPY_FRAME_IN_DSTBUF)
+					node->copy_cb_func(CAM_CB_COPY_DST_BUFFER, in_frame, node->copy_cb_handle);
+				else
+					node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
 				break;
 			case CAM_COPY_ICAP_SCENE:
 				node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
@@ -229,7 +232,7 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 				return -EFAULT;
 			}
 		} else {
-			pr_debug("start copy src frame data\n");
+			pr_debug("start copy src frame data in copy mode:%d\n", node->copy_mode);
 			switch (node->scene_id) {
 			case CAM_COPY_NORMAL_SCENE:
 			case CAM_COPY_OPT_SCENE:
@@ -258,7 +261,10 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 				cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
 				cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
 				in_frame->common.copy_en = 0;
-				node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
+				if (node->copy_mode == CAM_COPY_FRAME_IN_DSTBUF)
+					node->copy_cb_func(CAM_CB_COPY_DST_BUFFER, in_frame, node->copy_cb_handle);
+				else
+					node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
 				out_frame->common.evt = IMG_TX_DONE;
 				out_frame->common.irq_type = CAMERA_IRQ_IMG;
 				out_frame->common.priv_data = node;
@@ -430,20 +436,27 @@ int cam_copy_node_request_proc(struct cam_copy_node *node, void *param)
 			pr_err("fail to enqueue cam copy %d frame\n", node->node_id);
 	} else {
 		pframe->common.copy_en = 0;
-		node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+		if (node->copy_mode == CAM_COPY_FRAME_IN_SRCBUF) {
+			node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+		} else if (node->copy_mode == CAM_COPY_FRAME_IN_DSTBUF) {
+			node->copy_cb_func(CAM_CB_COPY_DST_BUFFER, pframe, node->copy_cb_handle);
+		} else {
+			ret = -EFAULT;
+			pr_err("fail to support copy mode:%d.\n", node->copy_mode);
+		}
 	}
 
 	return ret;
 }
 
-void *cam_copy_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
+void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param)
 {
 	int ret = 0;
 	struct cam_copy_node *node = NULL;
 	struct cam_thread_info *thrd = NULL;
 
-	if (!cb_func || !priv_data) {
-		pr_err("fail to get valid ptr %px %px\n", cb_func, priv_data);
+	if (!param) {
+		pr_err("fail to get valid ptr %px\n", param);
 		return NULL;
 	}
 
@@ -454,13 +467,14 @@ void *cam_copy_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data)
 	}
 
 	if (!node->copy_cb_func) {
-		node->copy_cb_func = cb_func;
-		node->copy_cb_handle = priv_data;
+		node->copy_cb_func = param->copy_cb_func;
+		node->copy_cb_handle = param->copy_cb_handle;
 	}
 
 	CAM_QUEUE_INIT(&node->in_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
 	CAM_QUEUE_INIT(&node->out_queue, COPY_NODE_Q_LEN, cam_queue_empty_frame_put);
 	node->node_id = node_id;
+	node->copy_mode = param->copy_mode;
 	node->copy_flag = CAM_DISABLE;
 	node->pre_raw_flag = PRE_RAW_CACHE;
 	node->opt_buffer_num = 0;

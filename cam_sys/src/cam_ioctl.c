@@ -1252,7 +1252,8 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			} else if (module->icap_scene) {
 				/* only for sharkl3 icap scene */
 				ret = camcore_icap_buffer_set(module, ch, pframe);
-			} else if (ch->ch_id == CAM_CH_RAW && module->cam_uinfo.need_dcam_raw && hw->ip_isp->isphw_abt->fetch_raw_support && ch_cap->enable){
+			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable  && module->cam_uinfo.need_dcam_raw &&
+				(module->grp->hw_info->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR))){
 				if (ch->ch_uinfo.dst_size.w == ch_cap->ch_uinfo.dst_size.w) {
 					pr_debug("cap path copy\n");
 					ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_BUF, pframe);

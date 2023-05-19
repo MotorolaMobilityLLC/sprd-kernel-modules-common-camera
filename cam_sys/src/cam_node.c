@@ -1236,6 +1236,10 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 				pframe->common.replace_en = CAM_ENABLE;
 				pframe->common.replace_node_id = node->node_graph->outport[cur_port_id].replace_node_id;
 			}
+			if (node->node_graph->outport[cur_port_id].copy_en) {
+				pframe->common.copy_en = CAM_ENABLE;
+				pframe->common.copy_node_id = node->node_graph->outport[cur_port_id].copy_node_id;
+			}
 		}
 		break;
 	case CAM_CB_DCAM_STATIS_DONE:
@@ -1606,7 +1610,9 @@ void *cam_node_creat(struct cam_node_desc *param)
 		node->handle = pyr_dec_node_get(node->node_graph->id, param->pyr_dec_desc);
 		break;
 	case CAM_NODE_TYPE_DATA_COPY:
-		node->handle = cam_copy_node_get(node->node_graph->id, camnode_data_callback, node);
+		param->cam_copy_desc->copy_cb_func = camnode_data_callback;
+		param->cam_copy_desc->copy_cb_handle = node;
+		node->handle = cam_copy_node_get(node->node_graph->id, param->cam_copy_desc);
 		break;
 	default:
 		pr_err("fail to support node type %s\n", cam_node_name_get(node->node_graph->type));

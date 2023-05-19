@@ -19,6 +19,18 @@
 
 #define COPY_NODE_Q_LEN                      50
 
+enum cam_copy_frame_mode {
+	CAM_COPY_FRAME_IN_SRCBUF,
+	CAM_COPY_FRAME_IN_DSTBUF,
+	CAM_COPY_FRAME_MAX,
+};
+
+struct cam_copy_node_desc {
+	enum cam_copy_frame_mode copy_mode;
+	void *copy_cb_handle;
+	cam_data_cb copy_cb_func;
+};
+
 enum cam_copy_node_id {
 	CAM_COPY_NODE_ID_0,
 	CAM_COPY_NODE_ID_1,
@@ -35,6 +47,7 @@ enum cam_copy_scene {
 struct cam_copy_node {
 	uint32_t node_id;
 	enum cam_en_status copy_flag;
+	enum cam_copy_frame_mode copy_mode;
 	enum cam_copy_scene scene_id;
 	enum pre_raw_status pre_raw_flag;
 	uint32_t opt_buffer_num;
@@ -50,7 +63,7 @@ struct cam_copy_node {
 };
 
 int cam_copy_node_request_proc(struct cam_copy_node *node, void *param);
-void *cam_copy_node_get(uint32_t node_id, cam_data_cb cb_func, void *priv_data);
+void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param);
 void cam_copy_node_put(struct cam_copy_node *node);
 int cam_copy_node_buffer_cfg(void *handle, void *param);
 int cam_copy_node_set_pre_raw_flag(void *handle, void *param);
