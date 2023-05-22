@@ -861,7 +861,13 @@ int cam_zoom_channel_size_config(
 
 	if (need_raw_port && (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id) || channel->dcam_port_id == PORT_VCH2_OUT)) {
 		node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-		if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
+		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR) {
+			zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
+			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
+			node_type = CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW;
+			zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
+			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
+		} else if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
 			zoom_info.dcam_crop[node_type][raw_port_id] = channel->trim_dcam;
 			zoom_info.dcam_dst[node_type][raw_port_id] = channel->dst_dcam;
 		} else {

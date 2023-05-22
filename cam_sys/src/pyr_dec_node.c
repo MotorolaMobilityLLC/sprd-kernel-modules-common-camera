@@ -451,13 +451,14 @@ struct dcam_isp_k_block *pyrdecnode_blk_param_get(struct pyr_dec_node *node, uin
 				break;
 			}
 			if (decblk_frame->dec_blk.fid > target_fid) {
-				pr_warn("dont have old param, use latest param, frame %d\n", target_fid);
+				pr_warn("warning:no blk param in param buf q, use latest param, frame %d\n", target_fid);
 				out = &node->decblk_param;
 				break;
 			}
 		} else {
 			mutex_unlock(&node->blkpm_q_lock);
-			pr_warn("dont have old param %d\n", target_fid);
+			pr_warn("warning:no %d fid blk param in param buf q: state:%d, cnt:%d.\n", target_fid,
+				node->param_buf_queue.state, node->param_buf_queue.cnt);
 			out = &node->decblk_param;
 		}
 	} while (loop++ < node->param_buf_queue.max);

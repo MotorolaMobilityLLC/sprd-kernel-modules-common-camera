@@ -1224,8 +1224,11 @@ capture_param:
 				}
 				break;
 			}
-		} else
+		} else {
+			pr_warn("warning:no capture param in param q:state:%d, cnt:%d.\n", inode->param_buf_queue.state,
+				inode->param_buf_queue.cnt);
 			mutex_unlock(&inode->blkpm_q_lock);
+		}
 	} while (loop++ < inode->param_buf_queue.max);
 
 	if (last_param) {

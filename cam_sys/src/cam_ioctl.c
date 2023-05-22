@@ -2809,7 +2809,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 			}
 		}
 		if (module->isp_dev_handle->pyr_dec_handle) {
-			if (param.scene_id == PM_SCENE_CAP) {
+			if (param.scene_id == PM_SCENE_CAP || param.scene_id == PM_SCENE_OFFLINE_CAP) {
 				channel = &module->channel[CAM_CH_CAP];
 				if (channel->enable == 0)
 					return 0;
