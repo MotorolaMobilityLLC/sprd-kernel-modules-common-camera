@@ -378,9 +378,6 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.compress_3dnr = channel->compress_3dnr;
 	alloc_param.dcam_out_fmt = channel->dcam_out_fmt;
 	alloc_param.ltm_mode = channel->mode_ltm;
-	/*slice mode not support ltm*/
-	if (channel->dst_dcam.w > ISP_MAX_LINE_WIDTH && channel->ch_id == CAM_CH_PRE)
-		alloc_param.ltm_mode = MODE_LTM_OFF;
 	alloc_param.ltm_rgb_enable = channel->ltm_rgb;
 	/*non-zsl capture, or video path while preview path enable, need not use buffer*/
 	if (channel->ch_id == CAM_CH_VID && channel_pre->enable)
@@ -1438,22 +1435,15 @@ static int camcore_pipeline_init(struct camera_module *module,
 		cam_scene_camcopy_desc_get(cam_copy_desc, pipeline_type);
 	}
 
-	channel->pipeline_type = pipeline_type;
-	channel->pipeline_handle = cam_pipeline_creat(pipeline_desc);
-	if (!channel->pipeline_handle) {
-		pr_err("fail to get cam pipeline\n");
-		ret = -ENOMEM;
-		goto fail;
-	}
-
 	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {
 		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
 		dcam_offline_desc->offline_pre_en = CAM_ENABLE;
 		isp_node_description->ch_id = CAM_CH_PRE;
-		isp_node_description->mode_ltm = MODE_LTM_PRE;
+		if (module->cam_uinfo.is_rgb_ltm)
+			isp_node_description->mode_ltm = MODE_LTM_PRE;
 		isp_node_description->port_desc.output_size.w = channel->ch_uinfo.dst_size.w / 4;
 		isp_node_description->port_desc.output_size.h = channel->ch_uinfo.dst_size.h / 4;
-		if ((channel->ch_uinfo.src_size.h / 2) > g_camctrl.isp_linebuf_len)
+		if ((channel->ch_uinfo.src_size.w / 2) > g_camctrl.isp_linebuf_len)
 			channel->ch_uinfo.nonzsl_pre_ratio = 4;
 		else
 			channel->ch_uinfo.nonzsl_pre_ratio = 2;
@@ -1464,6 +1454,19 @@ static int camcore_pipeline_init(struct camera_module *module,
 			return -ENOMEM;
 		}
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
+		dcam_offline_desc->offline_pre_en = CAM_DISABLE;
+		isp_node_description->ch_id = channel->ch_id;
+		if (module->cam_uinfo.is_rgb_ltm)
+			isp_node_description->mode_ltm = MODE_LTM_CAP;
+		isp_node_description->port_desc.output_size = channel->ch_uinfo.dst_size;
+	}
+
+	channel->pipeline_type = pipeline_type;
+	channel->pipeline_handle = cam_pipeline_creat(pipeline_desc);
+	if (!channel->pipeline_handle) {
+		pr_err("fail to get cam pipeline\n");
+		ret = -ENOMEM;
+		goto fail;
 	}
 
 	/*TEMP: config ispctxid to pyrdec node*/

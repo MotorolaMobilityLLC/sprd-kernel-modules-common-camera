@@ -377,8 +377,7 @@ int dcam_offline_port_size_cfg(void *handle, void *param)
 					port->scaler_sel = DCAM_SCALER_BYPASS;
 					break;
 				}
-				if (dst_size.w > DCAM_SCALER_MAX_WIDTH ||
-					port->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
+				if (port->in_trim.size_x > (dst_size.w * DCAM_SCALE_DOWN_MAX)) {
 					pr_err("fail to support scaler, in width %d, out width %d\n",
 							port->in_trim.size_x, dst_size.w);
 					ret = -1;

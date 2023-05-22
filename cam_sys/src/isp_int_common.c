@@ -289,8 +289,13 @@ void isp_int_common_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_
 	dev = (struct isp_pipe_dev *)isp_handle;
 
 	pctx_hw = &dev->hw_ctx[hw_idx];
-	if (pctx_hw->postproc_func)
+	pctx_hw->ltm_procslice_cnt++;
+	if (pctx_hw->postproc_func) {
+		if (pctx_hw->valid_slc_num && pctx_hw->ltm_procslice_cnt != pctx_hw->valid_slc_num)
+			return;
+		pctx_hw->ltm_procslice_cnt = 0;
 		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_RGB_LTM_HISTS_DONE);
+	}
 }
 
 int isp_int_common_irq_hw_cnt_reset(int ctx_id)

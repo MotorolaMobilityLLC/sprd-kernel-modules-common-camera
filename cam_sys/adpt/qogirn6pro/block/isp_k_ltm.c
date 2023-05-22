@@ -176,6 +176,7 @@ int isp_k_cfg_rgb_ltm(struct isp_io_param *param, struct dcam_isp_k_block *isp_k
 
 	switch (param->property) {
 	case ISP_PRO_RGB_LTM_BLOCK:
+	case ISP_PRO_RGB_LTM_CAP_PARAM:
 		ret = isp_k_ltm_rgb_block(param, isp_k_param, idx);
 		break;
 	default:

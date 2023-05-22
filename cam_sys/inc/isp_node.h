@@ -157,6 +157,7 @@ struct isp_node {
 
 	struct cam_thread_info thread;
 	struct completion frm_done;
+	struct completion ultra_cap_com;
 	struct completion *fast_stop_done;
 	/* lock block param to avoid acrossing frame */
 	struct mutex blkpm_lock;

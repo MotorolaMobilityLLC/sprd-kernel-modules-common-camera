@@ -1026,6 +1026,7 @@ static int pyrdec_node_irq_proc(void *handle)
 			pframe->common.pyr_status = CAM_DISABLE;
 			out_frame->common.cam_fmt = pframe->common.cam_fmt;
 			out_frame->common.zoom_data = pframe->common.zoom_data;
+			out_frame->common.xtm_conflict = pframe->common.xtm_conflict;
 			if (node->hw->ip_isp->isphw_abt->pyr_rec_lay0_support)
 				out_frame->common.pframe_data = pframe;
 			else

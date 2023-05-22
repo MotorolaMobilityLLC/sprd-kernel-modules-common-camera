@@ -57,6 +57,7 @@ struct isp_hw_context {
 	timespec hw_start_ts;
 	void *slice_ctx;
 	void *rec_handle;
+	uint32_t ltm_procslice_cnt;
 	uint32_t is_last_slice;
 	uint32_t valid_slc_num;
 	uint32_t pyr_layer_num;

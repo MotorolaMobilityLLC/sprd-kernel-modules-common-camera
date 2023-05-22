@@ -330,6 +330,20 @@ struct slice_3dnr_crop_info {
 	struct img_size dst;
 };
 
+struct slice_ltm_hist_info {
+	uint32_t bypass;
+	uint32_t roi_startx;
+	uint32_t roi_starty;
+	uint32_t tile_num_x_minus1;
+	uint32_t tile_num_y_minus1;
+	uint32_t tile_width;
+	uint32_t tile_height;
+	uint32_t ddr_pitch;
+	uint32_t ddr_wr_num;
+	uint32_t is_last_slice;
+	uint32_t mem_addr;
+};
+
 struct slice_ltm_map_info {
 	uint32_t bypass;
 	uint32_t tile_width;
@@ -446,6 +460,7 @@ struct isp_slice_desc {
 	struct slice_3dnr_fbc_store_info slice_3dnr_fbc_store;
 	struct slice_3dnr_crop_info slice_3dnr_crop;
 	struct slice_ltm_map_info slice_ltm_map;
+	struct slice_ltm_hist_info slice_ltm_hist;
 	struct slice_noisefilter_info noisefilter_info;
 	struct slice_noisefilter_mode_info slice_noisefilter_mode;
 	struct slice_gtm_info slice_gtm;
