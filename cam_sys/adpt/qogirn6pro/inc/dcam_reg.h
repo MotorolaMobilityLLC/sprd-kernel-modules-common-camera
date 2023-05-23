@@ -676,7 +676,8 @@ extern spinlock_t g_reg_wr_lock;
 
 #define DCAM_VCH1_BASE                                  (0x5200UL)
 #define DCAM_VCH1_STATUS0                               (DCAM_VCH1_BASE + 0x0000UL)
-#define DCAM_VC1_CONTROL                                (DCAM_VCH1_BASE + 0x0010UL)
+#define DCAM_VCH1_CONTROL                               (DCAM_VCH1_BASE + 0x0010UL)
+
 #define DCAM_PDAF_BASE_WADDR                            (0x5214UL)
 
 #define DCAM_VCH2_BASE                                  (0x5300UL)

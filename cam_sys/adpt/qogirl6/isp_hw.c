@@ -234,7 +234,7 @@ static uint32_t cam_reg_trace_tab[] = {
 static int cam_reg_trace(void *handle, void *arg)
 {
 	unsigned long addr = 0;
-	uint32_t val_mmu, val[8], i, j, n, cnt;
+	uint32_t val_mmu = 0, i = 0, j = 0, n = 0, cnt = 0, val[8] = {0};
 	struct cam_hw_reg_trace *trace = NULL;
 
 	trace = (struct cam_hw_reg_trace *)arg;
@@ -456,7 +456,6 @@ static int isphw_clk_eb(void *handle, void *arg)
 
 static int isphw_clk_dis(void *handle, void *arg)
 {
-	int ret = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 
@@ -474,15 +473,12 @@ static int isphw_clk_dis(void *handle, void *arg)
 	clk_disable_unprepare(soc->axi_eb);
 	clk_disable_unprepare(soc->core_eb);
 
-	return ret;
+	return 0;
 }
 
 static int isphw_reset(void *handle, void *arg)
 {
-	int rtn = 0;
-	uint32_t cid;
-	uint32_t time_out = 0;
-	uint32_t flag = 0;
+	uint32_t cid = 0, time_out = 0, flag = 0;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
 	struct cam_hw_info *hw = NULL;
@@ -530,13 +526,12 @@ static int isphw_reset(void *handle, void *arg)
 	}
 
 	pr_info("ISP%d: reset end\n", ip->idx);
-	return rtn;
+	return 0;
 }
 
 static int isphw_irq_enable(void *handle, void *arg)
 {
-	uint32_t ctx_id;
-	uint32_t mask = ~0;
+	uint32_t ctx_id = 0, mask = ~0;
 
 	if (!arg) {
 		pr_err("fail to get valid hw\n");
@@ -556,7 +551,7 @@ static int isphw_irq_enable(void *handle, void *arg)
 
 static int isphw_irq_disable(void *handle, void *arg)
 {
-	uint32_t ctx_id;
+	uint32_t ctx_id = 0;
 
 	if (!arg) {
 		pr_err("fail to get valid hw\n");
@@ -577,7 +572,7 @@ static int isphw_irq_disable(void *handle, void *arg)
 
 static int isphw_irq_clear(void *handle, void *arg)
 {
-	uint32_t ctx_id;
+	uint32_t ctx_id = 0;
 
 	if (!arg) {
 		pr_err("fail to get valid hw\n");
@@ -683,8 +678,7 @@ static int isphw_cfg_map_info_get(void *handle, void *arg)
 
 static int isphw_default_param_set(void *handle, void *arg)
 {
-	uint32_t wqos_val = 0;
-	uint32_t rqos_val = 0;
+	uint32_t wqos_val = 0, rqos_val = 0;
 	struct cam_hw_info *hw = NULL;
 
 	hw = (struct cam_hw_info *)handle;
@@ -732,8 +726,7 @@ static int isphw_default_param_set(void *handle, void *arg)
 
 static int isphw_default_param_cfg(void *handle, void *arg)
 {
-	uint32_t idx = 0;
-	uint32_t bypass = 1;
+	uint32_t idx = 0, bypass = 1;
 
 	idx = *(uint32_t *)arg;
 	if (idx >= ISP_CONTEXT_SW_NUM) {
@@ -847,9 +840,7 @@ static int isphw_default_param_cfg(void *handle, void *arg)
 
 static int isphw_path_store(void *handle, void *arg)
 {
-	int ret = 0;
-	uint32_t val = 0;
-	uint32_t idx = 0;
+	uint32_t val = 0, idx = 0;
 	struct isp_hw_path_store *path_store = NULL;
 	struct isp_store_info *store_info = NULL;
 	unsigned long addr = 0;
@@ -934,7 +925,7 @@ static int isphw_path_store(void *handle, void *arg)
 		BIT_1, store_info->shadow_clr_sel << 1);
 	ISP_REG_MWR(idx, addr + ISP_STORE_SHADOW_CLR, BIT_0, store_info->shadow_clr);
 
-	return ret;
+	return 0;
 }
 
 static void isphw_path_shrink_info_set(
@@ -1004,10 +995,7 @@ static int isphw_path_scaler_coeff_set(
 			uint32_t *coeff_buf,
 			uint32_t spath_id)
 {
-	int i = 0;
-	int k = 0;
-	int c = 0;
-	int rtn = 0;
+	int i = 0, k = 0, c = 0;
 	uint32_t *tmp_h_coeff = NULL;
 	uint32_t *tmp_h_chroma_coeff = NULL;
 	struct coeff_arg arg = {0};
@@ -1076,22 +1064,21 @@ static int isphw_path_scaler_coeff_set(
 		arg.v_chroma_coeff++;
 	}
 
-	return rtn;
+	return 0;
 }
 
 static int isphw_path_scaler(void *handle, void *arg)
 {
-	uint32_t reg_val, idx;
+	uint32_t reg_val = 0, idx = 0, path_off[ISP_SPATH_NUM] = {0, 2, 4};
 	struct isp_hw_path_scaler *path_scaler = NULL;
 	struct yuv_scaler_info *scalerInfo = NULL;
 	struct img_deci_info *deciInfo = NULL;
-	unsigned long addr;
+	unsigned long addr = 0;
 	uint32_t path_mask[ISP_SPATH_NUM] = {
 		BIT_1 | BIT_0,
 		BIT_3 | BIT_2,
 		BIT_5 | BIT_4
 	};
-	uint32_t path_off[ISP_SPATH_NUM] = {0, 2, 4};
 
 	path_scaler = (struct isp_hw_path_scaler *)arg;
 	scalerInfo = &path_scaler->scaler;
@@ -1217,7 +1204,7 @@ static int isphw_path_scaler(void *handle, void *arg)
 
 static int isphw_path_thumbscaler(void *handle, void *arg)
 {
-	uint32_t val, idx;
+	uint32_t val = 0, idx = 0;
 	struct isp_hw_thumbscaler_info *scalerInfo = NULL;
 
 	scalerInfo =(struct isp_hw_thumbscaler_info *)arg;
@@ -1306,8 +1293,7 @@ static int isphw_path_thumbscaler(void *handle, void *arg)
 
 static int isphw_slice_scaler(void *handle, void *arg)
 {
-	uint32_t addr = 0, cmd = 0;
-	uint32_t base = 0;
+	uint32_t addr = 0, cmd = 0, base = 0;
 	struct isp_hw_slice_scaler *update = NULL;
 
 	update = (struct isp_hw_slice_scaler *)arg;
@@ -1381,8 +1367,7 @@ static int isphw_slice_scaler(void *handle, void *arg)
 
 static int isphw_slice_store(void *handle, void *arg)
 {
-	uint32_t addr = 0, cmd = 0;
-	uint32_t base = 0;
+	uint32_t addr = 0, cmd = 0, base = 0;
 	struct isp_hw_slice_store *store = NULL;
 
 	store = (struct isp_hw_slice_store *)arg;
@@ -1484,8 +1469,7 @@ static int isphw_k_blk_func_get(void *handle, void *arg)
 
 static int isphw_fetch_set(void *handle, void *arg)
 {
-	uint32_t bwu_val = 0, val = 0;
-	uint32_t idx = 0;
+	uint32_t bwu_val = 0, val = 0, idx = 0;
 	struct isp_hw_fetch_info *fetch = NULL;
 
 	if (!arg) {
@@ -1671,9 +1655,7 @@ static int isphw_ltm_slice_set(void *handle, void *arg)
 
 int isphw_gtm_slice_set(void *handle)
 {
-	uint32_t addr = 0;
-	uint32_t cmd = 0;
-	uint32_t val = 0;
+	uint32_t addr = 0, cmd = 0, val = 0;
 	struct isp_hw_gtm_slice *gtm = (struct isp_hw_gtm_slice *)handle;
 	struct isp_fmcu_ctx_desc *fmcu = gtm->fmcu_handle;
 	struct slice_gtm_info *gtm_slice = gtm->slice_param;
@@ -1806,15 +1788,14 @@ static int isphw_subblock_cfg(void *handle, void *arg)
 
 static int isphw_slw_fmcu_cmds(void *handle, void *arg)
 {
-	int i;
-	unsigned long base, sbase;
-	uint32_t ctx_idx;
-	uint32_t reg_off, addr = 0, cmd = 0;
-	struct isp_fmcu_ctx_desc *fmcu;
-	struct img_addr *fetch_addr, *store_addr;
+	int i = 0;
+	unsigned long base = 0, sbase = 0;
+	uint32_t ctx_idx = 0, reg_off, addr = 0, cmd = 0;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct img_addr *fetch_addr = NULL, *store_addr = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct isp_hw_slw_fmcu_cmds *slw = NULL;
-	struct isp_hw_fmcu_cfg cfg;
+	struct isp_hw_fmcu_cfg cfg = {0};
 	struct isp_3dnr_slw_mem *slw_mem_ctrl = NULL;
 	struct isp_3dnr_slw_store *nr3_slw_store = NULL;
 
@@ -1939,7 +1920,7 @@ static int isphw_fmcu_cfg(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
 	struct isp_hw_fmcu_cfg *cfg = NULL;
-	unsigned long base;
+	unsigned long base = 0;
 	unsigned long reg_addr[ISP_CONTEXT_HW_NUM] = {
 		ISP_CFG_PRE0_START,
 		ISP_CFG_PRE1_START,
@@ -2038,7 +2019,7 @@ static int isphw_slice_nr_info(void *handle, void *arg)
 
 static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 {
-	uint32_t reg_off, addr = 0, cmd = 0;
+	uint32_t reg_off = 0, addr = 0, cmd = 0;
 	unsigned long base = 0;
 	struct isp_hw_slices_fmcu_cmds *parg = NULL;
 	uint32_t shadow_done_cmd[ISP_CONTEXT_HW_NUM] = {
@@ -2520,8 +2501,7 @@ static int isphw_radius_parm_adpt(void *handle, void *arg)
 
 static int isphw_stop(void *handle, void *arg)
 {
-	uint32_t id;
-	uint32_t cid;
+	uint32_t id = 0, cid = 0;
 	struct cam_hw_info *hw = NULL;
 
 	hw = (struct cam_hw_info *)handle;
@@ -2594,8 +2574,7 @@ static int isphw_frame_addr_fetch(void *handle, void *arg)
 
 static int isphw_map_init_cfg(void *handle, void *arg)
 {
-	uint32_t val = 0;
-	uint32_t i = 0;
+	uint32_t val = 0, i = 0;
 	struct isp_hw_cfg_map *maparg = NULL;
 
 	maparg = (struct isp_hw_cfg_map *)arg;
@@ -2750,9 +2729,7 @@ static int isphw_fmcu_start(void *handle, void *arg)
 
 static int isphw_yuv_block_ctrl(void *handle, void *arg)
 {
-	uint32_t ret = 0;
-	uint32_t idx = 0;
-	uint32_t type = 0;
+	uint32_t idx = 0, type = 0;
 	struct dcam_isp_k_block *p = NULL;
 	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
 
@@ -2792,7 +2769,7 @@ BLOCK_CFG:
 	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
 	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, p->ynr_info_v2.bypass);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
-	return ret;
+	return 0;
 
 BLOCK_BYPASS:
 	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 0);
@@ -2811,14 +2788,12 @@ BLOCK_BYPASS:
 	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
 
-	return ret;
+	return 0;
 }
 
 static int isphw_gtm_status_get(void *handle)
 {
-	uint32_t val = 0;
-	uint32_t idx = 0;
-	uint32_t gtm_bypass = 0;
+	uint32_t val = 0, idx = 0, gtm_bypass = 0;
 
 	idx = *(uint32_t *)handle;
 	if (idx >= ISP_CONTEXT_SW_NUM) {
@@ -2840,9 +2815,7 @@ static int isphw_gtm_status_get(void *handle)
 
 static int isphw_gtm_ltm_eb(void *handle)
 {
-	uint32_t idx = 0;
-	uint32_t gtm_mod_en = 1;
-	uint32_t ltm_bypass = 0;
+	uint32_t idx = 0, gtm_mod_en = 1, ltm_bypass = 0;
 	struct cam_hw_gtm_ltm_eb *eb = NULL;
 	uint64_t val = 1;
 
@@ -2867,9 +2840,7 @@ static int isphw_gtm_ltm_eb(void *handle)
 
 static int isphw_gtm_ltm_dis(void *handle)
 {
-	uint32_t idx = 0;
-	uint32_t gtm_mod_en = 0;
-	uint32_t ltm_bypass = 1;
+	uint32_t idx = 0, gtm_mod_en = 0, ltm_bypass = 1;
 	struct cam_hw_gtm_ltm_dis *dis =NULL;
 	uint64_t val = 1;
 
@@ -2954,7 +2925,7 @@ static int isphw_gtm_func_get(void *handle, void *arg)
 
 static int isphw_subblock_reconfig(void *handle, void *arg)
 {
-	uint32_t ret = 0, idx = 0;
+	uint32_t idx = 0;
 	struct dcam_isp_k_block *p = NULL;
 	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
 
@@ -2989,15 +2960,12 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 	isp_k_yrandom_block(p, idx);
 	isp_k_uvd_block(p, idx);
 	isp_3dnr_config_blend(idx, &p->nr3_info_base.blend);
-	return ret;
+	return 0;
 }
 
 static int isphw_gtmhist_get(void *handle, void *arg)
 {
-	uint32_t *buf = NULL;
-	uint32_t max_item = GTM_HIST_ITEM_NUM;
-	uint32_t i = 0;
-	uint32_t sum = 0;
+	uint32_t *buf = NULL, max_item = GTM_HIST_ITEM_NUM, i = 0, sum = 0;
 	struct cam_gtm_mapping *map = NULL;
 
 	struct isp_hw_gtmhist_get_param *param = (struct isp_hw_gtmhist_get_param *)arg;
@@ -3102,8 +3070,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
-	uint32_t total_num = 0;
-	uint32_t i = 0;
+	uint32_t i = 0, total_num = 0;
 
 	total_num = sizeof(isp_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
 	for (i = 0; i < total_num; i++) {
