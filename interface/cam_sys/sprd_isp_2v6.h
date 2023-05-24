@@ -41,7 +41,7 @@
 #define MAX_LSCTAB_LEN           (16*1024)
 
 #define PARAM_BUF_NUM_MAX        32
-#define STATIS_BUF_NUM_MAX       8
+#define STATIS_BUF_NUM_MAX       20
 #define CAMERA_PARAM_NUM_MAX     20
 
 #define STATIS_AEM_HEADER_SIZE   512
@@ -72,11 +72,6 @@ enum aem_mode {
 	AEM_MODE_MULTI,
 };
 
-enum lscm_mode {
-	LSCM_MODE_SINGLE = 0,
-	LSCM_MODE_MULTI,
-};
-
 enum afm_mode {
 	AFL_MODE_SINGLE = 0,
 	AFL_MODE_MULTI,
@@ -102,14 +97,10 @@ enum isp_statis_buf_type {
 	STATIS_LSCM,
 	STATIS_HIST2,
 	STATIS_GTMHIST,
+	STATIS_LTMHIST,
 	STATIS_TYPE_MAX,
 	STATIS_DBG_INIT,
 	STATIS_PARAM,
-};
-
-enum isp_dev_capability {
-	ISP_CAPABILITY_CONTINE_SIZE,
-	ISP_CAPABILITY_TIME,
 };
 
 enum dcam_block {
@@ -387,14 +378,6 @@ enum isp_yuv_ltm_property {
 	ISP_PRO_YUV_LTM_BLOCK,
 	ISP_PRO_YUV_LTM_PRE_PARAM,
 	ISP_PRO_YUV_LTM_CAP_PARAM,
-};
-
-enum isp_rgb_gtm_property {
-	ISP_PRO_RGB_GTM_BLOCK,
-	ISP_PRO_RGB_GTM_PRE_PARAM,
-	ISP_PRO_RGB_GTM_CAP_PARAM,
-	ISP_PRO_RGB_GTM_SW_MAP_SET,
-	ISP_PRO_RGB_GTM_BYPASS,
 };
 
 enum isp_pyramid_onl_property {
@@ -764,26 +747,6 @@ struct dcam_dev_lscm_param {
 	uint32_t skip_num;
 };
 
-struct dcam_dev_afl_info {
-	uint32_t bayer2y_chanel;
-	uint32_t bayer2y_mode;
-	uint32_t bayer2y_bypass;
-};
-
-/* not used now, just for compiling. */
-struct isp_dev_anti_flicker_info {
-	uint32_t bypass;
-	uint32_t mode;
-	uint32_t skip_frame_num;
-	uint32_t line_step;
-	uint32_t frame_num;
-	uint32_t vheight;
-	uint32_t start_col;
-	uint32_t end_col;
-	uint32_t afl_total_num;
-	struct isp_img_size img_size;
-};
-
 /*anti flicker */
 struct isp_dev_anti_flicker_new_info {
 	uint32_t update_flag;
@@ -819,29 +782,6 @@ struct dcam_dev_awbc_info {
 	struct img_rgb_info gain;
 	struct img_rgb_info thrd;
 	struct img_rgb_info gain_offset;
-};
-
-struct dcam_bpc_rawhdr_info{
-	uint32_t zzbpc_hdr_ratio;
-	uint32_t zzbpc_hdr_ratio_inv;
-	uint32_t zzbpc_hdr_2badpixel_en;
-
-	uint32_t zzbpc_long_over_th;
-	uint32_t zzbpc_short_over_th;
-	uint32_t zzbpc_over_expo_num;
-
-	uint32_t zzbpc_long_under_th;
-	uint32_t zzbpc_short_under_th;
-	uint32_t zzbpc_under_expo_num;
-
-	uint32_t zzbpc_flat_th;
-	uint32_t zzbpc_edgeratio_rd;
-	uint32_t zzbpc_edgeratio_hv;
-
-	uint32_t zzbpc_kmin_under_expo;
-	uint32_t zzbpc_kmax_under_expo;
-	uint32_t zzbpc_kmin_over_expo;
-	uint32_t zzbpc_kmax_over_expo;
 };
 
 struct dcam_bpc_ppi_info{
@@ -1626,14 +1566,6 @@ struct isp_dev_hsv_info_v2 {
 		struct hsv_data hs; /* new format from sharkl5pro... */
 		uint32_t hsv_table[ISP_HSV_TABLE_NUM]; /* for roc1/sharkl5/sharkl3...*/
 	} d;
-};
-
-struct isp_dev_hsv_buf_info {
-	uint32_t hsv_buf_sel;
-	uint32_t hsv_table_a[ISP_HSV_TABLE_A];
-	uint32_t hsv_table_b[ISP_HSV_TABLE_B];
-	uint32_t hsv_table_c[ISP_HSV_TABLE_C];
-	uint32_t hsv_table_d[ISP_HSV_TABLE_D];
 };
 
 struct hsv_curve_param {
@@ -2531,11 +2463,20 @@ struct isp_dev_rgb_ltm_stat_info {
 	uint32_t region_est_en; /* region_est_en */
 	uint32_t channel_sel;
 	uint32_t ltm_hist_table[128];
+	uint16_t clip_limit;
+	uint16_t clip_limit_min;
 };
 
 struct isp_dev_rgb_ltm_map_info {
 	uint32_t bypass; /* ltm map bypass */
 	uint32_t ltm_map_video_mode;
+	uint32_t tile_width;
+	uint32_t tile_height;
+	uint32_t tile_x_num;
+	uint32_t tile_y_num;
+	uint32_t frame_width;
+	uint32_t frame_height;
+	uint16_t ltm_map_info[8192];
 };
 
 struct isp_dev_rgb_ltm_info {
@@ -2705,34 +2646,6 @@ struct cam_blk_nr_param {
 	struct isp_dev_dct_info dct_info;
 };
 
-/************  for test only below ************** */
-enum ch_property {
-	PROP_PRE,
-	PROP_CAP,
-	PROP_VIDEO,
-	PROP_FD,
-	PROP_MAX
-};
-
-struct dev_test_info {
-	uint32_t  dev; /* 0: isp, 1: dcam0, 2: dcam1 */
-
-	/* channel desc  */
-	uint32_t in_fmt;  /* forcc */
-	uint32_t out_fmt;  /* forcc */
-	enum ch_property prop;
-	struct isp_img_size input_size;
-	struct isp_img_size output_size;
-
-	/* buffer desc */
-	uint32_t iommu_en;
-	uint32_t inbuf_fd;
-	uint32_t inbuf_kaddr[2];
-	uint32_t outbuf_fd;
-	uint32_t outbuf_kaddr[2];
-};
-
-
 struct dcam_param_data_l3 {
 	struct dcam_dev_lsc_info lens_info;
 	struct dcam_dev_blc_info blc_info;
@@ -2746,19 +2659,6 @@ struct dcam_param_data_l3 {
 	uint16_t lsc_tab[MAX_LSCTAB_LEN];
 };
 
-struct dcam_param_data_l5 {
-	struct dcam_dev_lsc_info lens_info;
-	struct dcam_dev_blc_info blc_info;
-	struct dcam_dev_rgb_gain_info gain_info;
-	struct dcam_dev_rgb_dither_info rgb_dither;
-	struct dcam_dev_awbc_info awbc_info;
-	struct dcam_dev_bpc_info bpc_info;
-	struct dcam_dev_3dnr_me nr3_me;
-	int16_t weight_tab[MAX_WTAB_LEN];
-	uint16_t lsc_tab[MAX_LSCTAB_LEN];
-};
-
-
 struct dcam_param_data_l5pro {
 	struct dcam_dev_lsc_info lens_info;
 	struct dcam_dev_blc_info blc_info;
@@ -2768,18 +2668,6 @@ struct dcam_param_data_l5pro {
 	struct dcam_dev_bpc_info bpc_info;
 	struct dcam_dev_3dnr_me nr3_me;
 	struct dcam_dev_raw_gtm_block_info gtm_info;
-	int16_t weight_tab[MAX_WTAB_LEN];
-	uint16_t lsc_tab[MAX_LSCTAB_LEN];
-};
-
-struct dcam_param_data_l6 {
-	struct dcam_dev_lsc_info lens_info;
-	struct dcam_dev_blc_info blc_info;
-	struct dcam_dev_rgb_gain_info gain_info;
-	struct dcam_dev_rgb_dither_info rgb_dither;
-	struct dcam_dev_awbc_info awbc_info;
-	struct dcam_dev_bpc_info bpc_info;
-	struct dcam_dev_3dnr_me nr3_me;
 	int16_t weight_tab[MAX_WTAB_LEN];
 	uint16_t lsc_tab[MAX_LSCTAB_LEN];
 };
@@ -2811,33 +2699,6 @@ struct isp_param_data_l3 {
 	uint32_t ivst_buf[ISP_VST_IVST_NUM];
 };
 
-struct isp_param_data_l5 {
-	struct isp_dev_grgb_info grgb_info;
-	struct isp_dev_3dnr_info nr3d_info;
-	struct isp_dev_bchs_info bchs_info;
-	struct isp_dev_cce_info cce_info;
-	struct isp_dev_pre_cdn_info pre_cdn_info;
-	struct isp_dev_cdn_info cdn_info;
-	struct isp_dev_post_cdn_info post_cdn_info;
-	struct isp_dev_cfa_info cfa_info;
-	struct isp_dev_cmc10_info cmc10_info;
-	struct isp_dev_edge_info_v2 edge_info;
-	struct isp_dev_gamma_info gamma_info;
-	struct isp_dev_hsv_info_v2 hsv_info;
-	struct isp_dev_iircnr_info iircnr_info;
-	struct isp_dev_yuv_ltm_info ltm_yuv_info;
-	struct isp_dev_nlm_info_v2 nlm_info;
-	struct isp_dev_nlm_imblance imblance_info_v0;
-	struct isp_dev_posterize_info_v2 pstrz_info_v2;
-	struct isp_dev_uvd_info_v2 uvd_info_v2;
-	struct isp_dev_ygamma_info ygamma_info;
-	struct isp_dev_ynr_info_v2 ynr_info_v2;
-	struct isp_dev_yrandom_info yrandom_info;
-	struct isp_dev_noise_filter_info nf_info;
-	uint32_t vst_buf[ISP_VST_IVST_NUM];
-	uint32_t ivst_buf[ISP_VST_IVST_NUM];
-};
-
 struct isp_param_data_l5pro {
 	struct isp_dev_grgb_info grgb_info;
 	struct isp_dev_3dnr_info nr3d_info;
@@ -2862,35 +2723,6 @@ struct isp_param_data_l5pro {
 	struct isp_dev_ynr_info_v2 ynr_info_v2;
 	struct isp_dev_yrandom_info yrandom_info;
 	struct isp_dev_noise_filter_info nf_info;
-	uint32_t vst_buf[ISP_VST_IVST_NUM2];
-	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
-};
-
-struct isp_param_data_l6 {
-	struct isp_dev_grgb_info grgb_info;
-	struct isp_dev_3dnr_info nr3d_info;
-	struct isp_dev_bchs_info bchs_info;
-	struct isp_dev_cce_info cce_info;
-	struct isp_dev_pre_cdn_info pre_cdn_info;
-	struct isp_dev_cdn_info cdn_info;
-	struct isp_dev_post_cdn_info post_cdn_info;
-	struct isp_dev_cfa_info cfa_info;
-	struct isp_dev_cmc10_info cmc10_info;
-	struct isp_dev_edge_info_v2 edge_info;
-	struct isp_dev_gamma_info gamma_info;
-	struct isp_dev_iircnr_info iircnr_info;
-	struct isp_dev_rgb_ltm_info ltm_rgb_info;
-	struct isp_dev_yuv_ltm_info ltm_yuv_info;
-	struct isp_dev_nlm_info_v2 nlm_info;
-	struct isp_dev_hsv_info_v3 hsv_info3;
-	struct isp_dev_nlm_imblance_v2 imblance_info2;
-	struct isp_dev_posterize_info_v2 pstrz_info_v2;
-	struct isp_dev_uvd_info_v2 uvd_info_v2;
-	struct isp_dev_ygamma_info ygamma_info;
-	struct isp_dev_ynr_info_v2 ynr_info_v2;
-	struct isp_dev_yrandom_info yrandom_info;
-	struct isp_dev_noise_filter_info nf_info;
-	struct dcam_dev_raw_gtm_block_info gtm_info;
 	uint32_t vst_buf[ISP_VST_IVST_NUM2];
 	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
 };

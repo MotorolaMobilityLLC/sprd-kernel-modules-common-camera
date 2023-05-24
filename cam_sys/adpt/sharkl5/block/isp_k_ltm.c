@@ -38,8 +38,8 @@ static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 
 	val = ((hists->buf_full_mode & 0x1) << 3) |
 		((hists->region_est_en & 0x1) << 2) |
-		((hists->binning_en    & 0x1) << 1) |
-		(hists->bypass        & 0x1);
+		((hists->binning_en & 0x1) << 1) |
+		(hists->bypass & 0x1);
 	ISP_REG_WR(idx, base + ISP_LTM_HIST_PARAM, val);
 
 	val = ((hists->roi_start_y & 0x1FFF) << 16) |
@@ -83,25 +83,25 @@ static void isp_ltm_config_map(uint32_t idx, struct isp_ltm_map *map)
 		return;
 
 	val = ((map->fetch_wait_line & 0x1) << 4) |
-		((map->fetch_wait_en   & 0x1) << 3) |
-		((map->hist_error_en   & 0x1) << 2) |
-		((map->burst8_en       & 0x1) << 1) |
-		(map->bypass          & 0x1);
+		((map->fetch_wait_en & 0x1) << 3) |
+		((map->hist_error_en & 0x1) << 2) |
+		((map->burst8_en & 0x1) << 1) |
+		(map->bypass & 0x1);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM0, val);
 
-	val = ((map->tile_y_num  & 0x7)   << 28) |
-		((map->tile_x_num  & 0x7)   << 24) |
+	val = ((map->tile_y_num & 0x7)   << 28) |
+		((map->tile_x_num & 0x7)   << 24) |
 		((map->tile_height & 0x3FF) << 12) |
-		(map->tile_width  & 0x3FF);
+		(map->tile_width & 0x3FF);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM1, val); /* slice */
 
 	val = map->tile_size_pro & 0xFFFFF;
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM2, val);
 
 	val = ((map->tile_right_flag & 0x1)   << 23) |
-		((map->tile_start_y    & 0x7FF) << 12) |
-		((map->tile_left_flag  & 0x1)   << 11) |
-		(map->tile_start_x    & 0x7FF);
+		((map->tile_start_y & 0x7FF) << 12) |
+		((map->tile_left_flag & 0x1)   << 11) |
+		(map->tile_start_x & 0x7FF);
 	ISP_REG_WR(idx, base + ISP_LTM_MAP_PARAM3, val); /* slice */
 
 	val = map->mem_init_addr;

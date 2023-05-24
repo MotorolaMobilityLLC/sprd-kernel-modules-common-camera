@@ -1163,6 +1163,9 @@ int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *pa
 	case PORT_CFG_ZOOM_SET:
 		ret = dcamonline_port_zoom_cfg(dcam_port, param);
 		break;
+	case PORT_CFG_FLASH_SKIP_FID:
+		dcam_port->flash_skip_fid = *(uint32_t *)param;
+		break;
 	default:
 		pr_err("fail to support port type %d\n", cmd);
 		ret = -EFAULT;
@@ -1263,7 +1266,8 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 
 		if ((ch_id != CAM_CH_CAP) || (param->is_static_map)) {
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
-			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
+			if (!param->not_to_isp)
+				cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
 			pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 		}
 
@@ -1351,6 +1355,7 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 		port->share_full_path = param->share_full_path;
 	else
 		port->share_full_path = 0;
+	port->flash_skip_fid = 0;
 
 	*param->port_dev = port;
 	pr_info("port %s reg pool %d %d\n", cam_port_name_get(port_id), port->unprocess_pool.private_pool_id, port->result_pool.private_pool_id);

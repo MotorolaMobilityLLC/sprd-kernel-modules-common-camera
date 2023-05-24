@@ -43,6 +43,8 @@
 #define ISP_FBD_TILE_HEIGHT             8
 
 #define ISP_LTM_ALIGNMENT               4
+#define LTM_MIN_TILE_WIDTH              160
+#define LTM_MIN_TILE_HEIGHT             20
 
  /* isp limit hw: 30ms, && 2200us(2.2ms)/M, node:5ms*/
 #define ISP_HW_TIME_RATIO               2200

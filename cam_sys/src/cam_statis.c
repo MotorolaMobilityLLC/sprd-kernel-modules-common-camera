@@ -75,13 +75,15 @@ static int camstatis_isp_port_buffer_init(void *isp_handle, void *node,
 
 	memset(&inode->statis_buf_array[0][0], 0, sizeof(inode->statis_buf_array));
 
-	for (stats_type = STATIS_HIST2; stats_type <= STATIS_GTMHIST; stats_type++) {
+	for (stats_type = STATIS_HIST2; stats_type <= STATIS_LTMHIST; stats_type++) {
 		if ((stats_type == STATIS_GTMHIST) && (inode->dev->isp_hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
 			continue;
 		if (stats_type == STATIS_HIST2)
 			statis_q = &inode->hist2_pool;
 		else if (stats_type == STATIS_GTMHIST)
 			statis_q = &inode->gtmhist_outpool;
+		else if (stats_type == STATIS_LTMHIST)
+			statis_q = &inode->ltmhist_outpool;
 		else
 			continue;
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -112,8 +114,8 @@ static int camstatis_isp_port_buffer_init(void *isp_handle, void *node,
 				cam_queue_empty_frame_put(pframe);
 			}
 
-			pr_debug("buf_num %d, buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
-				j, ion_buf->mfd, ion_buf->offset[0],
+			pr_debug("statis type:%d, buf_num %d, buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
+				stats_type, j, ion_buf->mfd, ion_buf->offset[0],
 				ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_ISP]);
 		}
 	}
@@ -134,7 +136,7 @@ int cam_statis_isp_port_buffer_deinit(void *isp_handle, void *node)
 
 	pr_debug("enter\n");
 
-	for (stats_type = STATIS_HIST2; stats_type <= STATIS_GTMHIST; stats_type++) {
+	for (stats_type = STATIS_HIST2; stats_type <= STATIS_LTMHIST; stats_type++) {
 		if ((stats_type == STATIS_GTMHIST) && (inode->dev->isp_hw->ip_isp->isphw_abt->rgb_gtm_support == 0))
 			continue;
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -193,6 +195,8 @@ int cam_statis_isp_port_buffer_cfg(void *isp_handle, void *node,
 		statis_q = &inode->hist2_pool;
 	else if (input->type == STATIS_GTMHIST)
 		statis_q = &inode->gtmhist_outpool;
+	else if (input->type == STATIS_LTMHIST)
+		statis_q = &inode->ltmhist_outpool;
 	else {
 		pr_warn("statis type %d not support\n");
 		return 0;

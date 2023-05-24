@@ -149,7 +149,7 @@ static int isppyrrec_ref_fetch_get(struct isp_rec_ctx_desc *ctx, uint32_t idx)
 	ref_fetch->ft0_axi_reorder_en = 0;
 	ref_fetch->ft1_axi_reorder_en = 0;
 	ref_fetch->substract = 0;
-	/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 128;
+	/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 256;
 	 isp fetch burst_lens = 16, then MIN_PYR_WIDTH >= 256. */
 	ref_fetch->ft0_max_len_sel = 0;
 	ref_fetch->ft1_max_len_sel = 0;

@@ -653,6 +653,7 @@ static struct dcam_hw_abt dcamhw_ability = {
 	.store_3dnr_fmt[5] = CAM_YVU420_2FRAME_10,
 	.dcam_zoom_mode = ZOOM_SCALER,
 	.save_band_for_bigsize = 1,
+	.rgb_gtm_support = CAM_ENABLE,
 	.dcam_block[0] = DCAM_BLOCK_BLC,
 	.dcam_block[1] = DCAM_BLOCK_RGBG,
 	.dcam_block[2] = DCAM_BLOCK_RGBG_DITHER,

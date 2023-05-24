@@ -266,11 +266,9 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 	struct cam_hw_info *hw = NULL;
 	struct cam_frame *frame = NULL;
 	struct dcam_offline_node *node = NULL;
-	struct dcam_offline_port *port = NULL;
 	struct dcam_irq_proc_desc *irq_desc = NULL;
 	struct dcam_offline_slice_info *slice_info = NULL;
-	uint32_t is_work = 0, i = 0;
-	uint32_t bin_done = 0, full_done = 0;
+	uint32_t i = 0, path_done[DCAM_PATH_MAX] = {0};
 
 	if (!param || !handle) {
 		pr_err("fail to get valid param %px %px\n", param, handle);
@@ -298,24 +296,10 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		if (irq_desc->dcam_cb_type == CAM_CB_DCAM_DATA_DONE)
 			dcamoffline_hw_ts_cal(node);
 
-		if (node->offline_pre_en) {
-			port = dcam_offline_node_port_get(node, PORT_OFFLINE_BIN_OUT);
-			if (!port) {
-				pr_err("fail to get bin port\n");
-				return -EFAULT;
-			}
-			is_work = atomic_read(&port->is_work);
-			if (port_id == PORT_OFFLINE_BIN_OUT) {
-				bin_done = atomic_inc_return(&node->port_done[port_id]);
-				full_done = atomic_read(&node->port_done[PORT_OFFLINE_FULL_OUT]);
-			} else if (port_id == PORT_OFFLINE_FULL_OUT) {
-				full_done = atomic_inc_return(&node->port_done[port_id]);
-				bin_done = atomic_read(&node->port_done[PORT_OFFLINE_BIN_OUT]);
-			} else
-				pr_info("port %d\n", cam_port_dcam_offline_out_id_name_get(port_id));
-		}
-
-		if ((is_work && bin_done == full_done) || !is_work) {
+		for(i = DCAM_PATH_FULL; i <= DCAM_PATH_RAW; i++)
+			path_done[i] = atomic_read(&node->hw_ctx->path_done[i]);
+		if ((node->offline_pre_en && path_done[DCAM_PATH_FULL] == path_done[DCAM_PATH_BIN])
+			|| (!node->offline_pre_en)){
 			slice_info->slice_count--;
 			complete(&node->slice_done);
 		}
@@ -323,19 +307,17 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy. timeout %d\n", time_out);
 
-		if (slice_info->slice_count > 0)
+		if (path_done[DCAM_PATH_FULL] != slice_info->slice_num
+			&& path_done[DCAM_PATH_BIN] != slice_info->slice_num
+			&& path_done[DCAM_PATH_RAW] != slice_info->slice_num)
 			return 0;
 	}
 
-	if (node->offline_pre_en && is_frm_port) {
-		for(i = PORT_OFFLINE_BIN_OUT; i <= PORT_OFFLINE_FULL_OUT; i++)
-			ret = dcamoffline_data_callback(node, irq_desc->dcam_cb_type, i);
-	} else
-		ret = dcamoffline_data_callback(node, irq_desc->dcam_cb_type, port_id);
+	ret = dcamoffline_data_callback(node, irq_desc->dcam_cb_type, port_id);
 	if (ret)
 		pr_err("fail to data cb, slice_num %d, port %s\n", slice_info->slice_num, cam_port_dcam_offline_out_id_name_get(port_id));
 
-	if (is_frm_port) {
+	if (is_frm_port && slice_info->slice_count == 0) {
 		time_out = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
 		if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT)
 			pr_warn("Warning:dcam fetch status is busy.\n");

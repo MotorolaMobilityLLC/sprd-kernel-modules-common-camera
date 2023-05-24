@@ -316,6 +316,9 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_CFG_ICAP_SCENE_SWITCH:
 		node_cmd = CAM_NODE_CFG_ICAP_SCENE_SWITCH;
 		break;
+	case CAM_PIPELINE_CFG_FLASH_SKIP_FID:
+		node_cmd = CAM_NODE_CFG_FLASH_SKIP_FID;
+		break;
 	default:
 		pr_err("fail to support cfg cmd %d\n", cmd);
 		ret = -EFAULT;

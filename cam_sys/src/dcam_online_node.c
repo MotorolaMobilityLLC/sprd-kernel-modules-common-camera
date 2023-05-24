@@ -289,6 +289,14 @@ static void dcamonline_frame_dispatch(void *param, void *handle)
 		return;
 	}
 
+	if (dcam_port->flash_skip_fid == frame->common.fid && dcam_port->flash_skip_fid != 0) {
+		pr_debug("flash scene skip frame fid %d\n",frame->common.fid);
+		ret = dcam_online_port_buffer_cfg(dcam_port, frame);
+		if (ret)
+			pr_err("fail to set dcam online port outbuf_queue\n");
+		return;
+	}
+
 	if (dcam_port->data_cb_func)
 		dcam_port->data_cb_func(irq_proc->type, frame, dcam_port->data_cb_handle);
 }
@@ -1373,9 +1381,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	if (hw->ip_isp->isphw_abt->frbg_hist_support)
 		DCAMONLINE_STATIS_WORK_SET(pm->hist_roi.hist_roi_info.bypass, node, PORT_FRGB_HIST_OUT);
 	DCAMONLINE_STATIS_WORK_SET(pm->pdaf.bypass, node, PORT_PDAF_OUT);
-	if (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0)
-		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
-	if (hw_ctx->hw->ip_isp->isphw_abt->rgb_gtm_support == 0)
+	if (hw_ctx->hw->ip_dcam[node->hw_ctx_id]->dcamhw_abt->rgb_gtm_support == CAM_ENABLE)
 		DCAMONLINE_STATIS_WORK_SET(0, node, PORT_GTM_HIST_OUT);
 
 	hw_ctx->fid = pm->recovery_fid ? pm->recovery_fid : 0;

@@ -271,7 +271,7 @@ int dcam_drv_dt_parse(struct platform_device *pdev,
 		else
 			g_dcam_mmubase = (unsigned long)reg_base;
 	}
-	pr_info("DCAM IOMMU Base  0x%lx\n", g_dcam_mmubase);
+	pr_info("DCAM IOMMU Base 0x%lx\n", g_dcam_mmubase);
 
 	/* Start dcam soc related dt parse */
 	soc_dcam = hw_info->soc_dcam;

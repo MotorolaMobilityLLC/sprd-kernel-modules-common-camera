@@ -400,6 +400,9 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_XTM_EN:
 		ret = dcam_online_node_xtm_disable(node->handle, in_param->param);
 		break;
+	case CAM_NODE_CFG_FLASH_SKIP_FID:
+		ret = node->ops.cfg_port_param(node, PORT_CFG_FLASH_SKIP_FID, param);
+		break;
 	default:
 		pr_err("fail to support node %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);
 		ret = -EFAULT;

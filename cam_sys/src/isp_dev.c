@@ -93,7 +93,7 @@ static int ispdev_context_init(struct isp_pipe_dev *dev)
 			goto hw_fail;
 	}
 	dev->cfg_handle = cfg_desc;
-	isp_ltm_sync_init();
+
 	pr_info("isp hw contexts init start!\n");
 	for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
 		pctx_hw = &dev->hw_ctx[i];
@@ -184,8 +184,6 @@ static int ispdev_context_deinit(struct isp_pipe_dev *dev)
 		isp_cfg_ctx_desc_put(cfg_desc);
 	}
 	dev->cfg_handle = NULL;
-
-	isp_ltm_sync_deinit();
 
 	pr_debug("done.\n");
 	return ret;

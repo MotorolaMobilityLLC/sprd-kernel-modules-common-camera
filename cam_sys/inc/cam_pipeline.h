@@ -54,6 +54,7 @@ enum cam_pipeline_cfg_cmd {
 	CAM_PIPELINE_CFG_OPT_SCENE_SWITCH,
 	CAM_PIPELINE_CFG_ICAP_SCENE_SWITCH,
 	CAM_PIPELINE_GET_CAP_FRAME,
+	CAM_PIPELINE_CFG_FLASH_SKIP_FID,
 	CAM_PIPELINE_CFG_MAX,
 };
 
@@ -141,6 +142,21 @@ struct cam_pipeline {
 	param_cfg.node_id = (nodeid); \
 	if ((channel)->pipeline_handle) \
 		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
+	else { \
+		pr_warn("warning: current channel not contain pipeline\n"); \
+		ret = -EFAULT; \
+	} \
+	ret; \
+})
+
+#define CAM_PIPELINE_ULTRA_CAP_ISP_PRE_NODE_CFG(channel, cmd, nodeid, par)  ({ \
+	struct cam_pipeline_cfg_param param_cfg = {0}; \
+	int ret = 0; \
+	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE; \
+	param_cfg.node_param.param = (par); \
+	param_cfg.node_id = (nodeid); \
+	if ((channel)->nonzsl_pre_pipeline) \
+		ret = (channel)->nonzsl_pre_pipeline->ops.cfg_param((channel)->nonzsl_pre_pipeline, (cmd), &param_cfg); \
 	else { \
 		pr_warn("warning: current channel not contain pipeline\n"); \
 		ret = -EFAULT; \

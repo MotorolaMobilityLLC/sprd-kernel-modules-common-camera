@@ -59,7 +59,6 @@ struct dcam_offline_node {
 	uint32_t node_id;
 	atomic_t user_cnt;
 	atomic_t status;
-	atomic_t port_done[PORT_DCAM_OFFLINE_OUT_MAX];
 	enum cam_en_status statis_en;
 	enum cam_en_status offline_pre_en;
 	enum cam_en_status is_3dnr;

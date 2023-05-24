@@ -208,9 +208,6 @@ static int isp_k_pdaf_type3_set_info(struct isp_io_param *param, struct dcam_isp
 		return 0;
 	val = !pdaf_info->bypass;
 
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, val);
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, val);
-
 	val = ((pdaf_info->block_size.height & 0x3) << 3) |
 		((pdaf_info->block_size.width & 0x3) << 1);
 	DCAM_REG_MWR(idx, DCAM_PDAF_EXTR_CTRL, 0x1E, val);
@@ -311,13 +308,9 @@ static int isp_k_pdaf_type3_set_roi(struct isp_io_param *param, struct dcam_isp_
 		(roi_info->win.start_x & 0x1FFF);
 	DCAM_REG_WR(idx, DCAM_PDAF_EXTR_ROI_ST, val);
 
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_3, 0x1 << 3);
-	DCAM_REG_MWR(idx, DCAM_CFG, BIT_4, 0x1 << 4);
 	val = (((roi_info->win.end_y - roi_info->win.start_y) & 0x1FFF) << 13) |
 		((roi_info->win.end_x - roi_info->win.start_x) & 0x1FFF);
 	DCAM_REG_WR(idx, DCAM_PDAF_EXTR_ROI_SIZE, val);
-	DCAM_REG_MWR(idx, DCAM_PDAF_CONTROL, BIT_1 | BIT_0, 0x3);
-	DCAM_REG_MWR(idx, DCAM_VC2_CONTROL, BIT_1 | BIT_0, 0);
 
 	DCAM_REG_MWR(idx, DCAM_CONTROL, BIT_14, 0x1 << 14);
 	DCAM_REG_MWR(idx, DCAM_CONTROL, BIT_16, 0x1 << 16);

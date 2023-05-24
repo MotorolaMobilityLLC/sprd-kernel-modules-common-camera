@@ -40,9 +40,9 @@
 #define PERFORMANCE_DEBUG pr_debug
 #endif
 
-/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 128;
+/* To avoid rec fifo err, isp fetch burst_lens = 8, then MIN_PYR_WIDTH >= 256;
  isp fetch burst_lens = 16, then MIN_PYR_WIDTH >= 256. */
-#define MIN_PYR_WIDTH                   128
+#define MIN_PYR_WIDTH                   256
 #define MIN_PYR_HEIGHT                  16
 #define ALIGN_UP(a, x)                  (((a) + (x) - 1) & (~((x) - 1)))
 
@@ -402,8 +402,8 @@ struct cam_buf_alloc_desc {
 	uint32_t dcam_out_fmt;
 	uint32_t ltm_mode;
 	uint32_t ltm_rgb_enable;
-	uint32_t ltm_buf_mode;
 	uint32_t is_static_map;
+	uint32_t not_to_isp;
 };
 
 struct slowmotion_960fps_info {

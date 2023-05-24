@@ -75,6 +75,7 @@ struct camsys_power_info {
 			struct clk *isppll_clk;
 
 			struct register_gpr regs[6];
+			struct regmap *ahb_map;
 		} l5pro;
 		struct {
 			struct clk *cam_clk_cphy_cfg_gate_eb;
@@ -89,6 +90,7 @@ struct camsys_power_info {
 			struct clk *cam_emc_clk_parent;
 
 			struct register_gpr syscon_regs[6];
+			struct regmap *ahb_map;
 		} l3;
 		struct {
 			unsigned int chip_id0;
@@ -133,6 +135,7 @@ struct camsys_power_info {
 			struct clk *isppll_clk;
 
 			struct register_gpr regs[4];
+			struct regmap *ahb_map;
 		} qogirl6;
 		struct {
 			atomic_t users_pw;
@@ -153,6 +156,8 @@ struct camsys_power_info {
 			struct clk *mm_mtx_clk_parent;
 			struct clk *mm_mtx_clk_defalut;
 			struct register_gpr regs[14];
+			struct regmap *ahb_map;
+			struct regmap *switch_map;
 		} qogirn6pro;
 		struct {
 			atomic_t users_pw;
@@ -170,6 +175,7 @@ struct camsys_power_info {
 			struct clk *mtx_clk;
 			struct clk *mtx_clk_parent;
 			struct clk *mtx_clk_default;
+			struct regmap *ahb_map;
 		} l5;
 		struct {
 			atomic_t users_pw;
@@ -190,6 +196,8 @@ struct camsys_power_info {
 			struct clk *mm_mtx_clk_parent;
 			struct clk *mm_mtx_clk_defalut;
 			struct register_gpr regs[14];
+			struct regmap *ahb_map;
+			struct regmap *switch_map;
 		} qogirn6l;
 	} u;
 };

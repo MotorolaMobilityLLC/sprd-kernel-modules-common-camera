@@ -285,7 +285,7 @@ int isp_k_nlm_imblance(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 		return 0;
 
 	ISP_REG_MWR(idx, ISP_NLM_IMBLANCE_CTRL, BIT_1,
-			imblance_info->imblance_radial_1D_en);
+			imblance_info->imblance_radial_1D_en << 1);
 	ISP_REG_WR(idx, ISP_NLM_IMBLANCE_PARA1,
 		(imblance_info->nlm_imblance_slash_edge_thr[0] & 0xff) |
 		((imblance_info->nlm_imblance_hv_edge_thr[0] & 0xff) << 8) |

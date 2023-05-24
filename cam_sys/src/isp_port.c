@@ -391,8 +391,11 @@ normal_out_put:
 
 	if (out_frame)
 		port_cfg->valid_out_frame = 1;
-	else
+	else {
 		out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
+		if (out_frame && port_cfg->ltm_enable)
+			port_cfg->valid_out_frame = 1;
+	}
 
 	if (out_frame != NULL) {
 		if (out_frame->common.is_reserved == 0 && (out_frame->common.buf.mapping_state & CAM_BUF_MAPPING_ISP) == 0) {
@@ -522,8 +525,6 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 		/* ret frame to original queue */
 		if (out_frame->common.is_reserved) {
 			port->resbuf_get_cb(RESERVED_BUF_SET_CB, out_frame, port->resbuf_cb_data);
-			if (port_cfg->rgb_ltm)
-				port_cfg->rgb_ltm->ltm_ops.sync_ops.clear_status(port_cfg->rgb_ltm);
 		} else {
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
