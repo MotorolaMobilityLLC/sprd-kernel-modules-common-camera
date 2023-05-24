@@ -22,9 +22,7 @@
 #undef pr_fmt
 #endif
 #define pr_fmt(fmt) "3DNR: %d %d %s : " fmt, current->pid, __LINE__, __func__
-
-#define DCAM_3DNR_ROI_SIZE_ALIGN 16u
-#define DCAM_3DNR_ROI_LINE_CUT 32u
+#define DCAM_3DNR_ROI_LINE_CUT         32u
 
 struct roi_size {
 	uint32_t roi_width;
@@ -49,8 +47,9 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 			 uint32_t project_mode, uint32_t idx)
 {
 	uint32_t roi_w_max, roi_h_max;
-	uint32_t roi_w, roi_h, roi_x = 0, roi_y = 0;
+	uint32_t roi_w = 0, roi_h = 0, roi_x = 0, roi_y = 0;
 	uint32_t lbuf_share_mode = 0;
+	uint32_t align = 0;
 
 	/* get max roi size
 	 * max roi size should be half of normal value if project_mode is off
@@ -60,8 +59,9 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	roi_h_max = roi_max_size_info[idx][project_mode][lbuf_share_mode].roi_height;
 
 	/* get roi and align to 16 pixels */
-	roi_w = ALIGN_DOWN(min(roi_w_max, rect.w), DCAM_3DNR_ROI_SIZE_ALIGN);
-	roi_h = ALIGN_DOWN(min(roi_h_max, rect.h), DCAM_3DNR_ROI_SIZE_ALIGN);
+	align = project_mode == 1 ? 16 : 8;
+	roi_w = ALIGN_DOWN(min(roi_w_max, rect.w), align);
+	roi_h = ALIGN_DOWN(min(roi_h_max, rect.h), align);
 
 	/* get offset */
 	roi_x = (rect.w - roi_w) >> 1;

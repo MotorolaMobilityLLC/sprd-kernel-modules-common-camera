@@ -23,7 +23,6 @@
 #endif
 #define pr_fmt(fmt) "3DNR: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-#define DCAM_3DNR_ROI_SIZE_ALIGN       16u
 #define DCAM_3DNR_ROI_LINE_CUT         32u
 #define DCAM0_3DNR_ME_WIDTH_MAX        (5664 >> 1)
 #define DCAM0_3DNR_ME_HEIGHT_MAX       (4248 >> 1)
@@ -60,7 +59,8 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 		} else {
 			if (src.w > DCAM1_3DNR_ME_WIDTH_MAX) {
 				lbuf = 1;
-				DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT_0, BIT_0);
+				/* when dcam1 use lbuf of dacm2, should bypass dcam2 */
+				DCAM_REG_MWR(DCAM_ID_2, NR3_FAST_ME_PARAM, BIT_0, BIT_0);
 			} else if (src.w > DCAM1_3DNR_ME_WIDTH_MAX / 2) {
 				lbuf = 0;
 			}
@@ -97,9 +97,10 @@ int dcam_k_3dnr_convert_roi(struct isp_img_rect src, struct isp_img_size *dst,
 void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 			 uint32_t project_mode, uint32_t idx)
 {
-	uint32_t roi_w, roi_h, roi_x = 0, roi_y = 0;
+	uint32_t roi_w = 0, roi_h = 0, roi_x = 0, roi_y = 0;
 	struct isp_img_size smax = {0, 0};
 	uint32_t pmode = 0;
+	uint32_t align = 0;
 
 	/* get max roi size
 	 * max roi size should be half of normal value if project_mode is off
@@ -111,8 +112,9 @@ void dcam_k_3dnr_set_roi(struct isp_img_rect rect,
 	dcam_k_3dnr_convert_roi(rect, &smax, project_mode, idx);
 
 	/* get roi and align to 16 pixels */
-	roi_w = ALIGN_DOWN(smax.width, DCAM_3DNR_ROI_SIZE_ALIGN);
-	roi_h = ALIGN_DOWN(smax.height, DCAM_3DNR_ROI_SIZE_ALIGN);
+	align = project_mode == 1 ? 16 : 8;
+	roi_w = ALIGN_DOWN(smax.width, align);
+	roi_h = ALIGN_DOWN(smax.height, align);
 
 	/* get offset */
 	roi_x = (rect.w - roi_w) >> 1;
