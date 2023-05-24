@@ -1957,10 +1957,7 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	}
 
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
-		num = CAM_PIPELINE_BUFFER_NUM_DUAL;
-
-	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual && module->master_flag) /*for dual hdr*/
-		num += 3;
+		num = module->cam_uinfo.dual_buf_num;
 
 	if (module->cam_uinfo.dcam_slice_mode
 		&& channel->ch_id == CAM_CH_CAP &&

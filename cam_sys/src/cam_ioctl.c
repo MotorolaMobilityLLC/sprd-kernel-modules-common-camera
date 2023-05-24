@@ -498,6 +498,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->master_flag, &uparam->master_flag);
 	ret |= get_user(module->cam_uinfo.virtualsensor, &uparam->virtualsensor);
 	ret |= get_user(module->cam_uinfo.opt_buffer_num, &uparam->opt_buffer_num);
+	ret |= get_user(module->cam_uinfo.dual_buf_num, &uparam->dual_buf_num);
 	if (unlikely(ret)) {
 		pr_err("fail to get from user, ret %d\n", ret);
 		ret = -EFAULT;
@@ -515,7 +516,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	else
 		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[0]->dcamhw_abt->pyramid_support;
 
-	pr_info("4in1:[%d], rgb_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, master_flag:%d,virtualsensor %d pre buffer num %d\n",
+	pr_info("4in1:[%d], rgb_ltm[%d], gtm[%d], dual[%d], dec %d, raw_alg_type:%d, zoom_conflict_with_ltm %d, %d. dcam_raw %d, master_flag:%d,virtualsensor %d pre buffer num %d dual buf num %d\n",
 		module->cam_uinfo.is_4in1,module->cam_uinfo.is_rgb_ltm,
 		module->cam_uinfo.is_rgb_gtm,
 		module->cam_uinfo.is_dual, module->cam_uinfo.is_pyr_dec,
@@ -525,7 +526,8 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->cam_uinfo.need_dcam_raw,
 		module->master_flag,
 		module->cam_uinfo.virtualsensor,
-		module->cam_uinfo.opt_buffer_num);
+		module->cam_uinfo.opt_buffer_num,
+		module->cam_uinfo.dual_buf_num);
 exit:
 	return ret;
 }
