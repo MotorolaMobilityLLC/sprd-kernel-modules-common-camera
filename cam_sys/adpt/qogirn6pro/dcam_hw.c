@@ -531,7 +531,7 @@ static int dcamhw_stop(void *handle, void *arg)
 	}
 
 	if (time_out == 0)
-		pr_warn("warning: DCAM%d wait fbc done %d %d timeout for 35ms\n", idx,
+		pr_debug("warning: DCAM%d wait fbc done %d %d timeout for 35ms\n", idx,
 			hw_ctx->prev_fbc_done, hw_ctx->cap_fbc_done);
 	else
 		pr_debug("dcam%d time %d\n", idx, time_out);

@@ -167,7 +167,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 	if ((statis_buf.type != STATIS_INIT) &&
 		(statis_buf.type < STATIS_TYPE_MAX) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
-		pr_warn("warning: should not configure statis buf for state %d\n",
+		pr_debug("warning: should not configure statis buf for state %d\n",
 			atomic_read(&module->state));
 		goto exit;
 	}
@@ -338,7 +338,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	}
 
 	if (!channel->enable || !channel->pipeline_handle) {
-		pr_warn("warning: channel %d has not been enable %px scene %d subblock %d\n",
+		pr_debug("warning: channel %d has not been enable %px scene %d subblock %d\n",
 				channel->ch_id, channel->pipeline_handle, param.scene_id, param.sub_block);
 		if (param.sub_block == DCAM_BLOCK_LSC)
 			goto exit;
