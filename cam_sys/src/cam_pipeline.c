@@ -136,12 +136,13 @@ static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_d
 	pipeline = (struct cam_pipeline *)priv_data;
 	pframe = (struct cam_frame *)param;
 	switch (type) {
+	case CAM_CB_COPY_DST_BUFFER:
 	case CAM_CB_DUMP_DATA_DONE:
-	case CAM_CB_REPLACE_DATA_DONE:
 	case CAM_CB_DCAM_DATA_DONE:
-	case CAM_CB_FRAME_CACHE_DATA_DONE:
+	case CAM_CB_REPLACE_DATA_DONE:
 	case CAM_CB_ISP_RET_PYR_DEC_BUF:
 	case CAM_CB_YUV_SCALER_DATA_DONE:
+	case CAM_CB_FRAME_CACHE_DATA_DONE:
 		link_node = campipeline_linked_node_get(pipeline, pframe);
 		if (link_node) {
 			if (pframe->common.height > ISP_SLCIE_HEIGHT_MAX
@@ -596,6 +597,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	node_desc.frame_cache_desc = &param->frame_cache_desc;
 	node_desc.pyr_dec_desc = &param->pyr_dec_desc;
 	node_desc.isp_yuv_scaler_desc = &param->isp_yuv_scaler_desc;
+	node_desc.cam_copy_desc = &param->cam_copy_desc;
 	for (i = 0; i < pipeline->pipeline_graph->node_cnt; i++) {
 		node_desc.node_graph = &pipeline->pipeline_graph->nodes[i];
 		g_dump_en = campipeline_dump_en_cfg_get(pipeline->pipeline_graph->type, node_desc.node_graph, g_dump_en);

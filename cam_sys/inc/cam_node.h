@@ -17,6 +17,7 @@
 #include "cam_copy_node.h"
 #include "cam_dump_node.h"
 #include "cam_port.h"
+#include "cam_copy_node.h"
 #include "dcam_online_node.h"
 #include "dcam_fetch_node.h"
 #include "isp_node.h"
@@ -157,6 +158,7 @@ struct cam_node_desc {
 	struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc;
 	struct frame_cache_node_desc *frame_cache_desc;
 	struct pyr_dec_node_desc *pyr_dec_desc;
+	struct cam_copy_node_desc *cam_copy_desc;
 	struct cam_node_topology *node_graph;
 };
 
