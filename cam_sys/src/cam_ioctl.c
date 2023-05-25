@@ -142,7 +142,7 @@ exit:
 static int camioctl_statis_buf_set(struct camera_module *module,
 		unsigned long arg)
 {
-	int ret = 0, is_raw_cap = 0;
+	int ret = 0, cfg_to_dcam = 0, cfg_to_isp = 0;
 	struct channel_context *ch = NULL;
 	struct isp_statis_buf_input statis_buf = {0};
 	struct cam_hw_info *hw = module->dcam_dev_handle->hw;
@@ -172,40 +172,14 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		goto exit;
 	}
 	ch = &module->channel[CAM_CH_PRE];
-	is_raw_cap = (module->capture_type == CAM_CAPTURE_RAWPROC ? 1 : 0);
+
 	switch (statis_buf.type) {
 		case STATIS_INIT:
-			if (ch->enable) {
-				statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-				statis_param.param = &statis_buf;
-				statis_param.buf_size = &module->reserved_size;
-				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
- 			} else {
-				ch = &module->channel[CAM_CH_CAP];
-				if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
-					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-					statis_param.param = &statis_buf;
-					statis_param.buf_size = &module->reserved_size;
-					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-				}
-				if (ch->enable && is_raw_cap) {
-					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-					statis_param.param = &statis_buf;
-					statis_param.buf_size = &module->reserved_size;
-					if (g_dbg_raw2frgb_switch == DEBUG_FRGB_MODE) {
-						ret = CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-						ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-					} else
-						ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-				}
-			}
-
+			statis_param.buf_size = &module->reserved_size;
+			cfg_to_dcam = 1;
 			/* N6: frgb hist in dcam; others: yuv hist in isp */
-			if (!hw->ip_isp->isphw_abt->frbg_hist_support || hw->ip_isp->isphw_abt->rgb_gtm_support || hw->ip_isp->isphw_abt->rgb_ltm_support) {
-				ch = &module->channel[CAM_CH_PRE];
-				if (ch->enable)
-					ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
-			}
+			if (!hw->ip_isp->isphw_abt->frbg_hist_support || hw->ip_isp->isphw_abt->rgb_gtm_support || hw->ip_isp->isphw_abt->rgb_ltm_support)
+				cfg_to_isp = 1;
 			break;
 		case STATIS_AEM:
 		case STATIS_AFM:
@@ -214,78 +188,24 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		case STATIS_PDAF:
 		case STATIS_EBD:
 		case STATIS_LSCM:
+			cfg_to_dcam = 1;
 			pr_debug("cam%d type %d mfd %d\n", module->idx, statis_buf.type, statis_buf.mfd);
-			if (ch->enable) {
-				statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-				statis_param.param = &statis_buf;
-				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-			} else {
-				ch = &module->channel[CAM_CH_CAP];
-				if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
-					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-					statis_param.param = &statis_buf;
-					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-				}
-				if (ch->enable && is_raw_cap) {
-					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-					statis_param.param = &statis_buf;
-					ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-				}
-			}
 			break;
 		case STATIS_GTMHIST:
 			if (hw->ip_isp->isphw_abt->rgb_gtm_support > 0) {
-				if (!ch->enable) {
-					pr_debug("prev channel disable, can not set gtm buf\n");
-					break;
-				}
 				/*gtm in isp*/
-				ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
+				cfg_to_isp = 1;
 			} else {
 				/*gtm in dcam*/
+				cfg_to_dcam = 1;
 				pr_debug("dcam gtm statis buf cfg\n");
-				if (ch->enable) {
-					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-					statis_param.param = &statis_buf;
-					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-				} else {
-					ch = &module->channel[CAM_CH_CAP];
-					if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
-						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-						statis_param.param = &statis_buf;
-						ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-					}
-					if (ch->enable && is_raw_cap) {
-						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-						statis_param.param = &statis_buf;
-						ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-					}
-				}
 			}
 			break;
 		case STATIS_HIST2:
-			if (hw->ip_isp->isphw_abt->frbg_hist_support) {
-				if (ch->enable) {
-					statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-					statis_param.param = &statis_buf;
-					ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-				} else {
-					ch = &module->channel[CAM_CH_CAP];
-					if (ch->enable && module->cam_uinfo.is_longexp && !is_raw_cap) {
-						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-						statis_param.param = &statis_buf;
-						ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-					}
-					if (ch->enable && is_raw_cap) {
-						statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
-						statis_param.param = &statis_buf;
-						ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
-					}
-				}
-			} else {
-				if (ch->enable)
-					ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
-			}
+			if (hw->ip_isp->isphw_abt->frbg_hist_support)
+				cfg_to_dcam = 1;
+			else
+				cfg_to_isp = 1;
 			break;
 		case STATIS_LTMHIST:
 			if (hw->ip_isp->isphw_abt->rgb_ltm_support) {
@@ -299,6 +219,34 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 			break;
 		default:
 			break;
+	}
+
+	if (cfg_to_isp) {
+		if (ch->enable) {
+			ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
+			if (ret)
+				pr_err("fail to config isp STATIS, statis_buf.type %d\n", statis_buf.type);
+		} else
+			pr_debug("prev channel disable, can not set buf\n");
+	}
+
+	if (cfg_to_dcam) {
+		if (ch->enable) {
+			statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+			statis_param.param = &statis_buf;
+			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+			if (ret)
+				pr_err("fail to config dcam STATIS, statis_buf.type %d\n", statis_buf.type);
+		} else {
+			ch = &module->channel[CAM_CH_CAP];
+			if (ch->enable && module->cam_uinfo.is_longexp) {
+				statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
+				statis_param.param = &statis_buf;
+				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				if (ret)
+					pr_err("fail to config longxp STATIS, statis_buf.type %d\n", statis_buf.type);
+			}
+		}
 	}
 
 exit:

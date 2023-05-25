@@ -125,7 +125,7 @@ static int camstatis_isp_port_buffer_init(void *isp_handle, void *node,
 
 int cam_statis_isp_port_buffer_deinit(void *isp_handle, void *node)
 {
-	int ret = 0, j = 0;
+	int j = 0;
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_node *inode = NULL;
 	struct camera_buf *ion_buf = NULL;
@@ -155,7 +155,7 @@ int cam_statis_isp_port_buffer_deinit(void *isp_handle, void *node)
 		}
 	}
 	pr_debug("done.\n");
-	return ret;
+	return 0;
 }
 
 int cam_statis_isp_port_buffer_cfg(void *isp_handle, void *node,
@@ -232,7 +232,7 @@ int cam_statis_isp_port_buffer_cfg(void *isp_handle, void *node,
 	pr_debug("buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
 		ion_buf->mfd, ion_buf->offset[0],
 		ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_ISP]);
-	return 0;
+	return ret;
 }
 
 int camstatis_dcam_port_buffer_init(
