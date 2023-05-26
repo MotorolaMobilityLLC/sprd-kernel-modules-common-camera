@@ -220,6 +220,11 @@ int cam_statis_isp_port_buffer_cfg(void *isp_handle, void *node,
 	}
 
 	pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+	if (!pframe) {
+		pr_err("fail to get frame\n");
+		ret = -EINVAL;
+		return ret;
+	}
 	pframe->common.channel_id = inode->ch_id;
 	pframe->common.irq_property = input->type;
 	pframe->common.buf = *ion_buf;
