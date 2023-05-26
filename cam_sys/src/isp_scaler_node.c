@@ -510,6 +510,10 @@ static int ispscaler_node_slice_fmcu(struct isp_yuv_scaler_node *inode,
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1) {
 			hw_path_id = isp_scaler_port_id_switch(port->port_id);
+			if (hw_path_id >= ISP_SPATH_NUM) {
+				pr_err("fail to get correct path id\n");
+				return -EFAULT;
+			}
 			slc_cfg->frame_store[hw_path_id] = &pctx_hw->pipe_info.store[hw_path_id].store;
 		}
 	}
