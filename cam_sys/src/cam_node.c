@@ -27,7 +27,7 @@
 #define DCAM_ONLINE_NODE_NUM      4
 #define DCAM_OFFLINE_NODE_NUM     4
 #define ISP_OFFLINE_NODE_NUM      8
-#define IS_CAM_NODE(type) ((type) >= CAM_NODE_TYPE_DCAM_ONLINE && (type) < CAM_NODE_TYPE_MAX)
+#define IS_CAM_NODE(type) ((type) < CAM_NODE_TYPE_MAX)
 #define IS_VALID_PORT_ID(id) (id < CAM_NODE_PORT_OUT_NUM)
 
 static const char *CAM_NODE_NAMES[CAM_NODE_TYPE_MAX] = {
