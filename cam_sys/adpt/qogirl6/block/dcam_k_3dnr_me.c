@@ -179,8 +179,8 @@ int dcam_k_3dnr_me(struct dcam_isp_k_block *param)
 		(rect.y + rect.h) <= hw_ctx->cap_info.cap_size.size_y)
 		dcam_k_3dnr_set_roi(rect, p->nr3_project_mode, idx);
 
-	/*  sub_me_bypass.  */
-	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT(3), 0 << 3);
+	/*  sub_me_bypass. If sub_me_bypass is work(0), it may make the mv larger significantly.  */
+	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM, BIT(3), 1 << 3);
 
 	return ret;
 }
