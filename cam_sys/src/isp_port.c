@@ -1430,9 +1430,13 @@ static int ispport_video_slowmotion(struct isp_port *port, struct isp_port_cfg *
 		pr_debug("vid use valid %px\n", out_frame);
 	}
 
-	if (out_frame == NULL)
+	if (!out_frame) {
 		out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
-	else if (port_cfg->uinfo->stage_a_valid_count)
+		if (!out_frame) {
+			pr_err("fail to get isp reserved buf.\n");
+			return -EFAULT;
+		}
+	} else if (port_cfg->uinfo->stage_a_valid_count)
 		ispport_slw960_frame_num_update(&port_cfg->uinfo->slw_960desc, &port_cfg->uinfo->frame_num);
 
 	if (out_frame->common.is_reserved == 0) {

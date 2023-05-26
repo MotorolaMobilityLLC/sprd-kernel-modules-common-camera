@@ -54,7 +54,7 @@ enum replace_cmd_type {
 };
 
 struct cam_replace_msg {
-	ssize_t size;
+	uint32_t size;
 	uint32_t align_w;
 	uint32_t align_h;
 	uint32_t offset;

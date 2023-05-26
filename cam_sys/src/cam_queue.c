@@ -308,7 +308,7 @@ int cam_queue_empty_frame_init()
 			g_frame_manager = NULL;
 			pr_err("fail to create cam buf manager\n");
 			return -1;
-		};
+		}
 		frame_manager->array_num = 0;
 		CAM_QUEUE_INIT(&frame_manager->empty_frame_q, CAM_EMP_ARRAY_LEN_MAX * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), NULL);
 		spin_lock_init(&frame_manager->frame_lock);

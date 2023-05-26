@@ -348,7 +348,7 @@ static int ispscaler_port_store_frame_cycle(struct isp_scaler_port *port, void *
 	struct isp_scaler_port_cfg *port_cfg = NULL;
 	struct cam_frame *out_frame = NULL;
 
-	port_cfg = VOID_PTR_TO(param, struct isp_scaler_port_cfg);
+	port_cfg = (struct isp_scaler_port_cfg *)param;
 	if (!port || !port_cfg) {
 		pr_err("fail to get valid port %p, port_cfg %p\n", port, port_cfg);
 		return -EINVAL;

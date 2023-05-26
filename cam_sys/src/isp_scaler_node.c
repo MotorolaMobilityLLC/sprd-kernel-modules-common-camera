@@ -21,7 +21,7 @@
 
 static void *ispscaler_node_context_bind(void *node, int slice_need, isp_irq_postproc postproc_func)
 {
-	int i = 0, m = 0, loop = 0, use_fmcu = 0;
+	int i = 0, m = 0, use_fmcu = 0;
 	int hw_ctx_id = -1;
 	unsigned long flag = 0;
 	struct isp_pipe_dev *dev = NULL;
@@ -50,8 +50,7 @@ static void *ispscaler_node_context_bind(void *node, int slice_need, isp_irq_pos
 		}
 	}
 
-	loop = (use_fmcu & FMCU_IS_MUST) ? 1 : 2;
-	for (m = 0; m < loop; m++) {
+	for (m = 0; m < 2; m++) {
 		for (i = 0; i < ISP_CONTEXT_HW_NUM; i++) {
 			pctx_hw = &dev->hw_ctx[i];
 			if (m == 0) {
