@@ -70,14 +70,13 @@ static struct debug_cmd debug_cmd_tab[] = {
 	{"offline_dec_bypass", camdebugger_isp_pyr_dec_bypass_write, camdebugger_isp_pyr_dec_bypass_read, HW_CTX_MAX, IP_MAX},
 };
 
-static int camdebugger_strtok(char *buf, char *name, char *val,
-	char *tag, int name_size, int val_size, int tag_size)
+static int camdebugger_strtok(char *buf, char *name, char *val, char *tag)
 {
 	uint32_t j = 0;
 	uint32_t k = 0;
 	uint32_t i = 0;
 
-	for (i = 0; i < name_size - 1; i++) {
+	for (i = 0; i < sizeof(name) - 1; i++) {
 		if ('\0' == buf[i] || ' ' == buf[i] || ':' == buf[i] || '\n' == buf[i])
 			break;
 		name[i] = buf[i];
@@ -85,7 +84,7 @@ static int camdebugger_strtok(char *buf, char *name, char *val,
 	name[i] = '\0';
 	i++;
 
-	for (j = 0; j < val_size - 1; i++, j++) {
+	for (j = 0; j < sizeof(val) - 1; i++, j++) {
 		if ('\0' == buf[i] || ' ' == buf[i] || ':' == buf[i] || '\n' == buf[i])
 			break;
 		val[j] = buf[i];
@@ -96,7 +95,7 @@ static int camdebugger_strtok(char *buf, char *name, char *val,
 	val[j] = '\0';
 	i++;
 
-	for (k = 0; k < tag_size - 1; i++, k++) {
+	for (k = 0; k < sizeof(tag) - 1; i++, k++) {
 		if ('\0' == buf[i] || ' ' == buf[i] || ':' == buf[i] || '\n' == buf[i])
 			break;
 		tag[k] = buf[i];
@@ -160,8 +159,7 @@ static ssize_t camdebugger_input_write(struct file *filp,
 	}
 	buf[i] = '\0';
 
-	ret = camdebugger_strtok(buf, name, val, tag,
-		sizeof(name), sizeof(val), sizeof(tag));
+	ret = camdebugger_strtok(buf, name, val, tag);
 	if (ret < 0) {
 		g_dbg_readinfo = debug_fun_get(name, NULL);
 		return count;
