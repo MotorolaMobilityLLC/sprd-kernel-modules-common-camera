@@ -96,7 +96,7 @@ static int ispgtm_pipe_proc(void *handle, void *param)
 {
 	int ret = 0;
 	uint32_t idx = 0;
-	struct isp_hw_gtm_func gtm_func;
+	struct isp_hw_gtm_func gtm_func = {0};
 	struct isp_gtm_k_block gtm_k_block ={0};
 	struct isp_gtm_ctx_desc *gtm_ctx = NULL;
 	struct dcam_isp_k_block *isp_using_param = NULL;
