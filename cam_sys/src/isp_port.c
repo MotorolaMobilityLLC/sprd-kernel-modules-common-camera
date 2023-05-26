@@ -52,13 +52,17 @@ static int ispport_slice_fetch_prepare(struct isp_port *port, void *param)
 
 static int ispport_slice_store_prepare(struct isp_port *port, void *param)
 {
-	uint32_t ret = 0, width = 0, height = 0;
+	uint32_t ret = 0, width = 0, height = 0, path_id = 0;
 	struct isp_port_cfg *port_cfg = NULL;
 	struct isp_store_info *store = NULL;
 	struct isp_hw_path_scaler *path = NULL;
 	struct img_slice_info *slice = NULL;
-	uint32_t path_id = isp_port_id_switch(port->port_id);
 
+	path_id = isp_port_id_switch(port->port_id);
+	if (path_id == ISP_SPATH_NUM) {
+		pr_err("fail to get hw_path_id\n");
+		return 0;
+	}
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	store = &port_cfg->pipe_info->store[path_id].store;
 	path = &port_cfg->pipe_info->scaler[path_id];
@@ -958,7 +962,7 @@ static int ispport_fbdfetch_yuv_get(void *cfg_in, void *cfg_out, struct cam_fram
 static int ispport_store_normal_get(struct isp_port *port,
 	struct isp_hw_path_store *store_info, struct isp_port_cfg *port_cfg)
 {
-	int ret = 0, path_id = 0;
+	int ret = 0;
 	uint32_t width = 0, height = 0;
 	struct isp_store_info *store = NULL;
 
@@ -967,7 +971,6 @@ static int ispport_store_normal_get(struct isp_port *port,
 		return -EFAULT;
 	}
 
-	path_id = isp_port_id_switch(port->port_id);
 	store = &store_info->store;
 	store->color_fmt = port->fmt;
 	store->bypass = 0;
@@ -1049,7 +1052,7 @@ static int ispport_store_normal_get(struct isp_port *port,
 
 static int ispport_thumb_scaler_get(struct isp_port *port, struct isp_hw_thumbscaler_info *scalerInfo)
 {
-	int ret = 0, path_id = 0;
+	int ret = 0;
 	uint32_t deci_w = 0;
 	uint32_t deci_h = 0;
 	uint32_t trim_w, trim_h, temp_w, temp_h;
@@ -1062,7 +1065,6 @@ static int ispport_thumb_scaler_get(struct isp_port *port, struct isp_hw_thumbsc
 		return -EFAULT;
 	}
 
-	path_id = isp_port_id_switch(port->port_id);
 	scalerInfo->scaler_bypass = 0;
 	scalerInfo->frame_deci = 0;
 	/* y factor & deci */
@@ -1228,8 +1230,13 @@ static int ispport_fetch_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg *port_cfg)
 {
 	struct isp_pipe_info *pipe_in = NULL;
-	uint32_t ret = 0, path_id = isp_port_id_switch(port->port_id);
+	uint32_t ret = 0, path_id = 0;
 
+	path_id = isp_port_id_switch(port->port_id);
+	if (path_id == ISP_SPATH_NUM) {
+		pr_err("fail to get hw_path_id\n");
+		return 0;
+	}
 	pipe_in = port_cfg->pipe_info;
 	pipe_in->store[path_id].ctx_id = port_cfg->cfg_id;
 	pipe_in->store[path_id].spath_id = path_id;
@@ -1269,8 +1276,13 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 static int ispport_thumb_pipeinfo_get(struct isp_port *port, struct isp_port_cfg *port_cfg)
 {
 	struct isp_pipe_info *pipe_in = NULL;
-	uint32_t ret = 0, path_id = isp_port_id_switch(port->port_id);
+	uint32_t ret = 0, path_id = 0;
 
+	path_id = isp_port_id_switch(port->port_id);
+	if (path_id == ISP_SPATH_NUM) {
+		pr_err("fail to get hw_path_id\n");
+		return 0;
+	}
 	pipe_in = port_cfg->pipe_info;
 	pipe_in->store[path_id].ctx_id = port_cfg->cfg_id;
 	pipe_in->store[path_id].spath_id = path_id;
@@ -1411,8 +1423,7 @@ static int ispport_start_error(struct isp_port *port, void *param)
 static int ispport_video_slowmotion(struct isp_port *port, struct isp_port_cfg *port_cfg)
 {
 	struct cam_frame *out_frame = NULL;
-	uint32_t hw_path_id = isp_port_id_switch(port->port_id);
-	uint32_t ret = 0;
+	uint32_t ret = 0, hw_path_id = 0;
 
 	if (port_cfg->vid_valid) {
 		out_frame = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, NULL, port->buf_manager_handle);
@@ -1433,6 +1444,11 @@ static int ispport_video_slowmotion(struct isp_port *port, struct isp_port_cfg *
 	}
 	ret = ispport_store_frameproc(port, out_frame, port_cfg);
 
+	hw_path_id = isp_port_id_switch(port->port_id);
+	if (hw_path_id == ISP_SPATH_NUM) {
+		pr_err("fail to get hw_path_id\n");
+		return 0;
+	}
 	port_cfg->slw->store[hw_path_id] = port_cfg->pipe_info->store[hw_path_id].store;
 	return 0;
 }
@@ -1440,10 +1456,15 @@ static int ispport_video_slowmotion(struct isp_port *port, struct isp_port_cfg *
 static int ispport_preview_slowmotion(struct isp_port *port, struct isp_port_cfg *port_cfg)
 {
 	struct cam_frame *out_frame = NULL;
-	uint32_t hw_path_id = isp_port_id_switch(port->port_id);
-	uint32_t ret = 0;
+	uint32_t ret = 0, hw_path_id = 0;
+
 	out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
 	ret = ispport_store_frameproc(port, out_frame, port_cfg);
+	hw_path_id = isp_port_id_switch(port->port_id);
+	if (hw_path_id == ISP_SPATH_NUM) {
+		pr_err("fail to get hw_path_id\n");
+		return 0;
+	}
 	port_cfg->slw->store[hw_path_id] = port_cfg->pipe_info->store[hw_path_id].store;
 	return ret;
 }

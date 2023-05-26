@@ -1423,7 +1423,6 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	if (pipeline_desc->pipeline_graph->need_yuv_scaler) {
 		isp_yuv_scaler_desc = &pipeline_desc->isp_yuv_scaler_desc;
-		isp_yuv_scaler_desc->hw_path_id = isp_port_id_switch(isp_port_id);
 		cam_scene_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
 	}
 

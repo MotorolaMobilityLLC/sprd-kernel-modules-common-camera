@@ -228,7 +228,7 @@ static int ispscaler_port_store_frm_set(struct isp_pipe_info *pipe_info, uint32_
 	unsigned long offset_u, offset_v, yuv_addr[3] = {0};
 	struct isp_store_info *store = NULL;
 
-	if (!pipe_info || !frame) {
+	if (!pipe_info || !frame || hw_path_id == ISP_SPATH_NUM) {
 		pr_err("fail to get valid input ptr, pipe_info %p, path %p, frame %p\n",
 			pipe_info, frame);
 		return -EINVAL;
@@ -282,7 +282,7 @@ static int ispscaler_port_store_frm_set(struct isp_pipe_info *pipe_info, uint32_
 static int ispscaler_port_store_frameproc(struct isp_scaler_port *port,
 	struct cam_frame *out_frame, struct isp_scaler_port_cfg *port_cfg)
 {
-	int hw_path_id = isp_port_id_switch(port->port_id);
+	uint32_t hw_path_id = isp_port_id_switch(port->port_id);
 	uint32_t ret = 0, loop = 0;
 	struct isp_yuv_scaler_node *inode = NULL;
 
@@ -661,8 +661,13 @@ static int ispscaler_port_fetch_pipeinfo_get(struct isp_scaler_port *port, struc
 static int ispscaler_port_store_pipeinfo_get(struct isp_scaler_port *port, struct isp_scaler_port_cfg *port_cfg)
 {
 	struct isp_pipe_info *pipe_in = NULL;
-	uint32_t ret = 0, path_id = isp_port_id_switch(port->port_id);
+	uint32_t ret = 0, path_id = 0;
 
+	path_id = isp_port_id_switch(port->port_id);
+	if (path_id == ISP_SPATH_NUM) {
+		pr_err("fail to get hw_path_id\n");
+		return 0;
+	}
 	pipe_in = port_cfg->pipe_info;
 	pipe_in->store[path_id].ctx_id = port_cfg->cfg_id;
 	pipe_in->store[path_id].spath_id = path_id;
@@ -847,8 +852,13 @@ static int ispscaler_thumbport_hwinfo_get(void *cfg_in, struct isp_hw_thumbscale
 static int ispscaler_thumbport_pipeinfo_get(struct isp_scaler_port *port, struct isp_scaler_port_cfg *port_cfg)
 {
 	struct isp_pipe_info *pipe_in = NULL;
-	uint32_t ret = 0, path_id = isp_port_id_switch(port->port_id);
+	uint32_t ret = 0, path_id = 0;
 
+	path_id = isp_port_id_switch(port->port_id);
+	if (path_id == ISP_SPATH_NUM) {
+		pr_err("fail to get hw_path_id\n");
+		return 0;
+	}
 	pipe_in = port_cfg->pipe_info;
 	pipe_in->store[path_id].ctx_id = port_cfg->cfg_id;
 	pipe_in->store[path_id].spath_id = path_id;

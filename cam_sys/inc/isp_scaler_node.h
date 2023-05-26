@@ -74,7 +74,6 @@ struct isp_yuv_scaler_node_desc {
 	void *resbuf_cb_data;
 	struct isp_scaler_port_desc port_desc;
 	uint32_t node_id;
-	uint32_t hw_path_id;
 	enum cam_format out_fmt;
 	enum cam_data_endian endian;
 	struct img_size output_size;

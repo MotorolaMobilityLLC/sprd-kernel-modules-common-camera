@@ -71,7 +71,7 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 	struct img_trim in_trim = {0};
 	uint32_t relative_offset = 0, trim_y_coef = 0;
 
-	if (slicearg->path_id < DCAM_PATH_FULL || slicearg->path_id > DCAM_PATH_RAW)
+	if (slicearg->path_id > DCAM_PATH_RAW)
 		return 0;
 	relative_offset = hw_ctx->relative_offset[slicearg->path_id];
 	slicearg->relative_offset = relative_offset;
