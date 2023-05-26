@@ -827,11 +827,19 @@ int cam_zoom_channel_size_config(
 
 	raw_port_id = hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
 	raw_port_id = dcamonline_pathid_convert_to_portid(raw_port_id);
+	if (raw_port_id >= PORT_DCAM_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return -EFAULT;
+	}
 	if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
 		raw2yuv_port_id = hw->ip_dcam[0]->dcamhw_abt->dcam_scaling_path;
 	else
 		raw2yuv_port_id = hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
 	raw2yuv_port_id = dcamoffline_pathid_convert_to_portid(raw2yuv_port_id);
+	if (raw2yuv_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return -EFAULT;
+	}
 	raw_zoom_base.src = ch_uinfo->src_size;
 	raw_zoom_base.dst = ch_uinfo->src_size;
 	raw_zoom_base.crop.start_x = 0;

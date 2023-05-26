@@ -48,11 +48,14 @@ static struct cam_frame *dcamfetch_frame_prepare(struct dcam_online_node *node,
 
 	if (atomic_read(&dcam_port->set_frm_cnt) <= 1) {
 		path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
-		pr_warn("warning: %s cnt %d, deci %u, out %u, result %u\n",
-			cam_port_name_get(dcam_port->port_id),
-			atomic_read(&dcam_port->set_frm_cnt), hw_ctx->hw_path[path_id].frm_deci,
-			cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle),
-			cam_buf_manager_pool_cnt(&dcam_port->result_pool, node->buf_manager_handle));
+		if (path_id >= DCAM_PATH_MAX)
+			pr_err("fail to get correct path id\n");
+		else
+			pr_warn("warning: %s cnt %d, deci %u, out %u, result %u\n",
+				cam_port_name_get(dcam_port->port_id),
+				atomic_read(&dcam_port->set_frm_cnt), hw_ctx->hw_path[path_id].frm_deci,
+				cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle),
+				cam_buf_manager_pool_cnt(&dcam_port->result_pool, node->buf_manager_handle));
 		return NULL;
 	}
 

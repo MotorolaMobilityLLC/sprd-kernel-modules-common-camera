@@ -608,6 +608,10 @@ static void camscene_onlineraw_pipeline_get(struct cam_pipeline_topology *param,
 
 	/* cfg port link between dcam online & user node */
 	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(raw_path_id);
+	if (dcam_online_raw_port_id >= PORT_DCAM_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
 	cur_node->outport[PORT_VCH2_OUT].link_state = PORT_LINK_IDLE;
@@ -659,6 +663,10 @@ static void camscene_onlineraw2offlineyuv_pipeline_get(struct cam_pipeline_topol
 
 	/* cfg port link between dcam online & user node */
 	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(raw_path_id);
+	if (dcam_online_raw_port_id >= PORT_DCAM_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
 	cur_node->outport[dcam_online_raw_port_id].dump_node_id = CAM_DUMP_NODE_ID_0;
@@ -683,6 +691,10 @@ static void camscene_onlineraw2offlineyuv_pipeline_get(struct cam_pipeline_topol
 	cur_node->id = CAM_DUMP_NODE_ID_0;
 	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
 	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
@@ -749,6 +761,10 @@ static void camscene_online2user2offline_pipeline_get(struct cam_pipeline_topolo
 		cam_node_static_nodelist_get(cur_node, node_list_type[i]);
 
 	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(raw_path_id);
+	if (dcam_online_raw_port_id >= PORT_DCAM_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
 	cur_node->outport[dcam_online_raw_port_id].dump_node_id = CAM_DUMP_NODE_ID_0;
@@ -832,6 +848,10 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 
 	/* cfg port link between dcam online & user node */
 	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(raw_path_id);
+	if (dcam_online_raw_port_id >= PORT_DCAM_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
 	cur_node->outport[dcam_online_raw_port_id].dump_node_id = CAM_DUMP_NODE_ID_0;
@@ -853,6 +873,10 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 	cur_node->outport[PORT_COPY_OUT].switch_link.port_id = PORT_DCAM_OFFLINE_IN;
 	cur_node++;
 	dcam_offline_lscraw_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	if (dcam_offline_lscraw_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_lscraw_port_id].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[dcam_offline_lscraw_port_id].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
@@ -860,6 +884,10 @@ static void camscene_online2copy2user2offline_pipeline_get(struct cam_pipeline_t
 	cur_node->outport[dcam_offline_lscraw_port_id].link.port_id = PORT_DCAM_OFFLINE_IN;
 	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
 	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
@@ -946,6 +974,10 @@ static void camscene_onlinebpcraw2user2offlineyuv_pipeline_get(struct cam_pipeli
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_ONLINE_PRE_NODE_ID;
 	dcam_online_raw_port_id = dcamoffline_pathid_convert_to_portid(raw_path_id);
+	if (dcam_online_raw_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->outport[dcam_online_raw_port_id].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[dcam_online_raw_port_id].link.node_type = CAM_NODE_TYPE_FRAME_CACHE;
 	cur_node->outport[dcam_online_raw_port_id].link.node_id = FRAME_CACHE_CAP_NODE_ID;
@@ -965,6 +997,10 @@ static void camscene_onlinebpcraw2user2offlineyuv_pipeline_get(struct cam_pipeli
 	cur_node->outport[PORT_FRAME_CACHE_OUT].switch_link.port_id = PORT_USER_IN;
 	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(raw2yuv_path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	if (pyrdec_support) {
 		cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
@@ -1064,6 +1100,10 @@ static void camscene_online2user2bpc2user2offline_pipeline_get(struct cam_pipeli
 	cur_node->id = CAM_DUMP_NODE_ID_0;
 	cur_node++;
 	dcam_offline_bpcraw_port_id = dcamoffline_pathid_convert_to_portid(raw_path_id);
+	if (dcam_offline_bpcraw_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_bpcraw_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
 	cur_node->outport[dcam_offline_bpcraw_port_id].link_state = PORT_LINK_NORMAL;
@@ -1073,6 +1113,10 @@ static void camscene_online2user2bpc2user2offline_pipeline_get(struct cam_pipeli
 	cur_node->id = CAM_DUMP_NODE_ID_1;
 	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(raw2yuv_path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_2;
 	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
@@ -1193,6 +1237,10 @@ static void camscene_online_normal_or_raw2user2yuv_pipeline_get(struct cam_pipel
 	cur_node->id = CAM_REPLACE_NODE_ID_0;
 	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
 	cur_node->outport[dcam_offline_port_id].replace_node_id = CAM_REPLACE_NODE_ID_1;
@@ -1319,6 +1367,10 @@ static void camscene_onlinezsl_or_raw2user2yuv_pipeline_get(struct cam_pipeline_
 	}
 	cur_node++;
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
 	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
@@ -1397,6 +1449,10 @@ static void camscene_offlineraw2yuv_pipeline_get(struct cam_pipeline_topology *p
 	}
 
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	/* cfg port link between dcam online & isp offline node */
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
@@ -1483,6 +1539,10 @@ static void camscene_offlinefrgb2yuv_pipeline_get(struct cam_pipeline_topology *
 	}
 
 	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(path_id);
+	if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return;
+	}
 	/* cfg port link between dcam offline & isp offline node */
 	cur_node = &param->nodes[0];
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
@@ -1770,6 +1830,10 @@ int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_i
 
 	port_link_state = enable ? PORT_LINK_NORMAL : PORT_LINK_IDLE;
 	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(raw_path_id);
+	if (dcam_online_raw_port_id >= PORT_DCAM_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		return -EFAULT;
+	}
 	if (channel_id == CAM_CH_PRE)
 		outport_type = camscene_outport_type_get(PIPELINE_PREVIEW_TYPE, ISP_OUT);
 	else if (channel_id == CAM_CH_VID)
@@ -1787,6 +1851,10 @@ int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_i
 			dcamonline_node->outport[i].link.node_type = CAM_NODE_TYPE_USER;
 		}
 		dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(scaling_path_id);
+		if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+			pr_err("fail to get port id\n");
+			return -EFAULT;
+		}
 		dcamoffline_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
 		dcamoffline_node->outport[dcam_offline_port_id].link_state = port_link_state;
 		dcamoffline_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
@@ -1810,6 +1878,10 @@ int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_i
 		dcamonline_node->outport[dcam_online_raw_port_id].link.port_id = dcam_online_raw_port_id;
 		dcamonline_node->outport[dcam_online_raw_port_id].dynamic_link_en = enable;
 		dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(raw2yuv_path_id);
+		if (dcam_offline_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+			pr_err("fail to get port id\n");
+			return -EFAULT;
+		}
 		dcamoffline_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_1;
 		dcamoffline_node->outport[dcam_offline_port_id].link_state = port_link_state;
 		if (pyrdec_support) {
@@ -2084,6 +2156,10 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 
 	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) {
 		rawport_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		if (rawport_id >= PORT_DCAM_OUT_MAX) {
+			pr_err("fail to get port id\n");
+			return -EFAULT;
+		}
 		camscene_dcamport_link_state_update(module, channel, dcam_online_desc, pipeline_type, PORT_VCH2_OUT, rawport_id);
 	}
 

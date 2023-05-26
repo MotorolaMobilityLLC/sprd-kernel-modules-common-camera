@@ -173,8 +173,7 @@ static int dcamoffline_port_pyr_dec_addr_set(struct dcam_offline_port *dcam_port
 				offset += frame->common.fbc_info.buffer_size;
 			else
 				offset += (size * 3 / 2);
-			dec_store.pitch[0] = cal_sprd_yuv_pitch(dec_store.width,
-				cam_data_bits(dcam_port->out_fmt), cam_is_pack(dcam_port->out_fmt));
+			dec_store.pitch[0] = cal_sprd_pitch(dec_store.width, dcam_port->out_fmt);
 			dec_store.pitch[1] = dec_store.pitch[0];
 			size = dec_store.pitch[0] * dec_store.height;
 			dec_store.addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + offset;
