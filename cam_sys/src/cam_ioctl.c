@@ -1183,7 +1183,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_CAP_ID, pframe);
 				}
 			} else	{
-				node_id = (ch->ch_id == CAM_CH_CAP) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
+				node_id = (ch->ch_id == CAM_CH_CAP && ch->isp_port_id != PORT_VID_OUT) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
 				ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF, node_id, pframe);
 			}
 		} else {
@@ -1428,7 +1428,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		ch = &module->channel[i];
 		if (!ch->enable || !ch->pipeline_handle)
 			continue;
-		if (i == CAM_CH_VID && ch_pre->enable)
+		if (ch_pre->enable && ch->isp_port_id == PORT_VID_OUT)
 			continue;
 		CAM_QUEUE_INIT(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
 		CAM_QUEUE_INIT(&ch->nonzsl_pre.zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
@@ -1452,7 +1452,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		if (ch->ch_uinfo.frame_sync_close)
 			uframe_sync = 0;
 
-		node_id = (ch->ch_id == CAM_CH_CAP) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
+		node_id = (ch->ch_id == CAM_CH_CAP && ch->isp_port_id != PORT_VID_OUT) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
 		CAM_PIPEINE_ISP_IN_PORT_CFG(ch, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_UFRAME, node_id, &uframe_sync);
 		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_UFRAME, node_id, &uframe_sync);
 
@@ -1832,7 +1832,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	cap_param.frm_sel_mode = param.frm_sel_mode;
 
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_longexp)
-		cap_param.need_skip_scene = 1;
+		cap_param.no_need_skip_frame_scene = 1;
 	if ((!module->cam_uinfo.dcam_slice_mode && module->cam_uinfo.zsl_num != 0
 		&& !module->cam_uinfo.is_4in1 && (module->cap_scene != CAPTURE_AI_SFNR)) || module->cam_uinfo.is_dual)
 		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
@@ -1847,6 +1847,9 @@ static int camioctl_capture_start(struct camera_module *module,
 		cap_param.icap_scene = CAM_ENABLE;
 		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 	}
+
+	if (ch->isp_port_id == PORT_VID_OUT)
+		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);
 
 	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d\n",
 		module->idx, param.type, module->cap_scene, param.cap_cnt,
@@ -1909,6 +1912,9 @@ static int camioctl_capture_stop(struct camera_module *module,
 		cap_param.icap_scene = CAM_DISABLE;
 		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 	}
+
+	if (ch->isp_port_id == PORT_VID_OUT)
+		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);
 
 	if (hw->ip_isp->isphw_abt->pyr_dec_support) {
 		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_FAST_STOP, &ch->fast_stop);
@@ -2287,6 +2293,8 @@ static int camioctl_3dnr_mode_set(struct camera_module *module,
 	} else {
 		ch->uinfo_3dnr = parm.need_3dnr;
 	}
+	if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV)
+		ch->uinfo_3dnr = CAM_DISABLE;
 
 	return ret;
 }
@@ -2801,7 +2809,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 			}
 		}
 		if (module->isp_dev_handle->pyr_dec_handle) {
-			if (param.scene_id == PM_SCENE_CAP) {
+			if (param.scene_id == PM_SCENE_CAP || param.scene_id == PM_SCENE_OFFLINE_CAP) {
 				channel = &module->channel[CAM_CH_CAP];
 				if (channel->enable == 0)
 					return 0;

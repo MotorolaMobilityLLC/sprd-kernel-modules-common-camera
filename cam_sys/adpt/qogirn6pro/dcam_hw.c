@@ -88,7 +88,7 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_soc_info *soc_lite = NULL;
 
-	pr_debug(", E\n");
+	pr_debug("enter\n");
 	if (atomic_inc_return(&clk_users) != 1) {
 		pr_info("clk has enabled, users: %d\n",
 			atomic_read(&clk_users));
@@ -224,7 +224,7 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_soc_info *soc_lite = NULL;
 
-	pr_debug(", E\n");
+	pr_debug("enter\n");
 	if (atomic_dec_return(&clk_users) != 0) {
 		pr_info("Other using, users: %d\n",
 			atomic_read(&clk_users));
@@ -1050,8 +1050,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		}
 
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_1,  0 << 1);
-		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
-			BIT_14 | BIT_15, cap_info->pattern << 14);
+		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_14 | BIT_15, cap_info->pattern << 14);
 
 		/* x & y deci */
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG,
@@ -1125,7 +1124,7 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_28, 0);
 		DCAM_REG_MWR(idx, DCAM_BUF_CTRL, 0x3F << 10, caparg->slowmotion_count << 10);
 	} else {
-		/*slow motion enable*/
+		/*slow motion disable*/
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_29, 0);
 		/*preview done mode*/
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_28, BIT_28);
@@ -1171,8 +1170,6 @@ static int dcamhw_path_start(void *handle, void *arg)
 	patharg = (struct dcam_hw_path_start *)arg;
 	data_bits = cam_data_bits(patharg->out_fmt);
 	is_pack = cam_is_pack(patharg->out_fmt);
-	if (data_bits == CAM_8_BITS)
-		image_data_type = IMG_TYPE_RAW8;
 
 	switch (patharg->path_id) {
 	case DCAM_PATH_FULL:
@@ -1183,10 +1180,11 @@ static int dcamhw_path_start(void *handle, void *arg)
 
 		hwfmt = cal_dcamhw_format(patharg->out_fmt);
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, 0x70, hwfmt << 4);
-		val = (data_bits > CAM_8_BITS) ? 1 : 0;
-		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_11, val << 11);
+
 		val = (is_pack) ? 1 : 0;
 		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_7, val << 7);
+		val = (data_bits > CAM_8_BITS) ? 1 : 0;
+		DCAM_REG_MWR(patharg->idx, DCAM_STORE4_PARAM, BIT_11, val << 11);
 
 		if (data_bits == CAM_8_BITS) {
 			/*bwd for yuv 8bit*/
@@ -1329,6 +1327,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 		}
 		break;
 	case DCAM_PATH_VCH2:
+		if (data_bits == CAM_8_BITS)
+			image_data_type = IMG_TYPE_RAW8;
 		/* data type for raw picture */
 		if (patharg->src_sel)
 			DCAM_REG_WR(patharg->idx, DCAM_VCH2_CONTROL, image_data_type << 8 | 0x01 << 4);

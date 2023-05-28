@@ -451,13 +451,14 @@ struct dcam_isp_k_block *pyrdecnode_blk_param_get(struct pyr_dec_node *node, uin
 				break;
 			}
 			if (decblk_frame->dec_blk.fid > target_fid) {
-				pr_warn("dont have old param, use latest param, frame %d\n", target_fid);
+				pr_warn("warning:no blk param in param buf q, use latest param, frame %d\n", target_fid);
 				out = &node->decblk_param;
 				break;
 			}
 		} else {
 			mutex_unlock(&node->blkpm_q_lock);
-			pr_warn("dont have old param %d\n", target_fid);
+			pr_warn("warning:no %d fid blk param in param buf q: state:%d, cnt:%d.\n", target_fid,
+				node->param_buf_queue.state, node->param_buf_queue.cnt);
 			out = &node->decblk_param;
 		}
 	} while (loop++ < node->param_buf_queue.max);
@@ -1328,8 +1329,9 @@ int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param)
 		if (--layer_num == 0)
 			break;
 	}
-
-	if ((pframe->common.width >= DCAM_64M_WIDTH) || !layer_num || !node->hw->ip_isp->isphw_abt->pyr_dec_support) {
+	/*TBD: yuv sensor temp close pyr*/
+	if ((pframe->common.width >= DCAM_64M_WIDTH) || !layer_num || node->is_yuvsensor == CAM_ENABLE ||
+		!node->hw->ip_isp->isphw_abt->pyr_dec_support) {
 		pframe->common.pyr_status = CAM_DISABLE;
 		pframe->common.link_to.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		pframe->common.link_to.node_id = ISP_NODE_MODE_CAP_ID;
@@ -1629,6 +1631,7 @@ void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param)
 	node->dcam_slice_mode = param->dcam_slice_mode;
 	node->is_rawcap = param->is_rawcap;
 	node->sn_size = param->sn_size;
+	node->is_yuvsensor = param->is_yuvsensor;
 	node->layer_num = param->layer_num;
 	node->in_fmt = param->in_fmt;
 	node->pyr_out_fmt = param->pyr_out_fmt;

@@ -1966,7 +1966,7 @@ int dcam_online_node_port_insert(struct dcam_online_node *node, void *param)
 	}
 
 	new_port = (struct dcam_online_port *)param;
-	pr_info("node type:%s,id:%d, port type:%s\n", cam_node_name_get(node->node_type), node->node_id, cam_port_name_get(new_port->port_id));
+	pr_info("node type:%s, id:%d, port type:%s\n", cam_node_name_get(node->node_type), node->node_id, cam_port_name_get(new_port->port_id));
 
 	CAM_QUEUE_FOR_EACH_ENTRY(q_port, &node->port_queue.head, list) {
 		if (new_port == q_port) {

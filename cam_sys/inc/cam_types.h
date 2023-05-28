@@ -365,9 +365,9 @@ struct cam_capture_param {
 	uint32_t cap_scene;
 	atomic_t cap_cnt;
 	int64_t cap_timestamp;
-	uint32_t need_skip_scene;
 	uint32_t cap_opt_frame_scene;
 	uint32_t icap_scene;
+	uint32_t no_need_skip_frame_scene;
 	struct sprd_img_rect cap_user_crop;
 	uint32_t skip_first_num;
 	uint32_t zsl_num;

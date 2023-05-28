@@ -1224,8 +1224,11 @@ capture_param:
 				}
 				break;
 			}
-		} else
+		} else {
+			pr_warn("warning:no capture param in param q:state:%d, cnt:%d.\n", inode->param_buf_queue.state,
+				inode->param_buf_queue.cnt);
 			mutex_unlock(&inode->blkpm_q_lock);
+		}
 	} while (loop++ < inode->param_buf_queue.max);
 
 	if (last_param) {
@@ -1403,6 +1406,7 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 	struct isp_port_cfg port_cfg = {0};
 	struct cam_hw_gtm_ltm_eb eb = {0};
 	struct cam_hw_gtm_ltm_dis dis = {0};
+	struct cam_capture_param *cap_param = NULL;
 	struct isp_port *port = NULL;
 	struct isp_node *inode = NULL;
 	struct cam_frame *param_frame = NULL;
@@ -1424,6 +1428,12 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		break;
 	case ISP_NODE_CFG_INSERT_PORT:
 		ispnode_insert_port(inode, param);
+		break;
+	case ISP_NODE_CFG_CAP_PARAM:
+		/* for L6/L5pro yuv sensor capture */
+		cap_param = (struct cam_capture_param *)param;
+		inode->uinfo.cap_timestamp = cap_param->cap_timestamp;
+		inode->uinfo.cap_type = cap_param->cap_type;
 		break;
 	case ISP_NODE_CFG_CLEAR_PORT:
 		break;

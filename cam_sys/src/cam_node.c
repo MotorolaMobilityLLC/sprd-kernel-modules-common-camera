@@ -54,14 +54,15 @@ const char *cam_node_name_get(enum cam_node_type type)
 }
 
 static enum cam_en_status camnode_capture_skip_condition(struct cam_frame *pframe, struct cam_capture_param *cap_param)
-{	/* TBD： other scene need cover*/
-	if (((cap_param->cap_scene == CAPTURE_COMMON && !cap_param->need_skip_scene) ||
+{
+	/* TBD： other scene need cover*/
+	if (((cap_param->cap_scene == CAPTURE_COMMON && !cap_param->no_need_skip_frame_scene) ||
 		cap_param->cap_scene == CAPTURE_MFSR ||
 		cap_param->cap_scene == CAPTURE_SW3DNR ||
 		cap_param->cap_scene == CAPTURE_HDR) &&
 		(cap_param->cap_user_crop.w != pframe->common.width ||
 		cap_param->cap_user_crop.h != pframe->common.height)) {
-		pr_info("cap type[%d], fid %d, frame width %d %d, latest user crop %d %d, cap cnt %d\n",
+		pr_warn("warning: cap type[%d], fid %d skip, frame width %d %d, latest user crop %d %d, cap cnt %d\n",
 			cap_param->cap_scene, pframe->common.fid, pframe->common.width, pframe->common.height,
 			cap_param->cap_user_crop.w, cap_param->cap_user_crop.h, cap_param->cap_cnt);
 		return CAM_DISABLE;
@@ -373,7 +374,7 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
-		node->cap_param.need_skip_scene = cap_param->need_skip_scene;
+		node->cap_param.no_need_skip_frame_scene = cap_param->no_need_skip_frame_scene;
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d\n",
@@ -701,6 +702,9 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_BLK_PARAM:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_BLK_PATAM, in_param->param);
 		break;
+	case CAM_NODE_CFG_CAP_PARAM:
+		ret = isp_node_config(node->handle, ISP_NODE_CFG_CAP_PARAM, in_param->param);
+		break;
 	case CAM_NODE_CFG_UFRAME:
 		if (in_param->port_type == PORT_TRANSFER_IN)
 			ret = isp_node_config(node->handle, ISP_NODE_CFG_PORT_UFRAME, in_param->param);
@@ -914,7 +918,7 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
-		node->cap_param.need_skip_scene = cap_param->need_skip_scene;
+		node->cap_param.no_need_skip_frame_scene = cap_param->no_need_skip_frame_scene;
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
 		node->cap_param.icap_scene = cap_param->icap_scene;

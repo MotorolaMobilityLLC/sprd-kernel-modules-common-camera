@@ -848,8 +848,6 @@ static int dcamhw_path_start(void *handle, void *arg)
 	data_bits = cam_data_bits(patharg->out_fmt);
 	hwfmt = cal_dcamhw_format(patharg->out_fmt);
 
-	if (data_bits == CAM_8_BITS)
-		image_data_type = IMG_TYPE_RAW8;
 	patharg->src_sel = patharg->src_sel ? PROCESS_RAW_SRC_SEL : ORI_RAW_SRC_SEL;
 	switch (patharg->path_id) {
 	case  DCAM_PATH_FULL:
@@ -861,8 +859,12 @@ static int dcamhw_path_start(void *handle, void *arg)
 
 		/* full_path_en */
 		DCAM_REG_MWR(patharg->idx, DCAM_CFG, BIT_1, (1 << 1));
-		if (patharg->cap_info.format == DCAM_CAP_MODE_YUV)
+		if (patharg->cap_info.format == DCAM_CAP_MODE_YUV) {
+			hwfmt = CAM_RAW10PACK_RAW;
+			DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_0, hwfmt);
+			DCAM_REG_MWR(patharg->idx, DCAM_FULL_CFG, BIT_2, 0 << 2);
 			DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG, BIT_0, 0x1);
+		}
 		break;
 
 	case  DCAM_PATH_BIN:
@@ -918,6 +920,8 @@ static int dcamhw_path_start(void *handle, void *arg)
 		break;
 
 	case DCAM_PATH_VCH2:
+		if (data_bits == CAM_8_BITS)
+			image_data_type = IMG_TYPE_RAW8;
 		/* data type for raw picture */
 		if (patharg->src_sel)
 			DCAM_REG_WR(patharg->idx, DCAM_VC2_CONTROL, image_data_type << 8 | 0x01);

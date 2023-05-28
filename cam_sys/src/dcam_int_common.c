@@ -188,7 +188,7 @@ void dcam_int_common_full_port_done(void *param)
 		return;
 	}
 
-	pr_debug("dcamint_full_path_done\n");
+	pr_debug("dcamint_full_path_done hw_id: %d\n", dcam_hw_ctx->hw_ctx_id);
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_FULL_OUT;
 	if (!dcam_int_common_dummy_callback(dcam_hw_ctx, &irq_proc))
@@ -199,13 +199,13 @@ void dcam_int_common_bin_port_done(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
 	struct dcam_irq_proc irq_proc = {0};
-	pr_debug("bin_path_done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 
 	if (dcam_hw_ctx->dcam_irq_cb_func == NULL) {
 		pr_err("fail to dcamonline callback fun is NULL\n");
 		return;
 	}
 
+	pr_debug("bin_path_done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 	dcam_hw_ctx->dec_layer0_done = 1;
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_BIN_OUT;

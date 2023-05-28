@@ -86,12 +86,6 @@ static int camzoom_binning_swapsize_get(struct camera_module *module, struct img
 				(dst_p.w <= g_camctrl.isp_linebuf_len) &&
 				(dst_v.w <= g_camctrl.isp_linebuf_len))
 				shift = 1;
-
-			module->binning_limit = 0;
-			if (module->zoom_solution == ZOOM_BINNING4)
-				module->binning_limit = 1;
-			else if (shift == 1)
-				module->binning_limit = 1;
 		} else {
 			if ((max_bin->w >= (ch_prev->ch_uinfo.dst_size.w * 2)) &&
 				(max_bin->w >= (ch_vid->ch_uinfo.dst_size.w * 2)))
@@ -100,10 +94,6 @@ static int camzoom_binning_swapsize_get(struct camera_module *module, struct img
 				(dst_p.w <= g_camctrl.isp_linebuf_len) &&
 				(dst_v.w <= g_camctrl.isp_linebuf_len))
 				shift = 1;
-
-			module->binning_limit = 1;
-			if (module->zoom_solution == ZOOM_BINNING4)
-				module->binning_limit = 2;
 		}
 		break;
 	case IMG_QUALITY_PRI:
@@ -312,10 +302,6 @@ static int camzoom_binning_shift_calc(struct camera_module *module, struct img_t
 		pr_info("dcam binning should limit to 1/4\n");
 		shift = 2;
 	}
-	if (shift > module->binning_limit) {
-		pr_info("bin shift limit to %d\n", module->binning_limit);
-		shift = module->binning_limit;
-	}
 
 	return shift;
 }
@@ -482,6 +468,22 @@ static void camzoom_frame_param_cfg(struct cam_zoom_desc *param, struct cam_zoom
 	}
 }
 
+uint32_t cam_zoom_port_deci_factor_get(uint32_t src_size, uint32_t dst_size, uint32_t deci_fac_max)
+{
+	uint32_t factor = 0;
+
+	if (!src_size || !dst_size)
+		return factor;
+
+	/* factor: 0 - 1/2, 1 - 1/4, 2 - 1/8, 3 - 1/16 */
+	for (factor = 0; factor < deci_fac_max; factor++) {
+		if (src_size < (uint32_t) (dst_size * (1 << (factor + 1))))
+			break;
+	}
+
+	return factor;
+}
+
 void cam_zoom_diff_trim_get(struct sprd_img_rect *orig,
 	uint32_t ratio16, struct img_trim *trim0, struct img_trim *trim1)
 {
@@ -548,7 +550,7 @@ int cam_zoom_channels_size_init(struct camera_module *module)
 
 	camzoom_channel_swapsize_calc(module);
 
-	pr_info("zoom_solution %d, binning_limit %d\n", module->zoom_solution, module->binning_limit);
+	pr_info("zoom_solution %d\n", module->zoom_solution);
 
 	return 0;
 }
@@ -804,6 +806,7 @@ int cam_zoom_channel_size_config(
 	int ret = 0;
 	uint32_t need_raw_port = 0, raw_port_id = 0, raw2yuv_port_id = 0;
 	uint32_t node_type = CAM_NODE_TYPE_MAX;
+	struct channel_context *ch_cap = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_vir = NULL;
 	struct camera_uchannel *ch_uinfo = NULL;
@@ -817,6 +820,7 @@ int cam_zoom_channel_size_config(
 	}
 
 	ch_uinfo = &channel->ch_uinfo;
+	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vid = &module->channel[CAM_CH_VID];
 	ch_vir = &module->channel[CAM_CH_VIRTUAL];
 	hw = module->grp->hw_info;
@@ -857,7 +861,13 @@ int cam_zoom_channel_size_config(
 
 	if (need_raw_port && (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id) || channel->dcam_port_id == PORT_VCH2_OUT)) {
 		node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-		if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
+		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR) {
+			zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
+			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
+			node_type = CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW;
+			zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
+			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
+		} else if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
 			zoom_info.dcam_crop[node_type][raw_port_id] = channel->trim_dcam;
 			zoom_info.dcam_dst[node_type][raw_port_id] = channel->dst_dcam;
 		} else {
@@ -898,6 +908,11 @@ int cam_zoom_channel_size_config(
 		zoom_info.isp_crop[PORT_VID_OUT].size_y = ch_vir->ch_uinfo.vir_channel[1].dst_size.h;
 		zoom_info.isp_dst[PORT_VID_OUT].w = ch_vir->ch_uinfo.vir_channel[1].dst_size.w;
 		zoom_info.isp_dst[PORT_VID_OUT].h = ch_vir->ch_uinfo.vir_channel[1].dst_size.h;
+	}
+
+	if (ch_cap->enable && ch_cap->isp_port_id == PORT_VID_OUT) {
+		zoom_info.isp_crop[PORT_VID_OUT] = channel->trim_isp;
+		zoom_info.isp_dst[PORT_VID_OUT] = ch_cap->ch_uinfo.dst_size;
 	}
 
 	ret = cam_zoom_param_set(&zoom_info);

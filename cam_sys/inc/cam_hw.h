@@ -1284,6 +1284,7 @@ struct dcam_hw_abt {
 	uint32_t sensor_raw_path_id;
 	uint32_t dcam_scaling_path;
 	enum cam_en_status fmcu_support;
+	enum cam_en_status output_yuv_support;
 	enum cam_en_status pyramid_support;
 	enum cam_en_status bpc_raw_support;
 	enum cam_en_status superzoom_support;

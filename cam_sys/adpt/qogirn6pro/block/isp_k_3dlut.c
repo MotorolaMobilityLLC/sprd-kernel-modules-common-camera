@@ -22,6 +22,8 @@
 #endif
 #define pr_fmt(fmt) "3DLUT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
+#define ISP_LUT3D_NUM            729
+
 int isp_k_3dlut_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 {
 	int ret = 0;
