@@ -2644,87 +2644,6 @@ struct cam_blk_nr_param {
 	struct isp_dev_dct_info dct_info;
 };
 
-struct dcam_param_data_l3 {
-	struct dcam_dev_lsc_info lens_info;
-	struct dcam_dev_blc_info blc_info;
-	struct dcam_dev_rgb_gain_info gain_info;
-	struct dcam_dev_rgb_dither_info rgb_dither;
-	struct dcam_dev_awbc_info awbc_info;
-	struct dcam_dev_bpc_info_l3 bpc_info_l3;
-	struct dcam_dev_3dnr_me nr3_me;
-	struct isp_dev_grgb_info grgb_info;
-	int16_t weight_tab[MAX_WTAB_LEN];
-	uint16_t lsc_tab[MAX_LSCTAB_LEN];
-};
-
-struct dcam_param_data_l5pro {
-	struct dcam_dev_lsc_info lens_info;
-	struct dcam_dev_blc_info blc_info;
-	struct dcam_dev_rgb_gain_info gain_info;
-	struct dcam_dev_rgb_dither_info rgb_dither;
-	struct dcam_dev_awbc_info awbc_info;
-	struct dcam_dev_bpc_info bpc_info;
-	struct dcam_dev_3dnr_me nr3_me;
-	struct dcam_dev_raw_gtm_block_info gtm_info;
-	int16_t weight_tab[MAX_WTAB_LEN];
-	uint16_t lsc_tab[MAX_LSCTAB_LEN];
-};
-
-struct isp_param_data_l3 {
-	struct isp_dev_3dnr_info nr3d_info;
-	struct isp_dev_brightness_info brightness_info;
-	struct isp_dev_contrast_info contrast_info;
-	struct isp_dev_csa_info csa_info;
-	struct isp_dev_hue_info_l3 hue_info;
-	struct isp_dev_cce_info cce_info;
-	struct isp_dev_pre_cdn_info pre_cdn_info;
-	struct isp_dev_cdn_info cdn_info;
-	struct isp_dev_post_cdn_info post_cdn_info;
-	struct isp_dev_cfa_info cfa_info;
-	struct isp_dev_cmc10_info cmc10_info;
-	struct isp_dev_edge_info_v2 edge_info;
-	struct isp_dev_gamma_info gamma_info;
-	struct isp_dev_hsv_info_v2 hsv_info;
-	struct isp_dev_iircnr_info iircnr_info;
-	struct isp_dev_nlm_info_v2 nlm_info;
-	struct isp_dev_posterize_info pstrz_info;
-	struct isp_dev_uvd_info uvd_info;
-	struct isp_dev_ygamma_info ygamma_info;
-	struct isp_dev_ynr_info ynr_info;
-	struct isp_dev_yrandom_info yrandom_info;
-	struct isp_dev_noise_filter_info nf_info;
-	uint32_t vst_buf[ISP_VST_IVST_NUM];
-	uint32_t ivst_buf[ISP_VST_IVST_NUM];
-};
-
-struct isp_param_data_l5pro {
-	struct isp_dev_grgb_info grgb_info;
-	struct isp_dev_3dnr_info nr3d_info;
-	struct isp_dev_bchs_info bchs_info;
-	struct isp_dev_cce_info cce_info;
-	struct isp_dev_pre_cdn_info pre_cdn_info;
-	struct isp_dev_cdn_info cdn_info;
-	struct isp_dev_post_cdn_info post_cdn_info;
-	struct isp_dev_cfa_info cfa_info;
-	struct isp_dev_cmc10_info cmc10_info;
-	struct isp_dev_edge_info_v2 edge_info;
-	struct isp_dev_gamma_info gamma_info;
-	struct isp_dev_hsv_info_v2 hsv_info;
-	struct isp_dev_iircnr_info iircnr_info;
-	struct isp_dev_rgb_ltm_info ltm_rgb_info;
-	struct isp_dev_yuv_ltm_info ltm_yuv_info;
-	struct isp_dev_nlm_info_v2 nlm_info;
-	struct isp_dev_nlm_imblance_v1 imblance_info;
-	struct isp_dev_posterize_info_v2 pstrz_info_v2;
-	struct isp_dev_uvd_info_v2 uvd_info_v2;
-	struct isp_dev_ygamma_info ygamma_info;
-	struct isp_dev_ynr_info_v2 ynr_info_v2;
-	struct isp_dev_yrandom_info yrandom_info;
-	struct isp_dev_noise_filter_info nf_info;
-	uint32_t vst_buf[ISP_VST_IVST_NUM2];
-	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
-};
-
 struct dcam_dev_aem_param {
 	uint32_t update_flag;
 	uint32_t mode;
@@ -3010,22 +2929,4 @@ struct isp_pipeline_param_n6pro {
 	struct isp_dev_dct_info dct_param;
 };
 
-/************* debug data start ***********/
-struct debug_base_info {
-	int32_t cam_id;
-	int32_t dcam_cid;
-	int32_t isp_cid;
-	int32_t scene_id;
-	int32_t frame_id;
-	int32_t sec;
-	int32_t usec;
-	int32_t size;
-	int32_t res_data0[8];
-	uint32_t awbc_r;
-	uint32_t awbc_b;
-	uint32_t awbc_gr;
-	uint32_t awbc_gb;
-	int32_t res_data1[44];
-};
-/************* debug data end ***********/
 #endif
