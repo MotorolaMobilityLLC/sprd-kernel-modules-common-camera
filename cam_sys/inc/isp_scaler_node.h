@@ -70,8 +70,6 @@ struct isp_yuv_scaler_node_desc {
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;
-	reserved_buf_get_cb resbuf_get_cb;
-	void *resbuf_cb_data;
 	struct isp_scaler_port_desc port_desc;
 	uint32_t node_id;
 	enum cam_format out_fmt;
@@ -91,8 +89,6 @@ struct isp_yuv_scaler_node {
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;
-	reserved_buf_get_cb resbuf_get_cb;
-	void *resbuf_cb_data;
 	struct completion *fast_stop_done;
 	enum cam_en_status is_fast_stop;
 	struct isp_pipe_dev *dev;

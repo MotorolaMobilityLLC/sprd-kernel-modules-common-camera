@@ -76,7 +76,7 @@ static struct cam_frame *dcamfetch_frame_prepare(struct dcam_online_node *node,
 	if (unlikely(frame->common.is_reserved)) {
 		pr_info_ratelimited("DCAM%u %s use reserved buffer\n",
 			hw_ctx->hw_ctx_id, cam_port_name_get(dcam_port->port_id));
-		dcam_online_port_reserved_buf_set(dcam_port, frame);
+		cam_queue_empty_frame_put(frame);
 		return NULL;
 	}
 

@@ -637,9 +637,9 @@ static int ispscaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum isp_p
 				port->result_queue.cnt, pframe->common.is_reserved);
 			pr_debug("time_sensor %03d.%6d\n", (uint32_t)pframe->common.sensor_time.tv_sec, (uint32_t)pframe->common.sensor_time.tv_usec);
 
-			if (unlikely(pframe->common.is_reserved)) {
-				inode->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, inode->resbuf_cb_data);
-			} else {
+			if (unlikely(pframe->common.is_reserved))
+				cam_queue_empty_frame_put(pframe);
+			else {
 				cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
 				if (inode->is_fast_stop) {
 					ispscaler_node_fast_stop_cfg(inode);
@@ -818,7 +818,7 @@ input_err:
 				if (pframe->common.buf.mapping_state & CAM_BUF_MAPPING_ISP)
 					cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
 				if (pframe->common.is_reserved)
-					port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
+					cam_queue_empty_frame_put(pframe);
 				else
 					port->data_cb_func(CAM_CB_ISP_SCALE_RET_ISP_BUF, pframe, port->data_cb_handle);
 
@@ -938,8 +938,6 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 		node->data_cb_func = param->data_cb_func;
 		node->data_cb_handle = param->data_cb_handle;
 	}
-	node->resbuf_get_cb = param->resbuf_get_cb;
-	node->resbuf_cb_data = param->resbuf_cb_data;
 
 	mutex_init(&node->blkpm_lock);
 	init_completion(&node->frm_done);
@@ -1008,8 +1006,6 @@ void isp_yuv_scaler_node_put (struct isp_yuv_scaler_node *node)
 	if (atomic_dec_return(&node->user_cnt) == 0) {
 		mutex_destroy(&node->blkpm_lock);
 		camthread_stop(&node->thread);
-		node->data_cb_func = NULL;
-		node->resbuf_get_cb = NULL;
 		if (node->slice_ctx)
 			isp_slice_ctx_put(&node->slice_ctx);
 		atomic_dec(&((struct isp_cfg_ctx_desc *)(node->dev->cfg_handle))->node_cnt);

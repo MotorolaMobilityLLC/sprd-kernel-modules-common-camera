@@ -66,18 +66,10 @@ static int dcamdummy_senselessmode_trigger(struct dcam_dummy_slave *dummy_slave,
 		spin_lock_irqsave(&dummy_slave->dummy_lock, flags);
 		if (!dummy_slave->reserved_buf) {
 			if (dummy_slave->resbuf_get_cb)
-				dummy_slave->resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, dummy_slave->resbuf_cb_data);
+				dummy_slave->resbuf_get_cb((void *)&frame, dummy_slave->resbuf_cb_data);
 			if (frame) {
-				if (cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA, CAM_BUF_IOMMUDEV_DCAM)) {
-					pr_err("fail to iommu map\n");
-					dummy_slave->resbuf_get_cb(RESERVED_BUF_SET_CB, frame, dummy_slave->resbuf_cb_data);
-					frame = NULL;
-					dummy_slave->reserved_buf = NULL;
-					dummy_slave->use_reserved_buf = DCAM_DUMMY_RESERVED_BUF_NOUSE;
-				} else {
-					dummy_slave->reserved_buf = frame;
-					dummy_slave->use_reserved_buf = DCAM_DUMMY_RESERVED_BUF_USE;
-				}
+				dummy_slave->reserved_buf = frame;
+				dummy_slave->use_reserved_buf = DCAM_DUMMY_RESERVED_BUF_USE;
 			}
 		}
 		spin_unlock_irqrestore(&dummy_slave->dummy_lock, flags);
@@ -224,10 +216,8 @@ static void dcamdummy_dummy_finish(struct dcam_dummy_slave *dummy_slave, struct 
 		}
 	}
 	if (!dummy_enable) {
-		if (dummy_slave->reserved_buf) {
-			dummy_slave->resbuf_get_cb(RESERVED_BUF_SET_CB, dummy_slave->reserved_buf, dummy_slave->resbuf_cb_data);
-			dummy_slave->reserved_buf = NULL;
-		}
+		cam_queue_empty_frame_put(dummy_slave->reserved_buf);
+		dummy_slave->reserved_buf = NULL;
 		atomic_set(&dummy_slave->status, DCAM_DUMMY_IDLE);
 		pr_info("dummy finish\n");
 	}
@@ -526,10 +516,8 @@ static int dcamdummy_enable(void *handle, void *arg)
 			}
 		}
 		if (!enable) {
-			if (dummy_slave->reserved_buf) {
-				dummy_slave->resbuf_get_cb(RESERVED_BUF_SET_CB, dummy_slave->reserved_buf, dummy_slave->resbuf_cb_data);
-				dummy_slave->reserved_buf = NULL;
-			}
+			cam_queue_empty_frame_put(dummy_slave->reserved_buf);
+			dummy_slave->reserved_buf = NULL;
 			atomic_set(&dummy_slave->status, DCAM_DUMMY_DISABLE);
 			enable_param.enable = 0;
 			hw->dcam_ioctl(hw, dummy_param->hw_ctx_id, DCAM_HW_CFG_DUMMY_ENABLE, &enable_param);

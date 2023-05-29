@@ -1384,10 +1384,11 @@ static int camioctl_stream_off(struct camera_module *module,
 		module->auto_3dnr = 0;
 	}
 
-	pool_id.tag_id = 0;
+	if (module->res_frame) {
+		cam_queue_empty_frame_put(module->res_frame);
+		module->res_frame = NULL;
+	}
 	pool_id.private_pool_id = 0;
-	pool_id.reserved_pool_id = module->reserved_pool_id;
-	cam_buf_manager_buf_clear(&pool_id, (void *)module->grp->global_buf_manager);
 	pool_id.tag_id = CAM_BUF_POOL_ABNORAM_RECYCLE;
 	cam_buf_manager_buf_clear(&pool_id, (void *)module->grp->global_buf_manager);
 	if (running && atomic_dec_return(&module->grp->runner_nr) == 0) {
@@ -2171,15 +2172,7 @@ static int camioctl_4in1_raw_addr_set(struct camera_module *module,
 			break;
 		}
 
-		if (is_reserved_buf) {
-			module->reserved_buf_fd = pframe->common.buf.mfd;
-			pframe->common.is_reserved = CAM_RESERVED_BUFFER_ORI;
-			pframe->common.buf.size = cal_sprd_size(ch->ch_uinfo.src_size.w, ch->ch_uinfo.src_size.h, ch->ch_uinfo.dcam_raw_fmt);
-			cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
-			module->res_frame = pframe;
-		} else {
-			ret = camcore_dcam_online_buf_cfg(ch, pframe, module);
-		}
+		ret = camcore_dcam_online_buf_cfg(ch, pframe, module);
 
 		if (ret) {
 			pr_err("fail to set output buffer for ch%d.\n", ch->ch_id);

@@ -298,7 +298,6 @@ struct camera_module {
 	struct cam_nodes_dev nodes_dev;
 	struct cam_frame *res_frame;
 	int32_t reserved_buf_fd;
-	int reserved_pool_id;
 	uint32_t reserved_size;
 	uint32_t dcam_ctx_bind_state;/* 0: dcam_ctx_unbind, 1: dcam_ctx_bind */
 	uint32_t is_flash_status;

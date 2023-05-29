@@ -212,7 +212,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 			goto exit;
 		}
 		if (unlikely(pframe->common.is_reserved))
-			inode->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, inode->resbuf_cb_data);
+			cam_queue_empty_frame_put(pframe);
 		else
 			inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
 		break;
@@ -1729,8 +1729,6 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	}
 	pr_debug("cam%d isp slowmotion eb %d, is_dual:%d\n",node->attach_cam_id, node->uinfo.enable_slowmotion, node->is_dual);
 
-	node->resbuf_get_cb = param->resbuf_get_cb;
-	node->resbuf_cb_data = param->resbuf_cb_data;
 	node->is_bind = 0;
 	uinfo = &node->uinfo;
 

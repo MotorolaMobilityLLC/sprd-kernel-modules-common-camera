@@ -167,14 +167,16 @@ static int ispscaler_port_hwinfo_get(void *cfg_in, struct isp_hw_path_scaler *pa
 	return ret;
 }
 
-static struct cam_frame *ispscaler_port_reserved_buf_get(reserved_buf_get_cb resbuf_get_cb, void *cb_data, void *port)
+static struct cam_frame *ispscaler_port_reserved_buf_get(reserved_buf_get_cb resbuf_get_cb,
+	void *cb_data, struct isp_scaler_port *port)
 {
 	struct cam_frame *frame = NULL;
 
 	if (resbuf_get_cb)
-		resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, cb_data);
+		resbuf_get_cb((void *)&frame, cb_data);
 	if (frame != NULL)
 		frame->common.priv_data = port;
+	pr_debug("isp scaler use reserved buffer for port %d\n", port->port_id);
 	return frame;
 }
 
@@ -205,7 +207,7 @@ static struct cam_frame *ispscaler_port_out_frame_get(struct isp_scaler_port *po
 	if (out_frame)
 		port_cfg->valid_out_frame = 1;
 	else
-		out_frame = ispscaler_port_reserved_buf_get(inode->resbuf_get_cb, inode->resbuf_cb_data, port);
+		out_frame = ispscaler_port_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
 
 	if (out_frame != NULL) {
 		if (out_frame->common.is_reserved == 0 && (out_frame->common.buf.mapping_state & CAM_BUF_MAPPING_ISP) == 0) {
@@ -330,7 +332,7 @@ static int ispscaler_port_store_frameproc(struct isp_scaler_port *port,
 		pr_err("fail to enqueue, hw %d, path %d\n",hw_path_id);
 		/* ret frame to original queue */
 		if (out_frame->common.is_reserved) {
-			inode->resbuf_get_cb(RESERVED_BUF_SET_CB, out_frame, inode->resbuf_cb_data);
+			cam_queue_empty_frame_put(out_frame);
 		} else {
 			cam_buf_manager_buf_status_cfg(&out_frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
 			CAM_QUEUE_ENQUEUE(&port->out_buf_queue, &out_frame->list);
@@ -400,7 +402,7 @@ static void ispscaler_port_frame_ret(void *param)
 	}
 
 	if (pframe->common.is_reserved)
-		port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
+		cam_queue_empty_frame_put(pframe);
 	else {
 		if (pframe->common.buf.mapping_state & CAM_BUF_MAPPING_ISP)
 			cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
