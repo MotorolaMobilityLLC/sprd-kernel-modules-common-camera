@@ -188,6 +188,8 @@ struct isp_ltm_ctx_desc {
 	struct isp_ltm_ops ltm_ops;
 	struct cam_hw_info *hw;
 
+	reserved_buf_get_cb resbuf_get_cb;
+	void *resbuf_cb_data;
 	struct cam_buf_pool_id *hist_outpool;
 	struct cam_buf_pool_id *hist_resultpool;
 	void *buf_manager_handle;

@@ -28,7 +28,7 @@
 
 #define CAM_COUNT                       CAM_ID_MAX
 #define CAM_SHARED_BUF_NUM              50
-#define CAM_FRAME_Q_LEN                 60
+#define CAM_FRAME_Q_LEN                 96
 #define CAM_IRQ_Q_LEN                   16
 #define CAM_STATIS_Q_LEN                16
 #define CAM_ZOOM_COEFF_Q_LEN            64
