@@ -179,6 +179,7 @@ void *pyr_dec_port_get(uint32_t port_id, struct pyr_dec_port_desc *param)
 	if (ret <= 0) {
 		pr_err("fail to reg result pool for dcam offline node\n");
 		cam_buf_kernel_sys_vfree(port);
+		port = NULL;
 		return NULL;
 	}
 	port->unprocess_pool.private_pool_id = ret;

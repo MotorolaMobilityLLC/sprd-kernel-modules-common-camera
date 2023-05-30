@@ -22,7 +22,7 @@
 #endif
 #define pr_fmt(fmt) "CAM_PORT: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-#define IS_CAM_FMT(type) ((type) >= CAM_RAW_PACK_10 && (type) < CAM_FORMAT_MAX)
+#define IS_CAM_FMT(type) ((type) < CAM_FORMAT_MAX)
 
 static const char *CAMPORT_FMT_NAMES[CAM_FORMAT_MAX] = {
 	[CAM_RAW_BASE] = "CAM_RAW_BASE",

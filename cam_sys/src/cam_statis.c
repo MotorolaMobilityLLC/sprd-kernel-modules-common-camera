@@ -220,6 +220,11 @@ int cam_statis_isp_port_buffer_cfg(void *isp_handle, void *node,
 	}
 
 	pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+	if (!pframe) {
+		pr_err("fail to get frame\n");
+		ret = -EINVAL;
+		return ret;
+	}
 	pframe->common.channel_id = inode->ch_id;
 	pframe->common.irq_property = input->type;
 	pframe->common.buf = *ion_buf;
@@ -258,10 +263,10 @@ int camstatis_dcam_port_buffer_init(
 		port_id = s_statis_port_info_all[i].port_id;
 		stats_type = s_statis_port_info_all[i].buf_type;
 		dcam_port = dcam_online_node_port_get(dcam_node, port_id);
-		if (!stats_type || !dcam_port)
+		if (!dcam_port || stats_type == STATIS_INIT)
 			continue;
 
-		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src)
+		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src != ORI_RAW_SRC_SEL)
 			continue;
 		if (port_id == PORT_GTM_HIST_OUT && dcam_node->dev->hw->ip_isp->isphw_abt->rgb_gtm_support)
 			continue;
@@ -330,7 +335,7 @@ int cam_statis_dcam_port_buffer_deinit(void *dcam_handle)
 	dcam_node = (struct dcam_online_node *)dcam_handle;
 	for (i = 0; i < ARRAY_SIZE(s_statis_port_info_all); i++) {
 		stats_type = s_statis_port_info_all[i].buf_type;
-		if (!stats_type)
+		if (stats_type == STATIS_INIT)
 			continue;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -394,7 +399,7 @@ int cam_statis_dcam_port_buffer_cfg(
 			goto exit;
 		}
 
-		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src)
+		if (port_id == PORT_VCH2_OUT && dcam_port->raw_src != ORI_RAW_SRC_SEL)
 			goto exit;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {

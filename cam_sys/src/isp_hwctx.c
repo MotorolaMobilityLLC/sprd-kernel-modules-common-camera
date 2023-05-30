@@ -454,7 +454,7 @@ int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, s
 	int planes = 0;
 	struct isp_store_info *store = NULL;
 	unsigned long offset_u, yuv_addr[3] = {0};
-	if (!pipe_info || !frame) {
+	if (!pipe_info || !frame || path_id == ISP_SPATH_NUM) {
 		pr_err("fail to get valid input ptr, pipe_info %p,frame %p\n",
 			pipe_info, frame);
 		return -EINVAL;

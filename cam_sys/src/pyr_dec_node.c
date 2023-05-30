@@ -1674,6 +1674,7 @@ exit:
 
 init_dec_err:
 	cam_buf_kernel_sys_vfree(node);
+	node = NULL;
 	return NULL;
 
 }

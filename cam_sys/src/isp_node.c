@@ -651,6 +651,11 @@ static int ispnode_fmcu_slw_queue_set(struct isp_fmcu_ctx_desc *fmcu, struct isp
 		}
 	}
 
+	if (!port_cfg.src_frame) {
+		pr_err("fail to valid src_frame.\n");
+		return -EFAULT;
+	}
+
 	ispcore_slw_3dnr_set(inode, &slw_mem_ctrl, &nr3_slw_store, &port_cfg);
 	slw.fmcu_handle = fmcu;
 	slw.ctx_id = inode->cfg_id;
@@ -659,11 +664,6 @@ static int ispnode_fmcu_slw_queue_set(struct isp_fmcu_ctx_desc *fmcu, struct isp
 	slw.mode_3dnr = inode->uinfo.mode_3dnr;
 	slw.slw_mem_ctrl = slw_mem_ctrl;
 	slw.nr3_slw_store = nr3_slw_store;
-
-	if (!port_cfg.src_frame) {
-		pr_err("fail to valid src_frame.\n");
-		return -EFAULT;
-	}
 	slw.is_compressed = port_cfg.src_frame->common.is_compressed;
 	ret = inode->dev->isp_hw->isp_ioctl(inode->dev->isp_hw, ISP_HW_CFG_SLW_FMCU_CMDS, &slw);
 

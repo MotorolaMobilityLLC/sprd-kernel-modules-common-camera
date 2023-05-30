@@ -54,7 +54,7 @@ enum cam_dump_node_id {
 };
 
 struct cam_dump_msg {
-	ssize_t size;
+	uint32_t size;
 	uint32_t align_w;
 	uint32_t align_h;
 	uint32_t offset;

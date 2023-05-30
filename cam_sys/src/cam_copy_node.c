@@ -73,8 +73,12 @@ int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		cam_port_name_get(node->node_id), param->cam_idx, ch_id, size, width, height, total);
 
 	for (i = 0; i < total; i++) {
-
 		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		if (!pframe) {
+			pr_err("fail to get frame\n");
+			ret = -EINVAL;
+			break;
+		}
 		pframe->common.channel_id = param->ch_id;
 		pframe->common.is_compressed = param->compress_en;
 		pframe->common.width = width;

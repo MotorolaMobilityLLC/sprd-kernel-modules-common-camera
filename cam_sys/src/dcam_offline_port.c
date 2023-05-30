@@ -173,8 +173,7 @@ static int dcamoffline_port_pyr_dec_addr_set(struct dcam_offline_port *dcam_port
 				offset += frame->common.fbc_info.buffer_size;
 			else
 				offset += (size * 3 / 2);
-			dec_store.pitch[0] = cal_sprd_yuv_pitch(dec_store.width,
-				cam_data_bits(dcam_port->out_fmt), cam_is_pack(dcam_port->out_fmt));
+			dec_store.pitch[0] = cal_sprd_pitch(dec_store.width, dcam_port->out_fmt);
 			dec_store.pitch[1] = dec_store.pitch[0];
 			size = dec_store.pitch[0] * dec_store.height;
 			dec_store.addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + offset;
@@ -595,6 +594,10 @@ int dcam_offline_lsc_raw_port_buf_alloc(void *handle, struct cam_buf_alloc_desc 
 	for (i = 0; i < total; i++) {
 		do {
 			pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+			if (!pframe) {
+				pr_err("fail to get frame\n");
+				break;
+			}
 			pframe->common.channel_id = param->ch_id;
 			pframe->common.is_compressed = param->compress_en;
 			pframe->common.width = width;

@@ -457,7 +457,7 @@ int cam_buf_manager_buf_status_cfg(struct camera_buf *buf, enum cambufmanager_st
 		dst_status = CAM_BUF_ALLOC;
 		break;
 	case CAM_BUF_STATUS_MOVE_TO_ION:
-		if (buf->bypass_iova_ops && buf->mapping_state) {
+		if (buf->bypass_iova_ops && buf->mapping_state != CAM_BUF_MAPPING_NULL) {
 			dst_status = CAM_BUF_WITH_IOVA;
 		} else
 			dst_status = CAM_BUF_WITH_ION;

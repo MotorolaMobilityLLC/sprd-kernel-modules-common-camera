@@ -189,11 +189,14 @@ static struct cam_frame *dcamonline_frame_prepare(struct dcam_online_node *node,
 
 	if (atomic_read(&dcam_port->set_frm_cnt) <= 1) {
 		path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
-		pr_warn("warning: %s cnt %d, deci %u, out %u, result %u\n",
-			cam_port_name_get(dcam_port->port_id),
-			atomic_read(&dcam_port->set_frm_cnt), hw_ctx->hw_path[path_id].frm_deci,
-			cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle),
-			cam_buf_manager_pool_cnt(&dcam_port->result_pool, node->buf_manager_handle));
+		if (path_id >= DCAM_PATH_MAX)
+			pr_err("fail to get correct path id port%s\n", cam_port_name_get(dcam_port->port_id));
+		else
+			pr_warn("warning: %s cnt %d, deci %u, out %u, result %u\n",
+				cam_port_name_get(dcam_port->port_id),
+				atomic_read(&dcam_port->set_frm_cnt), hw_ctx->hw_path[path_id].frm_deci,
+				cam_buf_manager_pool_cnt(&dcam_port->unprocess_pool, node->buf_manager_handle),
+				cam_buf_manager_pool_cnt(&dcam_port->result_pool, node->buf_manager_handle));
 		return NULL;
 	}
 
@@ -667,6 +670,10 @@ static void dcamonline_cap_sof(struct dcam_online_node *node, void *param,
 
 		/* @frm_deci is the frame index of output frame */
 		path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
+		if (path_id >= DCAM_PATH_MAX) {
+			pr_err("fail to get correct path id\n");
+			continue;
+		}
 		if ((dcam_port->frm_deci_cnt++ >= hw_ctx->hw_path[path_id].frm_deci)
 			|| node->slowmotion_count) {
 			dcam_port->frm_deci_cnt = 0;
@@ -1410,6 +1417,10 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				atomic_set(&port->is_shutoff, 0);
 
 			patharg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
+			if (patharg.path_id >= DCAM_PATH_MAX) {
+				pr_err("fail to get correct path id\n");
+				continue;
+			}
 			patharg.idx = node->hw_ctx_id;
 			patharg.slowmotion_count = node->slowmotion_count;
 			patharg.pdaf_path_eb = (pm->pdaf.bypass == 0) ? 1 : 0;
@@ -1438,6 +1449,10 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
 					pause.idx = node->hw_ctx_id;
 					pause.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
+					if (patharg.path_id >= DCAM_PATH_MAX) {
+						pr_err("fail to get correct path id\n");
+						continue;
+					}
 					pause.type = HW_DCAM_PATH_PAUSE;
 					hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_CTRL, &pause);
 					spin_unlock_irqrestore(&port->state_lock, flag);
@@ -1454,6 +1469,10 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				if (port->compress_en) {
 					fbc_arg.idx = node->hw_ctx_id;
 					fbc_arg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
+					if (fbc_arg.path_id >= DCAM_PATH_MAX) {
+						pr_err("fail to get correct path id\n");
+						continue;
+					}
 					fbc_arg.fmt = port->dcamout_fmt;
 					fbc_arg.data_bits = cam_data_bits(port->dcamout_fmt);
 					fbc_arg.compress_en = port->compress_en;
@@ -1717,6 +1736,10 @@ int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id)
 		path_ctrl.idx = node->hw_ctx_id;
 		path_ctrl.type = HW_DCAM_PATH_PAUSE;
 		path_ctrl.path_id = dcamonline_portid_convert_to_pathid(port_id);
+		if (path_ctrl.path_id >= DCAM_PATH_MAX) {
+			pr_err("fail to get correct path id\n");
+			return -EFAULT;
+		}
 		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
 			if (dcam_port->port_id == port_id)
@@ -1729,6 +1752,10 @@ int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id)
 		path_ctrl.idx = node->hw_ctx_id;
 		path_ctrl.type = HW_DCAM_PATH_RESUME;
 		path_ctrl.path_id = dcamonline_portid_convert_to_pathid(port_id);
+		if (path_ctrl.path_id >= DCAM_PATH_MAX) {
+			pr_err("fail to get correct path id\n");
+			return -EFAULT;
+		}
 		node->dev->hw->dcam_ioctl(node->dev->hw, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 		CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
 			if (dcam_port->port_id == port_id)

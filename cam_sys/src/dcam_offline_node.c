@@ -700,7 +700,7 @@ static int dcamoffline_node_frame_start(void *param)
 	ret = dcamoffline_hw_statis_work_set(node);
 
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
-		if (port && port->port_param_cfg_func)
+		if (port->port_param_cfg_func)
 			ret |= port->port_param_cfg_func(port, PORT_CFG_PARAM_GET, node->hw_ctx);
 	}
 	if (ret) {

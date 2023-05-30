@@ -934,15 +934,11 @@ static int camcore_link_change(struct camera_module *module, enum camera_raw_sce
 	struct cam_pipeline_topology *pipeline_graph = NULL;
 	struct cam_node_topology *node_graph = NULL;
 	struct cam_port_topology *port_graph = NULL;
-	uint32_t dcam_online_raw_port_id = 0;
-	uint32_t dcam_offline_port_id = 0;
 	uint32_t need_pyr_dec = 0;
 	struct cam_hw_info *hw = NULL;
 	int i = 0, ret = 0;
 
 	hw = module->grp->hw_info;
-	dcam_online_raw_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
-	dcam_offline_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path);
 	need_pyr_dec = hw->ip_isp->isphw_abt->pyr_dec_support;
 
 	pipeline_graph = &module->static_topology->pipeline_list[CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV];
@@ -1206,7 +1202,7 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 		}
 	}
 
-	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1) {
+	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1 && !module->cam_uinfo.virtualsensor) {
 		*pipeline_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV;
 		if (module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX)
 			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id);
@@ -1362,11 +1358,21 @@ static int camcore_pipeline_init(struct camera_module *module,
 		channel->dcam_out_fmt = CAM_YVU420_2FRAME;
 
 	channel->isp_port_id = isp_port_id;
+	if (dcam_port_id >= PORT_DCAM_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
 	channel->dcam_port_id = dcam_port_id;
 	channel->aux_dcam_port_id =
 		dcamoffline_pathid_convert_to_portid(hw->ip_dcam[1]->dcamhw_abt->aux_dcam_path);
 	channel->aux_raw_port_id =
 		dcamoffline_pathid_convert_to_portid(hw->ip_dcam[1]->dcamhw_abt->dcam_raw_path_id);
+	if (channel->aux_raw_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
 	channel->ch_uinfo.pyr_out_fmt = hw->ip_dcam[0]->dcamhw_abt->store_pyr_fmt;
 
 	pipeline_desc->nodes_dev = &module->nodes_dev;
@@ -1423,7 +1429,6 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	if (pipeline_desc->pipeline_graph->need_yuv_scaler) {
 		isp_yuv_scaler_desc = &pipeline_desc->isp_yuv_scaler_desc;
-		isp_yuv_scaler_desc->hw_path_id = isp_port_id_switch(isp_port_id);
 		cam_scene_isp_yuv_scaler_desc_get(module, channel, isp_yuv_scaler_desc);
 	}
 
@@ -1488,6 +1493,7 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	if (channel->pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV && channel->ch_id != CAM_CH_PRE)
 		cam_scene_online2user2offline_dynamic_config(module, channel->ch_id, CAM_DISABLE);
 	nodes_dev->dcam_online_node_dev = NULL;
+	nodes_dev->dcam_fetch_node_dev = NULL;
 	nodes_dev->dcam_offline_node_dev = NULL;
 	nodes_dev->dcam_offline_node_bpcraw_dev = NULL;
 	nodes_dev->dcam_offline_node_lscraw_dev = NULL;
@@ -1747,6 +1753,10 @@ static int camcore_shutoff_param_prepare(struct camera_module *module,
 
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode) {
 		dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		if (dcam_port_id >= PORT_DCAM_OUT_MAX) {
+			pr_err("fail to get port id\n");
+			return 0;
+		}
 		pipeline_shutoff->node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 		CAM_NODE_SHUTOFF_PARAM_INIT(pipeline_shutoff->node_shutoff);
 		atomic_set(&node_shutoff->outport_shutoff[dcam_port_id].cap_cnt, shutoff_cnt);

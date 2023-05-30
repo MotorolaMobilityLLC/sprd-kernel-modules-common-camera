@@ -128,6 +128,13 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	}
 	ch->enable = 1;
 	ch->dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path);
+	if (ch->dcam_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		cam_pipeline_destory(ch->pipeline_handle);
+		ch->pipeline_handle = NULL;
+		ret = -ENOMEM;
+		goto fail;
+	}
 	ch->pipeline_type = pipeline_type;
 	CAM_QUEUE_INIT(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
 
@@ -459,6 +466,13 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	}
 	ch->enable = 1;
 	ch->dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path);
+	if (ch->dcam_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
+		pr_err("fail to get port id\n");
+		cam_pipeline_destory(ch->pipeline_handle);
+		ch->pipeline_handle = NULL;
+		ret = -ENOMEM;
+		goto fail;
+	}
 	ch->pipeline_type = pipeline_type;
 	CAM_QUEUE_INIT(&ch->zoom_param_q, CAM_ZOOM_COEFF_Q_LEN, NULL);
 

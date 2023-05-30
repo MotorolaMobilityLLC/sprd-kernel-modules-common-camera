@@ -335,17 +335,6 @@ struct dcam_dummy_param {
 	void *resbuf_cb_data;
 };
 
-static inline uint32_t cal_sprd_yuv_pitch(uint32_t w, uint32_t dcam_out_bits, uint32_t is_pack)
-{
-	if (dcam_out_bits != CAM_8_BITS) {
-		if (is_pack)
-			w = (w * 10 + 127) / 128 * 128 / 8;
-		else
-			w = (w * 16 + 127) / 128 * 128 / 8;
-	}
-
-	return w;
-}
 void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx, struct dcam_irq_info *irq_info);
 inline void dcam_core_offline_reset(struct dcam_hw_context *hw_ctx);
 #endif

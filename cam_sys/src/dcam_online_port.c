@@ -345,6 +345,10 @@ static inline struct cam_frame *dcamonline_port_frame_cycle(struct dcam_online_p
 
 	frame->common.fid = hw_ctx->index_to_set;
 	path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
+	if (path_id >= DCAM_PATH_MAX) {
+		pr_err("fail to get correct path id\n");
+		return NULL;
+	}
 	if (!hw_ctx->slowmotion_count)
 		frame->common.fid += hw_ctx->hw_path[path_id].frm_deci;
 	frame->common.priv_data = dcam_port;
@@ -461,6 +465,10 @@ static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,st
 	struct cam_hw_info *hw = hw_ctx->hw;
 
 	path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
+	if (path_id >= DCAM_PATH_MAX) {
+		pr_err("fail to get correct path id\n");
+		return;
+	}
 	if (slw == NULL) {
 		if (frame->common.is_compressed) {
 			struct compressed_addr fbc_addr = {0};
@@ -846,7 +854,8 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	struct cam_frame *out_frame = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct dcam_hw_slw_fmcu_cmds *slw = NULL;
-	uint32_t idx = 0, addr_ch = 0;
+	uint32_t idx = 0;
+	unsigned long addr_ch = 0;
 	struct dcam_isp_k_block *blk_dcam_pm = NULL;
 
 	if (!handle || !param) {
@@ -879,6 +888,10 @@ static int dcamonline_port_slw_store_set(void *handle, void *param)
 	out_frame->common.pyr_status = CAM_DISABLE;
 
 	path_id = dcamonline_portid_convert_to_pathid(port_id);
+	if (path_id >= DCAM_PATH_MAX) {
+		pr_err("fail to get correct path id\n");
+		return -EFAULT;
+	}
 	if (out_frame->common.is_compressed) {
 		struct compressed_addr fbc_addr;
 		struct img_size *size = &dcam_port->out_size;
@@ -966,7 +979,7 @@ static int dcamonline_port_store_reconfig(struct dcam_online_port *dcam_port, vo
 		return PTR_ERR(frame);
 
 	ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, dcam_port->buf_manager_handle);
-	if (ret == 0)
+	if (!ret)
 		ret = dcamonline_port_frm_set(dcam_port, frame, hw_ctx);
 	else
 		pr_err("fail to enqueue port %s result_pool\n", cam_port_name_get(dcam_port->port_id));
