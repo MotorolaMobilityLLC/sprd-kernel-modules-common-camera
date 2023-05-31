@@ -91,7 +91,7 @@ enum dcam_hw_context_id {
 	DCAM_HW_CONTEXT_1,
 	DCAM_HW_CONTEXT_MAX,
 };
-
+#define DCAM_HW_CONTEXT_BIND_MAX DCAM_HW_CONTEXT_MAX
 /*
  * Supported dcam_if index. Number 0&1 for dcam_if and 2 for dcam_if_lite.
  */

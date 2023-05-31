@@ -285,7 +285,7 @@ static int set_dcam_path_store_addr(struct dcamt_context *cxt, struct camt_info 
 	store_arg.frame_addr[0] = out_buf->iova[CAM_BUF_IOMMUDEV_DCAM];
 	store_arg.frame_addr[1] = 0;
 	store_arg.path_id= path_id;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 
 exit:
 	return ret;
@@ -434,7 +434,7 @@ static int camt_dcam_hw_init(struct dcamt_context *cxt)
 		return -EFAULT;
 #endif
 
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_ENABLE_CLK, NULL);
+	hw->dcam_ioctl(hw, DCAM_HW_CONTEXT_0, DCAM_HW_CFG_ENABLE_CLK, NULL);
 	cxt->dcam_irq = hw->ip_dcam[cxt->dcam_idx]->irq_no;
 
 	ret = devm_request_irq(&hw->pdev->dev, cxt->dcam_irq, dcam_isr_root,
@@ -456,7 +456,7 @@ static int camt_dcam_hw_deinit(struct dcamt_context *cxt)
 
 	devm_free_irq(&hw->pdev->dev, cxt->dcam_irq, cxt);
 
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_DISABLE_CLK, hw);
+	hw->dcam_ioctl(hw, DCAM_HW_CONTEXT_0, DCAM_HW_CFG_DISABLE_CLK, hw);
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	ret = sprd_cam_domain_disable();
 	ret |= sprd_cam_pw_off();
@@ -513,8 +513,8 @@ int dcamt_init(struct cam_hw_info *hw, struct camt_info *info)
 		return ret;
 
 	/* axi init */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_INIT_AXI, &cxt->dcam_idx);
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_RESET, &cxt->dcam_idx);
+	hw->dcam_ioctl(hw, cxt->dcam_idx, DCAM_HW_CFG_INIT_AXI, &cxt->dcam_idx);
+	ret = hw->dcam_ioctl(hw, cxt->dcam_idx, DCAM_HW_CFG_RESET, &cxt->dcam_idx);
 	if (ret)
 		goto reset_fail;
 
@@ -583,7 +583,7 @@ int dcamt_start(struct camt_info *info)
 		path_size.in_size = cxt->in_size;
 		path_size.in_trim = cxt->in_trim;
 		path_size.out_size = cxt->comm_info[i].out_size;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
+		hw->dcam_ioctl(hw, cxt->dcam_idx, DCAM_HW_CFG_PATH_SIZE_UPDATE, &path_size);
 
 		/* start dcam path */
 		patharg.path_id = cxt->path_id[i];
@@ -593,7 +593,7 @@ int dcamt_start(struct camt_info *info)
 		patharg.src_sel = 1;
 		patharg.in_trim = cxt->in_trim;
 		patharg.endian = info->endian.y_endian;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_PATH_START, &patharg);
+		hw->dcam_ioctl(hw, cxt->dcam_idx, DCAM_HW_CFG_PATH_START, &patharg);
 	}
 
 	if (cam_buf_iommu_status_get(CAM_BUF_IOMMUDEV_DCAM) == 0)
@@ -629,17 +629,17 @@ int dcamt_start(struct camt_info *info)
 	fetch.addr.addr_ch0 = (uint32_t)in_buf->iova[CAM_BUF_IOMMUDEV_DCAM];
 	fetcharg.idx = cxt->dcam_idx;
 	fetcharg.fetch_info = &fetch;
-	ret = hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_SET, &fetcharg);
+	ret = hw->dcam_ioctl(hw, cxt->dcam_idx, DCAM_HW_CFG_FETCH_SET, &fetcharg);
 
 	/* force copy */
 	copyarg.id = DCAM_CTRL_ALL;
 	copyarg.idx = cxt->dcam_idx;
 	copyarg.glb_reg_lock = cxt->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, cxt->dcam_idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 	os_adapt_time_udelay(500);
 
 	/* fetch start */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FETCH_START, hw);
+	hw->dcam_ioctl(hw, cxt->dcam_idx, DCAM_HW_CFG_FETCH_START, hw);
 
 	pr_info("wait for frame tx done\n");
 

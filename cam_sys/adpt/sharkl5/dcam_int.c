@@ -77,35 +77,26 @@ static void dcamint_irq_sensor_sof(void *param)
 	pr_debug("DCAM%d, dcamint_sensor_sof\n", dcam_hw_ctx->hw_ctx_id);
 }
 
-static const dcam_int_isr _DCAM_ISR_IRQ[DCAM_HW_CONTEXT_MAX][32] = {
-	[0][DCAM_SENSOR_SOF] = dcamint_irq_sensor_sof,
-	[0][DCAM_SENSOR_EOF] = dcam_int_common_irq_sensor_eof,
-	[0][DCAM_CAP_SOF] = dcamint_irq_cap_sof,
-	[0][DCAM_PREVIEW_SOF] = dcam_int_common_irq_preview_sof,
-	[0][DCAM_FULL_PATH_TX_DONE] = dcam_int_common_full_port_done,
-	[0][DCAM_PREV_PATH_TX_DONE] = dcam_int_common_bin_port_done,
-	[0][DCAM_PDAF_PATH_TX_DONE] = dcam_int_common_pdaf_port_done,
-	[0][DCAM_VCH2_PATH_TX_DONE] = dcam_int_common_vch2_port_done,
-	[0][DCAM_VCH3_PATH_TX_DONE] = dcam_int_common_vch3_port_done,
-	[0][DCAM_AEM_TX_DONE] = dcam_int_common_aem_port_done,
-	[0][DCAM_HIST_TX_DONE] = dcam_int_common_hist_port_done,
-	[0][DCAM_AFL_TX_DONE] = dcam_int_common_afl_port_done,
-	[0][DCAM_AFM_INTREQ1] = dcam_int_common_afm_port_done,
-	[0][DCAM_NR3_TX_DONE] = dcam_int_common_nr3_port_done,
+static const dcam_int_isr _DCAM0_ISR_IRQ[32] = {
+	[DCAM_SENSOR_SOF] = dcamint_irq_sensor_sof,
+	[DCAM_SENSOR_EOF] = dcam_int_common_irq_sensor_eof,
+	[DCAM_CAP_SOF] = dcamint_irq_cap_sof,
+	[DCAM_PREVIEW_SOF] = dcam_int_common_irq_preview_sof,
+	[DCAM_FULL_PATH_TX_DONE] = dcam_int_common_full_port_done,
+	[DCAM_PREV_PATH_TX_DONE] = dcam_int_common_bin_port_done,
+	[DCAM_PDAF_PATH_TX_DONE] = dcam_int_common_pdaf_port_done,
+	[DCAM_VCH2_PATH_TX_DONE] = dcam_int_common_vch2_port_done,
+	[DCAM_VCH3_PATH_TX_DONE] = dcam_int_common_vch3_port_done,
+	[DCAM_AEM_TX_DONE] = dcam_int_common_aem_port_done,
+	[DCAM_HIST_TX_DONE] = dcam_int_common_hist_port_done,
+	[DCAM_AFL_TX_DONE] = dcam_int_common_afl_port_done,
+	[DCAM_AFM_INTREQ1] = dcam_int_common_afm_port_done,
+	[DCAM_NR3_TX_DONE] = dcam_int_common_nr3_port_done,
+};
 
-	[1][DCAM_SENSOR_EOF] = dcam_int_common_irq_sensor_eof,
-	[1][DCAM_CAP_SOF] = dcamint_irq_cap_sof,
-	[1][DCAM_PREVIEW_SOF] = dcam_int_common_irq_preview_sof,
-	[1][DCAM_FULL_PATH_TX_DONE] = dcam_int_common_full_port_done,
-	[1][DCAM_PREV_PATH_TX_DONE] = dcam_int_common_bin_port_done,
-	[1][DCAM_PDAF_PATH_TX_DONE] = dcam_int_common_pdaf_port_done,
-	[1][DCAM_VCH2_PATH_TX_DONE] = dcam_int_common_vch2_port_done,
-	[1][DCAM_VCH3_PATH_TX_DONE] = dcam_int_common_vch3_port_done,
-	[1][DCAM_AEM_TX_DONE] = dcam_int_common_aem_port_done,
-	[1][DCAM_HIST_TX_DONE] = dcam_int_common_hist_port_done,
-	[1][DCAM_AFL_TX_DONE] = dcam_int_common_afl_port_done,
-	[1][DCAM_AFM_INTREQ1] = dcam_int_common_afm_port_done,
-	[1][DCAM_NR3_TX_DONE] = dcam_int_common_nr3_port_done,
+static dcam_int_isr_array _DCAM_ISR_IRQ[DCAM_HW_CONTEXT_MAX] = {
+	[DCAM_HW_CONTEXT_0] = &_DCAM0_ISR_IRQ,
+	[DCAM_HW_CONTEXT_1] = &_DCAM0_ISR_IRQ,
 };
 
 static const int _DCAM0_SEQUENCE[] = {
@@ -267,10 +258,8 @@ struct dcam_irq_info dcam_int_isr_handle(void *param)
 	dcam_hw_ctx = (struct dcam_hw_context *)param;
 
 	line_mask = DCAMINT_IRQ_LINE_MASK;
-	irq_info = dcam_int_mask_clr(dcam_hw_ctx->hw_ctx_id);
+	irq_info = dcam_hw_ctx->irq_ops.mask_clr(dcam_hw_ctx->hw_ctx_id);
 	irq_info.status &= line_mask;
-	irq_info._DCAM_ISR_IRQ = _DCAM_ISR_IRQ;
-	irq_info.DCAM_SEQUENCES = DCAM_SEQUENCES;
 	irq_info.irq_num = DCAM_IRQ_NUMBER;
 	dcam_int_common_record(dcam_hw_ctx->hw_ctx_id, &irq_info);
 
@@ -284,6 +273,25 @@ void dcam_int_status_warning(void *param, uint32_t status, uint32_t status1)
 	dcam_hw_ctx = (struct dcam_hw_context *)param;
 	if (unlikely(status))
 		pr_warn("warning: DCAM%u unhandled int 0x%x\n", dcam_hw_ctx->hw_ctx_id, status);
+}
+
+void dcam_int_irq_init(void *hw_ctx)
+{
+	struct dcam_hw_context *dcam_hw_ctx = NULL;
+
+	dcam_hw_ctx = (struct dcam_hw_context *)hw_ctx;
+	dcam_hw_ctx->irq_ops.mask_clr = dcam_int_mask_clr;
+	dcam_hw_ctx->irq_ops.isr_handle = dcam_int_isr_handle;
+	dcam_hw_ctx->irq_ops.status_warning = dcam_int_status_warning;
+	dcam_hw_ctx->irq_ops.iommu_regs_dump = dcam_int_iommu_regs_dump;
+	dcam_hw_ctx->irq_ops.error_bit.all_error = DCAMINT_ALL_ERROR;
+	dcam_hw_ctx->irq_ops.error_bit.fatal_error = DCAMINT_FATAL_ERROR;
+	dcam_hw_ctx->irq_ops.error_bit.frm_err = BIT(DCAM_CAP_FRM_ERR);
+	dcam_hw_ctx->irq_ops.error_bit.mmu_int = BIT(DCAM_MMU_INT);
+	dcam_hw_ctx->irq_ops.error_bit.line_err = BIT(DCAM_CAP_LINE_ERR);
+	dcam_hw_ctx->irq_ops.error_bit.overflow = BIT(DCAM_DCAM_OVF);
+	dcam_hw_ctx->irq_ops._DCAM_ISR_IRQ[0] = _DCAM_ISR_IRQ[dcam_hw_ctx->hw_ctx_id];
+	dcam_hw_ctx->irq_ops.DCAM_SEQUENCES[0] = &DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id][0];
 }
 
 int dcam_int_irq_desc_get(uint32_t index, void *param)

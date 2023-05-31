@@ -41,7 +41,7 @@ static void dcamdummy_trigger_init(struct dcam_dummy_slave *dummy_slave)
 		if (hw_ctx->dcam_irq_cb_func) {
 			if (hw_ctx->is_offline_proc) {
 				atomic_cmpxchg(&dummy_slave->hw_status[i], DCAM_DUMMY_HW_IDLE, DCAM_DUMMY_HW_OFFLINE_RESET);
-				hw_ctx->hw->dcam_ioctl(hw_ctx->hw, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
+				hw_ctx->hw->dcam_ioctl(hw_ctx->hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_RESET, &hw_ctx->hw_ctx_id);
 			} else
 				atomic_cmpxchg(&dummy_slave->hw_status[i], DCAM_DUMMY_HW_IDLE, DCAM_DUMMY_HW_ONLINE_RUNNING);
 		}
@@ -150,7 +150,7 @@ static int dcamdummy_senselessmode_addr_config(struct dcam_dummy_slave *dummy_sl
 					store_arg.path_id = i;
 					store_arg.frame_addr[0] = dummy_slave->reserved_buf->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 					store_arg.frame_addr[1] = 0;
-					dummy_slave->hw->dcam_ioctl(dummy_slave->hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+					dummy_slave->hw->dcam_ioctl(dummy_slave->hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 					if (i == DCAM_PATH_BIN) {
 						struct dcam_hw_dec_store_cfg dec_store = {0};
 						hw_ctx->dec_all_done = 0;
@@ -160,7 +160,7 @@ static int dcamdummy_senselessmode_addr_config(struct dcam_dummy_slave *dummy_sl
 							dec_store.cur_layer = layer;
 							dec_store.addr[0] = dummy_slave->reserved_buf->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
 							dec_store.addr[1] = dummy_slave->reserved_buf->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
-							dummy_slave->hw->dcam_ioctl(dummy_slave->hw, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
+							dummy_slave->hw->dcam_ioctl(dummy_slave->hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
 						}
 					}
 				}
@@ -496,12 +496,12 @@ static int dcamdummy_enable(void *handle, void *arg)
 			dummy_slave->use_reserved_buf = DCAM_DUMMY_RESERVED_BUF_NOUSE;
 			param.dfifo_lvl = dummy_slave->dfifo_lvl;
 			param.cfifo_lvl = dummy_slave->cfifo_lvl;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_DUMMY_SET, &param);
+			hw->dcam_ioctl(hw, dummy_param->hw_ctx_id, DCAM_HW_CFG_DUMMY_SET, &param);
 			atomic_set(&dummy_slave->status, DCAM_DUMMY_IDLE);
 			atomic_set(&dummy_slave->hw_status[dummy_param->hw_ctx_id], DCAM_DUMMY_HW_IDLE);
 			dummy_slave->dummy_total_skip_num[dummy_param->hw_ctx_id] = 0;
 			enable_param.enable = 1;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_DUMMY_ENABLE, &enable_param);
+			hw->dcam_ioctl(hw, dummy_param->hw_ctx_id, DCAM_HW_CFG_DUMMY_ENABLE, &enable_param);
 			break;
 		case DCAM_DUMMY_TRIGGER:
 			atomic_set(&dummy_slave->hw_status[dummy_param->hw_ctx_id], DCAM_DUMMY_HW_ALREADY);
@@ -532,7 +532,7 @@ static int dcamdummy_enable(void *handle, void *arg)
 			}
 			atomic_set(&dummy_slave->status, DCAM_DUMMY_DISABLE);
 			enable_param.enable = 0;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_DUMMY_ENABLE, &enable_param);
+			hw->dcam_ioctl(hw, dummy_param->hw_ctx_id, DCAM_HW_CFG_DUMMY_ENABLE, &enable_param);
 		}
 		spin_unlock_irqrestore(&dummy_slave->dummy_lock, flags);
 	}
@@ -587,7 +587,7 @@ int dcam_dummy_ctx_desc_put(struct dcam_dummy_slave *dummy_slave)
 	if (!atomic_dec_return(&dummy_slave->user_cnt)) {
 		param.enable = 0;
 		param.idx = dummy_slave->idx;
-		dummy_slave->hw->dcam_ioctl(dummy_slave->hw, DCAM_HW_CFG_DUMMY_ENABLE, &param);
+		dummy_slave->hw->dcam_ioctl(dummy_slave->hw, dummy_slave->idx, DCAM_HW_CFG_DUMMY_ENABLE, &param);
 		s_pdummy_desc[dummy_slave->idx] = NULL;
 		cam_buf_kernel_sys_kfree(dummy_slave);
 		dummy_slave = NULL;

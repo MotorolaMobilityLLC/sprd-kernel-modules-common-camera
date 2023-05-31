@@ -1402,7 +1402,7 @@ struct cam_hw_info {
 	struct cam_hw_soc_info *soc_isp;
 	struct cam_hw_ip_info *ip_dcam[DCAM_ID_MAX];
 	struct cam_hw_ip_info *ip_isp;
-	int (*dcam_ioctl)(void *,enum dcam_hw_cfg_cmd, void *);
+	int (*dcam_ioctl)(void *, enum dcam_hw_context_id, enum dcam_hw_cfg_cmd, void *);
 	int (*isp_ioctl)(void *,enum isp_hw_cfg_cmd, void *);
 	int (*pyrdec_ioctl)(void *,enum pyrdec_hw_cfg_cmd, void *);
 	int (*cam_ioctl)(void *,enum cam_hw_cfg_cmd, void *);

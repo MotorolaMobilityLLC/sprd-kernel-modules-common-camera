@@ -105,8 +105,12 @@ enum dcam_ctrl_id {
 enum dcam_hw_context_id {
 	DCAM_HW_CONTEXT_0 = 0,
 	DCAM_HW_CONTEXT_1,
-	DCAM_HW_CONTEXT_MAX,
+	DCAMLITE_HW_CONTEXT_0,
+	DCAMLITE_HW_CONTEXT_1,
+	DCAM_HW_CONTEXT_MAX
 };
+/*ctx bind unsupport dcamlite*/
+#define DCAM_HW_CONTEXT_BIND_MAX DCAM_HW_CONTEXT_1 + 1
 
 enum dcam_id {
 	DCAM_ID_0 = 0,

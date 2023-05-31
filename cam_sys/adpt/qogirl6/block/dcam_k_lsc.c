@@ -72,7 +72,7 @@ int dcam_init_lsc_slice(void *in, uint32_t online)
 	copyarg.id = DCAM_CTRL_COEF;
 	copyarg.idx = idx;
 	copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	pr_info("w %d, grid len %d grid %d  num_t %d (%d, %d)\n",
 		info->weight_num, info->gridtab_len, info->grid_width,
@@ -117,7 +117,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+		hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 		return 0;
 	}
 
@@ -210,7 +210,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_1, (1 << 1));
 
 	/* force copy must be after first load done and load clear */
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 
 	if (i >= LENS_LOAD_TIMEOUT) {
 		pr_err("fail to load lens grid table.\n");
@@ -234,7 +234,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 exit:
 	/* bypass lsc if there is exception */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_FORCE_COPY, &copyarg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FORCE_COPY, &copyarg);
 	return ret;
 }
 
@@ -347,7 +347,7 @@ int dcam_update_lsc(void *in)
 	copyarg.id = DCAM_CTRL_BIN;
 	copyarg.idx = idx;
 	copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_AUTO_COPY, &copyarg);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_AUTO_COPY, &copyarg);
 
 	pr_debug("done\n");
 	return 0;

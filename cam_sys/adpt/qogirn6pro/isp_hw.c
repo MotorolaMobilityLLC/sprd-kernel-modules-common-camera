@@ -331,55 +331,78 @@ abnormal_reg_trace:
 		return 0;
 	}
 
-	pr_debug("DCAM%d: Register list\n", trace->idx);
-	for (addr = 0x0; addr <= 0xffff; addr += 16) {
-		pr_debug("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
+	if (trace->idx > DCAM_ID_1) {
+		pr_info("DCAM%d: Register list\n", trace->idx);
+		for (addr = DCAM_LITE_IP_REVISION; addr <= DCAM_LITE_MIPI_CAP_HEIGHT_SIZE; addr += 16) {
+			pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				DCAM_REG_RD(trace->idx, addr),
+				DCAM_REG_RD(trace->idx, addr + 4),
+				DCAM_REG_RD(trace->idx, addr + 8),
+				DCAM_REG_RD(trace->idx, addr + 12));
+		}
 
-	pr_info("DCAM%d COMMON: Register list\n", trace->idx);
-	for (addr = 0x0; addr <= 0x158; addr += 16) {
-		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
+		pr_info("LITE AXIM: Register list\n");
+		for (addr = DCAM_LITE_AXIM_STATUS0; addr <= DCAM_LITE_PMU_CFG;
+			addr += 16) {
+			pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				DCAM_AXIM_RD(trace->idx, addr),
+				DCAM_AXIM_RD(trace->idx, addr + 4),
+				DCAM_AXIM_RD(trace->idx, addr + 8),
+				DCAM_AXIM_RD(trace->idx, addr + 12));
+		}
+	} else {
+		pr_debug("DCAM%d: Register list\n", trace->idx);
+		for (addr = 0x0; addr <= 0xffff; addr += 16) {
+			pr_debug("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				DCAM_REG_RD(trace->idx, addr),
+				DCAM_REG_RD(trace->idx, addr + 4),
+				DCAM_REG_RD(trace->idx, addr + 8),
+				DCAM_REG_RD(trace->idx, addr + 12));
+		}
 
-	pr_info("DCAM%d CAP: Register list\n", trace->idx);
-	for (addr = 0x400; addr <= 0x44C; addr += 16) {
-		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_REG_RD(trace->idx, addr),
-			DCAM_REG_RD(trace->idx, addr + 4),
-			DCAM_REG_RD(trace->idx, addr + 8),
-			DCAM_REG_RD(trace->idx, addr + 12));
-	}
+		pr_info("DCAM%d COMMON: Register list\n", trace->idx);
+		for (addr = 0x0; addr <= 0x158; addr += 16) {
+			pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				DCAM_REG_RD(trace->idx, addr),
+				DCAM_REG_RD(trace->idx, addr + 4),
+				DCAM_REG_RD(trace->idx, addr + 8),
+				DCAM_REG_RD(trace->idx, addr + 12));
+		}
 
-	pr_info("AXIM: Register list\n");
-	for (addr = AXIM_STATUS0; addr <= DCAM_DUMMY_SLAVE_CFG;
-		addr += 16) {
-		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_AXIM_RD(trace->idx, addr),
-			DCAM_AXIM_RD(trace->idx, addr + 4),
-			DCAM_AXIM_RD(trace->idx, addr + 8),
-			DCAM_AXIM_RD(trace->idx, addr + 12));
-	}
+		pr_info("DCAM%d CAP: Register list\n", trace->idx);
+		for (addr = 0x400; addr <= 0x44C; addr += 16) {
+			pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				DCAM_REG_RD(trace->idx, addr),
+				DCAM_REG_RD(trace->idx, addr + 4),
+				DCAM_REG_RD(trace->idx, addr + 8),
+				DCAM_REG_RD(trace->idx, addr + 12));
+		}
 
-	pr_info("FMCU: Register list\n");
-	for (addr = 0x0; addr <= 0x3C; addr += 16) {
-		pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
-			addr,
-			DCAM_FMCU_RD(addr),
-			DCAM_FMCU_RD(addr + 4),
-			DCAM_FMCU_RD(addr + 8),
-			DCAM_FMCU_RD(addr + 12));
+		pr_info("AXIM: Register list\n");
+		for (addr = AXIM_STATUS0; addr <= DCAM_DUMMY_SLAVE_CFG;
+			addr += 16) {
+			pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				DCAM_AXIM_RD(trace->idx, addr),
+				DCAM_AXIM_RD(trace->idx, addr + 4),
+				DCAM_AXIM_RD(trace->idx, addr + 8),
+				DCAM_AXIM_RD(trace->idx, addr + 12));
+		}
+
+		pr_info("FMCU: Register list\n");
+		for (addr = 0x0; addr <= 0x3C; addr += 16) {
+			pr_info("0x%03lx: 0x%x 0x%x 0x%x 0x%x\n",
+				addr,
+				DCAM_FMCU_RD(addr),
+				DCAM_FMCU_RD(addr + 4),
+				DCAM_FMCU_RD(addr + 8),
+				DCAM_FMCU_RD(addr + 12));
+		}
 	}
 
 	pr_info("ISP: Register list\n");
@@ -586,7 +609,7 @@ abnormal_reg_trace:
 	}
 	return 0;
 normal_reg_trace:
-	val_mmu = DCAM_MMU_RD(DCAM_MMU_EN);
+	val_mmu = DCAM_MMU_RD(trace->idx, DCAM_MMU_EN);
 	cnt = sizeof(cam_reg_trace_tab) /
 		sizeof(cam_reg_trace_tab[0]);
 	pr_info("dcam%d: 0x%08x, cnt %d\n", trace->idx, val_mmu, cnt);

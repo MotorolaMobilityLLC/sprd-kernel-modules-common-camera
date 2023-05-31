@@ -18,7 +18,7 @@
 
 extern unsigned long g_dcam_regbase[];
 extern unsigned long g_dcam_aximbase[];
-extern unsigned long g_dcam_mmubase;
+extern unsigned long g_dcam_mmubase[];
 extern unsigned long g_dcam_fmcubase;
 extern unsigned long g_dcam_phys_base[];
 
@@ -911,7 +911,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_LITE_MIPI_CAP_WORD_CNT                     (DCAM_LITE_APB_BASE + 0x0068UL)
 #define DCAM_LITE_MIPI_CAP_HEIGHT_SIZE                  (DCAM_LITE_APB_BASE + 0x006CUL)
 
-#define DCAM_LITE_AXIMMU_BASE                           (0x8000UL)
+#define DCAM_LITE_AXIMMU_BASE                           (0x0000UL)
 #define DCAM_LITE_AXIM_STATUS0                          (DCAM_LITE_AXIMMU_BASE + 0x0000UL)
 #define DCAM_LITE_AXIM_CTRL                             (DCAM_LITE_AXIMMU_BASE + 0x0004UL)
 #define DCAM_LITE_AXIM_DBG_STS                          (DCAM_LITE_AXIMMU_BASE + 0x0008UL)
@@ -963,7 +963,7 @@ extern const unsigned long slowmotion_store_addr[3][4];
 #define DCAM_BASE(idx)                                  (g_dcam_regbase[idx])
 #define DCAM_AXIM_BASE(idx)                             (g_dcam_aximbase[idx])
 #define DCAM_FMCU_BASE                                  (g_dcam_fmcubase)
-#define DCAM_MMU_BASE                                   (g_dcam_mmubase)
+#define DCAM_MMU_BASE(idx)                              (g_dcam_mmubase[idx])
 #define DCAM_PHYS_ADDR(idx)                             (g_dcam_phys_base[idx])
 #define DCAM_GET_REG(idx, reg)                          (DCAM_PHYS_ADDR(idx) + (reg))
 
@@ -1015,28 +1015,30 @@ extern const unsigned long slowmotion_store_addr[3][4];
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_MMU_WR(reg, val) ({                                         \
+#define DCAM_MMU_WR(id, reg, val) ({                                         \
 	unsigned long __flags;                                               \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
-	(REG_WR(DCAM_MMU_BASE+(reg), (val)));                                \
+	(REG_WR(DCAM_MMU_BASE(id)+(reg), (val)));                                \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
 
-#define DCAM_MMU_RD(reg) ({                                              \
+#define DCAM_MMU_RD(id, reg) ({                                              \
 	uint32_t val;                                                        \
 	unsigned long __flags;                                               \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
-	val = (REG_RD(DCAM_MMU_BASE + (reg)));                               \
+	val = (REG_RD(DCAM_MMU_BASE(id) + (reg)));                               \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 	val;                                                                 \
 })
 
-#define DCAM_MMU_MWR(reg, msk, val) ({                                   \
+#define DCAM_MMU_MWR(id, reg, msk, val) ({                                   \
 	unsigned long __flags;                                               \
 	spin_lock_irqsave(&g_reg_wr_lock, __flags);                          \
-	(REG_WR(DCAM_MMU_BASE+(reg), ((val) & (msk)) | (REG_RD(DCAM_MMU_BASE+(reg)) & (~(msk)))));    \
+	(REG_WR(DCAM_MMU_BASE(id)+(reg), ((val) & (msk)) | (REG_RD(DCAM_MMU_BASE+(reg)) & (~(msk)))));    \
 	spin_unlock_irqrestore(&g_reg_wr_lock, __flags);                     \
 })
+
+#define DCAM_IOMMU_RD(id, reg)                        DCAM_MMU_RD(id, reg)
 
 #define DCAM_FMCU_WR(reg, val) ({                                        \
 	unsigned long __flags;                                               \

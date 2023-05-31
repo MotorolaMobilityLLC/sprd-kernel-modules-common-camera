@@ -33,7 +33,7 @@ uint32_t dcam_slice_needed_info_get(struct dcam_hw_context *hw_ctx, uint32_t *de
 	hw = hw_ctx->hw;
 	lbufarg.idx = hw_ctx->hw_ctx_id;
 	lbufarg.width = 0;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_GET, &lbufarg);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_LBUF_SHARE_GET, &lbufarg);
 	out_width = lbufarg.width;
 
 	camarg.idx = hw_ctx->hw_ctx_id;
@@ -41,10 +41,10 @@ uint32_t dcam_slice_needed_info_get(struct dcam_hw_context *hw_ctx, uint32_t *de
 	camarg.offline_flag = 1;
 	pr_debug("Dcam%d, sw_ctx%d, new width %d old linebuf %d\n", camarg.idx, hw_ctx->node_id, camarg.width, lbufarg.width);
 	if (hw->ip_dcam[hw_ctx->hw_ctx_id]->dcamhw_abt->lbuf_share_support && (lbufarg.width < camarg.width)) {
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_LBUF_SHARE_SET, &camarg);
 		lbufarg.idx = hw_ctx->hw_ctx_id;
 		lbufarg.width = 0;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_LBUF_SHARE_GET, &lbufarg);
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_LBUF_SHARE_GET, &lbufarg);
 		out_width = lbufarg.width;
 	}
 	if (!out_width)

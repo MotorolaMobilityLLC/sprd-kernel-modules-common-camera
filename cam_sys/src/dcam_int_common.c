@@ -34,19 +34,19 @@ static uint32_t int_index[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER] = {0};
 #define DCAM_IRQ_INT1_NUMBER 26
 static uint32_t dcam_int0_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_NUMBER] = {0};
 static uint32_t dcam_int1_tracker[DCAM_HW_CONTEXT_MAX][DCAM_IRQ_INT1_NUMBER] = {0};
-static char *dcam_dev_name[] = {"DCAM0", "DCAM1", "DCAM2"};
+static char *dcam_dev_name[] = {"DCAM0", "DCAM1", "DCAM2", "DCAM3"};
 
 static void dcamintcommon_dcam_status_rw(struct dcam_irq_info irq_info, void *priv)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)priv;
 	unsigned int i = 0;
 
-	for (i = 0; i < irq_info.DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id][0].count; i++) {
-		int cur_int = irq_info.DCAM_SEQUENCES[dcam_hw_ctx->hw_ctx_id][0].bits[i];
+	for (i = 0; i < dcam_hw_ctx->irq_ops.DCAM_SEQUENCES[0]->count; i++) {
+		int cur_int = dcam_hw_ctx->irq_ops.DCAM_SEQUENCES[0]->bits[i];
 
 		if (irq_info.status & BIT(cur_int)) {
-			if (irq_info._DCAM_ISR_IRQ[dcam_hw_ctx->hw_ctx_id][cur_int]) {
-				irq_info._DCAM_ISR_IRQ[dcam_hw_ctx->hw_ctx_id][cur_int](dcam_hw_ctx);
+			if ((*dcam_hw_ctx->irq_ops._DCAM_ISR_IRQ[0])[cur_int]) {
+				(*dcam_hw_ctx->irq_ops._DCAM_ISR_IRQ[0])[cur_int](dcam_hw_ctx);
 				irq_info.status &= ~dcam_hw_ctx->handled_bits;
 				irq_info.status1 &= ~dcam_hw_ctx->handled_bits_on_int1;
 				dcam_hw_ctx->handled_bits = 0;
@@ -60,14 +60,36 @@ static void dcamintcommon_dcam_status_rw(struct dcam_irq_info irq_info, void *pr
 		}
 	}
 
-	dcam_int_status_warning(dcam_hw_ctx, irq_info.status, irq_info.status1);
+	if (dcam_hw_ctx->irq_ops.DCAM_SEQUENCES[1] && dcam_hw_ctx->irq_ops._DCAM_ISR_IRQ[1]) {
+		for (i = 0; i < dcam_hw_ctx->irq_ops.DCAM_SEQUENCES[1]->count; i++) {
+			int cur_int = 0;
+			if (dcam_hw_ctx->irq_ops.DCAM_SEQUENCES[1]->bits == NULL)
+				break;
+
+			cur_int = dcam_hw_ctx->irq_ops.DCAM_SEQUENCES[1]->bits[i];
+			if (irq_info.status1 & BIT(cur_int)) {
+				if ((*dcam_hw_ctx->irq_ops._DCAM_ISR_IRQ[1])[cur_int]) {
+					(*dcam_hw_ctx->irq_ops._DCAM_ISR_IRQ[1])[cur_int](dcam_hw_ctx);
+				} else
+					pr_warn("warning: DCAM%u missing handler for int1 bit%d\n",
+						dcam_hw_ctx->hw_ctx_id, cur_int);
+				irq_info.status1 &= ~BIT(cur_int);
+				if (!irq_info.status1)
+					break;
+			}
+		}
+	}
+
+	dcam_hw_ctx->irq_ops.status_warning(dcam_hw_ctx, irq_info.status, irq_info.status1);
 }
 
-static irqreturn_t dcamintcommon_error_handler_param(struct dcam_hw_context *dcam_hw_ctx, uint32_t status)
+static int dcamintcommon_error_handler_param(struct dcam_hw_context *dcam_hw_ctx, uint32_t status)
 {
 	enum dcam_state state = STATE_INIT;
 	struct dcam_irq_proc_desc irq_desc = {0};
 	struct dcam_irq_proc irq_proc = {0};
+	struct dcam_irq_error_flag *error_bit = NULL;
+
 	const char *tb_ovr[2] = {"", ", overflow"};
 	const char *tb_lne[2] = {"", ", line error"};
 	const char *tb_frm[2] = {"", ", frame error"};
@@ -75,28 +97,28 @@ static irqreturn_t dcamintcommon_error_handler_param(struct dcam_hw_context *dca
 
 	if (!dcam_hw_ctx->dcam_irq_cb_handle) {
 		pr_err("fail to get valid dcam_online_node\n");
-		return IRQ_HANDLED;
+		return 0;
 	}
-
+	error_bit = &dcam_hw_ctx->irq_ops.error_bit;
 	pr_err("fail to get normal status DCAM%u 0x%x%s%s%s%s\n", dcam_hw_ctx->hw_ctx_id, status,
-		tb_ovr[!!(status & BIT(DCAM_DCAM_OVF))],
-		tb_lne[!!(status & BIT(DCAM_CAP_LINE_ERR))],
-		tb_frm[!!(status & BIT(DCAM_CAP_FRM_ERR))],
-		tb_mmu[!!(status & BIT(DCAM_MMU_INT))]);
+		tb_ovr[!!(status & error_bit->overflow)],
+		tb_lne[!!(status & error_bit->line_err)],
+		tb_frm[!!(status & error_bit->frm_err)],
+		tb_mmu[!!(status & error_bit->mmu_int)]);
 
-	if (status & BIT(DCAM_MMU_INT)) {
-		uint32_t val = DCAM_MMU_RD(DCAM_MMU_INT_STS);
+	if (status & error_bit->mmu_int) {
+		uint32_t val = DCAM_IOMMU_RD(dcam_hw_ctx->hw_ctx_id, DCAM_MMU_INT_STS);
 
 		if (val != dcam_hw_ctx->iommu_status) {
-			dcam_int_iommu_regs_dump(dcam_hw_ctx);
+			dcam_hw_ctx->irq_ops.iommu_regs_dump(dcam_hw_ctx);
 			dcam_hw_ctx->iommu_status = val;
 		}
 	}
 
-	if (dcam_hw_ctx->is_offline_proc && (status & DCAMINT_FATAL_ERROR)) {
+	if (dcam_hw_ctx->is_offline_proc && (status & error_bit->fatal_error)) {
 		irq_desc.dcam_cb_type = CAM_CB_DCAM_DEV_ERR;
 		dcam_hw_ctx->dcam_irq_cb_func(&irq_desc, dcam_hw_ctx->dcam_irq_cb_handle);
-		return IRQ_HANDLED;
+		return -1;
 	}
 
 	if (dcam_hw_ctx->is_virtualsensor_proc)
@@ -105,14 +127,15 @@ static irqreturn_t dcamintcommon_error_handler_param(struct dcam_hw_context *dca
 		state = dcam_online_node_state_get(dcam_hw_ctx->dcam_irq_cb_handle);
 
 	if (dcam_hw_ctx->dcam_irq_cb_func) {
-		if ((status & DCAMINT_FATAL_ERROR) && (state != STATE_ERROR)) {
+		if ((status & error_bit->fatal_error) && (state != STATE_ERROR)) {
 			irq_proc.of = DCAM_INT_ERROR;
 			irq_proc.status = status;
 			dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+			return -1;
 		}
 	}
 
-	return IRQ_HANDLED;
+	return 0;
 }
 
 static irqreturn_t dcamintcommon_isr_root(int irq, void *priv)
@@ -135,7 +158,7 @@ static irqreturn_t dcamintcommon_isr_root(int irq, void *priv)
 		return IRQ_HANDLED;
 	dcam_hw_ctx->in_irq_proc = 1;
 	if (!dcam_hw_ctx->dcam_irq_cb_handle) {
-		irq_status = dcam_int_mask_clr(dcam_hw_ctx->hw_ctx_id);
+		irq_status = dcam_hw_ctx->irq_ops.mask_clr(dcam_hw_ctx->hw_ctx_id);
 		pr_err("fail to get hw ctx:%d irq cb handle, irq status: 0x%x 0x%x\n",
 			dcam_hw_ctx->hw_ctx_id, irq_status.status, irq_status.status1);
 		ret = IRQ_NONE;
@@ -143,20 +166,20 @@ static irqreturn_t dcamintcommon_isr_root(int irq, void *priv)
 	}
 
 	/* get irq_status*/
-	irq_status = dcam_int_isr_handle(dcam_hw_ctx);
+	irq_status = dcam_hw_ctx->irq_ops.isr_handle(dcam_hw_ctx);
 	if (unlikely(!irq_status.status && !irq_status.status1)) {
 		ret = IRQ_NONE;
 		goto exit;
 	}
 
 	/* Interrupt err pro: may need to put it into isr_root */
-	if (unlikely(DCAMINT_ALL_ERROR & irq_status.status)) {
-		dcamintcommon_error_handler_param(dcam_hw_ctx, irq_status.status);
-		if (irq_status.status & DCAMINT_FATAL_ERROR) {
+	if (unlikely(dcam_hw_ctx->irq_ops.error_bit.all_error & irq_status.status)) {
+		ret = dcamintcommon_error_handler_param(dcam_hw_ctx, irq_status.status);
+		if (ret < 0) {
 			ret = IRQ_HANDLED;
 			goto exit;
 		}
-		irq_status.status &= (~DCAMINT_ALL_ERROR);
+		irq_status.status &= (~dcam_hw_ctx->irq_ops.error_bit.all_error);
 	}
 
 	if (dcam_hw_ctx->is_offline_proc) {
@@ -506,10 +529,12 @@ void dcam_int_common_tracker_dump(uint32_t idx)
 #endif
 }
 
-inline int dcam_int_common_dummy_callback(struct dcam_hw_context *dcam_hw_ctx, struct dcam_irq_proc *irq_proc)
+inline int dcam_int_common_dummy_callback(void *hw_ctx, struct dcam_irq_proc *irq_proc)
 {
 	uint32_t dummy_status = 0;
+	struct dcam_hw_context *dcam_hw_ctx = NULL;
 
+	dcam_hw_ctx = (struct dcam_hw_context *)hw_ctx;
 	if (dcam_hw_ctx->dummy_slave) {
 		dummy_status = atomic_read(&dcam_hw_ctx->dummy_slave->status);
 		if (dummy_status == DCAM_DUMMY_TRIGGER || dummy_status == DCAM_DUMMY_DONE) {

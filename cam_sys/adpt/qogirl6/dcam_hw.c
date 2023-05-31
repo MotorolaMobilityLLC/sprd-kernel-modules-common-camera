@@ -20,7 +20,6 @@
 #define IMG_TYPE_RAW8         0x2A
 #define IMG_TYPE_YUV          0x1E
 
-static uint32_t dcam_hw_linebuf_len[3] = {0, 0, 0};
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 static int dcamhw_force_copy(void *handle, void *arg);
@@ -136,7 +135,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
 	}
 	write_unlock(&soc->cam_ahb_lock);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
@@ -202,7 +201,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 			flag, ~flag);
 	}
 	write_unlock(&soc->cam_ahb_lock);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_SET_QOS, NULL);
+	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
 
@@ -214,8 +213,6 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 
 		DCAM_REG_WR(i, DCAM_MIPI_CAP_CFG, 0); /* disable all path */
 		DCAM_REG_WR(i, DCAM_IMAGE_CONTROL, IMG_TYPE_RAW10 << 8 | 0x01);
-
-		dcam_hw_linebuf_len[i] = 0;
 	}
 
 	pr_debug("dcam all & axi reset done\n");
@@ -549,7 +546,6 @@ static int dcamhw_reset(void *handle, void *arg)
 	DCAM_REG_MWR(idx, ISP_AFM_FRM_CTRL, BIT_0, bypass);
 	DCAM_REG_WR(idx, NR3_FAST_ME_PARAM, 0x109);
 
-	dcam_hw_linebuf_len[idx] = 0;
 	pr_info("DCAM%d: reset end\n", idx);
 	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
 

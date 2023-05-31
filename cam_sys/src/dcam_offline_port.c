@@ -95,7 +95,7 @@ static int dcamoffline_port_pyr_dec_cfg(struct cam_hw_info *hw,
 	dec_online.flust_width = dec_store->width;
 	dec_online.flush_hblank_num = dec_online.hor_padding_num + 20;
 	dec_online.flush_line_num = dec_online.ver_padding_num + 20;
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
+	hw->dcam_ioctl(hw, dec_online.idx, DCAM_HW_CFG_DEC_ONLINE, &dec_online);
 
 	return ret;
 }
@@ -178,13 +178,13 @@ static int dcamoffline_port_pyr_dec_addr_set(struct dcam_offline_port *dcam_port
 			size = dec_store.pitch[0] * dec_store.height;
 			dec_store.addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + offset;
 			dec_store.addr[1] = dec_store.addr[0] + size;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
+			hw->dcam_ioctl(hw, dec_store.idx, DCAM_HW_CFG_DEC_STORE_ADDR, &dec_store);
 			pr_debug("dcam%d dec_layer[%d] addr 0x%x 0x%x offset %d\n", dec_store.idx, i, dec_store.addr[0], dec_store.addr[1], offset);
 		}
 		/* when zoom, if necessary size update may set with path size udapte
 		 * thus, the dec_store need remember on path or ctx, and calc & reg set
 		 * need separate too, now just */
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
+		hw->dcam_ioctl(hw, dec_store.idx, DCAM_HW_CFG_DEC_SIZE_UPDATE, &dec_store);
 		pr_debug("dcam%d dec_layer[%d] bypass %d w %d h %d\n", dec_store.idx, i, dec_store.bypass, dec_store.width, dec_store.height);
 	}
 

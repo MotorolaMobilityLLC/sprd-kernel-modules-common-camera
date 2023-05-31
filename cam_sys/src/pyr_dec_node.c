@@ -1045,6 +1045,8 @@ static int pyrdec_node_irq_proc(void *handle)
 					node->is_fast_stop = 0;
 					complete(node->fast_stop_done);
 				}
+				pyrdec->in_irq_handler = 0;
+
 				return ret;
 			}
 			out_frame->common.link_from.node_type = CAM_NODE_TYPE_PYR_DEC;

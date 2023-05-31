@@ -371,8 +371,7 @@ static uint32_t isp_ctx_fmcu_support[ISP_CONTEXT_HW_NUM] = {
 	[ISP_CONTEXT_HW_C1] = 1,
 };
 
-static int camhwif_dcam_ioctl(void *handle,
-	enum dcam_hw_cfg_cmd cmd, void *arg)
+static int camhwif_dcam_ioctl(void *handle, enum dcam_hw_context_id hw_idx, enum dcam_hw_cfg_cmd cmd, void *arg)
 {
 	int ret = 0;
 	hw_ioctl_fun hw_ctrl = NULL;

@@ -18,8 +18,7 @@
 #include <linux/device.h>
 
 #include "cam_types.h"
-
-typedef void (*dcam_int_isr)(void *param);
+#include "dcam_int_common.h"
 
 enum {
 	DCAM_IF_IRQ_INT0_SENSOR_SOF              = 0,
@@ -87,26 +86,8 @@ enum {
 	DCAM_IF_IRQ_INT1_NUMBER
 };
 
-/* interrupt bits for DCAM2 */
-enum {
-	DCAM2_SENSOR_SOF        = 0,
-	DCAM2_SENSOR_EOF        = 1,
-	DCAM2_CAP_SOF           = 2,
-	DCAM2_CAP_EOF           = 3,
-
-	DCAM2_DCAM_OVF          = 4,
-	DCAM2_CAP_LINE_ERR      = 5,
-	DCAM2_CAP_FRM_ERR       = 6,
-	DCAM2_FULL_PATH0_END    = 7,
-
-	DCAM2_FULL_PATH1_END    = 8,
-	DCAM2_FULL_PATH_TX_DONE = 9,
-
-	/* reserved */
-
-	DCAM2_MMU_INT           = 31,
-};
-
+#define DCAM2_SENSOR_EOF DCAM_LITE_IRQ_INT_SENSOR_EOF
+#define DCAM2_FULL_PATH_TX_DONE DCAM_LITE_IRQ_INT_FULL_PATH_TX_DONE
 enum {
 	/* mmu_debug_user value represent the source path of the error addr. */
 	DCAM0_RAW_PATH_D0,
@@ -257,30 +238,55 @@ enum {
 #define DCAM_CAP_FRM_ERR         DCAM_IF_IRQ_INT0_CAP_FRM_ERR
 #define DCAMINT_FATAL_ERROR      DCAMINT_INT0_FATAL_ERROR
 
-struct nr3_done {
-	uint32_t hw_ctx;
-	uint32_t p;
-	uint32_t out0;
-	uint32_t out1;
+/*interrupt bits for DCAM LITE*/
+enum {
+	DCAM_LITE_IRQ_INT_SENSOR_SOF              = 0,
+	DCAM_LITE_IRQ_INT_SENSOR_EOF              = 1,
+	DCAM_LITE_IRQ_INT_CAP_SOF                 = 2,
+	DCAM_LITE_IRQ_INT_CAP_EOF                 = 3,
+	DCAM_LITE_IRQ_INT_DCAM_OVF                = 4,
+	DCAM_LITE_IRQ_INT_CAP_LINE_ERR            = 5,
+	DCAM_LITE_IRQ_INT_CAP_FRM_ERR             = 6,
+	DCAM_LITE_IRQ_INT_FULL_PATH0_END          = 7,
+	DCAM_LITE_IRQ_INT_FULL_PATH1_END          = 8,
+	DCAM_LITE_IRQ_INT_FULL_PATH_TX_DONE       = 9,
+	DCAM_LITE_IRQ_INT_MMU_INT                 = 31,
+	DCAM_LITE_IRQ_INT_NUMBER
 };
 
-struct dcam_sequences{
-	size_t count;
-	const int *bits;
-};
+#define DCAMLITE_INT_ERROR \
+	(BIT(DCAM_LITE_IRQ_INT_DCAM_OVF) | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_LINE_ERR) | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_FRM_ERR) | \
+	BIT(DCAM_LITE_IRQ_INT_MMU_INT))
 
-struct dcam_irq_info {
-	uint32_t irq_num;
-	uint32_t status;
-	uint32_t status1;
-	const dcam_int_isr (*_DCAM_ISR_IRQ)[DCAM_IF_IRQ_INT0_NUMBER];
-	const struct dcam_sequences (*DCAM_SEQUENCES)[2];
-};
+#define DCAMLITE_INT_FATAL_ERROR \
+	(BIT(DCAM_LITE_IRQ_INT_DCAM_OVF) | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_LINE_ERR) | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_FRM_ERR))
+
+#define DCAMLITE_INT_SOF \
+	(BIT(DCAM_LITE_IRQ_INT_SENSOR_SOF) | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_SOF))
+
+#define DCAMLITE_INT_TX_DONE \
+	(BIT(DCAM_LITE_IRQ_INT_FULL_PATH_TX_DONE))
+
+
+#define DCAMLITE_IRQ_LINE_INT_MASK \
+	(DCAMLITE_INT_ERROR | DCAMLITE_INT_TX_DONE | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_SOF) | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_EOF) | \
+	BIT(DCAM_LITE_IRQ_INT_SENSOR_EOF) | \
+	BIT(DCAM_LITE_IRQ_INT_SENSOR_SOF))
+
+#define DCAMLITE_IRQ_LINE_EN_NORMAL \
+	(DCAMLITE_INT_ERROR | DCAMLITE_INT_TX_DONE | \
+	BIT(DCAM_LITE_IRQ_INT_CAP_SOF) | \
+	BIT(DCAM_LITE_IRQ_INT_SENSOR_EOF))
 
 int dcam_int_irq_desc_get(uint32_t index, void *param);
-struct dcam_irq_info dcam_int_isr_handle(void *param);
-void dcam_int_status_warning(void *param, uint32_t status, uint32_t status1);
-struct dcam_irq_info dcam_int_mask_clr(uint32_t idx);
 struct nr3_done dcam_int_nr3_done_rd(void *param, uint32_t idx);
 void dcam_int_iommu_regs_dump(void *param);
+void dcam_int_irq_init(void *dcam_hw_ctx);
 #endif

@@ -419,7 +419,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 			dcam_port->out_size.w, dcam_port->out_size.h);
 		layer_num--;
 		dec_store->layer_num = layer_num;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_BYPASS_DEC, dec_store);
+		hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_BYPASS_DEC, dec_store);
 		if (layer_num == 0)
 			break;
 	}
@@ -447,7 +447,7 @@ static int dcamonline_port_update_pyr_dec_addr(struct dcam_online_port *dcam_por
 		size = dec_store->pitch_t[i].pitch_ch0 * dec_store->size_t[i].h;
 		dec_store->addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] + offset;
 		dec_store->addr[1] = dec_store->addr[0] + size;
-		hw->dcam_ioctl(hw, DCAM_HW_CFG_DEC_STORE_ADDR, dec_store);
+		hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_DEC_STORE_ADDR, dec_store);
 
 		pr_debug("dcam %d dec_layer %d w %d h %d\n", dec_store->idx, i, dec_store->size_t[i].w, dec_store->size_t[i].h);
 		pr_debug("dcam %d dec_layer %d addr %08x %08xn", dec_store->idx, i, dec_store->addr[0], dec_store->addr[1]);
@@ -488,7 +488,7 @@ static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,st
 			fbcadr.frame_addr[1] = fbc_addr.addr1;
 			fbcadr.path_id = path_id;
 			fbcadr.data_bits = cam_data_bits(dcam_port->dcamout_fmt);
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_FBC_ADDR_SET, &fbcadr);
+			hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_FBC_ADDR_SET, &fbcadr);
 		} else {
 			store_arg.idx = idx;
 			store_arg.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
@@ -501,7 +501,7 @@ static void dcamonline_port_cfg_store_addr(struct dcam_online_port *dcam_port,st
 			store_arg.in_fmt = hw_ctx->cap_info.format;
 			store_arg.blk_param = blk_dcam_pm;
 			store_arg.frame_size = frame->common.buf.size;
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_STORE_ADDR, &store_arg);
+			hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_STORE_ADDR, &store_arg);
 		}
 	}
 }
@@ -592,7 +592,7 @@ static void dcamonline_port_hist_update_statis_head(struct dcam_online_port *dca
 
 	/* Re-config hist win if it is updated */
 	spin_lock_irqsave(&blk_dcam_pm->hist.param_update_lock, flags);
-	hw->dcam_ioctl(hw, DCAM_HW_CFG_BAYER_HIST_ROI_UPDATE, blk_dcam_pm);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_BAYER_HIST_ROI_UPDATE, blk_dcam_pm);
 	spin_unlock_irqrestore(&blk_dcam_pm->hist.param_update_lock, flags);
 
 }
@@ -635,7 +635,7 @@ static inline int dcamonline_port_hist_out_frm_set(struct dcam_online_port *dcam
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
 			slw_addr.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
+			hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
 			pr_debug("DCAM%u %s set reserved frame\n", idx, cam_port_name_get(port_id));
 			i++;
 		}
@@ -683,7 +683,7 @@ static inline int dcamonline_port_aem_out_frm_set(struct dcam_online_port *dcam_
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
 			slw_addr.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
+			hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
 			pr_debug("DCAM%u %s set reserved frame\n", idx, cam_port_name_get(port_id));
 			i++;
 		}
@@ -726,7 +726,7 @@ static inline int dcamonline_port_bin_out_frm_set(struct dcam_online_port *dcam_
 			slw_addr.reg_addr = addr;
 			slw_addr.idx = idx;
 			slw_addr.frame_addr[0] = frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
-			hw->dcam_ioctl(hw, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
+			hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SLW_ADDR, &slw_addr);
 			atomic_inc(&dcam_port->set_frm_cnt);
 
 			frame->common.fid = hw_ctx->index_to_set + i;
@@ -1021,7 +1021,7 @@ static int dcamonline_port_store_set(void *handle, void *param)
 
 	pr_debug("DCAM%u ONLINE %s enter\n", idx, cam_port_name_get(dcam_port->port_id));
 	if (dcam_port->port_id == PORT_GTM_HIST_OUT) {
-		hw_ctx->gtm_hist_stat_bypass = hw->dcam_ioctl(hw, DCAM_HW_CFG_GTM_HIST_BYPASS_GET, blk_dcam_pm);
+		hw_ctx->gtm_hist_stat_bypass = hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_GTM_HIST_BYPASS_GET, blk_dcam_pm);
 		dcamonline_port_check_status(dcam_port, hw_ctx, blk_dcam_pm);
 	}
 	frame = dcamonline_port_frame_cycle(dcam_port, hw_ctx);
