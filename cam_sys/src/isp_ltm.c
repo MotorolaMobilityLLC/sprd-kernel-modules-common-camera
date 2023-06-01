@@ -367,8 +367,12 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 
 	ltm_hist_frame = cam_buf_manager_buf_dequeue(ctx->hist_outpool, NULL, ctx->buf_manager_handle);
 	if (!ltm_hist_frame) {
-		pr_err("fail to ctx id %d, frame %px\n", ctx->ctx_id, ltm_hist_frame);
-		return -1;
+		if (ctx->resbuf_get_cb)
+			ctx->resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&ltm_hist_frame, ctx->resbuf_cb_data);
+		if (!ltm_hist_frame) {
+			pr_err("fail to ctx id %d, frame %px\n", ctx->ctx_id, ltm_hist_frame);
+			return -1;
+		}
 	}
 	ltm_hist_frame->common.ltm_info.tile_width = param->tile_width;
 	ltm_hist_frame->common.ltm_info.tile_height = param->tile_height;
@@ -379,7 +383,6 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 	ltm_hist_frame->common.width = ctx->frame_width;
 	ltm_hist_frame->common.height = ctx->frame_height;
 	ltm_hist_frame->common.fid = ctx->fid;
-	pr_info("fid:%d.\n", ltm_hist_frame->common.fid);
 
 	hists->clip_limit = tuning->clip_limit;
 	hists->clip_limit_min = tuning->clip_limit_min;
@@ -392,7 +395,10 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 	ret = cam_buf_manager_buf_enqueue(ctx->hist_resultpool, ltm_hist_frame, NULL, ctx->buf_manager_handle);
 	if (ret) {
 		pr_err("fail to set ltmhist out buffer to result pool\n");
-		cam_buf_manager_buf_enqueue(ctx->hist_outpool, ltm_hist_frame, NULL, ctx->buf_manager_handle);
+		if (ltm_hist_frame->common.is_reserved)
+			ctx->resbuf_get_cb(RESERVED_BUF_SET_CB, ltm_hist_frame, ctx->resbuf_cb_data);
+		else
+			cam_buf_manager_buf_enqueue(ctx->hist_outpool, ltm_hist_frame, NULL, ctx->buf_manager_handle);
 	}
 
 	memcpy(hists->ltm_hist_table, tuning->ltm_hist_table, sizeof(tuning->ltm_hist_table));

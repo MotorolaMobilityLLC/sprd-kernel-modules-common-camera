@@ -793,16 +793,16 @@ static int dcamhw_path_start(void *handle, void *arg)
 		 * nr3_mv_bypass: 0
 		 * nr3_channel_sel: 0
 		 * nr3_project_mode: 0
-		 * nr3_sub_me_bypass: 0
+		 * nr3_sub_me_bypass: 1
 		 * nr3_out_en: 0
 		 * nr3_ping_pong_en: 0
 		 * nr3_bypass: 0
 		 */
 		 /* slowmotion use pingpong, nr3_ping_pong_en:1 */
 		if (patharg->slowmotion_count)
-			nr3_me_param = 2;
+			nr3_me_param = 0xa;
 		else
-			nr3_me_param = 0;
+			nr3_me_param = 0x8;
 
 		if (patharg->cap_info.cap_size.size_x == 0 ||
 			patharg->cap_info.cap_size.size_y == 0)

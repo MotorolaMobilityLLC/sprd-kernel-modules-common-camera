@@ -211,7 +211,10 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 			ret = -EFAULT;
 			goto exit;
 		}
-		inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
+		if (unlikely(pframe->common.is_reserved))
+			inode->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, inode->resbuf_cb_data);
+		else
+			inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
 		break;
 	case POSTPROC_RGB_GTM_HISTS_DONE:
 		ispnode_rgb_gtm_hist_done_process(inode, hw_idx, dev);
@@ -1745,6 +1748,8 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	uinfo->ltm_rgb = param->ltm_rgb;
 	uinfo->pyr_layer_num = param->pyr_layer_num;
 	if (rgb_ltm) {
+		rgb_ltm->resbuf_get_cb = param->resbuf_get_cb;
+		rgb_ltm->resbuf_cb_data = param->resbuf_cb_data;
 		rgb_ltm->hist_outpool = &node->ltmhist_outpool;
 		rgb_ltm->hist_resultpool = &node->ltmhist_resultpool;
 		rgb_ltm->buf_manager_handle = param->buf_manager_handle;
