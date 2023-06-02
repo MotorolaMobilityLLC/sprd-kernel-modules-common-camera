@@ -1230,7 +1230,7 @@ failed:
 int isp_gen_buf_free(struct isp_buf_info *buf_info)
 {
 
-	if (buf_info == NULL || buf_info->dmabuf_p == NULL) {
+	if (buf_info == NULL || IS_ERR_OR_NULL(buf_info->dmabuf_p)) {
 		pr_err("fail to get valid buffer info\n");
 		return -EINVAL;
 	}
