@@ -235,22 +235,21 @@
 
  ssize_t get_work_freq_show(struct device *dev,
                                   struct device_attribute *attr, char *buf) {
-    struct devfreq *devfreq = to_devfreq(dev);
-    struct module_dvfs *module;
     int err = 0;
-
+    struct devfreq *devfreq = to_devfreq(dev);
+    struct module_dvfs *module = NULL;
     module = dev_get_drvdata(devfreq->dev.parent);
-    if (!module->dvfs_enable) {
-        pr_info("dvfs power off\n");
-        return -EINVAL;
-    }
+
+    if (module == NULL) {
+         pr_err("%s: dev get drvdata is null\n", __func__);
+         return -EINVAL;
+     } else if (!module->dvfs_enable) {
+         pr_info("dvfs power off\n");
+         return -EINVAL;
+     }
 
     mutex_lock(&devfreq->lock);
-    if (module != NULL)
-        err = sprintf(buf, "%d\n", module->module_dvfs_para.u_work_freq);
-    else
-        err = sprintf(buf, "undefined\n");
-
+    err = sprintf(buf, "%d\n", module->module_dvfs_para.u_work_freq);
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -472,21 +471,21 @@
 
  ssize_t get_fix_dvfs_show(struct device *dev,
                                  struct device_attribute *attr, char *buf) {
-    struct devfreq *devfreq = to_devfreq(dev);
-    struct module_dvfs *module;
     int err = 0;
-
+    struct devfreq *devfreq = to_devfreq(dev);
+    struct module_dvfs *module = NULL;
     module = dev_get_drvdata(devfreq->dev.parent);
-    if (!module->dvfs_enable) {
+
+    if (module == NULL) {
+        pr_err("%s: dev get drvdata is null\n", __func__);
+        return -EINVAL;
+    } else if (!module->dvfs_enable) {
         pr_info("dvfs power off\n");
         return -EINVAL;
     }
 
     mutex_lock(&devfreq->lock);
-    if (module != NULL)
-        err = sprintf(buf, "%d\n", module->module_dvfs_para.u_fix_volt);
-    else
-        err = sprintf(buf, "undefined\n");
+    err = sprintf(buf, "%d\n", module->module_dvfs_para.u_fix_volt);
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -741,22 +740,21 @@
  ssize_t get_gfree_wait_delay_show(struct device *dev,
                                          struct device_attribute *attr,
                                          char *buf) {
-    struct devfreq *devfreq = to_devfreq(dev);
-    struct module_dvfs *module;
     int err = 0;
-
+    struct devfreq *devfreq = to_devfreq(dev);
+    struct module_dvfs *module = NULL;
     module = dev_get_drvdata(devfreq->dev.parent);
-    if (!module->dvfs_enable) {
-        pr_info("dvfs power off\n");
-        return -EINVAL;
-    }
+
+    if (module == NULL) {
+         pr_err("%s: dev get drvdata is null\n", __func__);
+         return -EINVAL;
+     } else if (!module->dvfs_enable) {
+         pr_info("dvfs power off\n");
+         return -EINVAL;
+     }
 
     mutex_lock(&devfreq->lock);
-    if (module != NULL) {
-        err =
-            sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.gfree_wait_delay);
-    } else
-        err = sprintf(buf, "undefined\n");
+    err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.gfree_wait_delay);
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -840,22 +838,21 @@
  ssize_t get_freq_upd_hdsk_en_show(struct device *dev,
                                          struct device_attribute *attr,
                                          char *buf) {
-    struct devfreq *devfreq = to_devfreq(dev);
-    struct module_dvfs *module;
     int err = 0;
-
+    struct devfreq *devfreq = to_devfreq(dev);
+    struct module_dvfs *module = NULL;
     module = dev_get_drvdata(devfreq->dev.parent);
-    if (!module->dvfs_enable) {
-        pr_info("dvfs power off\n");
-        return -EINVAL;
-    }
+
+    if (module == NULL) {
+         pr_err("%s: dev get drvdata is null\n", __func__);
+         return -EINVAL;
+     } else if (!module->dvfs_enable) {
+         pr_info("dvfs power off\n");
+         return -EINVAL;
+     }
 
     mutex_lock(&devfreq->lock);
-    if (module != NULL) {
-        err =
-            sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.freq_upd_hdsk_en);
-    } else
-        err = sprintf(buf, "undefined\n");
+    err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.freq_upd_hdsk_en);
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -899,25 +896,22 @@
 
  ssize_t get_freq_upd_delay_en_show(struct device *dev,
                                           struct device_attribute *attr,
-                                          char *buf)
-
-{
-    struct devfreq *devfreq = to_devfreq(dev);
-    struct module_dvfs *module;
+                                          char *buf) {
     int err = 0;
-
+    struct devfreq *devfreq = to_devfreq(dev);
+    struct module_dvfs *module = NULL;
     module = dev_get_drvdata(devfreq->dev.parent);
-    if (!module->dvfs_enable) {
-        pr_info("dvfs power off\n");
-        return -EINVAL;
-    }
+
+    if (module == NULL) {
+          pr_err("%s: dev get drvdata is null\n", __func__);
+          return -EINVAL;
+      } else if (!module->dvfs_enable) {
+          pr_info("dvfs power off\n");
+          return -EINVAL;
+      }
 
     mutex_lock(&devfreq->lock);
-    if (module != NULL) {
-        err =
-            sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.freq_upd_delay_en);
-    } else
-        err = sprintf(buf, "undefined\n");
+    err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.freq_upd_delay_en);
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -962,21 +956,21 @@
  ssize_t get_freq_upd_en_byp_show(struct device *dev,
                                         struct device_attribute *attr,
                                         char *buf) {
-    struct devfreq *devfreq = to_devfreq(dev);
-    struct module_dvfs *module;
     int err = 0;
-
+    struct devfreq *devfreq = to_devfreq(dev);
+    struct module_dvfs *module = NULL;
     module = dev_get_drvdata(devfreq->dev.parent);
-    if (!module->dvfs_enable) {
-        pr_info("dvfs power off\n");
-        return -EINVAL;
-    }
+
+    if (module == NULL) {
+         pr_err("%s: dev get drvdata is null\n", __func__);
+         return -EINVAL;
+     } else if (!module->dvfs_enable) {
+         pr_info("dvfs power off\n");
+         return -EINVAL;
+     }
 
     mutex_lock(&devfreq->lock);
-    if (module != NULL) {
-        err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.freq_upd_en_byp);
-    } else
-        err = sprintf(buf, "undefined\n");
+    err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.freq_upd_en_byp);
     mutex_unlock(&devfreq->lock);
 
     return err;
@@ -1017,21 +1011,21 @@
 
  ssize_t get_sw_trig_en_show(struct device *dev,
                                    struct device_attribute *attr, char *buf) {
-    struct devfreq *devfreq = to_devfreq(dev);
-    struct module_dvfs *module;
     int err = 0;
-
+    struct devfreq *devfreq = to_devfreq(dev);
+    struct module_dvfs *module = NULL;
     module = dev_get_drvdata(devfreq->dev.parent);
-    if (!module->dvfs_enable) {
-        pr_info("dvfs power off\n");
-        return -EINVAL;
-    }
+
+    if (module == NULL) {
+         pr_err("%s: dev get drvdata is null\n", __func__);
+         return -EINVAL;
+     } else if (!module->dvfs_enable) {
+         pr_info("dvfs power off\n");
+         return -EINVAL;
+     }
 
     mutex_lock(&devfreq->lock);
-    if (module != NULL) {
-        err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.sw_trig_en);
-    } else
-        err = sprintf(buf, "undefined\n");
+    err = sprintf(buf, "%d\n", module->module_dvfs_para.ip_coffe.sw_trig_en);
     mutex_unlock(&devfreq->lock);
 
     return err;
