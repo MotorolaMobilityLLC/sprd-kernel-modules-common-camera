@@ -172,6 +172,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		goto exit;
 	}
 	ch = &module->channel[CAM_CH_PRE];
+	pr_debug("cam%d type %d mfd %d\n", module->idx, statis_buf.type, statis_buf.mfd);
 
 	switch (statis_buf.type) {
 		case STATIS_INIT:
@@ -189,7 +190,6 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		case STATIS_EBD:
 		case STATIS_LSCM:
 			cfg_to_dcam = 1;
-			pr_debug("cam%d type %d mfd %d\n", module->idx, statis_buf.type, statis_buf.mfd);
 			break;
 		case STATIS_GTMHIST:
 			if (hw->ip_isp->isphw_abt->rgb_gtm_support > 0) {
@@ -213,7 +213,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 					pr_warn("warning:channel:%d not eb, can not set ltm buf\n", ch->ch_id);
 					break;
 				}
-				ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
+				cfg_to_isp = 1;
 			} else
 				pr_warn("warning:not support ltm block module\n");
 			break;
