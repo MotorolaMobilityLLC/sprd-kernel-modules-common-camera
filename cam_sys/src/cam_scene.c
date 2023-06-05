@@ -1179,8 +1179,10 @@ static void camscene_online_normal_or_raw2user2yuv_pipeline_get(struct cam_pipel
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_REPLACE,
 			CAM_NODE_TYPE_PYR_DEC,
+			CAM_NODE_TYPE_PYR_DEC,
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_REPLACE,
+			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
 		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL_DEC;
@@ -1196,6 +1198,7 @@ static void camscene_online_normal_or_raw2user2yuv_pipeline_get(struct cam_pipel
 			CAM_NODE_TYPE_DCAM_OFFLINE,
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_REPLACE,
+			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
 		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL;
@@ -1247,7 +1250,7 @@ static void camscene_online_normal_or_raw2user2yuv_pipeline_get(struct cam_pipel
 	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
 	if (pyrdec_support) {
 		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_PYR_DEC;
-		cur_node->outport[dcam_offline_port_id].link.node_id = PYR_DEC_NODE_ID;
+		cur_node->outport[dcam_offline_port_id].link.node_id = PYR_DEC_NODE_ID_1;
 		cur_node->outport[dcam_offline_port_id].link.port_id = PORT_DEC_IN;
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_1;
@@ -1260,6 +1263,14 @@ static void camscene_online_normal_or_raw2user2yuv_pipeline_get(struct cam_pipel
 		cur_node->outport[PORT_DEC_OUT].link_state = PORT_LINK_NORMAL;
 		cur_node->outport[PORT_DEC_OUT].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		cur_node->outport[PORT_DEC_OUT].link.node_id = ISP_NODE_MODE_CAP_ID;
+		cur_node->outport[PORT_DEC_OUT].link.port_id = PORT_ISP_OFFLINE_IN;
+		cur_node++;
+		cur_node->id = PYR_DEC_NODE_ID_1;
+		cur_node->outport[PORT_DEC_OUT].dump_node_id = CAM_DUMP_NODE_ID_2;
+		cur_node->outport[PORT_DEC_OUT].replace_node_id = CAM_REPLACE_NODE_ID_2;
+		cur_node->outport[PORT_DEC_OUT].link_state = PORT_LINK_NORMAL;
+		cur_node->outport[PORT_DEC_OUT].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+		cur_node->outport[PORT_DEC_OUT].link.node_id = ISP_NODE_MODE_OFFLINE_CAP_ID;
 		cur_node->outport[PORT_DEC_OUT].link.port_id = PORT_ISP_OFFLINE_IN;
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_2;
@@ -1280,6 +1291,21 @@ static void camscene_online_normal_or_raw2user2yuv_pipeline_get(struct cam_pipel
 	if (pyrdec_support) {
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_PYR_DEC;
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = PYR_DEC_NODE_ID;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = PORT_DEC_OUT;
+	} else {
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = DCAM_ONLINE_PRE_NODE_ID;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = dcam_offline_port_id;
+	}
+	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
+	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;
+	cur_node++;
+	cur_node->id = ISP_NODE_MODE_OFFLINE_CAP_ID;
+	cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
+	if (pyrdec_support) {
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_PYR_DEC;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = PYR_DEC_NODE_ID_1;
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = PORT_DEC_OUT;
 	} else {
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;

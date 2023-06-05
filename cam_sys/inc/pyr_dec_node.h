@@ -40,6 +40,7 @@
 
 enum pyr_dec_node_id {
 	PYR_DEC_NODE_ID,
+	PYR_DEC_NODE_ID_1,
 	PYR_DEC_MAX_NODE_ID,
 };
 
@@ -214,6 +215,7 @@ struct pyr_dec_dct_ynr_info {
 
 struct pyrdec_pipe_dev {
 	uint32_t cur_node_id;
+	uint32_t cur_node_idx;
 	uint32_t irq_no;
 	spinlock_t ctx_lock;
 	atomic_t user_cnt;
@@ -225,7 +227,7 @@ struct pyrdec_pipe_dev {
 	struct pyr_dec_node *node;
 	struct cam_hw_info *hw;
 	pyrdec_irq_proc_func irq_proc_func;
-	struct pyr_dec_node *pyrdec_node[PYR_DEC_NODE_NUM_MAX];
+	struct pyr_dec_node *pyrdec_node[PYR_DEC_NODE_NUM_MAX][PYR_DEC_NODE_NUM_MAX];
 };
 
 struct pyr_dec_node {

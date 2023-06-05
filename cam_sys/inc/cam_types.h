@@ -262,6 +262,7 @@ struct cam_postproc_param {
 	uint32_t node_type;
 	uint32_t dcam_port_id;
 	uint32_t isp_port_id;
+	uint32_t isp_node_id;
 	uint32_t scene_mode;
 	uint32_t need_cfg_isp;
 	uint32_t need_cfg_dcam;
