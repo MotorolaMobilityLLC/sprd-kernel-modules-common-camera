@@ -413,7 +413,7 @@ int cam_statis_dcam_port_buffer_cfg(
 		}
 
 		if (ion_buf == NULL) {
-			pr_err("fail to get statis buf %d, type %d\n",
+			pr_err("fail to get statis buf type %d, mfd %d\n",
 					input->type, input->mfd);
 			ret = -EINVAL;
 			goto exit;

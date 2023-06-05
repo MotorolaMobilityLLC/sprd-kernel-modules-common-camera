@@ -22,6 +22,117 @@
 #endif
 #define pr_fmt(fmt) "AFM: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
+static void afm_blockparam_check(struct dcam_isp_k_block *param)
+{
+	int i = 0;
+	s16 iir_info = 0;
+	s8 fv1_coeff[4][9] = {0}, fv1_sum = 0, fv1_pos_sum = 0;
+	struct dcam_dev_afm_info *afm_info = &param->afm.af_param;
+
+	SMALL_EQUAL(afm_info->afm_iir_enable, 1);
+	SMALL_EQUAL(afm_info->afm_lum_stat_chn_sel, 3);
+	SMALL_EQUAL(afm_info->afm_enhanced_lum.afm_max_lum_num_th, 9);
+	SMALL_EQUAL(afm_info->afm_enhanced_lum.afm_max_lum_th, 1023);
+
+	if (afm_info->afm_iir_enable) {
+		iir_info = afm_info->afm_iir_g0;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_info->afm_iir_g1;
+		MIN_MAX(iir_info, -2048, 2047);
+
+		for (i = 0; i < 10; i++) {
+			iir_info = afm_info->afm_iir_c[i];
+			MIN_MAX(iir_info, -2048, 2047);
+		}
+	}
+
+	SMALL_EQUAL(afm_info->afm_channel_sel, 3);
+	SMALL_EQUAL(afm_info->afm_denoise_mode, 2);
+	SMALL_EQUAL(afm_info->afm_fv0_shift, 7);
+	SMALL_EQUAL(afm_info->afm_fv1_shift, 7);
+	if (afm_info->afm_denoise_mode == 1)
+		MIN_MAX(afm_info->afm_center_weight, 1, 3);
+	SMALL_EQUAL(afm_info->afm_clip_en0, 1);
+	if (afm_info->afm_clip_en0 == 1) {
+		SMALL_EQUAL(afm_info->afm_fv0_th.min, ((1 << 12) - 1));
+		SMALL_EQUAL(afm_info->afm_fv0_th.max, ((1 << 20) - 1));
+	}
+	SMALL_EQUAL(afm_info->afm_clip_en1, 1);
+	if (afm_info->afm_clip_en1 == 1) {
+		SMALL_EQUAL(afm_info->afm_fv1_th.min, ((1 << 12) - 1));
+		SMALL_EQUAL(afm_info->afm_fv1_th.max, ((1 << 20) - 1));
+	}
+
+	for (i = 0; i < 4; i++) {
+		fv1_coeff[i][0] = afm_info->afm_fv1_coeff[i][0] & 0xFF;
+		fv1_sum += fv1_coeff[i][0];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][0]);
+		fv1_coeff[i][1] = afm_info->afm_fv1_coeff[i][1] & 0xFF;
+		fv1_sum += fv1_coeff[i][1];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][1]);
+		fv1_coeff[i][2] = afm_info->afm_fv1_coeff[i][2] & 0xFF;
+		fv1_sum += fv1_coeff[i][2];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][2]);
+		fv1_coeff[i][3] = afm_info->afm_fv1_coeff[i][3] & 0xFF;
+		fv1_sum += fv1_coeff[i][3];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][3]);
+		fv1_coeff[i][4] = afm_info->afm_fv1_coeff[i][4] & 0xFF;
+		fv1_sum += fv1_coeff[i][4];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][4]);
+		fv1_coeff[i][5] = afm_info->afm_fv1_coeff[i][5] & 0xFF;
+		fv1_sum += fv1_coeff[i][5];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][5]);
+		fv1_coeff[i][6] = afm_info->afm_fv1_coeff[i][6] & 0xFF;
+		fv1_sum += fv1_coeff[i][6];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][6]);
+		fv1_coeff[i][7] = afm_info->afm_fv1_coeff[i][7] & 0xFF;
+		fv1_sum += fv1_coeff[i][7];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][7]);
+		fv1_coeff[i][8] = afm_info->afm_fv1_coeff[i][8] & 0xFF;
+		fv1_sum += fv1_coeff[i][8];
+		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][8]);
+		EQUAL(fv1_sum, 0);
+		EQUAL(fv1_pos_sum, 16);
+		fv1_sum = 0;
+		fv1_pos_sum = 0;
+	}
+}
+
+static void afm_iirparam_check(struct dcam_isp_k_block *param)
+{
+	s16 iir_info = 0;
+	struct dcam_dev_afm_iir_info *afm_iir_info = &param->afm.af_iir_info;
+
+	SMALL_EQUAL(afm_iir_info->afm_iir_enable, 1);
+
+	if (afm_iir_info->afm_iir_enable) {
+		iir_info = afm_iir_info->afm_iir_g0;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_g1;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c1;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c2;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c3;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c4;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c5;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c6;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c7;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c8;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c9;
+		MIN_MAX(iir_info, -2048, 2047);
+		iir_info = afm_iir_info->afm_iir_c10;
+		MIN_MAX(iir_info, -2048, 2047);
+	}
+}
+
 int dcam_k_afm_block(struct dcam_isp_k_block *param)
 {
 	int ret = 0;
@@ -36,6 +147,9 @@ int dcam_k_afm_block(struct dcam_isp_k_block *param)
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+
+	afm_blockparam_check(param);
+
 	p = &(param->afm.af_param);
 
 	val = (p->afm_iir_enable & 0x1) |
@@ -248,6 +362,9 @@ int dcam_k_afm_iir_info(struct dcam_isp_k_block *param)
 	idx = param->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+
+	afm_iirparam_check(param);
+
 	p = &param->afm.af_iir_info;
 
 	DCAM_REG_MWR(idx, DCAM_AFM_PARAMETERS, BIT_0, p->afm_iir_enable);
