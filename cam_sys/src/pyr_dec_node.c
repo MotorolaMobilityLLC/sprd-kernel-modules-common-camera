@@ -446,7 +446,7 @@ struct dcam_isp_k_block *pyrdecnode_blk_param_get(struct pyr_dec_node *node, uin
 			decblk_frame = CAM_QUEUE_DEQUEUE(&node->param_buf_queue, struct cam_frame, list);
 			mutex_unlock(&node->blkpm_q_lock);
 			CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);
-			if (decblk_frame->dec_blk.fid == target_fid) {
+			if (decblk_frame->dec_blk.fid <= target_fid) {
 				out = decblk_frame->dec_blk.decblk_pm;
 				break;
 			}
