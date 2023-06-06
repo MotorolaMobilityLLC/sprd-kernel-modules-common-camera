@@ -2228,6 +2228,9 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 		node->nr3_frm = NULL;
 	}
 
+	if (mode == CAM_CSI_NORMAL_SWITCH)
+		node->blk_pm.recovery_fid = 0;
+
 	/* unbind */
 	dcamonline_ctx_unbind(node);
 
