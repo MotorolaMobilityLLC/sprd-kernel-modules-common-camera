@@ -1754,6 +1754,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	start_time = os_adapt_time_get_boottime();
 	module->capture_times = start_time;
 	module->opt_frame_fid = param.opt_frame_fid;
+	module->cap_frame_id = param.sof_id;
 	ch = &module->channel[CAM_CH_CAP];
 	if (!ch->enable)
 		goto exit;
@@ -1838,6 +1839,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	cap_param.skip_first_num = param.skip_first_num;
 	cap_param.zsl_num = param.zsl_num;
 	cap_param.frm_sel_mode = param.frm_sel_mode;
+	cap_param.fid = param.sof_id;
 
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_longexp)
 		cap_param.no_need_skip_frame_scene = 1;
@@ -1859,9 +1861,9 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (ch->isp_port_id == PORT_VID_OUT)
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);
 
-	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d\n",
+	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d, sof_id %d\n",
 		module->idx, param.type, module->cap_scene, param.cap_cnt,
-		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid);
+		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid, param.sof_id);
 
 exit:
 	return ret;

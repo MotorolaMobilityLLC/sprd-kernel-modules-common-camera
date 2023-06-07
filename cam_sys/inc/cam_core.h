@@ -273,6 +273,7 @@ struct camera_module {
 	struct cam_thread_info buf_thrd;
 
 	uint32_t opt_frame_fid;/* mul_frame opt frame fid*/
+	uint32_t cap_frame_id;
 
 	struct timer_list cam_timer;
 

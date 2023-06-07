@@ -373,6 +373,7 @@ struct cam_capture_param {
 	uint32_t skip_first_num;
 	uint32_t zsl_num;
 	enum cam_node_frmsel_mode frm_sel_mode;
+	uint32_t fid;
 };
 
 struct cam_buf_alloc_desc {

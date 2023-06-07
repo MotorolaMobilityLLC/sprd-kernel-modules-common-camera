@@ -953,6 +953,7 @@ struct sprd_img_capture_param {
 	uint32_t skip_first_num;
 	uint32_t zsl_num;
 	uint32_t frm_sel_mode;
+	uint32_t sof_id;
 };
 #pragma pack(pop)
 

@@ -525,7 +525,8 @@ static struct cam_frame *camcore_dual_frame_deal(void *param, void *priv_data, i
 			*frame_flag = CAM_FRAME_DEAL;
 		}
 	} else {
-		if (pframe->common.boot_sensor_time < module->capture_times)
+		if ((module->cap_frame_id && pframe->common.fid < module->cap_frame_id)
+			|| (!module->cap_frame_id && pframe->common.boot_sensor_time < module->capture_times))
 			*frame_flag = CAM_FRAME_NO_DEAL;
 		else {
 			if (atomic_read(&module->dual_select_frame_done) == 0) {
