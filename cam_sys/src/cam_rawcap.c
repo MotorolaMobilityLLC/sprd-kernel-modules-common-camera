@@ -269,7 +269,7 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	atomic_set(&module->state, CAM_RUNNING);
 
 	if (module->cam_uinfo.is_pyr_dec) {
-		pyrdec_node = module->nodes_dev.pyr_dec_node_dev;
+		pyrdec_node = module->nodes_dev.pyr_dec_node_dev[PYR_DEC_NODE_ID];
 		rec_ctx = (struct isp_rec_ctx_desc *)isp_node->rec_handle;
 
 		alloc_param.ch_id = ch->ch_id;
@@ -622,7 +622,7 @@ int camrawcap_storeccm_frgb_post_proc(struct camera_module *module,
 
 	atomic_set(&module->state, CAM_RUNNING);
 	if (module->cam_uinfo.is_pyr_dec) {
-		pyrdec_node = module->nodes_dev.pyr_dec_node_dev;
+		pyrdec_node = module->nodes_dev.pyr_dec_node_dev[PYR_DEC_NODE_ID];
 		rec_ctx = (struct isp_rec_ctx_desc *)isp_node->rec_handle;
 
 		alloc_param.ch_id = ch->ch_id;

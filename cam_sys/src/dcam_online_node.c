@@ -1461,8 +1461,10 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				spin_unlock_irqrestore(&port->state_lock, flag);
 			}
 			/* online ctx use fmcu means slowmotion */
-			if ((node->slw_type != DCAM_SLW_FMCU) && (port->port_cfg_cb_func))
+			if ((node->slw_type != DCAM_SLW_FMCU) && (port->port_cfg_cb_func)) {
 				port->port_cfg_cb_func(hw_ctx, DCAM_PORT_STORE_SET, port);
+				patharg.in_trim = port->in_trim;
+			}
 
 			if ((atomic_read(&port->set_frm_cnt) > 0) || (node->slw_type == DCAM_SLW_FMCU)) {
 				hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_START, &patharg);

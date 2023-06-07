@@ -514,7 +514,7 @@ void *cam_port_creat(struct cam_port_desc *param, uint32_t node_id)
 	case CAM_NODE_TYPE_FRAME_CACHE:
 		break;
 	case CAM_NODE_TYPE_PYR_DEC:
-		param->pyr_dec->port_dev = (void *)&nodes_dev->pyr_dec_out_port_dev[port->port_graph->id];
+		param->pyr_dec->port_dev = (void *)&nodes_dev->pyr_dec_out_port_dev[node_id][port->port_graph->id];
 		param->pyr_dec->data_cb_func = param->data_cb_func;
 		param->pyr_dec->data_cb_handle = param->data_cb_handle;
 		param->pyr_dec->buf_manager_handle = param->buf_manager_handle;

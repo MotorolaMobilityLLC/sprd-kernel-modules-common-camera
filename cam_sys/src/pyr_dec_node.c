@@ -446,7 +446,7 @@ struct dcam_isp_k_block *pyrdecnode_blk_param_get(struct pyr_dec_node *node, uin
 			decblk_frame = CAM_QUEUE_DEQUEUE(&node->param_buf_queue, struct cam_frame, list);
 			mutex_unlock(&node->blkpm_q_lock);
 			CAM_QUEUE_ENQUEUE(&node->param_share_queue, &decblk_frame->list);
-			if (decblk_frame->dec_blk.fid == target_fid) {
+			if (decblk_frame->dec_blk.fid <= target_fid) {
 				out = decblk_frame->dec_blk.decblk_pm;
 				break;
 			}
@@ -1004,7 +1004,7 @@ static int pyrdec_node_irq_proc(void *handle)
 	}
 
 	pyrdec = (struct pyrdec_pipe_dev *)handle;
-	node = (struct pyr_dec_node *)pyrdec->pyrdec_node[pyrdec->cur_node_id];
+	node = (struct pyr_dec_node *)pyrdec->pyrdec_node[pyrdec->cur_node_idx][pyrdec->cur_node_id];
 
 	pyrdec_node_hw_ts_cal(node);
 	pyrdec->in_irq_handler = 1;
@@ -1050,7 +1050,7 @@ static int pyrdec_node_irq_proc(void *handle)
 				return ret;
 			}
 			out_frame->common.link_from.node_type = CAM_NODE_TYPE_PYR_DEC;
-			out_frame->common.link_from.node_id = PYR_DEC_NODE_ID;
+			out_frame->common.link_from.node_id = node->node_id;
 			out_frame->common.link_from.port_id = PORT_DEC_OUT;
 			if (node->data_cb_func)
 				node->data_cb_func(CAM_CB_ISP_RET_PYR_DEC_BUF, out_frame, node->data_cb_handle);
@@ -1061,7 +1061,7 @@ static int pyrdec_node_irq_proc(void *handle)
 			pr_err("fail to get out frame\n");
 		}
 	}else
-		pr_err("fail to get src frame 0x%x\n",pframe);
+		pr_err("fail to get src frame 0x%x\n", pframe);
 
 	pyrdec->in_irq_handler = 0;
 
@@ -1208,7 +1208,8 @@ static int pyrdec_node_start_proc(void *handle)
 		goto calc_err;
 	}
 
-	dec_dev->cur_node_id = node->node_idx;
+	dec_dev->cur_node_id = node->node_id;
+	dec_dev->cur_node_idx = node->node_idx;
 	/* start pyr dec fmcu */
 	PYR_DEC_DEBUG("pyr dec fmcu start\n");
 	fmcu->ops->hw_start(fmcu);
@@ -1663,7 +1664,7 @@ void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param)
 
 	*param->node_dev = node;
 	if (node->pyrdec_dev) {
-		node->pyrdec_dev->pyrdec_node[node->node_idx] = node;
+		node->pyrdec_dev->pyrdec_node[node->node_idx][node->node_id] = node;
 	} else {
 		pr_err("fail to get pyrdec_dev.\n");
 		return NULL;

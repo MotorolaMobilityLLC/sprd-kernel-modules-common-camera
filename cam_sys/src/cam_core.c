@@ -1499,7 +1499,11 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 	nodes_dev->dcam_offline_node_lscraw_dev = NULL;
 	nodes_dev->dcam_offline_node_raw2frgb_dev = NULL;
 	nodes_dev->dcam_offline_node_frgb2yuv_dev = NULL;
-	nodes_dev->pyr_dec_node_dev = NULL;
+	for (k = 0; k < PYR_DEC_MAX_NODE_ID; k++) {
+		nodes_dev->pyr_dec_node_dev[k] = NULL;
+		for (j = 0; j < PORT_DEC_OUT_MAX; j++)
+			nodes_dev->pyr_dec_out_port_dev[k ][j] = NULL;
+	}
 	for (k = 0; k < ISP_YUV_SCALER_MAX_NODE_ID; k++) {
 		nodes_dev->isp_yuv_scaler_node_dev[k] = NULL;
 		for (j = 0; j < PORT_ISP_YUV_SCALER_IN_MAX; j++)
@@ -1526,8 +1530,6 @@ static void camcore_pipeline_deinit(struct camera_module *module,
 		nodes_dev->dcam_offline_raw2frgb_out_port_dev[j] = NULL;
 	for (j = 0; j < PORT_DCAM_OUT_MAX; j++)
 		nodes_dev->dcam_offline_frgb2yuv_out_port_dev[j] = NULL;
-	for (j = 0; j < PORT_DEC_OUT_MAX; j++)
-		nodes_dev->pyr_dec_out_port_dev[j] = NULL;
 }
 
 static int camcore_timer_start(struct timer_list *cam_timer, uint32_t time_val)
@@ -1957,6 +1959,10 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 				postproc_param->need_cfg_dcam = 1;
 				postproc_param->need_cfg_isp = 1;
 				postproc_param->need_cfg_zoom = 1;
+				if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_AI_SFNR)
+					postproc_param->isp_node_id = ISP_NODE_MODE_OFFLINE_CAP_ID;
+				else
+					postproc_param->isp_node_id = ISP_NODE_MODE_CAP_ID;
 			}
 		}
 		postproc_param->postproc_mode = CAM_POSTPROC_PARALLEL;

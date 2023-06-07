@@ -2060,7 +2060,7 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 	}
 
 	if (postproc_param.need_cfg_isp) {
-		ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, postproc_param.isp_port_id, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_CAP_ID, postproc_param.dst_frm);
+		ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, postproc_param.isp_port_id, CAM_PIPELINE_CFG_BUF, postproc_param.isp_node_id, postproc_param.dst_frm);
 		if (ret) {
 			pr_err("fail to cfg isp out buffer.\n");
 			goto ispbuf_cfg_err;
@@ -2090,8 +2090,8 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 start_proc_err:
 	if (postproc_param.need_cfg_isp) {
 		if (postproc_param.postproc_mode == CAM_POSTPROC_SERIAL)
-			CAM_PIPEINE_ISP_IN_PORT_CFG(ch, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_BUF_CLR, ISP_NODE_MODE_CAP_ID, &param);
-		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, postproc_param.isp_port_id, CAM_PIPELINE_CFG_BUF_CLR, ISP_NODE_MODE_CAP_ID, &param);
+			CAM_PIPEINE_ISP_IN_PORT_CFG(ch, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_BUF_CLR, postproc_param.isp_node_id, &param);
+		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, postproc_param.isp_port_id, CAM_PIPELINE_CFG_BUF_CLR, postproc_param.isp_node_id, &param);
 	}
 	if (postproc_param.need_cfg_dec && postproc_param.postproc_mode == CAM_POSTPROC_SERIAL)
 		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_BUF_CLR, &param);

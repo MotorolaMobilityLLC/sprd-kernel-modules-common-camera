@@ -1610,7 +1610,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 		param->pyr_dec_desc->buf_manager_handle = node->buf_manager_handle;
 		param->pyr_dec_desc->port_cfg_cb_func = camnode_port_cfg_callback;
 		param->pyr_dec_desc->port_cfg_cb_handle = node;
-		param->pyr_dec_desc->node_dev = (void *)&nodes_dev->pyr_dec_node_dev;
+		param->pyr_dec_desc->node_dev = (void *)&nodes_dev->pyr_dec_node_dev[node->node_graph->id];
 		node->handle = pyr_dec_node_get(node->node_graph->id, param->pyr_dec_desc);
 		break;
 	case CAM_NODE_TYPE_DATA_COPY:
