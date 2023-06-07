@@ -1029,7 +1029,7 @@ exit:
 	if (pctx_hw)
 		dev->isp_ops->unbind(inode);
 
-	return 0;
+	return ret;
 }
 
 static int ispnode_blkparam_cfg(void *node, void *param)

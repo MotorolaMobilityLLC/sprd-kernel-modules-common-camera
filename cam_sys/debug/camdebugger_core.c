@@ -317,3 +317,22 @@ int cam_debugger_deinit(void)
 	return 0;
 }
 
+/*
+This function implements uvent information reporting.Do not add frequent information,
+as it can increase the load and power consumption of uvent.uvent information requires
+adherence to a fixed format and cannot be modified arbitrarily.
+*/
+void cam_debugger_uevent_notify(struct platform_device *pdev, char *str)
+{
+	char event[256] = { 0 };
+	char *envp[2] = {event, NULL };
+
+	if (str) {
+		snprintf(event, ARRAY_SIZE(event),
+			"kevent_begin:{\"event_id\":\"107000003\",\"event_time\":%lld,%s}:kevent_end",
+			ktime_get(), str);
+		kobject_uevent_env(&pdev->dev.kobj, KOBJ_CHANGE, envp);
+	} else
+		pr_err("fail to get invalid str\n");
+}
+
