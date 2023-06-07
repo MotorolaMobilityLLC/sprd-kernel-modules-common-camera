@@ -114,9 +114,8 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 		} else {
 			if (pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp) {
 				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
-			} else {
+			} else
 				break;
-			}
 		}
 	} while (pftmp);
 
@@ -152,7 +151,6 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 			else
 				node->cur_cache_skip_num = node->cache_skip_num;
 		}
-
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	} else {
 		pframe = framecache_capframe_get(node, pframe);
