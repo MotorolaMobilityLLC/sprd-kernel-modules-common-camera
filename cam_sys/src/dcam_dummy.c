@@ -36,7 +36,7 @@ static void dcamdummy_trigger_init(struct dcam_dummy_slave *dummy_slave)
 	uint32_t i = 0;
 
 	atomic_set(&dummy_slave->status, DCAM_DUMMY_TRIGGER);
-	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+	for (i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 		hw_ctx = dummy_slave->hw_ctx[i];
 		if (hw_ctx->dcam_irq_cb_func) {
 			if (hw_ctx->is_offline_proc) {
@@ -85,7 +85,7 @@ static int dcamdummy_senselessmode_trigger(struct dcam_dummy_slave *dummy_slave,
 	case DCAM_DUMMY_DONE:
 		dcamdummy_trigger_init(dummy_slave);
 		dummy_slave->use_reserved_buf = DCAM_DUMMY_RESERVED_BUF_NOUSE;
-		for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+		for (i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 			hw_ctx = dummy_slave->hw_ctx[i];
 			if (hw_ctx->dcam_irq_cb_func && !hw_ctx->is_offline_proc) {
 				for (i = 0;i < PORT_DCAM_OUT_MAX; ++i) {
@@ -111,7 +111,7 @@ static void dcamdummy_node_start(struct dcam_dummy_slave *dummy_slave)
 {
 	uint32_t i = 0;
 
-	for(i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+	for(i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 		atomic_cmpxchg(&dummy_slave->hw_status[i], DCAM_DUMMY_HW_ALREADY, DCAM_DUMMY_HW_ONLINE_DUMMY_DONE_FIRST_FRAME);
 		if (atomic_read(&dummy_slave->hw_status[i]) == DCAM_DUMMY_HW_OFFLINE_RESET) {
 			dcam_core_offline_reset(dummy_slave->hw_ctx[i]);
@@ -217,7 +217,7 @@ static void dcamdummy_dummy_finish(struct dcam_dummy_slave *dummy_slave, struct 
 
 	spin_lock_irqsave(&dummy_slave->dummy_lock, flags);
 	atomic_set(&dummy_slave->hw_status[hw_ctx->hw_ctx_id], DCAM_DUMMY_HW_IDLE);
-	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+	for (i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 		if (atomic_read(&dummy_slave->hw_status[i]) != DCAM_DUMMY_HW_IDLE && atomic_read(&dummy_slave->hw_status[i]) != DCAM_DUMMY_HW_OFF) {
 			dummy_enable = 1;
 			break;
@@ -350,7 +350,7 @@ static int dcamdummy_newframemode_intdone(struct dcam_dummy_slave *dummy_slave, 
 	hw_ctx = VOID_PTR_TO(param, struct dcam_hw_context);
 	pr_debug("hw_ctx:%d, dummy status:%d REG:%x\n", hw_ctx->hw_ctx_id, atomic_read(&dummy_slave->status));
 	atomic_set(&dummy_slave->status, DCAM_DUMMY_DONE);
-	for (i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+	for (i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 		atomic_cmpxchg(&dummy_slave->hw_status[i], DCAM_DUMMY_HW_ALREADY, DCAM_DUMMY_HW_IDLE);
 		if (atomic_read(&dummy_slave->hw_status[i]) == DCAM_DUMMY_HW_OFFLINE_RESET && dummy_slave->hw_ctx[i]->dcam_irq_cb_func) {
 			dcam_core_offline_reset(dummy_slave->hw_ctx[i]);
@@ -519,7 +519,7 @@ static int dcamdummy_enable(void *handle, void *arg)
 		spin_lock_irqsave(&dummy_slave->dummy_lock, flags);
 		atomic_set(&dummy_slave->hw_status[dummy_param->hw_ctx_id], DCAM_DUMMY_HW_OFF);
 		dummy_slave->dummy_total_skip_num[dummy_param->hw_ctx_id] = 0;
-		for(i = 0; i < DCAM_HW_CONTEXT_MAX; i++) {
+		for(i = 0; i < DCAM_HW_CONTEXT_BIND_MAX; i++) {
 			if (atomic_read(&dummy_slave->hw_status[i]) != DCAM_DUMMY_HW_OFF) {
 				enable = 1;
 				break;
