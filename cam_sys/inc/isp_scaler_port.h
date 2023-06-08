@@ -84,9 +84,9 @@ struct isp_scaler_port_desc {
 	struct img_size output_size;
 };
 
+uint32_t isp_scaler_port_id_switch(uint32_t port_id);
 void *isp_scaler_port_get(uint32_t port_id, struct isp_scaler_port_desc *param);
 void isp_scaler_port_put(struct isp_scaler_port *port);
-uint32_t isp_scaler_port_id_switch(uint32_t port_id);
 
 #endif
 

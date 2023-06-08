@@ -45,9 +45,9 @@ struct dcam_fetch_node {
 	struct cam_thread_info thread;
 };
 
-int dcam_fetch_node_port_insert(struct dcam_fetch_node* node, void *param);
-int dcam_fetch_node_state_get(void *handle);
 int dcam_fetch_node_blk_param_set(struct dcam_fetch_node *node, void *param);
+int dcam_fetch_node_state_get(void *handle);
+int dcam_fetch_node_port_insert(struct dcam_fetch_node* node, void *param);
 int dcam_fetch_node_cfg_param(void *handle, uint32_t cmd, void *param);
 int dcam_fetch_share_buf(void *handle, void *param);
 int dcam_fetch_node_reset(struct dcam_fetch_node *node, void *param);

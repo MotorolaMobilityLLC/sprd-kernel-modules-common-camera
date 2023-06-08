@@ -60,11 +60,6 @@ struct dcam_irq_ops {
 	struct dcam_irq_error_flag error_bit;
 };
 
-inline void dcam_int_common_record(uint32_t idx, struct dcam_irq_info *irq_info);
-inline int dcam_int_common_dummy_callback(void *hw_ctx, struct dcam_irq_proc *irq_proc);
-int dcam_int_common_irq_request(struct device *pdev, int irq, void *param);
-void dcam_int_common_irq_free(struct device *pdev, void *param);
-void dcam_int_common_tracker_reset(uint32_t idx);
 void dcam_int_common_full_port_done(void *param);
 void dcam_int_common_bin_port_done(void *param);
 void dcam_int_common_vch2_port_done(void *param);
@@ -77,8 +72,13 @@ void dcam_int_common_afm_port_done(void *param);
 void dcam_int_common_afl_port_done(void *param);
 void dcam_int_common_hist_port_done(void *param);
 void dcam_int_common_nr3_port_done(void *param);
-void dcam_int_common_tracker_dump(uint32_t idx);
 void dcam_int_common_irq_preview_sof(void *param);
 void dcam_int_common_vch3_port_done(void *param);
+inline void dcam_int_common_record(uint32_t idx, struct dcam_irq_info *irq_info);
+void dcam_int_common_tracker_dump(uint32_t idx);
+inline int dcam_int_common_dummy_callback(void *hw_ctx, struct dcam_irq_proc *irq_proc);
+int dcam_int_common_irq_request(struct device *pdev, int irq, void *param);
+void dcam_int_common_irq_free(struct device *pdev, void *param);
+void dcam_int_common_tracker_reset(uint32_t idx);
 
 #endif

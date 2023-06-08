@@ -1136,6 +1136,46 @@ static uint32_t ispnode_insert_port(struct isp_node* node, void *param)
 	return 0;
 }
 
+static int ispnode_postproc_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
+{
+	int ret = 0;
+	struct isp_node *inode = NULL;
+	uint32_t postproc_w = 0, postproc_h = 0, block_size = 0;
+
+	inode = (struct isp_node *)handle;
+
+	postproc_w = param->dst_size.w / ISP_SCALER_UP_MAX;
+	postproc_h = param->dst_size.h / ISP_SCALER_UP_MAX;
+
+	if (param->ch_id != CAM_CH_CAP && param->ch_vid_enable) {
+		postproc_w = MAX(param->dst_size.w,
+			param->chvid_dst_size.w) / ISP_SCALER_UP_MAX;
+		postproc_h = MAX(param->dst_size.h,
+			param->chvid_dst_size.h) / ISP_SCALER_UP_MAX;
+	}
+
+	block_size = ((postproc_w + 1) & (~1)) * postproc_h * 3 / 2;
+	block_size = ALIGN(block_size, CAM_BUF_ALIGN_SIZE);
+	inode->postproc_buf = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+	if (!inode->postproc_buf) {
+		pr_err("fail to get valid buf\n");
+		return -EFAULT;
+	}
+
+	inode->postproc_buf->common.channel_id = param->ch_id;
+	ret = cam_buf_alloc(&inode->postproc_buf->common.buf, block_size, param->iommu_enable);
+	if (ret) {
+		pr_err("fail to alloc superzoom buf\n");
+	}
+	cam_buf_manager_buf_status_cfg(&inode->postproc_buf->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
+	inode->postproc_buf->common.buf.bypass_iova_ops = CAM_ENABLE;
+
+	pr_info("node_id %d, superzoom w %d, h %d, inode->postproc_buf->common.buf.status %d\n",
+		inode->node_id, postproc_w, postproc_h, inode->postproc_buf->common.buf.status);
+
+	return ret;
+}
+
 int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, struct blk_param_info *out)
 {
 	int ret = 0, loop = 0, param_last_fid = -1;
@@ -1250,46 +1290,6 @@ capture_param:
 	return param_update;
 }
 
-int isp_node_postproc_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param)
-{
-	int ret = 0;
-	struct isp_node *inode = NULL;
-	uint32_t postproc_w = 0, postproc_h = 0, block_size = 0;
-
-	inode = (struct isp_node *)handle;
-
-	postproc_w = param->dst_size.w / ISP_SCALER_UP_MAX;
-	postproc_h = param->dst_size.h / ISP_SCALER_UP_MAX;
-
-	if (param->ch_id != CAM_CH_CAP && param->ch_vid_enable) {
-		postproc_w = MAX(param->dst_size.w,
-			param->chvid_dst_size.w) / ISP_SCALER_UP_MAX;
-		postproc_h = MAX(param->dst_size.h,
-			param->chvid_dst_size.h) / ISP_SCALER_UP_MAX;
-	}
-
-	block_size = ((postproc_w + 1) & (~1)) * postproc_h * 3 / 2;
-	block_size = ALIGN(block_size, CAM_BUF_ALIGN_SIZE);
-	inode->postproc_buf = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-	if (!inode->postproc_buf) {
-		pr_err("fail to get valid buf\n");
-		return -EFAULT;
-	}
-
-	inode->postproc_buf->common.channel_id = param->ch_id;
-	ret = cam_buf_alloc(&inode->postproc_buf->common.buf, block_size, param->iommu_enable);
-	if (ret) {
-		pr_err("fail to alloc superzoom buf\n");
-	}
-	cam_buf_manager_buf_status_cfg(&inode->postproc_buf->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-	inode->postproc_buf->common.buf.bypass_iova_ops = CAM_ENABLE;
-
-	pr_info("node_id %d, superzoom w %d, h %d, inode->postproc_buf->common.buf.status %d\n",
-		inode->node_id, postproc_w, postproc_h, inode->postproc_buf->common.buf.status);
-
-	return ret;
-}
-
 int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 {
 	int ret = 0;
@@ -1308,7 +1308,7 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	hw = inode->dev->isp_hw;
 
 	if (hw->ip_dcam[0]->dcamhw_abt->superzoom_support && !param->is_super_size) {
-		ret = isp_node_postproc_buffer_alloc(inode, param);
+		ret = ispnode_postproc_buffer_alloc(inode, param);
 		if(ret) {
 			pr_err("fail to alloc postproc buffer.\n");
 			return ret;

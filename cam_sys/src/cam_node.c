@@ -48,11 +48,6 @@ static const char *CAM_NODE_NAMES[CAM_NODE_TYPE_MAX] = {
 	[CAM_NODE_TYPE_DATA_COPY] = "CAM_NODE_TYPE_DATA_COPY",
 };
 
-const char *cam_node_name_get(enum cam_node_type type)
-{
-	return IS_CAM_NODE(type) ? CAM_NODE_NAMES[type] : "(null)";
-}
-
 static enum cam_en_status camnode_capture_skip_condition(struct cam_frame *pframe, struct cam_capture_param *cap_param)
 {
 	/* TBD： other scene need cover*/
@@ -1349,6 +1344,11 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 
 exit:
 	return ret;
+}
+
+const char *cam_node_name_get(enum cam_node_type type)
+{
+	return IS_CAM_NODE(type) ? CAM_NODE_NAMES[type] : "(null)";
 }
 
 int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en, uint32_t *g_replace_en)

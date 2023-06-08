@@ -182,11 +182,12 @@ struct isp_node {
 	uint32_t nr3_blend_cnt;
 };
 
+int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, struct blk_param_info *out);
+int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param);
+uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param);
+int isp_node_request_proc(struct isp_node *node, void *param);
 void *isp_node_get(uint32_t node_id, struct isp_node_desc *param);
 void isp_node_put(struct isp_node *node);
 void isp_node_close(struct isp_node *node);
-int isp_node_request_proc(struct isp_node *node, void *param);
-uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param);
-int isp_node_prepare_blk_param(struct isp_node *inode, uint32_t target_fid, struct blk_param_info *out);
-int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param);
+
 #endif

@@ -474,16 +474,15 @@ struct isp_slice_context {
 	uint32_t gtm_rgb_eb;
 };
 
-
+int isp_slice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);
+int isp_slice_store_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);
+int isp_slice_base_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx);
+int isp_slice_scaler_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx);
 int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);
 int isp_slice_base_cfg(void *cfg_in, void *slice_ctx, uint32_t *valid_slc_num);
 void *isp_slice_ctx_get(void);
 int isp_slice_ctx_put(void **slc_ctx);
 int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx);
 int isp_slice_update(void *slice_ctx, void *hw_info, uint32_t cfg_id, uint32_t slice_id);
-int ispslice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);
-int ispslice_store_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx);
-int ispslice_slice_base_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx);
-int ispslice_slice_scaler_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx);
 
 #endif

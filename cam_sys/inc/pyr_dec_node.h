@@ -320,18 +320,18 @@ struct pyr_dec_node_desc {
 	struct pyr_dec_port_desc port_desc;
 };
 
-int pyr_dec_node_buffer_cfg(void *handle, void *param);
-int pyr_dec_node_blk_param_set(void *handle, void *param);
-void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param);
-void pyr_dec_node_put(struct pyr_dec_node *node);
 int pyr_dec_node_request_proc(struct pyr_dec_node *node, void *param);
+int pyr_dec_node_blk_param_set(void *handle, void *param);
 int pyr_dec_node_ctxid_cfg(void *handle, void *param);
-void *pyr_dec_dev_get(void *isp_handle, void *hw);
-void pyr_dec_dev_put(void *dec_handle);
+int pyr_dec_node_base_cfg(void *handle, void *param);
+void pyr_dec_node_buffer_clr(void *handle);
+int pyr_dec_node_param_buf_cfg(void *handle, void *param);
+int pyr_dec_node_postproc_param_cfg(void *handle, void *param);
 int pyr_dec_node_fast_stop_cfg(void *handle, void *param);
 int pyr_dec_node_close(void *handle);
-int pyr_dec_node_param_buf_cfg(void *handle, void *param);
-int pyr_dec_node_base_cfg(void *handle, void *param);
-int pyr_dec_node_postproc_param_cfg(void *handle, void *param);
-void pyr_dec_node_buffer_clr(void *handle);
+void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param);
+void pyr_dec_node_put(struct pyr_dec_node *node);
+void *pyr_dec_dev_get(void *isp_handle, void *hw);
+void pyr_dec_dev_put(void *dec_handle);
+
 #endif
