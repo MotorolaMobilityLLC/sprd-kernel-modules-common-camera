@@ -1023,6 +1023,7 @@ static int pyrdec_node_irq_proc(void *handle)
 			out_frame->common.sensor_time = pframe->common.sensor_time;
 			out_frame->common.boot_sensor_time = pframe->common.boot_sensor_time;
 			out_frame->common.pyr_status = pframe->common.pyr_status;
+			pframe->common.pyr_status = CAM_DISABLE;
 			out_frame->common.cam_fmt = pframe->common.cam_fmt;
 			out_frame->common.zoom_data = pframe->common.zoom_data;
 			if (node->hw->ip_isp->isphw_abt->pyr_rec_lay0_support)

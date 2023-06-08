@@ -18,7 +18,7 @@
 #include "cam_queue.h"
 
 #define DUMP_NODE_Q_LEN                      50
-#define DUMP_NUM_MAX                         5
+#define DUMP_NUM_MAX                         10
 #define AFBC_PADDING_W_YUV420_scaler         32
 #define AFBC_PADDING_H_YUV420_scaler         8
 #define AFBC_VERSION                         5
