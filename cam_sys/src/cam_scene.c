@@ -992,7 +992,7 @@ static void camscene_onlinebpcraw2user2offlineyuv_pipeline_get(struct cam_pipeli
 	cur_node->outport[PORT_FRAME_CACHE_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_FRAME_CACHE_OUT].link.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 	cur_node->outport[PORT_FRAME_CACHE_OUT].link.node_id = DCAM_ONLINE_PRE_NODE_ID;
-	cur_node->outport[PORT_FRAME_CACHE_OUT].link.port_id = PORT_RAW_OUT;
+	cur_node->outport[PORT_FRAME_CACHE_OUT].link.port_id = dcam_online_raw_port_id;
 	cur_node->outport[PORT_FRAME_CACHE_OUT].switch_link.node_type = CAM_NODE_TYPE_USER;
 	cur_node->outport[PORT_FRAME_CACHE_OUT].switch_link.port_id = PORT_USER_IN;
 	cur_node++;
