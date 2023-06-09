@@ -272,12 +272,11 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 	dev = (struct dcam_pipe_dev *)dev_handle;
 	mode = dev->hw->csi_connect_type;
 	if (mode == DCAM_BIND_FIXED) {
-		hw_ctx_id = csi_controller_idx;
-		pctx_hw = &dev->hw_ctx[hw_ctx_id];
+		pctx_hw = &dev->hw_ctx[csi_controller_idx];
 		if (node_id == pctx_hw->node_id && pctx_hw->node == node) {
 			atomic_inc(&pctx_hw->user_cnt);
 			pr_info("node %d & hw %d are already binded, cnt=%d\n",
-				node_id, hw_ctx_id, atomic_read(&pctx_hw->user_cnt));
+				node_id, csi_controller_idx, atomic_read(&pctx_hw->user_cnt));
 			return 0;
 		}
 		if (atomic_inc_return(&pctx_hw->user_cnt) == 1) {
