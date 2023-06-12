@@ -15,6 +15,7 @@
 
 #include "isp_int.h"
 #include "pyr_dec_int.h"
+#include "cam_debugger.h"
 
 #define ISP_AXI_STOP_TIMEOUT           1000
 #define COEF_HOR_Y_SIZE                32
@@ -634,6 +635,29 @@ normal_reg_trace:
 			DCAM_AXIM_RD(trace->idx, addr + 4),
 			DCAM_AXIM_RD(trace->idx, addr + 8),
 			DCAM_AXIM_RD(trace->idx, addr + 12));
+	}
+	return 0;
+}
+
+static int isphw_abnormal_uevent(void *handle, void *arg)
+{
+	char str[128] = { 0 };
+	char str_reg[64] = {0};
+	unsigned long addr = 0;
+	struct platform_device *pdev = NULL;
+
+	pdev = (struct platform_device *)arg;
+	for (addr = 0x988; addr <= 0x9ac;addr += 16) {
+		sprintf(str_reg,"0x%x, 0x%x, 0x%x, 0x%x, 0x%x",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		snprintf(str, ARRAY_SIZE(str),
+		 "\"task\":\"%s\",\"PID\":\"%d\", \"func\":\"%s\", \"val\":\"%s\"",
+		 current->comm, current->pid, "isp_timeout", str_reg);
+		cam_debugger_uevent_notify(pdev, str);
 	}
 
 	return 0;
@@ -3246,6 +3270,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_BYPASS_DATA_GET,         isphw_bypass_data_get},
 	{ISP_HW_CFG_BYPASS_COUNT_GET,        isphw_bypass_count_get},
 	{ISP_HW_CFG_REG_TRACE,               isphw_reg_trace},
+	{ISP_HW_CFG_ABNORMAL_UEVENT,         isphw_abnormal_uevent},
 	{ISP_HW_CFG_SET_PATH_STORE,          isphw_path_store},
 	{ISP_HW_CFG_SET_PATH_SCALER,         isphw_path_scaler},
 	{ISP_HW_CFG_SET_PATH_THUMBSCALER,    isphw_path_thumbscaler},

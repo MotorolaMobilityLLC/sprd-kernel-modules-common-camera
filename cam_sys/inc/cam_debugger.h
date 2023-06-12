@@ -84,6 +84,7 @@ struct debug_cmd {
 
 int cam_debugger_init(struct cam_hw_info *hw);
 int cam_debugger_deinit(void);
+void cam_debugger_uevent_notify(struct platform_device *pdev, char *str);
 
 void camdebugger_dcam_bypass_write(struct cam_hw_info *hw, char *name, char *param, uint32_t idx);
 void camdebugger_dcam_bypass_read(struct seq_file *s, uint32_t idx);

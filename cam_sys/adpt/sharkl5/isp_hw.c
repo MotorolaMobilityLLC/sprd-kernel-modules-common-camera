@@ -10,7 +10,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
 #include "isp_hw.h"
+#include "cam_debugger.h"
+
 #ifdef CAM_HW_ADPT_LAYER
 
 #define ISP_AXI_STOP_TIMEOUT			1000
@@ -323,6 +326,30 @@ normal_reg_trace:
 		pr_info("n=%d, %08x %08x %08x %08x %08x %08x %08x %08x\n", n,
 			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
 	}
+	return 0;
+}
+
+static int isphw_abnormal_uevent(void *handle, void *arg)
+{
+	char str[128] = { 0 };
+	char str_reg[64] = {0};
+	unsigned long addr = 0;
+	struct platform_device *pdev = NULL;
+
+	pdev = (struct platform_device *)arg;
+	for (addr = 0x988; addr <= 0x9ac;addr += 16) {
+		sprintf(str_reg,"0x%x, 0x%x, 0x%x, 0x%x, 0x%x",
+			addr,
+			ISP_HREG_RD(addr),
+			ISP_HREG_RD(addr + 4),
+			ISP_HREG_RD(addr + 8),
+			ISP_HREG_RD(addr + 12));
+		snprintf(str, ARRAY_SIZE(str),
+		 "\"task\":\"%s\",\"PID\":\"%d\", \"func\":\"%s\", \"val\":\"%s\"",
+		 current->comm, current->pid, "isp_timeout", str_reg);
+		cam_debugger_uevent_notify(pdev, str);
+	}
+
 	return 0;
 }
 
@@ -2678,6 +2705,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_BYPASS_DATA_GET,         isphw_bypass_data_get},
 	{ISP_HW_CFG_BYPASS_COUNT_GET,        isphw_bypass_count_get},
 	{ISP_HW_CFG_REG_TRACE,               isphw_reg_trace},
+	{ISP_HW_CFG_ABNORMAL_UEVENT,         isphw_abnormal_uevent},
 	{ISP_HW_CFG_ISP_CFG_SUBBLOCK,        isphw_subblock_cfg},
 	{ISP_HW_CFG_SET_PATH_STORE,          isphw_path_store},
 	{ISP_HW_CFG_SET_PATH_SCALER,         isphw_path_scaler},
