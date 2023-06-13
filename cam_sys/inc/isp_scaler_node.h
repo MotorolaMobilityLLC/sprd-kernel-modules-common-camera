@@ -112,10 +112,10 @@ struct isp_yuv_scaler_node {
 	struct isp_int_ctxs_com ctxs_com;
 };
 
+int isp_scaler_node_cfg_param(void *node, uint32_t port_id, uint32_t cmd, void *param);
+int isp_scaler_node_request_proc(struct isp_yuv_scaler_node *node, void *param);
 void *isp_yuv_scaler_node_get(uint32_t node_id, struct isp_yuv_scaler_node_desc *param);
 void isp_yuv_scaler_node_put (struct isp_yuv_scaler_node *node);
-int isp_scaler_node_request_proc(struct isp_yuv_scaler_node *node, void *param);
-int isp_scaler_node_cfg_param(void *node, uint32_t port_id, uint32_t cmd, void *param);
 
 #endif
 

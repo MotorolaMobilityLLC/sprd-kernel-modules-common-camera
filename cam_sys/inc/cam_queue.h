@@ -555,16 +555,16 @@ struct cam_queue_frame_manager {
 		param = param_next, \
 		param_next = container_of(list_next_entry(&param_next->node, list), typeof(*param), node))
 
-int cam_queue_enqueue_front(struct camera_queue *q, struct cam_q_head *list);
 struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, enum cam_en_status (*filter)(struct cam_frame *, void *), void *data);
 int cam_queue_same_frame_get(struct camera_queue *q0, struct cam_frame **pf0, int64_t t_sec, int64_t t_usec);
-int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe);
-struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
-void cam_queue_empty_frame_put(void *pframe);
-struct cam_frame *cam_queue_empty_frame_get(enum camera_frame_type type);
-int cam_queue_empty_frame_init(void);
-int cam_queue_empty_frame_deinit(void);
-int cam_queue_frame_array_check(uint32_t mode);
 void cam_queue_frame_check_lock(void);
 void cam_queue_frame_check_unlock(void);
+int cam_queue_frame_array_check(uint32_t mode);
+struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
+void cam_queue_empty_frame_put(void *pframe);
+int cam_queue_empty_frame_init(void);
+int cam_queue_empty_frame_deinit(void);
+int cam_queue_recycle_blk_param(struct camera_queue *q, struct cam_frame *param_pframe);
+struct cam_frame *cam_queue_empty_frame_get(enum camera_frame_type type);
+
 #endif/* _CAM_QUEUE_H_ */

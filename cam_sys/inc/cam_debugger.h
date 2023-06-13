@@ -75,6 +75,12 @@ struct debug_cmd {
 	uint32_t ip_info;
 };
 
+struct debug_ops {
+	char name[20];
+	char val[16];
+	char tag[16];
+};
+
 #define CAM_DEBUGGER_IF_GET_CORRECT_KEY(val) ( { \
 	if (!val) { \
 		pr_err("fail to get correct key\n"); \

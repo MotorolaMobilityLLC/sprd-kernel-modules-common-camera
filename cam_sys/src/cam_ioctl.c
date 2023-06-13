@@ -1182,7 +1182,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					pframe->common.height = ch->ch_uinfo.vir_channel[1].dst_size.h;
 					ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_CAP_ID, pframe);
 				}
-			} else	{
+			} else {
 				node_id = (ch->ch_id == CAM_CH_CAP && ch->isp_port_id != PORT_VID_OUT) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
 				ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF, node_id, pframe);
 			}
@@ -1263,7 +1263,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0;
-	uint32_t i = 0, j = 0;
+	uint32_t i = 0, j = 0, k = 0;
 	uint32_t running = 0;
 	struct channel_context *ch = NULL;
 	struct cam_hw_info *hw = NULL;
@@ -1370,6 +1370,14 @@ static int camioctl_stream_off(struct camera_module *module,
 			if (i == 0)
 				break;
 			pr_info("camera%d wait for read %d %d\n", module->idx, i, j);
+			os_adapt_time_msleep(20);
+		}
+		k = CAM_IMG_Q_LEN;
+		while (k--) {
+			i = CAM_QUEUE_CNT_GET(&module->img_queue);
+			if (i == 0)
+				break;
+			pr_info("camera%d wait for read %d %d\n", module->idx, i, k);
 			os_adapt_time_msleep(20);
 		}
 		/* default 0, hal set 1 when needed */
@@ -1746,6 +1754,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	start_time = os_adapt_time_get_boottime();
 	module->capture_times = start_time;
 	module->opt_frame_fid = param.opt_frame_fid;
+	module->cap_frame_id = param.sof_id;
 	ch = &module->channel[CAM_CH_CAP];
 	if (!ch->enable)
 		goto exit;
@@ -1830,6 +1839,7 @@ static int camioctl_capture_start(struct camera_module *module,
 	cap_param.skip_first_num = param.skip_first_num;
 	cap_param.zsl_num = param.zsl_num;
 	cap_param.frm_sel_mode = param.frm_sel_mode;
+	cap_param.fid = param.sof_id;
 
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_longexp)
 		cap_param.no_need_skip_frame_scene = 1;
@@ -1851,9 +1861,9 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (ch->isp_port_id == PORT_VID_OUT)
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);
 
-	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d\n",
+	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d, sof_id %d\n",
 		module->idx, param.type, module->cap_scene, param.cap_cnt,
-		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid);
+		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid, param.sof_id);
 
 exit:
 	return ret;

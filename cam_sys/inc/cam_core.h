@@ -29,6 +29,7 @@
 #define CAM_COUNT                       CAM_ID_MAX
 #define CAM_SHARED_BUF_NUM              50
 #define CAM_FRAME_Q_LEN                 96
+#define CAM_IMG_Q_LEN                   96
 #define CAM_IRQ_Q_LEN                   16
 #define CAM_STATIS_Q_LEN                16
 #define CAM_ZOOM_COEFF_Q_LEN            64
@@ -262,14 +263,17 @@ struct camera_module {
 	struct mutex buf_lock[CAM_CH_MAX];
 
 	struct completion frm_com;
+	struct completion img_com;
 	struct completion postproc_done;
 	struct camera_queue frm_queue;/* frame message queue for user*/
 	struct camera_queue alloc_queue;/* alloc data queue or user*/
+	struct camera_queue img_queue;/*img meessage queue for user*/
 
 	struct cam_thread_info zoom_thrd;
 	struct cam_thread_info buf_thrd;
 
 	uint32_t opt_frame_fid;/* mul_frame opt frame fid*/
+	uint32_t cap_frame_id;
 
 	struct timer_list cam_timer;
 

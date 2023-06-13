@@ -55,13 +55,13 @@ struct cam_zoom_desc {
 	struct img_size isp_dst[ZOOM_PORT_ISP_MAX];
 };
 
+uint32_t cam_zoom_port_deci_factor_get(uint32_t src_size, uint32_t dst_size, uint32_t deci_fac_max);
 void cam_zoom_diff_trim_get(struct sprd_img_rect *orig, uint32_t ratio16, struct img_trim *trim0, struct img_trim *trim1);
 int cam_zoom_crop_size_align(struct camera_module *module, struct sprd_img_rect *crop, uint32_t channel_id);
 int cam_zoom_channels_size_init(struct camera_module *module);
 int cam_zoom_channel_size_calc(struct camera_module *module);
 int cam_zoom_channel_size_config(struct camera_module *module, struct channel_context *channel);
 int cam_zoom_start_proc(void *param);
-uint32_t cam_zoom_port_deci_factor_get(uint32_t src_size, uint32_t dst_size, uint32_t deci_fac_max);
 int cam_zoom_param_set(struct cam_zoom_desc *zoom_info);
 int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_index *zoom_index);
 

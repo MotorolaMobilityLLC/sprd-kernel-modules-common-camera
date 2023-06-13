@@ -464,6 +464,7 @@ void cam_dump_node_set(void *param)
 				&& (g_dbg_dump[i].dump_node_type == node)
 				&& (g_dbg_dump[i].dump_port_id == port)) {
 				g_dbg_dump[i].dump_en = dump_cmd;
+				g_dbg_dump[i].dump_ongoing = 0;
 				pr_info("dump_id%d dump pipeline %u node %u port id %u en %u\n",
 					i, g_dbg_dump[i].dump_pipeline_type, g_dbg_dump[i].dump_node_type,
 					g_dbg_dump[i].dump_port_id, g_dbg_dump[i].dump_en);

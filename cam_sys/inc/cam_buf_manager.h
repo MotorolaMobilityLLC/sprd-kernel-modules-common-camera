@@ -125,12 +125,13 @@ struct cam_buf_manager {
 		CAM_BUF_STATUS_GET_IOVA; \
 
 int cam_buf_manager_buf_status_cfg(struct camera_buf *buf, enum cambufmanager_status_ops_cmd cmd, enum cam_buf_iommudev_type type);
-int cam_buf_manager_pool_cnt(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
-int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
-int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length, void *buf_manager_handle);
-void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
-int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id, struct cam_frame *pframe, struct camera_buf_get_desc *buf_desc, void *buf_manager_handle);
 struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, struct camera_buf_get_desc *buf_desc, void *buf_manager_handle);
+int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id, struct cam_frame *pframe, struct camera_buf_get_desc *buf_desc, void *buf_manager_handle);
+void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
+int cam_buf_manager_pool_reg(struct cam_buf_pool_id *pool_id, uint32_t length, void *buf_manager_handle);
+int cam_buf_manager_pool_unreg(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
+int cam_buf_manager_pool_cnt(struct cam_buf_pool_id *pool_id, void *buf_manager_handle);
 int cam_buf_manager_init(uint32_t cam_id, void *buf_manager_handle);
 int cam_buf_manager_deinit(uint32_t cam_id, void *buf_manager_handle);
+
 #endif

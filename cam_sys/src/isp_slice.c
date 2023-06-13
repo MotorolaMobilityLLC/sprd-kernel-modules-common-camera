@@ -566,144 +566,6 @@ static int ispslice_slice_overlap_info_get(
 	return 0;
 }
 
-int ispslice_slice_base_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx)
-{
-	int rtn = 0;
-	uint32_t i = 0, j = 0;
-	uint32_t img_height, img_width;
-	uint32_t slice_height = 0, slice_width = 0;
-	uint32_t slice_total_row, slice_total_col, slice_num;
-	uint32_t fetch_start_x, fetch_start_y;
-	uint32_t fetch_end_x, fetch_end_y;
-	struct isp_slice_desc *cur_slc = NULL;
-	struct isp_hw_fetch_info *frame_fetch = in_ptr->frame_fetch;
-	struct isp_fbd_yuv_info *frame_fbd_yuv = in_ptr->frame_fbd_yuv;
-
-	ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
-	if (slice_width == 0 || slice_height == 0)
-		return -EINVAL;
-
-	rtn = ispslice_slice_overlap_info_get(in_ptr, slc_ctx);
-
-	img_height = in_ptr->frame_in_size.h;
-	img_width = in_ptr->frame_in_size.w;
-
-	fetch_start_x = frame_fetch->in_trim.start_x;
-	fetch_start_y = frame_fetch->in_trim.start_y;
-	fetch_end_x = frame_fetch->in_trim.start_x + frame_fetch->in_trim.size_x - 1;
-	fetch_end_y = frame_fetch->in_trim.start_y + frame_fetch->in_trim.size_y - 1;
-
-	if (!frame_fbd_yuv->fetch_fbd_bypass) {
-		fetch_start_x = frame_fbd_yuv->trim.start_x;
-		fetch_start_y = frame_fbd_yuv->trim.start_y;
-		fetch_end_x = frame_fbd_yuv->trim.start_x + frame_fbd_yuv->trim.size_x - 1;
-		fetch_end_y = frame_fbd_yuv->trim.start_y + frame_fbd_yuv->trim.size_y - 1;
-	}
-
-	slice_total_row = (img_height + slice_height - 1) / slice_height;
-	slice_total_col = (img_width + slice_width - 1) / slice_width;
-	slice_num = slice_total_col * slice_total_row;
-
-	slc_ctx->slice_num = slice_num;
-	slc_ctx->slice_col_num = slice_total_col;
-	slc_ctx->slice_row_num = slice_total_row;
-	slc_ctx->slice_height = slice_height;
-	slc_ctx->slice_width = slice_width;
-	slc_ctx->img_height = img_height;
-	slc_ctx->img_width = img_width;
-	pr_debug("img w %d, h %d, slice w %d, h %d, slice num %d\n",
-		img_width, img_height,
-		slice_width, slice_height, slice_num);
-
-	if (!frame_fbd_yuv->fetch_fbd_bypass)
-		pr_debug("src %d %d, fbd_raw crop %d %d %d %d\n",
-			frame_fbd_yuv->slice_size.w, frame_fbd_yuv->slice_size.h,
-			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
-	else
-		pr_debug("src %d %d, fetch crop %d %d %d %d\n",
-			frame_fetch->src.w, frame_fetch->src.h,
-			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
-
-	for (i = 0; i < SLICE_NUM_MAX; i++)
-		pr_debug("slice %d valid %d\n", i, slc_ctx->slices[i].valid);
-
-	cur_slc = &slc_ctx->slices[0];
-	for (i = 0; i < slice_total_row; i++) {
-		for (j = 0; j < slice_total_col; j++) {
-			uint32_t start_col;
-			uint32_t start_row;
-			uint32_t end_col;
-			uint32_t end_row;
-
-			cur_slc->valid = 1;
-			cur_slc->y = i;
-			cur_slc->x = j;
-
-			start_col = j * slice_width;
-			start_row = i * slice_height;
-			end_col = start_col + slice_width - 1;
-			end_row = start_row + slice_height - 1;
-
-			if (i != 0)
-				cur_slc->slice_overlap.overlap_up = slc_ctx->overlap_up;
-			if (j != 0)
-				cur_slc->slice_overlap.overlap_left = slc_ctx->overlap_left;
-
-			if (i != (slice_total_row - 1))
-				cur_slc->slice_overlap.overlap_down = slc_ctx->overlap_down;
-			else
-				end_row = img_height - 1;
-
-			if (j != (slice_total_col - 1))
-				cur_slc->slice_overlap.overlap_right = slc_ctx->overlap_right;
-			else
-				end_col = img_width - 1;
-
-			cur_slc->slice_pos_orig.start_col = start_col;
-			cur_slc->slice_pos_orig.start_row = start_row;
-			cur_slc->slice_pos_orig.end_col = end_col;
-			cur_slc->slice_pos_orig.end_row = end_row;
-
-			cur_slc->slice_pos.start_col = start_col - cur_slc->slice_overlap.overlap_left;
-			cur_slc->slice_pos.start_row = start_row - cur_slc->slice_overlap.overlap_up;
-			cur_slc->slice_pos.end_col = end_col + cur_slc->slice_overlap.overlap_right;
-			cur_slc->slice_pos.end_row = end_row + cur_slc->slice_overlap.overlap_down;
-
-			cur_slc->slice_pos_fetch.start_col = cur_slc->slice_pos.start_col + fetch_start_x;
-			cur_slc->slice_pos_fetch.start_row = cur_slc->slice_pos.start_row + fetch_start_y;
-			cur_slc->slice_pos_fetch.end_col = cur_slc->slice_pos.end_col + fetch_start_x;
-			cur_slc->slice_pos_fetch.end_row = cur_slc->slice_pos.end_row + fetch_start_y;
-
-			pr_debug("slice %d %d pos_orig [%d %d %d %d]\n", i, j,
-					cur_slc->slice_pos_orig.start_col,
-					cur_slc->slice_pos_orig.end_col,
-					cur_slc->slice_pos_orig.start_row,
-					cur_slc->slice_pos_orig.end_row);
-			pr_debug("slice %d %d pos [%d %d %d %d]\n", i, j,
-					cur_slc->slice_pos.start_col,
-					cur_slc->slice_pos.end_col,
-					cur_slc->slice_pos.start_row,
-					cur_slc->slice_pos.end_row);
-			pr_debug("slice %d %d pos_fetch [%d %d %d %d]\n", i, j,
-					cur_slc->slice_pos_fetch.start_col,
-					cur_slc->slice_pos_fetch.end_col,
-					cur_slc->slice_pos_fetch.start_row,
-					cur_slc->slice_pos_fetch.end_row);
-			pr_debug("slice %d %d ovl [%d %d %d %d]\n", i, j,
-					cur_slc->slice_overlap.overlap_up,
-					cur_slc->slice_overlap.overlap_down,
-					cur_slc->slice_overlap.overlap_left,
-					cur_slc->slice_overlap.overlap_right);
-
-			cur_slc->slice_fbd_yuv.fetch_fbd_bypass = frame_fbd_yuv->fetch_fbd_bypass;
-
-			cur_slc++;
-		}
-	}
-
-	return rtn;
-}
-
 static int ispslice_slice_base_info_cfg_ex(struct slice_cfg_input *in_ptr,
 		struct isp_slice_context*slice_ctx)
 {
@@ -1160,118 +1022,6 @@ static int ispslice_slice_thumbscaler_cfg(
 	return ret;
 }
 
-int ispslice_slice_scaler_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx)
-{
-	int i, j;
-	struct yuv_scaler_info  *frm_scaler;
-	struct img_deci_info *frm_deci;
-	struct img_trim *frm_trim0;
-	struct img_trim *frm_trim1;
-	struct slice_scaler_info *slc_scaler;
-	struct isp_slice_desc *cur_slc;
-	struct isp_scaler_slice_tmp sinfo = {0};
-	uint32_t trim1_sum_x[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
-	uint32_t trim1_sum_y[ISP_SPATH_NUM][SLICE_H_NUM_MAX] = { { 0 }, { 0 } };
-
-	sinfo.slice_col_num = slc_ctx->slice_col_num;
-	sinfo.slice_row_num = slc_ctx->slice_row_num;
-	sinfo.trim1_sum_x = 0;
-	sinfo.trim1_sum_y = 0;
-	sinfo.overlap_bad_up = slc_ctx->overlap_up - YUVSCALER_OVERLAP_UP;
-	sinfo.overlap_bad_down = slc_ctx->overlap_down - YUVSCALER_OVERLAP_DOWN;
-	sinfo.overlap_bad_left = slc_ctx->overlap_left - YUVSCALER_OVERLAP_LEFT;
-	sinfo.overlap_bad_right = slc_ctx->overlap_right - YUVSCALER_OVERLAP_RIGHT;
-
-	for (i = 0; i < SLICE_NUM_MAX; i++)
-		pr_debug("slice %d valid %d. xy (%d %d)  %p\n",
-			i, slc_ctx->slices[i].valid, slc_ctx->slices[i].x, slc_ctx->slices[i].y, &slc_ctx->slices[i]);
-
-	cur_slc = &slc_ctx->slices[0];
-	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
-		if (cur_slc->valid == 0) {
-			pr_debug("slice %d not valid. %p\n", i, cur_slc);
-			continue;
-		}
-
-		for (j = 0; j < ISP_SPATH_NUM; j++) {
-
-			frm_scaler = in_ptr->frame_scaler[j];
-			if (frm_scaler == NULL) {
-				/* path is not valid. */
-				cur_slc->path_en[j] = 0;
-				pr_debug("path %d not enable.\n", j);
-				continue;
-			}
-			cur_slc->path_en[j] = 1;
-			pr_debug("path %d  enable.\n", j);
-
-			if (j == ISP_SPATH_FD) {
-				ispslice_slice_thumbscaler_cfg(cur_slc,
-					in_ptr->frame_trim0[j],
-					in_ptr->thumb_scaler,
-					&cur_slc->slice_thumbscaler);
-				continue;
-			}
-
-			frm_trim0 = in_ptr->frame_trim0[j];
-			frm_deci = in_ptr->frame_deci[j];
-			frm_trim1 = in_ptr->frame_trim1[j];
-
-			slc_scaler = &cur_slc->slice_scaler[j];
-			slc_scaler->scaler_bypass = frm_scaler->scaler_bypass;
-			slc_scaler->odata_mode = frm_scaler->odata_mode;
-
-			sinfo.x = cur_slc->x;
-			sinfo.y = cur_slc->y;
-
-			sinfo.start_col = cur_slc->slice_pos.start_col;
-			sinfo.end_col = cur_slc->slice_pos.end_col;
-			sinfo.start_row = cur_slc->slice_pos.start_row;
-			sinfo.end_row = cur_slc->slice_pos.end_row;
-
-			sinfo.start_col_orig = cur_slc->slice_pos_orig.start_col;
-			sinfo.end_col_orig = cur_slc->slice_pos_orig.end_col;
-			sinfo.start_row_orig = cur_slc->slice_pos_orig.start_row;
-			sinfo.end_row_orig = cur_slc->slice_pos_orig.end_row;
-
-			sinfo.trim0_end_x = frm_trim0->start_x + frm_trim0->size_x;
-			sinfo.trim0_end_y = frm_trim0->start_y + frm_trim0->size_y;
-
-			ispslice_spath_trim0_info_cfg(&sinfo, frm_trim0, slc_scaler);
-			if (slc_scaler->out_of_range) {
-				cur_slc->path_en[j] = 0;
-				continue;
-			}
-
-			ispslice_spath_deci_info_cfg(&sinfo, frm_deci, frm_trim0, slc_scaler);
-			ispslice_spath_scaler_info_cfg(&sinfo, frm_trim0, frm_scaler, slc_scaler);
-
-			sinfo.trim1_sum_x = trim1_sum_x[j][cur_slc->x];
-			sinfo.trim1_sum_y = trim1_sum_y[j][cur_slc->y];
-
-			ispslice_spath_trim1_info_cfg(&sinfo, frm_trim0, frm_scaler, slc_scaler);
-
-			if ((cur_slc->y == 0)
-				&& ((cur_slc->x + 1) < SLICE_W_NUM_MAX))
-				trim1_sum_x[j][cur_slc->x + 1] = slc_scaler->trim1_size_x + trim1_sum_x[j][cur_slc->x];
-
-			slc_scaler->src_size_x = sinfo.end_col - sinfo.start_col +1;
-			slc_scaler->src_size_y = sinfo.end_row - sinfo.start_row +1;
-			slc_scaler->dst_size_x = slc_scaler->scaler_out_width;
-			slc_scaler->dst_size_y = slc_scaler->scaler_out_height;
-		}
-
-		/* check if all path scaler out of range. */
-		/* if yes, invalid this slice. */
-		cur_slc->valid = 0;
-		for (j = 0; j < ISP_SPATH_NUM; j++)
-			cur_slc->valid |= cur_slc->path_en[j];
-		pr_debug("final slice (%d, %d) valid = %d\n", cur_slc->x, cur_slc->y, cur_slc->valid);
-	}
-
-	return 0;
-}
-
 static int ispslice_slice_scaler_info_cfg_ex(
 		struct slice_cfg_input *slc_cfg_input, struct isp_slice_context *slice_ctx)
 {
@@ -1622,188 +1372,6 @@ static void ispslice_slice_fbd_yuv_cfg(struct isp_fbd_yuv_info *frame_fbd_yuv,
 	slc_fbd_yuv->frame_header_base_addr = frame_fbd_yuv->frame_header_base_addr;
 
 	pr_debug("head %x\n", slc_fbd_yuv->frame_header_base_addr);
-}
-
-int ispslice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
-{
-	int i;
-	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct isp_slice_desc *cur_slc = &slc_ctx->slices[0];
-
-	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
-		if (cur_slc->valid == 0)
-			continue;
-
-		cur_slc->pyr_rec_eb = slc_ctx->pyr_rec_eb;
-		if (!in_ptr->frame_fbd_yuv->fetch_fbd_bypass)
-			ispslice_slice_fbd_yuv_cfg(in_ptr->frame_fbd_yuv, cur_slc);
-		else
-			ispslice_slice_fetch_cfg(in_ptr->frame_fetch, cur_slc);
-	}
-
-	return 0;
-}
-
-int ispslice_store_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
-{
-	int i, j;
-	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct isp_store_info *frm_store;
-	struct isp_slice_desc *cur_slc;
-	struct slice_store_info *slc_store;
-	struct slice_scaler_info *slc_scaler;
-	struct slice_thumbscaler_info *slc_thumbscaler;
-
-	uint32_t overlap_left = 0, overlap_up = 0;
-	uint32_t overlap_right = 0, overlap_down = 0;
-
-	uint32_t start_col = 0, end_col = 0, start_row = 0, end_row = 0;
-	uint32_t start_row_out[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
-	uint32_t start_col_out[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
-	uint32_t ch0_offset = 0;
-	uint32_t ch1_offset = 0;
-	uint32_t ch2_offset = 0;
-
-	cur_slc = &slc_ctx->slices[0];
-	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
-		if (cur_slc->valid == 0)
-			continue;
-		for (j = 0; j < ISP_SPATH_NUM; j++) {
-			frm_store = in_ptr->frame_store[j];
-			if (frm_store == NULL || cur_slc->path_en[j] == 0)
-				/* path is not valid. */
-				continue;
-
-			slc_store = &cur_slc->slice_store[j];
-			slc_scaler = &cur_slc->slice_scaler[j];
-
-			if (j == ISP_SPATH_FD) {
-				slc_thumbscaler = &cur_slc->slice_thumbscaler;
-				slc_store->size.w = slc_thumbscaler->y_dst_after_scaler.w;
-				slc_store->size.h = slc_thumbscaler->y_dst_after_scaler.h;
-				if (cur_slc->y == 0 &&
-					(cur_slc->x + 1) < SLICE_W_NUM_MAX)
-					start_col_out[j][cur_slc->x + 1] = slc_store->size.w + start_col_out[j][cur_slc->x];
-			} else if (slc_scaler->scaler_bypass == 0) {
-				if (in_ptr->calc_dyn_ov.verison == ALG_ISP_DYN_OVERLAP_NONE) {
-					slc_store->size.w = slc_scaler->trim1_size_x;
-					slc_store->size.h = slc_scaler->trim1_size_y;
-				} else {
-					if ((slc_scaler->scaler_factor_in == slc_scaler->scaler_factor_out)
-						&& (slc_scaler->scaler_factor_in_ver == slc_scaler->scaler_factor_out_ver)) {
-						overlap_up = slc_ctx->overlapParam.slice_overlap[i].ov_up;
-						overlap_down = slc_ctx->overlapParam.slice_overlap[i].ov_down;
-						overlap_left = slc_ctx->overlapParam.slice_overlap[i].ov_left;
-						overlap_right = slc_ctx->overlapParam.slice_overlap[i].ov_right;
-
-						slc_store->size.w = slc_scaler->trim1_size_x - overlap_left - overlap_right;
-						slc_store->size.h = slc_scaler->trim1_size_y - overlap_up - overlap_down;
-						slc_store->border.up_border = overlap_up;
-						slc_store->border.down_border = overlap_down;
-						slc_store->border.left_border = overlap_left;
-						slc_store->border.right_border = overlap_right;
-					} else {
-						slc_store->size.w = slc_scaler->trim1_size_x;
-						slc_store->size.h = slc_scaler->trim1_size_y;
-					}
-				}
-
-				if ((cur_slc->y == 0) && ((cur_slc->x + 1) < SLICE_W_NUM_MAX))
-					start_col_out[j][cur_slc->x + 1] = slc_store->size.w + start_col_out[j][cur_slc->x];
-
-				pr_debug("slice %d, path %d,  size(w %d, h %d), overlap: (%d %d %d %d), cur_slc(x %d, y %d)  start_col_out[j][cur_slc->x] %d\n",
-					i, j, slc_store->size.w, slc_store->size.h,
-					overlap_up, overlap_down, overlap_left, overlap_right,
-					cur_slc->x, cur_slc->y, start_col_out[j][cur_slc->x]);
-			} else {
-				start_col = cur_slc->slice_pos.start_col;
-				start_row = cur_slc->slice_pos.start_row;
-				end_col = cur_slc->slice_pos.end_col;
-				end_row = cur_slc->slice_pos.end_row;
-				overlap_left = cur_slc->slice_overlap.overlap_left;
-				overlap_right = cur_slc->slice_overlap.overlap_right;
-				overlap_up = cur_slc->slice_overlap.overlap_up;
-				overlap_down = cur_slc->slice_overlap.overlap_down;
-
-				pr_debug("slice %d. pos: %d %d %d %d, ovl: %d %d %d %d\n",
-					i, start_col, end_col, start_row, end_row,
-					overlap_up, overlap_down, overlap_left, overlap_right);
-
-				slc_store->size.w = end_col - start_col + 1 - overlap_left - overlap_right;
-				slc_store->size.h = end_row - start_row + 1 - overlap_up - overlap_down;
-				slc_store->border.up_border = overlap_up;
-				slc_store->border.down_border = overlap_down;
-				slc_store->border.left_border = overlap_left;
-				slc_store->border.right_border = overlap_right;
-
-				if (cur_slc->y == 0)
-					slc_store->border.up_border = 0;
-				else if (cur_slc->y == (slc_ctx->slice_row_num - 1))
-					slc_store->border.down_border = 0;
-
-				if (cur_slc->x == 0)
-					slc_store->border.left_border =  0;
-				else if (cur_slc->x == (slc_ctx->slice_col_num - 1))
-					slc_store->border.right_border = 0;
-
-				if (cur_slc->x != 0)
-					start_col_out[j][cur_slc->x] = start_col + slc_store->border.left_border;
-				if (cur_slc->y != 0)
-					start_row_out[j][cur_slc->y] = start_row + slc_store->border.up_border;
-
-				pr_debug("scaler bypass .  %d   %d", start_row_out[j][cur_slc->y], start_col_out[j][cur_slc->x]);
-			}
-
-			switch (frm_store->color_fmt) {
-			case CAM_UYVY_1FRAME:
-				ch0_offset = start_col_out[j][cur_slc->x] * 2 + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
-				break;
-			case CAM_YUV422_2FRAME:
-			case CAM_YVU422_2FRAME:
-				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
-				ch1_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1;
-				break;
-			case CAM_YUV422_3FRAME:
-				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
-				ch1_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1;
-				ch2_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch2;
-				break;
-			case CAM_YUV420_2FRAME:
-			case CAM_YVU420_2FRAME:
-				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
-				ch1_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2;
-				pr_debug("offset %d %d\n", ch0_offset, ch1_offset);
-				break;
-			case CAM_YUV420_2FRAME_10:
-			case CAM_YVU420_2FRAME_10:
-				ch0_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0) * 2;
-				ch1_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2) * 2;
-				break;
-			case CAM_YUV420_2FRAME_MIPI:
-			case CAM_YVU420_2FRAME_MIPI:
-				ch0_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0) * 10 / 8;
-				ch1_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2) * 10 / 8;
-				break;
-			case CAM_YUV420_3FRAME:
-				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
-				ch1_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2;
-				ch2_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch2 / 2;
-				break;
-			case CAM_FULL_RGB14:
-				ch0_offset = start_col_out[j][cur_slc->x] * 8 + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
-				break;
-			default:
-				pr_err("fail to support store format %s\n", camport_fmt_name_get(frm_store->color_fmt));
-				break;
-			}
-			slc_store->addr.addr_ch0 = frm_store->addr.addr_ch0 + ch0_offset;
-			slc_store->addr.addr_ch1 = frm_store->addr.addr_ch1 + ch1_offset;
-			slc_store->addr.addr_ch2 = frm_store->addr.addr_ch2 + ch2_offset;
-			pr_debug("addr_ch0 %x, addr_ch1 %x\n", slc_store->addr.addr_ch0, slc_store->addr.addr_ch1);
-		}
-	}
-
-	return 0;
 }
 
 static int ispslice_3dnr_memctrl_info_cfg(
@@ -3031,6 +2599,438 @@ static int ispslice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context 
 
 }
 
+int isp_slice_fetch_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
+{
+	int i;
+	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
+	struct isp_slice_desc *cur_slc = &slc_ctx->slices[0];
+
+	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
+		if (cur_slc->valid == 0)
+			continue;
+
+		cur_slc->pyr_rec_eb = slc_ctx->pyr_rec_eb;
+		if (!in_ptr->frame_fbd_yuv->fetch_fbd_bypass)
+			ispslice_slice_fbd_yuv_cfg(in_ptr->frame_fbd_yuv, cur_slc);
+		else
+			ispslice_slice_fetch_cfg(in_ptr->frame_fetch, cur_slc);
+	}
+
+	return 0;
+}
+
+int isp_slice_store_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
+{
+	int i, j;
+	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
+	struct isp_store_info *frm_store;
+	struct isp_slice_desc *cur_slc;
+	struct slice_store_info *slc_store;
+	struct slice_scaler_info *slc_scaler;
+	struct slice_thumbscaler_info *slc_thumbscaler;
+
+	uint32_t overlap_left = 0, overlap_up = 0;
+	uint32_t overlap_right = 0, overlap_down = 0;
+
+	uint32_t start_col = 0, end_col = 0, start_row = 0, end_row = 0;
+	uint32_t start_row_out[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
+	uint32_t start_col_out[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
+	uint32_t ch0_offset = 0;
+	uint32_t ch1_offset = 0;
+	uint32_t ch2_offset = 0;
+
+	cur_slc = &slc_ctx->slices[0];
+	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
+		if (cur_slc->valid == 0)
+			continue;
+		for (j = 0; j < ISP_SPATH_NUM; j++) {
+			frm_store = in_ptr->frame_store[j];
+			if (frm_store == NULL || cur_slc->path_en[j] == 0)
+				/* path is not valid. */
+				continue;
+
+			slc_store = &cur_slc->slice_store[j];
+			slc_scaler = &cur_slc->slice_scaler[j];
+
+			if (j == ISP_SPATH_FD) {
+				slc_thumbscaler = &cur_slc->slice_thumbscaler;
+				slc_store->size.w = slc_thumbscaler->y_dst_after_scaler.w;
+				slc_store->size.h = slc_thumbscaler->y_dst_after_scaler.h;
+				if (cur_slc->y == 0 &&
+					(cur_slc->x + 1) < SLICE_W_NUM_MAX)
+					start_col_out[j][cur_slc->x + 1] = slc_store->size.w + start_col_out[j][cur_slc->x];
+			} else if (slc_scaler->scaler_bypass == 0) {
+				if (in_ptr->calc_dyn_ov.verison == ALG_ISP_DYN_OVERLAP_NONE) {
+					slc_store->size.w = slc_scaler->trim1_size_x;
+					slc_store->size.h = slc_scaler->trim1_size_y;
+				} else {
+					if ((slc_scaler->scaler_factor_in == slc_scaler->scaler_factor_out)
+						&& (slc_scaler->scaler_factor_in_ver == slc_scaler->scaler_factor_out_ver)) {
+						overlap_up = slc_ctx->overlapParam.slice_overlap[i].ov_up;
+						overlap_down = slc_ctx->overlapParam.slice_overlap[i].ov_down;
+						overlap_left = slc_ctx->overlapParam.slice_overlap[i].ov_left;
+						overlap_right = slc_ctx->overlapParam.slice_overlap[i].ov_right;
+
+						slc_store->size.w = slc_scaler->trim1_size_x - overlap_left - overlap_right;
+						slc_store->size.h = slc_scaler->trim1_size_y - overlap_up - overlap_down;
+						slc_store->border.up_border = overlap_up;
+						slc_store->border.down_border = overlap_down;
+						slc_store->border.left_border = overlap_left;
+						slc_store->border.right_border = overlap_right;
+					} else {
+						slc_store->size.w = slc_scaler->trim1_size_x;
+						slc_store->size.h = slc_scaler->trim1_size_y;
+					}
+				}
+
+				if ((cur_slc->y == 0) && ((cur_slc->x + 1) < SLICE_W_NUM_MAX))
+					start_col_out[j][cur_slc->x + 1] = slc_store->size.w + start_col_out[j][cur_slc->x];
+
+				pr_debug("slice %d, path %d,  size(w %d, h %d), overlap: (%d %d %d %d), cur_slc(x %d, y %d)  start_col_out[j][cur_slc->x] %d\n",
+					i, j, slc_store->size.w, slc_store->size.h,
+					overlap_up, overlap_down, overlap_left, overlap_right,
+					cur_slc->x, cur_slc->y, start_col_out[j][cur_slc->x]);
+			} else {
+				start_col = cur_slc->slice_pos.start_col;
+				start_row = cur_slc->slice_pos.start_row;
+				end_col = cur_slc->slice_pos.end_col;
+				end_row = cur_slc->slice_pos.end_row;
+				overlap_left = cur_slc->slice_overlap.overlap_left;
+				overlap_right = cur_slc->slice_overlap.overlap_right;
+				overlap_up = cur_slc->slice_overlap.overlap_up;
+				overlap_down = cur_slc->slice_overlap.overlap_down;
+
+				pr_debug("slice %d. pos: %d %d %d %d, ovl: %d %d %d %d\n",
+					i, start_col, end_col, start_row, end_row,
+					overlap_up, overlap_down, overlap_left, overlap_right);
+
+				slc_store->size.w = end_col - start_col + 1 - overlap_left - overlap_right;
+				slc_store->size.h = end_row - start_row + 1 - overlap_up - overlap_down;
+				slc_store->border.up_border = overlap_up;
+				slc_store->border.down_border = overlap_down;
+				slc_store->border.left_border = overlap_left;
+				slc_store->border.right_border = overlap_right;
+
+				if (cur_slc->y == 0)
+					slc_store->border.up_border = 0;
+				else if (cur_slc->y == (slc_ctx->slice_row_num - 1))
+					slc_store->border.down_border = 0;
+
+				if (cur_slc->x == 0)
+					slc_store->border.left_border =  0;
+				else if (cur_slc->x == (slc_ctx->slice_col_num - 1))
+					slc_store->border.right_border = 0;
+
+				if (cur_slc->x != 0)
+					start_col_out[j][cur_slc->x] = start_col + slc_store->border.left_border;
+				if (cur_slc->y != 0)
+					start_row_out[j][cur_slc->y] = start_row + slc_store->border.up_border;
+
+				pr_debug("scaler bypass .  %d   %d", start_row_out[j][cur_slc->y], start_col_out[j][cur_slc->x]);
+			}
+
+			switch (frm_store->color_fmt) {
+			case CAM_UYVY_1FRAME:
+				ch0_offset = start_col_out[j][cur_slc->x] * 2 + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
+				break;
+			case CAM_YUV422_2FRAME:
+			case CAM_YVU422_2FRAME:
+				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
+				ch1_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1;
+				break;
+			case CAM_YUV422_3FRAME:
+				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
+				ch1_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1;
+				ch2_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch2;
+				break;
+			case CAM_YUV420_2FRAME:
+			case CAM_YVU420_2FRAME:
+				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
+				ch1_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2;
+				pr_debug("offset %d %d\n", ch0_offset, ch1_offset);
+				break;
+			case CAM_YUV420_2FRAME_10:
+			case CAM_YVU420_2FRAME_10:
+				ch0_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0) * 2;
+				ch1_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2) * 2;
+				break;
+			case CAM_YUV420_2FRAME_MIPI:
+			case CAM_YVU420_2FRAME_MIPI:
+				ch0_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0) * 10 / 8;
+				ch1_offset = (start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2) * 10 / 8;
+				break;
+			case CAM_YUV420_3FRAME:
+				ch0_offset = start_col_out[j][cur_slc->x] + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
+				ch1_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch1 / 2;
+				ch2_offset = (start_col_out[j][cur_slc->x] >> 1) + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch2 / 2;
+				break;
+			case CAM_FULL_RGB14:
+				ch0_offset = start_col_out[j][cur_slc->x] * 8 + start_row_out[j][cur_slc->y] * frm_store->pitch.pitch_ch0;
+				break;
+			default:
+				pr_err("fail to support store format %s\n", camport_fmt_name_get(frm_store->color_fmt));
+				break;
+			}
+			slc_store->addr.addr_ch0 = frm_store->addr.addr_ch0 + ch0_offset;
+			slc_store->addr.addr_ch1 = frm_store->addr.addr_ch1 + ch1_offset;
+			slc_store->addr.addr_ch2 = frm_store->addr.addr_ch2 + ch2_offset;
+			pr_debug("addr_ch0 %x, addr_ch1 %x\n", slc_store->addr.addr_ch0, slc_store->addr.addr_ch1);
+		}
+	}
+
+	return 0;
+}
+
+int isp_slice_base_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx)
+{
+	int rtn = 0;
+	uint32_t i = 0, j = 0;
+	uint32_t img_height, img_width;
+	uint32_t slice_height = 0, slice_width = 0;
+	uint32_t slice_total_row, slice_total_col, slice_num;
+	uint32_t fetch_start_x, fetch_start_y;
+	uint32_t fetch_end_x, fetch_end_y;
+	struct isp_slice_desc *cur_slc = NULL;
+	struct isp_hw_fetch_info *frame_fetch = in_ptr->frame_fetch;
+	struct isp_fbd_yuv_info *frame_fbd_yuv = in_ptr->frame_fbd_yuv;
+
+	ispslice_slice_size_info_get(in_ptr, &slice_width, &slice_height);
+	if (slice_width == 0 || slice_height == 0)
+		return -EINVAL;
+
+	rtn = ispslice_slice_overlap_info_get(in_ptr, slc_ctx);
+
+	img_height = in_ptr->frame_in_size.h;
+	img_width = in_ptr->frame_in_size.w;
+
+	fetch_start_x = frame_fetch->in_trim.start_x;
+	fetch_start_y = frame_fetch->in_trim.start_y;
+	fetch_end_x = frame_fetch->in_trim.start_x + frame_fetch->in_trim.size_x - 1;
+	fetch_end_y = frame_fetch->in_trim.start_y + frame_fetch->in_trim.size_y - 1;
+
+	if (!frame_fbd_yuv->fetch_fbd_bypass) {
+		fetch_start_x = frame_fbd_yuv->trim.start_x;
+		fetch_start_y = frame_fbd_yuv->trim.start_y;
+		fetch_end_x = frame_fbd_yuv->trim.start_x + frame_fbd_yuv->trim.size_x - 1;
+		fetch_end_y = frame_fbd_yuv->trim.start_y + frame_fbd_yuv->trim.size_y - 1;
+	}
+
+	slice_total_row = (img_height + slice_height - 1) / slice_height;
+	slice_total_col = (img_width + slice_width - 1) / slice_width;
+	slice_num = slice_total_col * slice_total_row;
+
+	slc_ctx->slice_num = slice_num;
+	slc_ctx->slice_col_num = slice_total_col;
+	slc_ctx->slice_row_num = slice_total_row;
+	slc_ctx->slice_height = slice_height;
+	slc_ctx->slice_width = slice_width;
+	slc_ctx->img_height = img_height;
+	slc_ctx->img_width = img_width;
+	pr_debug("img w %d, h %d, slice w %d, h %d, slice num %d\n",
+		img_width, img_height,
+		slice_width, slice_height, slice_num);
+
+	if (!frame_fbd_yuv->fetch_fbd_bypass)
+		pr_debug("src %d %d, fbd_raw crop %d %d %d %d\n",
+			frame_fbd_yuv->slice_size.w, frame_fbd_yuv->slice_size.h,
+			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
+	else
+		pr_debug("src %d %d, fetch crop %d %d %d %d\n",
+			frame_fetch->src.w, frame_fetch->src.h,
+			fetch_start_x, fetch_start_y, fetch_end_x, fetch_end_y);
+
+	for (i = 0; i < SLICE_NUM_MAX; i++)
+		pr_debug("slice %d valid %d\n", i, slc_ctx->slices[i].valid);
+
+	cur_slc = &slc_ctx->slices[0];
+	for (i = 0; i < slice_total_row; i++) {
+		for (j = 0; j < slice_total_col; j++) {
+			uint32_t start_col;
+			uint32_t start_row;
+			uint32_t end_col;
+			uint32_t end_row;
+
+			cur_slc->valid = 1;
+			cur_slc->y = i;
+			cur_slc->x = j;
+
+			start_col = j * slice_width;
+			start_row = i * slice_height;
+			end_col = start_col + slice_width - 1;
+			end_row = start_row + slice_height - 1;
+
+			if (i != 0)
+				cur_slc->slice_overlap.overlap_up = slc_ctx->overlap_up;
+			if (j != 0)
+				cur_slc->slice_overlap.overlap_left = slc_ctx->overlap_left;
+
+			if (i != (slice_total_row - 1))
+				cur_slc->slice_overlap.overlap_down = slc_ctx->overlap_down;
+			else
+				end_row = img_height - 1;
+
+			if (j != (slice_total_col - 1))
+				cur_slc->slice_overlap.overlap_right = slc_ctx->overlap_right;
+			else
+				end_col = img_width - 1;
+
+			cur_slc->slice_pos_orig.start_col = start_col;
+			cur_slc->slice_pos_orig.start_row = start_row;
+			cur_slc->slice_pos_orig.end_col = end_col;
+			cur_slc->slice_pos_orig.end_row = end_row;
+
+			cur_slc->slice_pos.start_col = start_col - cur_slc->slice_overlap.overlap_left;
+			cur_slc->slice_pos.start_row = start_row - cur_slc->slice_overlap.overlap_up;
+			cur_slc->slice_pos.end_col = end_col + cur_slc->slice_overlap.overlap_right;
+			cur_slc->slice_pos.end_row = end_row + cur_slc->slice_overlap.overlap_down;
+
+			cur_slc->slice_pos_fetch.start_col = cur_slc->slice_pos.start_col + fetch_start_x;
+			cur_slc->slice_pos_fetch.start_row = cur_slc->slice_pos.start_row + fetch_start_y;
+			cur_slc->slice_pos_fetch.end_col = cur_slc->slice_pos.end_col + fetch_start_x;
+			cur_slc->slice_pos_fetch.end_row = cur_slc->slice_pos.end_row + fetch_start_y;
+
+			pr_debug("slice %d %d pos_orig [%d %d %d %d]\n", i, j,
+					cur_slc->slice_pos_orig.start_col,
+					cur_slc->slice_pos_orig.end_col,
+					cur_slc->slice_pos_orig.start_row,
+					cur_slc->slice_pos_orig.end_row);
+			pr_debug("slice %d %d pos [%d %d %d %d]\n", i, j,
+					cur_slc->slice_pos.start_col,
+					cur_slc->slice_pos.end_col,
+					cur_slc->slice_pos.start_row,
+					cur_slc->slice_pos.end_row);
+			pr_debug("slice %d %d pos_fetch [%d %d %d %d]\n", i, j,
+					cur_slc->slice_pos_fetch.start_col,
+					cur_slc->slice_pos_fetch.end_col,
+					cur_slc->slice_pos_fetch.start_row,
+					cur_slc->slice_pos_fetch.end_row);
+			pr_debug("slice %d %d ovl [%d %d %d %d]\n", i, j,
+					cur_slc->slice_overlap.overlap_up,
+					cur_slc->slice_overlap.overlap_down,
+					cur_slc->slice_overlap.overlap_left,
+					cur_slc->slice_overlap.overlap_right);
+
+			cur_slc->slice_fbd_yuv.fetch_fbd_bypass = frame_fbd_yuv->fetch_fbd_bypass;
+
+			cur_slc++;
+		}
+	}
+
+	return rtn;
+}
+
+int isp_slice_scaler_info_cfg(struct slice_cfg_input *in_ptr, struct isp_slice_context *slc_ctx)
+{
+	int i, j;
+	struct yuv_scaler_info  *frm_scaler;
+	struct img_deci_info *frm_deci;
+	struct img_trim *frm_trim0;
+	struct img_trim *frm_trim1;
+	struct slice_scaler_info *slc_scaler;
+	struct isp_slice_desc *cur_slc;
+	struct isp_scaler_slice_tmp sinfo = {0};
+	uint32_t trim1_sum_x[ISP_SPATH_NUM][SLICE_W_NUM_MAX] = { { 0 }, { 0 } };
+	uint32_t trim1_sum_y[ISP_SPATH_NUM][SLICE_H_NUM_MAX] = { { 0 }, { 0 } };
+
+	sinfo.slice_col_num = slc_ctx->slice_col_num;
+	sinfo.slice_row_num = slc_ctx->slice_row_num;
+	sinfo.trim1_sum_x = 0;
+	sinfo.trim1_sum_y = 0;
+	sinfo.overlap_bad_up = slc_ctx->overlap_up - YUVSCALER_OVERLAP_UP;
+	sinfo.overlap_bad_down = slc_ctx->overlap_down - YUVSCALER_OVERLAP_DOWN;
+	sinfo.overlap_bad_left = slc_ctx->overlap_left - YUVSCALER_OVERLAP_LEFT;
+	sinfo.overlap_bad_right = slc_ctx->overlap_right - YUVSCALER_OVERLAP_RIGHT;
+
+	for (i = 0; i < SLICE_NUM_MAX; i++)
+		pr_debug("slice %d valid %d. xy (%d %d)  %p\n",
+			i, slc_ctx->slices[i].valid, slc_ctx->slices[i].x, slc_ctx->slices[i].y, &slc_ctx->slices[i]);
+
+	cur_slc = &slc_ctx->slices[0];
+	for (i = 0; i < SLICE_NUM_MAX; i++, cur_slc++) {
+		if (cur_slc->valid == 0) {
+			pr_debug("slice %d not valid. %p\n", i, cur_slc);
+			continue;
+		}
+
+		for (j = 0; j < ISP_SPATH_NUM; j++) {
+
+			frm_scaler = in_ptr->frame_scaler[j];
+			if (frm_scaler == NULL) {
+				/* path is not valid. */
+				cur_slc->path_en[j] = 0;
+				pr_debug("path %d not enable.\n", j);
+				continue;
+			}
+			cur_slc->path_en[j] = 1;
+			pr_debug("path %d  enable.\n", j);
+
+			if (j == ISP_SPATH_FD) {
+				ispslice_slice_thumbscaler_cfg(cur_slc,
+					in_ptr->frame_trim0[j],
+					in_ptr->thumb_scaler,
+					&cur_slc->slice_thumbscaler);
+				continue;
+			}
+
+			frm_trim0 = in_ptr->frame_trim0[j];
+			frm_deci = in_ptr->frame_deci[j];
+			frm_trim1 = in_ptr->frame_trim1[j];
+
+			slc_scaler = &cur_slc->slice_scaler[j];
+			slc_scaler->scaler_bypass = frm_scaler->scaler_bypass;
+			slc_scaler->odata_mode = frm_scaler->odata_mode;
+
+			sinfo.x = cur_slc->x;
+			sinfo.y = cur_slc->y;
+
+			sinfo.start_col = cur_slc->slice_pos.start_col;
+			sinfo.end_col = cur_slc->slice_pos.end_col;
+			sinfo.start_row = cur_slc->slice_pos.start_row;
+			sinfo.end_row = cur_slc->slice_pos.end_row;
+
+			sinfo.start_col_orig = cur_slc->slice_pos_orig.start_col;
+			sinfo.end_col_orig = cur_slc->slice_pos_orig.end_col;
+			sinfo.start_row_orig = cur_slc->slice_pos_orig.start_row;
+			sinfo.end_row_orig = cur_slc->slice_pos_orig.end_row;
+
+			sinfo.trim0_end_x = frm_trim0->start_x + frm_trim0->size_x;
+			sinfo.trim0_end_y = frm_trim0->start_y + frm_trim0->size_y;
+
+			ispslice_spath_trim0_info_cfg(&sinfo, frm_trim0, slc_scaler);
+			if (slc_scaler->out_of_range) {
+				cur_slc->path_en[j] = 0;
+				continue;
+			}
+
+			ispslice_spath_deci_info_cfg(&sinfo, frm_deci, frm_trim0, slc_scaler);
+			ispslice_spath_scaler_info_cfg(&sinfo, frm_trim0, frm_scaler, slc_scaler);
+
+			sinfo.trim1_sum_x = trim1_sum_x[j][cur_slc->x];
+			sinfo.trim1_sum_y = trim1_sum_y[j][cur_slc->y];
+
+			ispslice_spath_trim1_info_cfg(&sinfo, frm_trim0, frm_scaler, slc_scaler);
+
+			if ((cur_slc->y == 0)
+				&& ((cur_slc->x + 1) < SLICE_W_NUM_MAX))
+				trim1_sum_x[j][cur_slc->x + 1] = slc_scaler->trim1_size_x + trim1_sum_x[j][cur_slc->x];
+
+			slc_scaler->src_size_x = sinfo.end_col - sinfo.start_col +1;
+			slc_scaler->src_size_y = sinfo.end_row - sinfo.start_row +1;
+			slc_scaler->dst_size_x = slc_scaler->scaler_out_width;
+			slc_scaler->dst_size_y = slc_scaler->scaler_out_height;
+		}
+
+		/* check if all path scaler out of range. */
+		/* if yes, invalid this slice. */
+		cur_slc->valid = 0;
+		for (j = 0; j < ISP_SPATH_NUM; j++)
+			cur_slc->valid |= cur_slc->path_en[j];
+		pr_debug("final slice (%d, %d) valid = %d\n", cur_slc->x, cur_slc->y, cur_slc->valid);
+	}
+
+	return 0;
+}
+
 int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 {
 	struct slice_cfg_input *in_ptr = NULL;
@@ -3044,8 +3044,8 @@ int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 	slc_ctx->pyr_rec_eb = in_ptr->pyr_rec_eb;
 	slc_ctx->ltm_rgb_eb = in_ptr->ltm_rgb_eb;
 	slc_ctx->gtm_rgb_eb = in_ptr->gtm_rgb_eb;
-	ispslice_fetch_info_cfg(cfg_in, slc_ctx);
-	ispslice_store_info_cfg(cfg_in, slc_ctx);
+	isp_slice_fetch_info_cfg(cfg_in, slc_ctx);
+	isp_slice_store_info_cfg(cfg_in, slc_ctx);
 	ispslice_3dnr_info_cfg(cfg_in, slc_ctx);
 	if (in_ptr->ltm_rgb_eb)
 		ispslice_ltm_info_cfg(in_ptr->rgb_ltm, slc_ctx, &in_ptr->nofilter_ctx->ltm_rgb_info);
@@ -3073,8 +3073,8 @@ int isp_slice_base_cfg(void *cfg_in, void *slice_ctx,
 
 	switch (in_ptr->calc_dyn_ov.verison) {
 		case ALG_ISP_DYN_OVERLAP_NONE:
-			ispslice_slice_base_info_cfg(in_ptr, slc_ctx);
-			ispslice_slice_scaler_info_cfg(in_ptr, slc_ctx);
+			isp_slice_base_info_cfg(in_ptr, slc_ctx);
+			isp_slice_scaler_info_cfg(in_ptr, slc_ctx);
 			break;
 		case ALG_ISP_OVERLAP_VER_1:
 			ispslice_slice_base_info_cfg_ex(in_ptr, slc_ctx);

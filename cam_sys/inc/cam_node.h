@@ -219,8 +219,8 @@ struct cam_nodes_dev {
 
 const char *cam_node_name_get(enum cam_node_type type);
 int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en, uint32_t *g_replace_en);
-int cam_node_static_nodelist_get(struct cam_node_topology *param, uint32_t type);
 int cam_node_buffer_alloc(void *handle, struct cam_buf_alloc_desc *param);
+int cam_node_static_nodelist_get(struct cam_node_topology *param, uint32_t type);
 void *cam_node_creat(struct cam_node_desc *param);
 void cam_node_close(struct cam_node *node);
 void cam_node_destory(struct cam_node *node);

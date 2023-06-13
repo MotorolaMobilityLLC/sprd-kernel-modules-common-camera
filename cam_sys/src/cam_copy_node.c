@@ -20,191 +20,6 @@
 
 #define pr_fmt(fmt) "CAM_COPY_NODE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-int cam_copy_node_buffer_cfg(void *handle, void *param)
-{
-	int ret = 0;
-	struct cam_copy_node *node = NULL;
-	struct cam_frame *pframe = NULL;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid inptr %p, %p\n", handle, param);
-		return -EFAULT;
-	}
-
-	node = (struct cam_copy_node *)handle;
-	node->copy_flag = CAM_ENABLE;
-	pframe = (struct cam_frame *)param;
-	ret = cam_buf_ionbuf_get(&pframe->common.buf);
-	if (ret) {
-		pr_err("fail to get ion copy buffer\n");
-		return ret;
-	}
-
-	ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
-	if (ret)
-		pr_err("fail to enqueue copy buffer\n");
-
-	return ret;
-}
-
-int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
-{
-	int ret = 0;
-	uint32_t i = 0, total = 0, size = 0, width = 0, height = 0, ch_id = 0;
-	struct cam_copy_node *node = NULL;
-	struct cam_frame *pframe = NULL;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid input ptr %px %px\n", handle, param);;
-		return -1;
-	}
-
-	node = (struct cam_copy_node *)handle;
-
-	total = param->cam_copy_buf_alloc_num;
-	if (total == 0)
-		return ret;
-	height = param->height;
-	width = param->width;
-	ch_id = param->ch_id;
-	size = cal_sprd_size(width, height, CAM_RAW_PACK_10);
-
-	pr_info("port:%s, cam%d, ch_id %d, buffer size: %u (%u x %u), num %d\n",
-		cam_port_name_get(node->node_id), param->cam_idx, ch_id, size, width, height, total);
-
-	for (i = 0; i < total; i++) {
-		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-		if (!pframe) {
-			pr_err("fail to get frame\n");
-			ret = -EINVAL;
-			break;
-		}
-		pframe->common.channel_id = param->ch_id;
-		pframe->common.is_compressed = param->compress_en;
-		pframe->common.width = width;
-		pframe->common.height = height;
-		ret = cam_buf_alloc(&pframe->common.buf, size, param->iommu_enable);
-		if (ret) {
-			pr_err("fail to alloc buf: %d ch %d\n",
-				i, param->ch_id);
-			cam_queue_empty_frame_put(pframe);
-			continue;
-		}
-
-		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
-		pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
-		ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
-	}
-
-	return ret;
-}
-
-int cam_copy_outbuf_back(void *handle, void *param)
-{
-	int ret = 0;
-	struct cam_copy_node *node = NULL;
-	struct cam_frame *pframe = NULL;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid input ptr %px %px\n", handle, param);
-		return -EFAULT;
-	}
-
-	node = (struct cam_copy_node *)handle;
-	pframe = (struct cam_frame *)param;
-
-	ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
-
-	return ret;
-}
-
-int cam_copy_cfg_param(void *handle, void *param)
-{
-	int ret = 0;
-	struct cam_copy_node *node = NULL;
-	struct cam_capture_param *cap_param = NULL;
-
-	if (!handle) {
-		pr_err("fail to get valid input ptr %px\n", handle);
-		return -EFAULT;
-	}
-
-	node = (struct cam_copy_node *)handle;
-	cap_param = (struct cam_capture_param *)param;
-
-	node->cap_param.cap_type = cap_param->cap_type;
-	node->cap_param.cap_cnt = cap_param->cap_cnt;
-	node->cap_param.cap_timestamp = cap_param->cap_timestamp;
-	node->cap_param.cap_user_crop = cap_param->cap_user_crop;
-	node->cap_param.zsl_num = cap_param->zsl_num;
-	node->cap_param.frm_sel_mode = cap_param->frm_sel_mode;
-	pr_info("cap type %d, cnt %d, time %lld, frm_sel_mode:%d, zsl_num:%d\n", node->cap_param.cap_type,
-		atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp, cap_param->frm_sel_mode,
-		cap_param->zsl_num);
-
-	return ret;
-}
-
-int cam_copy_node_set_icap_scene(void *handle, void *param)
-{
-	int ret = 0;
-	struct cam_copy_node *node = NULL;
-	uint32_t icap_buffer_num = 0;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid inptr %p, %p\n", handle, param);
-		return -EFAULT;
-	}
-
-	icap_buffer_num = *(uint32_t *)param;
-	node = (struct cam_copy_node *)handle;
-	node->copy_flag = CAM_ENABLE;
-	node->cache_num = icap_buffer_num ;
-	node->scene_id = CAM_COPY_ICAP_SCENE;
-
-	return ret;
-}
-
-
-int cam_copy_node_set_pre_raw_flag(void *handle, void *param)
-{
-	int ret = 0;
-	uint32_t pre_raw_flag = 0;
-	struct cam_copy_node *node = NULL;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid inptr %p, %p\n", handle, param);
-		return -EFAULT;
-	}
-
-	pre_raw_flag = *(uint32_t *)param;
-	node = (struct cam_copy_node *)handle;
-	node->pre_raw_flag = pre_raw_flag;
-	atomic_set(&node->opt_frame_done, 0);
-
-	return ret;
-}
-
-int cam_copy_node_set_opt_scene(void *handle, void *param)
-{
-	int ret = 0;
-	uint32_t opt_buffer_num = 0;
-	struct cam_copy_node *node = NULL;
-
-	if (!handle || !param) {
-		pr_err("fail to get valid inptr %p, %p\n", handle, param);
-		return -EFAULT;
-	}
-
-	opt_buffer_num = *(uint32_t *)param;
-	node = (struct cam_copy_node *)handle;
-	node->copy_flag = CAM_ENABLE;
-	node->opt_buffer_num = opt_buffer_num;
-	node->scene_id = CAM_COPY_OPT_SCENE;
-
-	return ret;
-}
-
 static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 {
 	int i = 0, ret = 0;
@@ -404,6 +219,191 @@ static int camcopy_node_frame_start(void *param)
 	}
 
 	ret = camcopy_node_copy_frame(node, loop_num);
+
+	return ret;
+}
+
+int cam_copy_node_buffer_cfg(void *handle, void *param)
+{
+	int ret = 0;
+	struct cam_copy_node *node = NULL;
+	struct cam_frame *pframe = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	node = (struct cam_copy_node *)handle;
+	node->copy_flag = CAM_ENABLE;
+	pframe = (struct cam_frame *)param;
+	ret = cam_buf_ionbuf_get(&pframe->common.buf);
+	if (ret) {
+		pr_err("fail to get ion copy buffer\n");
+		return ret;
+	}
+
+	ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
+	if (ret)
+		pr_err("fail to enqueue copy buffer\n");
+
+	return ret;
+}
+
+int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
+{
+	int ret = 0;
+	uint32_t i = 0, total = 0, size = 0, width = 0, height = 0, ch_id = 0;
+	struct cam_copy_node *node = NULL;
+	struct cam_frame *pframe = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);;
+		return -1;
+	}
+
+	node = (struct cam_copy_node *)handle;
+
+	total = param->cam_copy_buf_alloc_num;
+	if (total == 0)
+		return ret;
+	height = param->height;
+	width = param->width;
+	ch_id = param->ch_id;
+	size = cal_sprd_size(width, height, CAM_RAW_PACK_10);
+
+	pr_info("port:%s, cam%d, ch_id %d, buffer size: %u (%u x %u), num %d\n",
+		cam_port_name_get(node->node_id), param->cam_idx, ch_id, size, width, height, total);
+
+	for (i = 0; i < total; i++) {
+		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		if (!pframe) {
+			pr_err("fail to get frame\n");
+			ret = -EINVAL;
+			break;
+		}
+		pframe->common.channel_id = param->ch_id;
+		pframe->common.is_compressed = param->compress_en;
+		pframe->common.width = width;
+		pframe->common.height = height;
+		ret = cam_buf_alloc(&pframe->common.buf, size, param->iommu_enable);
+		if (ret) {
+			pr_err("fail to alloc buf: %d ch %d\n",
+				i, param->ch_id);
+			cam_queue_empty_frame_put(pframe);
+			continue;
+		}
+
+		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+		pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
+		ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
+	}
+
+	return ret;
+}
+
+int cam_copy_outbuf_back(void *handle, void *param)
+{
+	int ret = 0;
+	struct cam_copy_node *node = NULL;
+	struct cam_frame *pframe = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);
+		return -EFAULT;
+	}
+
+	node = (struct cam_copy_node *)handle;
+	pframe = (struct cam_frame *)param;
+
+	ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
+
+	return ret;
+}
+
+int cam_copy_cfg_param(void *handle, void *param)
+{
+	int ret = 0;
+	struct cam_copy_node *node = NULL;
+	struct cam_capture_param *cap_param = NULL;
+
+	if (!handle) {
+		pr_err("fail to get valid input ptr %px\n", handle);
+		return -EFAULT;
+	}
+
+	node = (struct cam_copy_node *)handle;
+	cap_param = (struct cam_capture_param *)param;
+
+	node->cap_param.cap_type = cap_param->cap_type;
+	node->cap_param.cap_cnt = cap_param->cap_cnt;
+	node->cap_param.cap_timestamp = cap_param->cap_timestamp;
+	node->cap_param.cap_user_crop = cap_param->cap_user_crop;
+	node->cap_param.zsl_num = cap_param->zsl_num;
+	node->cap_param.frm_sel_mode = cap_param->frm_sel_mode;
+	pr_info("cap type %d, cnt %d, time %lld, frm_sel_mode:%d, zsl_num:%d\n", node->cap_param.cap_type,
+		atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp, cap_param->frm_sel_mode,
+		cap_param->zsl_num);
+
+	return ret;
+}
+
+int cam_copy_node_set_icap_scene(void *handle, void *param)
+{
+	int ret = 0;
+	struct cam_copy_node *node = NULL;
+	uint32_t icap_buffer_num = 0;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	icap_buffer_num = *(uint32_t *)param;
+	node = (struct cam_copy_node *)handle;
+	node->copy_flag = CAM_ENABLE;
+	node->cache_num = icap_buffer_num ;
+	node->scene_id = CAM_COPY_ICAP_SCENE;
+
+	return ret;
+}
+
+
+int cam_copy_node_set_pre_raw_flag(void *handle, void *param)
+{
+	int ret = 0;
+	uint32_t pre_raw_flag = 0;
+	struct cam_copy_node *node = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	pre_raw_flag = *(uint32_t *)param;
+	node = (struct cam_copy_node *)handle;
+	node->pre_raw_flag = pre_raw_flag;
+	atomic_set(&node->opt_frame_done, 0);
+
+	return ret;
+}
+
+int cam_copy_node_set_opt_scene(void *handle, void *param)
+{
+	int ret = 0;
+	uint32_t opt_buffer_num = 0;
+	struct cam_copy_node *node = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	opt_buffer_num = *(uint32_t *)param;
+	node = (struct cam_copy_node *)handle;
+	node->copy_flag = CAM_ENABLE;
+	node->opt_buffer_num = opt_buffer_num;
+	node->scene_id = CAM_COPY_OPT_SCENE;
 
 	return ret;
 }

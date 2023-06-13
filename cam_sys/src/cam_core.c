@@ -525,7 +525,8 @@ static struct cam_frame *camcore_dual_frame_deal(void *param, void *priv_data, i
 			*frame_flag = CAM_FRAME_DEAL;
 		}
 	} else {
-		if (pframe->common.boot_sensor_time < module->capture_times)
+		if ((module->cap_frame_id && pframe->common.fid < module->cap_frame_id)
+			|| (!module->cap_frame_id && pframe->common.boot_sensor_time < module->capture_times))
 			*frame_flag = CAM_FRAME_NO_DEAL;
 		else {
 			if (atomic_read(&module->dual_select_frame_done) == 0) {
@@ -763,14 +764,14 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		if (pframe->common.irq_property == CAM_FRAME_PROCESS_RAW)
 			pframe->common.irq_type = CAMERA_IRQ_RAW_BPC_IMG;
 		pframe->common.priv_data = module;
-		ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
+		ret = CAM_QUEUE_ENQUEUE(&module->img_queue, &pframe->list);
 		if (ret) {
-			pr_err("fail to frm_queue overflow\n");
+			pr_err("fail to img_queue overflow\n");
 			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 			if (ret)
 				pr_err("fail to enqueue recycle_pool\n");
 		} else {
-			complete(&module->frm_com);
+			complete(&module->img_com);
 		}
 		break;
 	case CAM_CB_DCAM_STATIS_DONE:
@@ -877,11 +878,11 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				} else {
 					pframe->common.irq_type = CAMERA_IRQ_IMG;
 				}
-				ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &pframe->list);
+				ret = CAM_QUEUE_ENQUEUE(&module->img_queue, &pframe->list);
 				if (ret)
 					ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 				else
-					complete(&module->frm_com);
+					complete(&module->img_com);
 			}
 		} else
 			ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
@@ -1585,12 +1586,12 @@ static void camcore_timer_callback(unsigned long data)
 				frame->common.irq_type = CAMERA_IRQ_IMG;
 				frame->common.irq_property = IRQ_MAX_DONE;
 			}
-			ret = CAM_QUEUE_ENQUEUE(&module->frm_queue, &frame->list);
+			ret = CAM_QUEUE_ENQUEUE(&module->img_queue, &frame->list);
 			if (ret)
 				pr_err("fail to enqueue frm queue cnt:%d, state:%d.\n",
-					module->frm_queue.cnt, module->frm_queue.state);
+					module->img_queue.cnt, module->img_queue.state);
 			else
-				complete(&module->frm_com);
+				complete(&module->img_com);
 		} else {
 			module->timeout_num++;
 			/*TODO csi reg print*/
@@ -1812,6 +1813,7 @@ static int camcore_module_init(struct camera_module *module)
 	mutex_init(&module->ioctl_lock);
 	mutex_init(&module->zoom_lock);
 	init_completion(&module->frm_com);
+	init_completion(&module->img_com);
 	init_completion(&module->postproc_done);
 
 	module->capture_type = CAM_CAPTURE_STOP;
@@ -1828,6 +1830,7 @@ static int camcore_module_init(struct camera_module *module)
 	camcore_timer_init(&module->cam_timer, (unsigned long)module);
 	/* no need release buffer, only release camera_frame */
 	CAM_QUEUE_INIT(&module->frm_queue, CAM_FRAME_Q_LEN, cam_queue_empty_frame_put);
+	CAM_QUEUE_INIT(&module->img_queue, CAM_IMG_Q_LEN, cam_queue_empty_frame_put);
 	CAM_QUEUE_INIT(&module->alloc_queue, CAM_ALLOC_Q_LEN, cam_queue_empty_frame_put);
 
 	pr_info("module[%d] init OK %px!\n", module->idx, module);
@@ -1843,6 +1846,7 @@ static int camcore_module_deinit(struct camera_module *module)
 	cam_flash_handle_put(module->flash_core_handle);
 	CAM_QUEUE_CLEAN(&module->frm_queue, struct cam_frame, list);
 	CAM_QUEUE_CLEAN(&module->alloc_queue, struct cam_frame, list);
+	CAM_QUEUE_CLEAN(&module->img_queue, struct cam_frame, list);
 
 	for (ch = 0; ch < CAM_CH_MAX; ch++) {
 		channel = &module->channel[ch];
@@ -2325,25 +2329,45 @@ static ssize_t camcore_read(struct file *file, char __user *u_data,
 			read_op.parm.reserved[2]);
 		break;
 	case SPRD_IMG_GET_FRM_BUFFER:
+	case SPRD_IMG_GET_IMG_BUFFER:
 rewait:
-		memset(&read_op, 0, sizeof(struct sprd_img_read_op));
-		while (1) {
-			ret = wait_for_completion_interruptible(&module->frm_com);
-			if (ret == 0) {
-				break;
-			} else if (ret == -ERESTARTSYS) {
-				read_op.evt = IMG_SYS_BUSY;
-				ret = 0;
-				goto read_end;
-			} else {
-				pr_err("read frame buf, fail to down, %d\n", ret);
-				return -EPERM;
+		if (read_op.cmd == SPRD_IMG_GET_FRM_BUFFER) {
+			memset(&read_op, 0, sizeof(struct sprd_img_read_op));
+			while (1) {
+				ret = wait_for_completion_interruptible(&module->frm_com);
+				if (ret == 0) {
+					break;
+				} else if (ret == -ERESTARTSYS) {
+					read_op.evt = IMG_SYS_BUSY;
+					ret = 0;
+					goto read_end;
+				} else {
+					pr_err("read frame buf, fail to down, %d\n", ret);
+					return -EPERM;
+				}
 			}
+			cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
+			cam_queue_frame_check_lock();
+			pframe = CAM_QUEUE_DEQUEUE(&module->frm_queue, struct cam_frame, list);
+		} else {
+			memset(&read_op, 0, sizeof(struct sprd_img_read_op));
+			while (1) {
+				ret = wait_for_completion_interruptible(&module->img_com);
+				if (ret == 0) {
+					break;
+				} else if (ret == -ERESTARTSYS) {
+					read_op.evt = IMG_SYS_BUSY;
+					ret = 0;
+					goto read_end;
+				} else {
+					pr_err("read img buf, fail to down, %d\n", ret);
+					return -EPERM;
+				}
+			}
+			cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
+			cam_queue_frame_check_lock();
+			pframe = CAM_QUEUE_DEQUEUE(&module->img_queue, struct cam_frame, list);
 		}
-
-		cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
-		cam_queue_frame_check_lock();
-		pframe = CAM_QUEUE_DEQUEUE(&module->frm_queue, struct cam_frame, list);
 		if (!pframe) {
 			/* any exception happens or user trigger exit. */
 			pr_info("No valid frame buffer. tx stop.\n");
@@ -2535,6 +2559,7 @@ static ssize_t camcore_write(struct file *file, const char __user *u_data,
 	case SPRD_IMG_STOP_DCAM:
 		pr_info("user stop camera %d\n", module->idx);
 		complete(&module->frm_com);
+		complete(&module->img_com);
 		break;
 	default:
 		pr_err("fail to get write cmd %d\n", write_op.cmd);

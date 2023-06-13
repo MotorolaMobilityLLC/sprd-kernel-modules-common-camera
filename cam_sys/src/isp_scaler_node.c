@@ -334,8 +334,8 @@ static int ispscaler_node_slice_base_cfg(void *cfg_in, void *slice_ctx, uint32_t
 	}
 
 	memset(slc_ctx, 0, sizeof(struct isp_slice_context));
-	ispslice_slice_base_info_cfg(in_ptr, slc_ctx);
-	ispslice_slice_scaler_info_cfg(in_ptr, slc_ctx);
+	isp_slice_base_info_cfg(in_ptr, slc_ctx);
+	isp_slice_scaler_info_cfg(in_ptr, slc_ctx);
 
 	*valid_slc_num = 0;
 	for (i = 0; i < SLICE_NUM_MAX; i++) {
@@ -406,8 +406,8 @@ static int ispscaler_node_slice_info_cfg(void *cfg_in, struct isp_slice_context 
 	}
 
 	in_ptr = (struct slice_cfg_input *)cfg_in;
-	ispslice_fetch_info_cfg(cfg_in, slc_ctx);
-	ispslice_store_info_cfg(cfg_in, slc_ctx);
+	isp_slice_fetch_info_cfg(cfg_in, slc_ctx);
+	isp_slice_store_info_cfg(cfg_in, slc_ctx);
 
 	return 0;
 }

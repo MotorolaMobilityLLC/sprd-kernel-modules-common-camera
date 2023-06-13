@@ -607,7 +607,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 	case MODE_LTM_PRE:
 		ret = ispltm_histo_config_gen(ctx, &ltm_info->ltm_stat);
 		if (ret < 0) {
-			pr_err("faill to preview hist config, ctx id %d, fid %d\n", ctx->ctx_id, ctx->fid);
+			pr_err("fail to preview hist config, ctx id %d, fid %d\n", ctx->ctx_id, ctx->fid);
 			break;
 		}
 		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_PRE_PARAM);

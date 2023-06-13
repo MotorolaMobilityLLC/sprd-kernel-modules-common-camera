@@ -70,37 +70,37 @@ static struct debug_cmd debug_cmd_tab[] = {
 	{"offline_dec_bypass", camdebugger_isp_pyr_dec_bypass_write, camdebugger_isp_pyr_dec_bypass_read, HW_CTX_MAX, IP_MAX},
 };
 
-static int camdebugger_strtok(char *buf, char *name, char *val, char *tag)
+static int camdebugger_strtok(char *buf, struct debug_ops *debug_data)
 {
 	uint32_t j = 0;
 	uint32_t k = 0;
 	uint32_t i = 0;
 
-	for (i = 0; i < sizeof(name) - 1; i++) {
+	for (i = 0; i < sizeof(debug_data->name) - 1; i++) {
 		if ('\0' == buf[i] || ' ' == buf[i] || ':' == buf[i] || '\n' == buf[i])
 			break;
-		name[i] = buf[i];
+		debug_data->name[i] = buf[i];
 	}
-	name[i] = '\0';
+	debug_data->name[i] = '\0';
 	i++;
 
-	for (j = 0; j < sizeof(val) - 1; i++, j++) {
+	for (j = 0; j < sizeof(debug_data->val) - 1; i++, j++) {
 		if ('\0' == buf[i] || ' ' == buf[i] || ':' == buf[i] || '\n' == buf[i])
 			break;
-		val[j] = buf[i];
+		debug_data->val[j] = buf[i];
 	}
 
 	if(j == 0)
 		return -1;
-	val[j] = '\0';
+	debug_data->val[j] = '\0';
 	i++;
 
-	for (k = 0; k < sizeof(tag) - 1; i++, k++) {
+	for (k = 0; k < sizeof(debug_data->tag) - 1; i++, k++) {
 		if ('\0' == buf[i] || ' ' == buf[i] || ':' == buf[i] || '\n' == buf[i])
 			break;
-		tag[k] = buf[i];
+		debug_data->tag[k] = buf[i];
 	}
-	tag[k] = '\0';
+	debug_data->tag[k] = '\0';
 
 	return 0;
 }
@@ -139,11 +139,9 @@ static ssize_t camdebugger_input_write(struct file *filp,
 	struct seq_file *p = (struct seq_file *)filp->private_data;
 	struct cam_hw_info *hw = (struct cam_hw_info *)p->private;
 	struct debug_cmd debug_info = {0};
+	struct debug_ops debug_data = {0};
 	char buf[256];
 	uint32_t i = 0;
-	char name[20] = {0};
-	char val[16] = {0};
-	char tag[16] = {0};
 	int ret = 0;
 
 	memset(buf, 0x00, sizeof(buf));
@@ -159,12 +157,13 @@ static ssize_t camdebugger_input_write(struct file *filp,
 	}
 	buf[i] = '\0';
 
-	ret = camdebugger_strtok(buf, name, val, tag);
+	ret = camdebugger_strtok(buf, &debug_data);
+
 	if (ret < 0) {
-		g_dbg_readinfo = debug_fun_get(name, NULL);
+		g_dbg_readinfo = debug_fun_get(&debug_data.name[0], NULL);
 		return count;
 	}
-	debug_info = debug_fun_get(name, tag);
+	debug_info = debug_fun_get(&debug_data.name[0], &debug_data.tag[0]);
 	if (!debug_info.write_fun) {
 		if (debug_info.ip_info == IP_DCAM)
 			debug_info.write_fun = camdebugger_dcam_bypass_write;
@@ -175,7 +174,7 @@ static ssize_t camdebugger_input_write(struct file *filp,
 			return count;
 		}
 	}
-	debug_info.write_fun(hw, name, val, debug_info.hw_ctx);
+	debug_info.write_fun(hw, &debug_data.name[0], &debug_data.val[0], debug_info.hw_ctx);
 	g_dbg_readinfo = debug_info;
 
 	return count;

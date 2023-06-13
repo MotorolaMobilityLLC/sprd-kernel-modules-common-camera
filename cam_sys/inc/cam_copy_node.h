@@ -62,15 +62,15 @@ struct cam_copy_node {
 	struct cam_capture_param cap_param;
 };
 
-int cam_copy_node_request_proc(struct cam_copy_node *node, void *param);
-void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param);
-void cam_copy_node_put(struct cam_copy_node *node);
 int cam_copy_node_buffer_cfg(void *handle, void *param);
-int cam_copy_node_set_pre_raw_flag(void *handle, void *param);
-int cam_copy_node_set_opt_scene(void *handle, void *param);
-int cam_copy_node_set_icap_scene(void *handle, void *param);
 int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param);
 int cam_copy_outbuf_back(void *handle, void *param);
 int cam_copy_cfg_param(void *handle, void *param);
+int cam_copy_node_set_icap_scene(void *handle, void *param);
+int cam_copy_node_set_pre_raw_flag(void *handle, void *param);
+int cam_copy_node_set_opt_scene(void *handle, void *param);
+int cam_copy_node_request_proc(struct cam_copy_node *node, void *param);
+void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param);
+void cam_copy_node_put(struct cam_copy_node *node);
 
 #endif

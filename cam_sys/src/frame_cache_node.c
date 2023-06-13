@@ -71,10 +71,11 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 	struct cam_frame *pftmp = NULL;
 
 	pftmp = pframe;
-	if (node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL &&
-		pframe->common.boot_sensor_time >= node->cap_param.cap_timestamp) {
+	if ((node->cap_param.fid && pftmp->common.fid >= node->cap_param.fid)
+		|| (!node->cap_param.fid && node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL
+		&& pftmp->common.boot_sensor_time >= node->cap_param.cap_timestamp))
 		framecache_capzslframe_deal(node);
-	}
+
 	pframe->common.priv_data = node;
 	CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
 	if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
@@ -85,8 +86,9 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 
-	if (node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL &&
-		pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp)
+	if ((node->cap_param.fid && pftmp->common.fid < node->cap_param.fid)
+		|| (!node->cap_param.fid && node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL
+		&& pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp))
 		return NULL;
 
 	do {
@@ -112,9 +114,10 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 				break;
 			}
 		} else {
-			if (pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp) {
+			if ((node->cap_param.fid && pftmp->common.fid < node->cap_param.fid)
+				|| (!node->cap_param.fid && pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp))
 				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
-			} else
+			else
 				break;
 		}
 	} while (pftmp);
@@ -286,6 +289,7 @@ int frame_cache_cfg_param(void *handle, uint32_t cmd, void *param)
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		node->cap_param.zsl_num = cap_param->zsl_num;
 		node->cap_param.frm_sel_mode = cap_param->frm_sel_mode;
+		node->cap_param.fid = cap_param->fid;
 		pr_info("cap type %d, cnt %d, time %lld, frm_sel_mode:%d, zsl_num:%d\n", node->cap_param.cap_type,
 			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp, cap_param->frm_sel_mode,
 			cap_param->zsl_num);

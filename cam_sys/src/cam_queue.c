@@ -71,7 +71,7 @@ static int camqueue_frame_state_clear(struct cam_frame *pframe)
 /* in irq handler, may return NULL if alloc failed
  * else: will always retry alloc and return valid frame
  */
-static int cam_queue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
+static int camqueue_frame_alloc(struct cam_queue_frame_manager *frame_manager)
 {
 	struct cam_frame *frame_array = NULL;
 	int32_t ret = 0, j = 0;
@@ -260,11 +260,11 @@ struct cam_frame *cam_queue_empty_frame_get(enum camera_frame_type type)
 
 	pr_debug("Enter.\n");
 	if (CAM_QUEUE_CNT_GET(&g_frame_manager->empty_frame_q) <= CAM_EMP_ARRAT_LEN_PER(struct cam_frame) && !in_interrupt())
-		cam_queue_frame_alloc(g_frame_manager);
+		camqueue_frame_alloc(g_frame_manager);
 	do {
 		pframe = CAM_QUEUE_DEQUEUE(&g_frame_manager->empty_frame_q, struct cam_frame, list);
 		if (pframe == NULL) {
-			ret = cam_queue_frame_alloc(g_frame_manager);
+			ret = camqueue_frame_alloc(g_frame_manager);
 			if (ret) {
 				pr_err("fail to alloc frame\n");
 				break;

@@ -48,11 +48,6 @@ static const char *CAM_NODE_NAMES[CAM_NODE_TYPE_MAX] = {
 	[CAM_NODE_TYPE_DATA_COPY] = "CAM_NODE_TYPE_DATA_COPY",
 };
 
-const char *cam_node_name_get(enum cam_node_type type)
-{
-	return IS_CAM_NODE(type) ? CAM_NODE_NAMES[type] : "(null)";
-}
-
 static enum cam_en_status camnode_capture_skip_condition(struct cam_frame *pframe, struct cam_capture_param *cap_param)
 {
 	/* TBD： other scene need cover*/
@@ -95,15 +90,17 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 	cap_param = &node->cap_param;
 	frame_cache_node = (struct frame_cache_node *)node->handle;
 
-	pr_debug("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld cur_port_id %d w %d h %d\n",
+	pr_debug("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld fid %d frame_id %d cur_port_id %d w %d h %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
-			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp,
-			pframe->common.boot_sensor_time, cur_port_id, pframe->common.width, pframe->common.height);
+			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp, pframe->common.boot_sensor_time,
+			node->cap_param.fid, pframe->common.fid, cur_port_id, pframe->common.width, pframe->common.height);
 	switch (node->cap_param.cap_type) {
 	case CAM_CAPTURE_START:
 	case CAM_CAPTURE_START_3DNR:
-		if ((pframe->common.boot_sensor_time >= cap_param->cap_timestamp &&
-			camnode_capture_skip_condition(pframe, cap_param)) || (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.icap_scene))
+		if ((cap_param->fid && pframe->common.fid >= cap_param->fid)
+			|| (!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp &&
+			camnode_capture_skip_condition(pframe, cap_param))
+			|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.icap_scene))
 			pframe->common.link_to = cap_new_link;
 		else
 			pframe->common.link_to = cap_ori_link;
@@ -377,10 +374,12 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.no_need_skip_frame_scene = cap_param->no_need_skip_frame_scene;
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
-		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d\n",
+		node->cap_param.fid = cap_param->fid;
+		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, fid %d, opt_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
-			node->cap_param.skip_first_num, node->cap_param.cap_timestamp,  node->cap_param.cap_opt_frame_scene);
+			node->cap_param.skip_first_num, node->cap_param.cap_timestamp, node->cap_param.fid,
+			node->cap_param.cap_opt_frame_scene);
 		break;
 	case CAM_NODE_CFG_RECT_GET:
 	case CAM_NODE_CFG_STATIS:
@@ -643,9 +642,10 @@ static int camnode_cfg_node_param_dcam_fetch(void *handle, enum cam_node_cfg_cmd
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
-		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, time %lld\n", cam_node_name_get(node->node_graph->type),
+		node->cap_param.fid = cap_param->fid;
+		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, time %lld, fid %d\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
-			node->cap_param.cap_timestamp);
+			node->cap_param.cap_timestamp, node->cap_param.fid);
 		break;
 	case CAM_NODE_CFG_BUF:
 	case CAM_NODE_CFG_RECT_GET:
@@ -810,9 +810,10 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
-		pr_info("node type %s id %d cap type %d, scene %d, cnt %d, time %lld opt_frame %d\n", cam_node_name_get(node->node_graph->type),
+		node->cap_param.fid = cap_param->fid;
+		pr_info("node type %s id %d cap type %d, scene %d, cnt %d, time %lld opt_frame %d, fid %d\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
-			node->cap_param.cap_timestamp, node->cap_param.cap_opt_frame_scene);
+			node->cap_param.cap_timestamp, node->cap_param.cap_opt_frame_scene, node->cap_param.fid);
 		ret = frame_cache_cfg_param(node->handle, cmd, in_param->param);
 		break;
 	case CAM_NODE_CFG_CLR_CACHE_BUF:
@@ -922,6 +923,7 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
 		node->cap_param.icap_scene = cap_param->icap_scene;
+		node->cap_param.fid = cap_param->fid;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d icap_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
@@ -1349,6 +1351,11 @@ static int camnode_port_cfg_callback(void *param, uint32_t cmd, void *cb_handle)
 
 exit:
 	return ret;
+}
+
+const char *cam_node_name_get(enum cam_node_type type)
+{
+	return IS_CAM_NODE(type) ? CAM_NODE_NAMES[type] : "(null)";
 }
 
 int cam_node_work_state_get(struct cam_node_topology *param, uint32_t g_dump_en, uint32_t *g_replace_en)
