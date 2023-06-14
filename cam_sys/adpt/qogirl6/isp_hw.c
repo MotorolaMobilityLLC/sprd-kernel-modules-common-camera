@@ -2017,8 +2017,8 @@ static int isphw_slice_nr_info(void *handle, void *arg)
 
 	/* NLM */
 	addr = ISP_NLM_RADIAL_1D_DIST;
-	cmd = ((info->cur_slc->slice_nlm.center_y_relative & 0x3FFF) << 16) |
-		(info->cur_slc->slice_nlm.center_x_relative & 0x3FFF);
+	cmd = ((info->cur_slc->slice_nlm.center_y_relative & 0x7FFF) << 16) |
+		(info->cur_slc->slice_nlm.center_x_relative & 0x7FFF);
 	ISP_REG_WR(info->ctx_id, addr, cmd);
 
 	/* Post CDN */
@@ -2453,8 +2453,8 @@ static int isphw_slice_nr_info_set(void *handle, void *arg)
 	nrarg = (struct isp_hw_set_slice_nr_info *)arg;
 	/* NLM */
 	addr = ISP_GET_REG(ISP_NLM_RADIAL_1D_DIST);
-	cmd = ((nrarg->slice_nlm->center_y_relative & 0x3FFF) << 16) |
-		(nrarg->slice_nlm->center_x_relative & 0x3FFF);
+	cmd = ((nrarg->slice_nlm->center_y_relative & 0x7FFF) << 16) |
+		(nrarg->slice_nlm->center_x_relative & 0x7FFF);
 	FMCU_PUSH(nrarg->fmcu, addr, cmd);
 
 	/* Post CDN */

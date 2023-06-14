@@ -868,10 +868,17 @@ static int ispslice_slice_nr_info_cfg(
 		if (cur_slc->valid == 0)
 			continue;
 
-		start_col = cur_slc->slice_pos.start_col;
-		start_row = cur_slc->slice_pos.start_row;
-		end_col = cur_slc->slice_pos.end_col;
-		end_row = cur_slc->slice_pos.end_row;
+		if (in_ptr->sw_slice_num) {
+			start_col = cur_slc->slice_pos.start_col + in_ptr->frame_fetch->in_trim.start_x;
+			start_row = cur_slc->slice_pos.start_row + in_ptr->frame_fetch->in_trim.start_y;
+			end_col = cur_slc->slice_pos.end_col + in_ptr->frame_fetch->in_trim.start_x;
+			end_row = cur_slc->slice_pos.end_row + in_ptr->frame_fetch->in_trim.start_y;
+		} else {
+			start_col = cur_slc->slice_pos.start_col;
+			start_row = cur_slc->slice_pos.start_row;
+			end_col = cur_slc->slice_pos.end_col;
+			end_row = cur_slc->slice_pos.end_row;
+		}
 
 		/* NLM */
 		cur_slc->slice_nlm.center_x_relative = in_ptr->nlm_center_x - start_col;

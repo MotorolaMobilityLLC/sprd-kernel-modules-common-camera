@@ -891,7 +891,7 @@ static int ispnode_start_proc(void *node)
 	pctx_hw->wmode = dev->wmode;
 	pctx_hw->valid_slc_num = 0;
 	if (pctx_hw->fmcu_handle || slice_need) {
-		ret = isp_hwctx_slice_ctx_init(pctx_hw, &pctx_hw->pipe_info);
+		ret = isp_hwctx_slice_ctx_init(pctx_hw, &pctx_hw->pipe_info, port_cfg.src_frame->common.slice_info.slice_num);
 		if (ret) {
 			pr_err("fail to slice ctx init\n");
 		}

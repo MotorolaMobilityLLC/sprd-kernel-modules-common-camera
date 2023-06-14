@@ -86,7 +86,7 @@ int isp_hwctx_scaler_set(void *handle, int path_id, uint32_t *param);
 int isp_hwctx_store_set(void *handle, int path_id);
 uint32_t isp_hwctx_hw_start(struct isp_hw_context *pctx_hw, void *dev_handle, struct isp_start_param *param);
 uint32_t isp_hwctx_fmcu_reset(void *handle);
-int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_info *pipe_info);
+int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_info *pipe_info, uint32_t sw_slice_num);
 int isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input *slc_cfg);
 int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, struct isp_start_param *param);
 int isp_hwctx_hist2_frame_prepare(void *buf, uint32_t hw_idx, void *isp_handle);

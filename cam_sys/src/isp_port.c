@@ -1364,6 +1364,11 @@ static int ispport_blksize_get(struct isp_port *port, void *param)
 		size_desc->new_height = port->original.dst_size.h;
 		size_desc->old_width = port->original.src_trim.size_x;
 		size_desc->old_height = port->original.src_trim.size_y;
+	} else if (port->slice_info.slice_num) {
+		size_desc->new_width = port->size.w;
+		size_desc->new_height = port->size.h;
+		size_desc->old_width = port->size.w;
+		size_desc->old_height = port->size.h;
 	} else {
 		size_desc->old_width = port->trim.size_x;
 		size_desc->old_height = port->trim.size_y;
