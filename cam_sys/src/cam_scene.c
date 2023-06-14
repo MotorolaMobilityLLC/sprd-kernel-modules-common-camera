@@ -2371,11 +2371,9 @@ int cam_scene_ispoffline_desc_get(void *module_ptr, void *channel_ptr,
 		isp_node_description->in_fmt = cam_format_get(channel->ch_uinfo.dst_fmt);
 		if (channel->ch_id == CAM_CH_CAP && channel->isp_port_id == PORT_VID_OUT)
 			isp_node_description->vid_cap_en = CAM_ENABLE;
-	} else {
+	} else
 		isp_node_description->in_fmt = channel->dcam_out_fmt;
-		if ((module->cam_uinfo.alg_type != ALG_TYPE_DEFAULT) && (channel->ch_id == CAM_CH_CAP))
-			isp_node_description->in_fmt = CAM_YUV420_2FRAME_MIPI;
-	}
+
 	isp_node_description->pyr_out_fmt = hw->ip_dcam[0]->dcamhw_abt->store_pyr_fmt;
 	isp_node_description->store_3dnr_fmt = hw->ip_dcam[0]->dcamhw_abt->store_3dnr_fmt[0];
 	temp_format = channel->ch_uinfo.dcam_raw_fmt;

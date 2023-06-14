@@ -1336,7 +1336,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		break;
 	}
 
-	pr_debug("done\n");
+	pr_debug("done path_id %d, fmt %d\n", patharg->path_id, hwfmt);
 	return 0;
 }
 
