@@ -1946,6 +1946,7 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 		postproc_param->need_cfg_isp = 1;
 		postproc_param->need_update_zoom = 1;
 		postproc_param->isp_port_id = PORT_VID_OUT;
+		postproc_param->isp_node_id = ISP_NODE_MODE_CAP_ID;
 	} else {
 		postproc_param->src_frm = pfrm[0];
 		postproc_param->mid_frm = pfrm[1];
