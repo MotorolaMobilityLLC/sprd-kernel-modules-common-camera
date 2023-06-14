@@ -903,6 +903,9 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 	case CAM_NODE_CFG_BUF:
 		ret = cam_copy_node_buffer_cfg(node->handle, in_param->param);
 		break;
+	case CAM_NODE_CFG_BUF_NUM:
+		ret = cam_copy_node_buffer_num(node->handle, in_param->param);
+		break;
 	case CAM_NODE_CFG_PRE_RAW_FLAG:
 		ret = cam_copy_node_set_pre_raw_flag(node->handle, in_param->param);
 		break;

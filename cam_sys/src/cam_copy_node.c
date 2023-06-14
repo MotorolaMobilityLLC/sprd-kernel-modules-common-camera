@@ -102,6 +102,7 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 					pr_err("fail to kmap out buf\n");
 					goto out_frame_kmap_fail;
 				}
+				atomic_dec(&node->icap_cap_num);
 				memcpy((char *)out_frame->common.buf.addr_k, (char *)in_frame->common.buf.addr_k, out_frame->common.buf.size);
 				/* use SOF time instead of ISP time for better accuracy */
 				out_frame->common.width = in_frame->common.width;
@@ -202,10 +203,11 @@ static int camcopy_node_frame_start(void *param)
 					pr_err("fail to dequeue frame for node %d\n", node->node_id);
 					return -EFAULT;
 				}
-			}
+			} else
+				return ret;
 		}
 		pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
-		if (atomic_read(&node->cap_param.cap_cnt) == 0) {
+		if (atomic_read(&node->icap_cap_num) == 0) {
 			pr_debug("time or cnt canot meet the conditions\n");
 			pframe->common.copy_en = 0;
 			node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
@@ -298,6 +300,23 @@ int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 		pframe->common.buf.bypass_iova_ops = CAM_ENABLE;
 		ret = CAM_QUEUE_ENQUEUE(&node->out_queue, &pframe->list);
 	}
+
+	return ret;
+}
+
+int cam_copy_node_buffer_num(void *handle, void *param)
+{
+	int ret = 0;
+	struct cam_copy_node *node = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	node = (struct cam_copy_node *)handle;
+	atomic_inc(&node->icap_cap_num);
+	pr_debug("icap scene need copy num %d\n", atomic_read(&node->icap_cap_num));
 
 	return ret;
 }
@@ -484,6 +503,7 @@ void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param)
 	node->opt_buffer_num = 0;
 	node->scene_id = CAM_COPY_NORMAL_SCENE;
 	node->cache_num = 0;
+	atomic_set(&node->icap_cap_num, 0);
 
 	thrd = &node->thread;
 	sprintf(thrd->thread_name, "cam_copy_node%d", node->node_id);
