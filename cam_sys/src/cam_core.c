@@ -165,7 +165,6 @@ static int camcore_resframe_set(struct camera_module *module)
 			}
 		}
 	}
-	cam_scene_reserved_buf_cfg(RESERVED_BUF_SET_CB, pframe, module);
 	module->res_frame = pframe;
 
 	return ret;
@@ -688,7 +687,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	struct channel_context *channel = NULL;
 	struct dcam_online_node *dcam_online_node_dev = NULL;
 	struct cam_hw_reg_trace trace = {0};
-	struct cam_buf_pool_id recycle_pool = {CAM_BUF_POOL_ABNORAM_RECYCLE, 0, 0};
+	struct cam_buf_pool_id recycle_pool = {CAM_BUF_POOL_ABNORAM_RECYCLE, 0};
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -1947,6 +1946,7 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 		postproc_param->need_cfg_isp = 1;
 		postproc_param->need_update_zoom = 1;
 		postproc_param->isp_port_id = PORT_VID_OUT;
+		postproc_param->isp_node_id = ISP_NODE_MODE_CAP_ID;
 	} else {
 		postproc_param->src_frm = pfrm[0];
 		postproc_param->mid_frm = pfrm[1];
@@ -2279,7 +2279,7 @@ static ssize_t camcore_read(struct file *file, char __user *u_data,
 	struct channel_context *pchannel = NULL;
 	struct sprd_img_path_capability *cap = NULL;
 	struct dcam_online_node *dcam_online_node_dev = NULL;
-	struct cam_buf_pool_id recycle_pool = {CAM_BUF_POOL_ABNORAM_RECYCLE, 0, 0};
+	struct cam_buf_pool_id recycle_pool = {CAM_BUF_POOL_ABNORAM_RECYCLE, 0};
 
 	module = (struct camera_module *)file->private_data;
 	if (!module) {
@@ -2697,8 +2697,8 @@ static int camcore_open(struct inode *node, struct file *file)
 	if (ret < 0) {
 		pr_err("fail to init buf_manager\n");
 		goto buf_manager_fail;
-	} else
-		module->reserved_pool_id = ret;
+	}
+
 	if (atomic_read(&grp->camera_opened) == 1) {
 		cam_queue_empty_frame_init();
 		/* should check all needed interface here. */

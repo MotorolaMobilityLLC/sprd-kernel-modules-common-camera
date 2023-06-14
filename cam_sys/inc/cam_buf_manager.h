@@ -28,7 +28,6 @@
 
 struct cam_buf_pool_id {
 	uint32_t tag_id;
-	uint32_t reserved_pool_id;/*for reserved buffer*/
 	uint32_t private_pool_id;
 };
 

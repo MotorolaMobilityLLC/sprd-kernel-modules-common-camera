@@ -283,9 +283,9 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 		port->port_id, pframe->common.channel_id, pframe->common.fid, pframe->common.buf.mfd, pframe->common.is_reserved);
 	pr_debug("time_sensor %03d.%6d\n", (uint32_t)pframe->common.sensor_time.tv_sec, (uint32_t)pframe->common.sensor_time.tv_usec);
 
-	if (unlikely(pframe->common.is_reserved)) {
-		port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
-	} else if (pframe->common.state == ISP_STREAM_POST_PROC) {
+	if (unlikely(pframe->common.is_reserved))
+		cam_queue_empty_frame_put(pframe);
+	else if (pframe->common.state == ISP_STREAM_POST_PROC) {
 		pframe1 = cam_buf_manager_buf_dequeue(&port->store_unprocess_pool, NULL, port->buf_manager_handle);
 		if (!pframe1) {
 			pr_info("warning no frame get from queue\n");
@@ -329,13 +329,14 @@ static enum cam_en_status ispport_fid_check(struct cam_frame *frame, void *data)
 		|| frame->common.user_fid == target_fid;
 }
 
-static struct cam_frame *ispport_reserved_buf_get(reserved_buf_get_cb resbuf_get_cb, void *cb_data, void *path)
+static struct cam_frame *ispport_reserved_buf_get(reserved_buf_get_cb resbuf_get_cb,
+		void *cb_data, struct isp_port *port)
 {
 	struct cam_frame *frame = NULL;
 
 	if (resbuf_get_cb)
-		resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, cb_data);
-
+		resbuf_get_cb((void *)&frame, cb_data);
+	pr_debug("isp use reserved buffer for port %d\n", port->port_id);
 	return frame;
 }
 
@@ -533,7 +534,7 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 		pr_err("fail to enqueue, hw %d, port %d\n", port_cfg->hw_ctx_id, port->port_id);
 		/* ret frame to original queue */
 		if (out_frame->common.is_reserved) {
-			port->resbuf_get_cb(RESERVED_BUF_SET_CB, out_frame, port->resbuf_cb_data);
+			cam_queue_empty_frame_put(out_frame);
 		} else {
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
@@ -1408,7 +1409,7 @@ static int ispport_start_error(struct isp_port *port, void *param)
 		if (pframe) {
 			/* ret frame to original queue */
 			if (pframe->common.is_reserved)
-				port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
+				cam_queue_empty_frame_put(pframe);
 			else {
 				buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
 				ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
@@ -1534,7 +1535,7 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 			return 0;
 		}
 		if (unlikely(pframe->common.is_reserved)) {
-			port->resbuf_get_cb(RESERVED_BUF_SET_CB, pframe, port->resbuf_cb_data);
+			cam_queue_empty_frame_put(pframe);
 			return ret;
 		}
 		if (pframe->common.state != ISP_STREAM_POST_PROC) {

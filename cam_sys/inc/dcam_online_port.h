@@ -32,7 +32,6 @@ enum dcam_port_cfg_callback {
 	DCAM_PORT_BUFFER_CFG_SET,
 	DCAM_PORT_NEXT_FRM_BUF_GET,
 	DCAM_PORT_SHUTOFF_CFG_SET,
-	DCAM_PORT_RES_BUF_CFG_SET,
 	DCAM_PORT_BUF_RESET_CFG_SET,
 };
 
@@ -40,6 +39,8 @@ struct dcam_online_port_desc {
 	void **port_dev;
 	zoom_get_cb zoom_cb_func;
 	cam_data_cb data_cb_func;
+	reserved_buf_get_cb resbuf_get_cb;
+	void *resbuf_cb_data;
 	void *data_cb_handle;
 	void *buf_manager_handle;
 	void *zoom_cb_handle;
@@ -56,7 +57,6 @@ struct dcam_online_port_desc {
 	enum cam_format pyr_out_fmt;
 	enum cam_en_status compress_en;
 	enum cam_en_status is_pyr_rec;
-	uint32_t reserved_pool_id;
 	uint32_t share_full_path;
 	void *dev;
 	enum cam_en_status update_state;
@@ -108,6 +108,8 @@ struct dcam_online_port {
 	void *zoom_cb_handle;
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
+	reserved_buf_get_cb resbuf_get_cb;
+	void *resbuf_cb_data;
 	void *buf_manager_handle;
 	port_cfg_cb port_cfg_cb_func;
 	shutoff_cb shutoff_cb_func;
@@ -115,7 +117,6 @@ struct dcam_online_port {
 	uint32_t flash_skip_fid;
 };
 
-int inline dcam_online_port_reserved_buf_set(struct dcam_online_port *dcam_port, struct cam_frame *frame);
 int dcam_online_port_buffer_cfg(void *handle, void *param);
 int dcam_online_port_param_cfg(void *handle, enum cam_port_cfg_cmd cmd, void *param);
 int dcam_online_port_skip_num_set(void *dcam_ctx_handle, uint32_t hw_id, int port_id, uint32_t skip_num);

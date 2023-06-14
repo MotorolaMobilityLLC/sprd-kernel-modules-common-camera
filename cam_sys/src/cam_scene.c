@@ -1998,13 +1998,12 @@ int cam_scene_static_linkages_get(struct cam_scene *param, void *hw_info)
 	return ret;
 }
 
-int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void *priv_data)
+int cam_scene_reserved_buf_cfg(void *param, void *priv_data)
 {
-	int ret = 0, j = 0;
-	struct cam_frame *pframe = NULL, *newfrm = NULL;
+	int ret = 0;
+	struct cam_frame *pframe = NULL;
 	struct cam_frame **frame = NULL;
 	struct camera_module *module = NULL;
-	struct cam_buf_pool_id pool_id = {0};
 
 	if (!priv_data) {
 		pr_err("fail to get valid param %p\n", priv_data);
@@ -2012,50 +2011,24 @@ int cam_scene_reserved_buf_cfg(enum reserved_buf_cb_type type, void *param, void
 	}
 
 	module = (struct camera_module *)priv_data;
-	pool_id.reserved_pool_id = module->reserved_pool_id;
-	switch (type) {
-	case RESERVED_BUF_GET_CB:
-		frame = (struct cam_frame **)param;
-		do {
-			*frame = cam_buf_manager_buf_dequeue(&pool_id, NULL, (void *)module->grp->global_buf_manager);
-			if (*frame == NULL) {
-				pframe = module->res_frame;
-				while (j < CAM_RESERVE_BUF_Q_LEN) {
-					newfrm = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-					if (newfrm) {
-						newfrm->common.is_reserved = CAM_RESERVED_BUFFER_COPY;
-						newfrm->common.channel_id = pframe->common.channel_id;
-						newfrm->common.user_fid = pframe->common.user_fid;
-						memcpy(&newfrm->common.buf, &pframe->common.buf, sizeof(struct camera_buf));
-						newfrm->common.buf.type = CAM_BUF_NONE;
-						ret = cam_buf_manager_buf_enqueue(&pool_id, newfrm, NULL, (void *)module->grp->global_buf_manager);
-						if (ret) {
-							pr_err("fail to enqueue frame, reserved_pool_id %d\n", pool_id.reserved_pool_id);
-							cam_queue_empty_frame_put(newfrm);
-						}
-						j++;
-					}
-				}
-			}
-		} while (*frame == NULL);
-
-		pr_debug("Done. cam %d get reserved_pool_id %d frame %p buf_info %p\n", module->idx, pool_id.reserved_pool_id, *frame, (*frame)->common.buf);
-		break;
-	case RESERVED_BUF_SET_CB:
-		pframe = (struct cam_frame *)param;
-		if (pframe->common.is_reserved) {
-			pframe->common.priv_data = NULL;
-			ret = cam_buf_manager_buf_enqueue(&pool_id, pframe, NULL, (void *)module->grp->global_buf_manager);
-			if (ret)
-				pr_err("fail to enqueue reserved buf\n");
-			pr_debug("cam %d dcam %d set reserved_pool_id %d frame id %d\n", module->idx, pool_id.reserved_pool_id, pframe->common.fid);
-		}
-		break;
-	default:
-		pr_err("fail to get invalid %d\n", type);
-		break;
+	if (!module->res_frame) {
+		pr_err("fail to get ori reserved frame\n");
+		return -EFAULT;
 	}
-
+	frame = (struct cam_frame **)param;
+	pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+	if (!pframe) {
+		pr_err("fail to get empty frame\n");
+		return -EFAULT;
+	}
+	pframe->common.is_reserved = CAM_RESERVED_BUFFER_COPY;
+	pframe->common.channel_id = module->res_frame->common.channel_id;
+	pframe->common.user_fid = module->res_frame->common.user_fid;
+	pframe->common.buf.type = CAM_BUF_NONE;
+	pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM] = module->res_frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM];
+	pframe->common.buf.iova[CAM_BUF_IOMMUDEV_ISP] = module->res_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP];
+	*frame = pframe;
+	pr_debug("cam %d get reserved buf frame %p buf_info %p\n", module->idx, *frame, (*frame)->common.buf);
 	return ret;
 }
 
@@ -2198,7 +2171,8 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 		dcam_online_desc->port_desc[i].bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 		dcam_online_desc->port_desc[i].sn_if_fmt = module->cam_uinfo.sensor_if.img_fmt;
 		dcam_online_desc->port_desc[i].pyr_out_fmt = hw->ip_dcam[0]->dcamhw_abt->store_pyr_fmt;
-		dcam_online_desc->port_desc[i].reserved_pool_id = module->reserved_pool_id;
+		dcam_online_desc->port_desc[i].resbuf_get_cb = cam_scene_reserved_buf_cfg;
+		dcam_online_desc->port_desc[i].resbuf_cb_data = module;
 		if (i == PORT_FULL_OUT)
 			dcam_online_desc->port_desc[i].share_full_path = module->cam_uinfo.need_share_buf;
 		if (i == PORT_BIN_OUT)
@@ -2520,8 +2494,6 @@ int cam_scene_isp_yuv_scaler_desc_get(void *module_ptr,
 	isp_yuv_scaler_desc->uframe_sync = uframe_sync;
 	isp_yuv_scaler_desc->dev = module->isp_dev_handle;
 	isp_yuv_scaler_desc->buf_manager_handle = module->grp->global_buf_manager;
-	isp_yuv_scaler_desc->resbuf_get_cb = cam_scene_reserved_buf_cfg;
-	isp_yuv_scaler_desc->resbuf_cb_data = module;
 	isp_yuv_scaler_desc->ch_id = channel->ch_id;
 	isp_yuv_scaler_desc->cam_id = module->idx;
 	isp_yuv_scaler_desc->port_desc.resbuf_get_cb = cam_scene_reserved_buf_cfg;

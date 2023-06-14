@@ -93,11 +93,10 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 
 static int dcamhw_clk_dis(void *handle, void *arg)
 {
-	int ret = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 
-	pr_debug(", E\n");
+	pr_debug("Enter\n");
 	if (atomic_dec_return(&clk_users) != 0) {
 		pr_info("Other using, users: %d\n",
 			atomic_read(&clk_users));
@@ -118,13 +117,12 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 	clk_disable_unprepare(soc->axi_eb);
 	clk_disable_unprepare(soc->core_eb);
 
-	return ret;
+	return 0;
 }
 
 static int dcamhw_axi_init(void *handle, void *arg)
 {
-	uint32_t time_out = 0;
-	uint32_t idx = 0;
+	uint32_t time_out = 0, idx = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
@@ -280,15 +278,9 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 
 static int dcamhw_start(void *handle, void *arg)
 {
-	int ret = 0;
 	struct dcam_hw_start *parm = NULL;
-	struct dcam_hw_force_copy copyarg;
-	uint32_t force_ids = DCAM_CTRL_ALL;
-	uint32_t reg_val = 0;
-	uint32_t image_vc = 0;
-	uint32_t image_data_type = IMG_TYPE_RAW10;
-	uint32_t image_mode = 1;
-	uint32_t line_en = 0;
+	struct dcam_hw_force_copy copyarg = {0};
+	uint32_t force_ids = DCAM_CTRL_ALL, reg_val = 0, image_vc = 0, image_data_type = IMG_TYPE_RAW10, image_mode = 1, line_en = 0;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -330,14 +322,13 @@ static int dcamhw_start(void *handle, void *arg)
 	/* trigger cap_en*/
 	DCAM_REG_MWR(parm->idx, DCAM_CFG, BIT_0, 1);
 
-	return ret;
+	return 0;
 }
 
 static int dcamhw_stop(void *handle, void *arg)
 {
-	int ret = 0;
+	int ret = 0, time_out = DCAMX_STOP_TIMEOUT;
 	struct dcam_hw_context *hw_ctx = NULL;
-	int time_out = DCAMX_STOP_TIMEOUT;
 	uint32_t idx = 0;
 
 	if (!arg) {
@@ -429,8 +420,7 @@ static int dcamhw_auto_copy(void *handle, void *arg)
 		BIT_5, BIT_7, BIT_9, BIT_11, BIT_13, BIT_15, BIT_17, BIT_19
 	};
 	const uint32_t bitmap2 = BIT_5;
-	uint32_t mask = 0, j;
-	uint32_t id;
+	uint32_t mask = 0, j = 0, id = 0;
 	unsigned long flags = 0;
 
 	if (unlikely(!arg)) {
@@ -467,7 +457,7 @@ static int dcamhw_force_copy(void *handle, void *arg)
 		BIT_4, BIT_6, BIT_8, BIT_10, BIT_12, BIT_14, BIT_16, BIT_18
 	};
 	const uint32_t bitmap2 = BIT_4;
-	uint32_t mask = 0, j;
+	uint32_t mask = 0, j = 0;
 	unsigned long flags = 0;
 
 	if (unlikely(!arg)) {
@@ -497,14 +487,12 @@ static int dcamhw_force_copy(void *handle, void *arg)
 
 static int dcamhw_reset(void *handle, void *arg)
 {
-	int ret = 0;
 	int i = 0;
 	enum dcam_id idx = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
-	uint32_t bypass, eb;
-	uint32_t line_mask;
+	uint32_t bypass = 1, eb = 0, line_mask = 0;
 
 	if (!handle || !arg) {
 		pr_err("fail to get input para\n");
@@ -542,12 +530,10 @@ static int dcamhw_reset(void *handle, void *arg)
 	else
 		DCAM_REG_WR(idx, DCAM2_IMAGE_CONTROL, IMG_TYPE_RAW10 << 8 | 0x01);
 
-	eb = 0;
 	DCAM_REG_MWR(idx, DCAM_PDAF_CONTROL, BIT_1 | BIT_0, eb);
 	DCAM_REG_MWR(idx, DCAM_CROP0_START, BIT_31, eb << 31);
 
 	/* default bypass all blocks */
-	bypass = 1;
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_18, bypass << 18);
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0, BIT_0, bypass);
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, bypass);
@@ -569,15 +555,13 @@ static int dcamhw_reset(void *handle, void *arg)
 	pr_info("DCAM%d: reset end\n", idx);
 	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
 
-	return ret;
+	return 0;
 }
 
 static int dcamhw_fetch_set(void *handle, void *arg)
 {
-	int ret = 0;
-	uint32_t fetch_pitch;
+	uint32_t fetch_pitch = 0,  val = 0;
 	struct dcam_hw_fetch_set *fetch = NULL;
-	uint32_t val = 0;
 
 	pr_debug("enter.\n");
 
@@ -630,18 +614,15 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		((fetch->fetch_info->trim.size_y - 1) << 16) | (fetch->fetch_info->trim.size_x - 1));
 	DCAM_AXIM_WR(IMG_FETCH_RADDR, fetch->fetch_info->addr.addr_ch0);
 
-	return ret;
+	return 0;
 }
 
 static int dcamhw_slice_fetch_set(void *handle, void *arg)
 {
-	int ret = 0;
-	uint32_t fetch_pitch;
+	uint32_t fetch_pitch = 0, reg_val = 0, val = 0;
 	struct dcam_hw_slice_param *slicearg = NULL;
 	struct dcam_fetch_info *fetch = NULL;
-	struct img_trim *cur_slice;
-	uint32_t reg_val;
-	uint32_t val = 0;
+	struct img_trim *cur_slice = NULL;
 
 	if (!arg) {
 		pr_err("fail to get valid arg\n");
@@ -699,14 +680,12 @@ static int dcamhw_slice_fetch_set(void *handle, void *arg)
 	reg_val = (cur_slice->size_y << 17) | cur_slice->size_x;
 	DCAM_REG_WR(slicearg->idx, DCAM_CROP0_X, reg_val);
 
-	return ret;
+	return 0;
 }
 
 static int dcamhw_mipi_cap_set(void *handle, void *arg)
 {
-	int ret = 0;
-	uint32_t idx = 0;
-	uint32_t reg_val;
+	uint32_t idx = 0, reg_val = 0;
 	struct dcam_hw_mipi_cap *caparg = NULL;
 	struct dcam_mipi_info *cap_info = NULL;
 
@@ -820,19 +799,14 @@ static int dcamhw_mipi_cap_set(void *handle, void *arg)
 		cap_info->frm_deci, cap_info->frm_skip, cap_info->x_factor,
 		cap_info->y_factor, cap_info->is_4in1);
 
-	return ret;
+	return 0;
 }
 
 static int dcamhw_path_start(void *handle, void *arg)
 {
-	int ret = 0;
-	uint32_t value;
-	uint32_t nr3_me_param = 0;
+	uint32_t value = 0, nr3_me_param = 0, image_data_type = IMG_TYPE_RAW10, data_bits = 0, hwfmt = 0;
 	struct dcam_hw_path_start *patharg = NULL;
-	struct isp_img_rect rect;/* for 3dnr */
-	uint32_t image_data_type = IMG_TYPE_RAW10;
-	uint32_t data_bits = 0;
-	uint32_t hwfmt = 0;
+	struct isp_img_rect rect = {0};/* for 3dnr */
 
 	pr_debug("enter.");
 
@@ -935,7 +909,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 	}
 
 	pr_debug("done\n");
-	return ret;
+	return 0;
 }
 
 static int dcamhw_path_ctrl(void *handle, void *arg)
@@ -977,11 +951,9 @@ static int dcamhw_fetch_start(void *handle, void *arg)
 
 static int dcamhw_path_size_update(void *handle, void *arg)
 {
-	int ret = 0;
-	uint32_t idx;
-	uint32_t reg_val;
+	uint32_t idx = 0, reg_val = 0;
 	struct dcam_hw_path_size *sizearg = NULL;
-	struct isp_img_rect rect; /* for 3dnr path */
+	struct isp_img_rect rect = {0}; /* for 3dnr path */
 
 	if (!arg) {
 		pr_err("fail to get valid handle\n");
@@ -1064,7 +1036,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	}
 
 	pr_debug("done\n");
-	return ret;
+	return 0;
 }
 
 static int dcamhw_binning_4in1_set(void *handle, void *arg)
@@ -1275,8 +1247,7 @@ static hw_ioctl_fun dcamhw_ioctl_fun_get(
 	enum dcam_hw_cfg_cmd cmd)
 {
 	hw_ioctl_fun hw_ctrl = NULL;
-	uint32_t total_num = 0;
-	uint32_t i = 0;
+	uint32_t i = 0, total_num = 0;
 
 	total_num = sizeof(dcam_hw_ioctl_fun_tab) / sizeof(struct hw_io_ctrl_fun);
 	for (i = 0; i < total_num; i++) {

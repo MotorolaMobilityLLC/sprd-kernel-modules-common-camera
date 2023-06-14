@@ -382,11 +382,11 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 
 	if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE3) {
 		DCAM_REG_MWR(p->idx, ISP_PPI_PARAM, BIT_0, bypass);
-		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, !bypass);
+		DCAM_REG_MWR(p->idx, DCAM_VCH1_CONTROL, BIT_0, !bypass);
 	} else if (p->pdaf.pdaf_type == DCAM_PDAF_TYPE2)
 		DCAM_REG_MWR(p->idx, DCAM_VCH3_CONTROL, BIT_0, !bypass);
 	else
-		DCAM_REG_MWR(p->idx, DCAM_VC1_CONTROL, BIT_0, !bypass);
+		DCAM_REG_MWR(p->idx, DCAM_VCH1_CONTROL, BIT_0, !bypass);
 	if (bypass) {
 		pr_debug("dcam%d pdaf_type %d bypass\n", idx, p->pdaf.pdaf_type);
 		return 0;
@@ -478,7 +478,7 @@ int dcam_k_pdaf(struct dcam_isp_k_block *p)
 	} else {
 		DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG1, BIT_0, BIT_0);
 
-		DCAM_REG_MWR(idx, DCAM_VC1_CONTROL, 0x33f30,
+		DCAM_REG_MWR(idx, DCAM_VCH1_CONTROL, 0x33f30,
 			(vch2_info->vch2_vc & 0x03) << 16
 			|(vch2_info->vch2_data_type & 0x3f) << 8
 			|(vch2_info->vch2_mode & 0x03) << 4);

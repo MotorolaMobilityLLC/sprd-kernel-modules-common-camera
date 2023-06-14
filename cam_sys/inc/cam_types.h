@@ -279,12 +279,6 @@ struct cam_postproc_param {
 	enum cam_postproc_mode postproc_mode;
 };
 
-enum reserved_buf_cb_type {
-	RESERVED_BUF_GET_CB,
-	RESERVED_BUF_SET_CB,
-	RESERVED_BUF_MAX_CB,
-};
-
 enum cam_reserved_buf_type {
 	CAM_RESERVED_BUFFER_OFF = 0,
 	CAM_RESERVED_BUFFER_ORI = 1,
@@ -441,7 +435,7 @@ uint32_t dcamoffline_pathid_convert_to_portid(uint32_t path_id);
 uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id);
 
 typedef int(*pyr_dec_buf_cb)(void *param, void *cb_handle);
-typedef int(*reserved_buf_get_cb)(enum reserved_buf_cb_type type, void *param, void *cb_handle);
+typedef int(*reserved_buf_get_cb)(void *param, void *cb_handle);
 typedef struct cam_frame *(*dual_frame_sync_cb)(void *param, void *cb_handle, int *flag);
 typedef int(*dual_slave_frame_set_cb)(void *param, void *cb_handle);
 typedef int(*cap_frame_status_cb)(uint32_t param, void *cb_handle);

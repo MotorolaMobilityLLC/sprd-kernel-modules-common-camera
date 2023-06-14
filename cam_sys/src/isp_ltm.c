@@ -368,7 +368,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 	ltm_hist_frame = cam_buf_manager_buf_dequeue(ctx->hist_outpool, NULL, ctx->buf_manager_handle);
 	if (!ltm_hist_frame) {
 		if (ctx->resbuf_get_cb)
-			ctx->resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&ltm_hist_frame, ctx->resbuf_cb_data);
+			ctx->resbuf_get_cb((void *)&ltm_hist_frame, ctx->resbuf_cb_data);
 		if (!ltm_hist_frame) {
 			pr_err("fail to ctx id %d, frame %px\n", ctx->ctx_id, ltm_hist_frame);
 			return -1;
@@ -396,7 +396,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 	if (ret) {
 		pr_err("fail to set ltmhist out buffer to result pool\n");
 		if (ltm_hist_frame->common.is_reserved)
-			ctx->resbuf_get_cb(RESERVED_BUF_SET_CB, ltm_hist_frame, ctx->resbuf_cb_data);
+			cam_queue_empty_frame_put(ltm_hist_frame);
 		else
 			cam_buf_manager_buf_enqueue(ctx->hist_outpool, ltm_hist_frame, NULL, ctx->buf_manager_handle);
 	}

@@ -176,8 +176,6 @@ struct isp_node {
 	void *rgb_gtm_handle;
 	void *nr3_handle;
 	void *rec_handle;
-	reserved_buf_get_cb resbuf_get_cb;
-	void *resbuf_cb_data;
 	struct cam_frame *postproc_buf;
 	uint32_t nr3_blend_cnt;
 };

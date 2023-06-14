@@ -71,13 +71,10 @@ static void dcamonline_nr3_store_addr(struct dcam_online_node *node)
 	hw_ctx = node->hw_ctx;
 
 	if (node->resbuf_get_cb)
-		node->resbuf_get_cb(RESERVED_BUF_GET_CB, (void *)&frame, node->resbuf_cb_data);
-	if (frame != NULL) {
-		frame->common.priv_data = node;
-		pr_debug("use reserved buffer for 3dnr\n");
-	}
-
+		node->resbuf_get_cb((void *)&frame, node->resbuf_cb_data);
 	if (frame) {
+		pr_debug("use reserved buffer for 3dnr\n");
+		frame->common.priv_data = node;
 		dcam_hwctx_nr3_store_addr(hw_ctx, frame);
 		node->nr3_frm = frame;
 	}
@@ -218,7 +215,7 @@ static struct cam_frame *dcamonline_frame_prepare(struct dcam_online_node *node,
 		if (!node->slowmotion_count)
 			pr_info_ratelimited("DCAM%u %s use reserved buffer\n",
 				hw_ctx->hw_ctx_id, cam_port_name_get(dcam_port->port_id));
-		dcam_online_port_reserved_buf_set(dcam_port, frame);
+		cam_queue_empty_frame_put(frame);
 		return NULL;
 	}
 
@@ -529,7 +526,7 @@ static enum dcam_fix_result dcamonline_fix_index(struct dcam_online_node *node, 
 				continue;
 			frame->common.fid = hw_ctx->fid;
 			if (frame->common.is_reserved)
-				dcam_port->port_cfg_cb_func((void *)frame, DCAM_PORT_RES_BUF_CFG_SET, dcam_port);
+				cam_queue_empty_frame_put(frame);
 			else {
 				ret = cam_buf_manager_buf_enqueue(&dcam_port->result_pool, frame, NULL, node->buf_manager_handle);
 				if (ret)
@@ -1561,8 +1558,8 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 
 	return ret;
 err:
-	if (node->resbuf_get_cb && (node->nr3_frm))
-		node->resbuf_get_cb(RESERVED_BUF_SET_CB, node->nr3_frm, node->resbuf_cb_data);
+	if (node->nr3_frm)
+		cam_queue_empty_frame_put(node->nr3_frm);
 	return ret;
 }
 
@@ -1660,7 +1657,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 	}
 
 	if (node->nr3_frm) {
-		node->resbuf_get_cb(RESERVED_BUF_SET_CB, node->nr3_frm, node->resbuf_cb_data);
+		cam_queue_empty_frame_put(node->nr3_frm);
 		node->nr3_frm = NULL;
 	}
 	if (pause != DCAM_RECOVERY)
@@ -1699,7 +1696,7 @@ static int dcamonline_dummy_proc(struct dcam_online_node *node, void *param, str
 				while (cam_buf_manager_pool_cnt(&dcam_port->result_pool, node->buf_manager_handle)) {
 					frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, NULL, node->buf_manager_handle);
 					if (frame->common.is_reserved)
-						dcam_online_port_reserved_buf_set(dcam_port, frame);
+						cam_queue_empty_frame_put(frame);
 					else
 						dcam_port->port_cfg_cb_func(frame, DCAM_PORT_BUFFER_CFG_SET, dcam_port);
 				}
@@ -2224,7 +2221,7 @@ int dcam_online_node_reset(struct dcam_online_node *node, void *param)
 	}
 
 	if (node->nr3_frm) {
-		node->resbuf_get_cb(RESERVED_BUF_SET_CB, node->nr3_frm, node->resbuf_cb_data);
+		cam_queue_empty_frame_put(node->nr3_frm);
 		node->nr3_frm = NULL;
 	}
 

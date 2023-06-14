@@ -44,12 +44,9 @@ static struct camera_queue *cambufmanager_pool_handle_get(struct cam_buf_pool_id
 	} else if (IS_TAG_ID_VALID(pool_id->tag_id) &&
 		buf_manager->tag_pool[pool_id->tag_id]) {
 		ret = buf_manager->tag_pool[pool_id->tag_id];
-	} else if (IS_RESERVED_ID_VALID(pool_id->reserved_pool_id) &&
-		buf_manager->reserve_buf_pool[pool_id->reserved_pool_id]) {
-		ret = buf_manager->reserve_buf_pool[pool_id->reserved_pool_id];
 	} else {
-		pr_debug("get valid pool id tag%d private%d reserved id %d\n",
-			pool_id->tag_id, pool_id->private_pool_id, pool_id->reserved_pool_id);
+		pr_debug("get valid pool id tag%d private%d\n",
+			pool_id->tag_id, pool_id->private_pool_id);
 	}
 	return ret;
 }
@@ -402,33 +399,6 @@ static int inline cambufmanager_buf_status_change(struct camera_buf *buf,
 	return ret;
 }
 
-static void cambufmanager_reserve_q_cnt_check(struct camera_queue *reserve_heap)
-{
-	int i = 0;
-	struct cam_frame *newfrm = NULL, *ori = NULL;
-
-	if (reserve_heap->cnt > 1)
-		return;
-
-	ori = CAM_QUEUE_DEQUEUE_PEEK(reserve_heap, struct cam_frame, list);
-	if (!ori)
-		return;
-
-	while (i < CAM_RESERVE_BUF_Q_LEN) {
-		newfrm = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-		if (newfrm) {
-			newfrm->common.is_reserved = CAM_RESERVED_BUFFER_COPY;
-			newfrm->common.channel_id = ori->common.channel_id;
-			newfrm->common.user_fid = ori->common.user_fid;
-			memcpy(&newfrm->common.buf, &ori->common.buf, sizeof(struct camera_buf));
-			newfrm->common.buf.type = CAM_BUF_NONE;
-			CAM_QUEUE_ENQUEUE(reserve_heap, &newfrm->list);
-			i++;
-		}
-	}
-	pr_info("reserved pool %px, cnt %d\n", reserve_heap, reserve_heap->cnt);
-}
-
 int cam_buf_manager_buf_status_cfg(struct camera_buf *buf, enum cambufmanager_status_ops_cmd cmd, enum cam_buf_iommudev_type type)
 {
 	int ret = 0;
@@ -522,9 +492,8 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 	int ret = 0;
 	uint32_t cmd = 0;
 	struct cam_frame *tmp = NULL;
-	struct camera_queue *heap = NULL, *resverve_heap = NULL, *src = NULL;
+	struct camera_queue *heap = NULL, *src = NULL;
 	struct cam_buf_pool_id pool_id_normal = {0};
-	struct cam_buf_manager *buf_manager = (struct cam_buf_manager *)buf_manager_handle;
 
 	if (!pool_id || !buf_manager_handle) {
 		pr_err("fail to get input handle pool_id:%px, buf_handle:%px.\n", pool_id, buf_manager_handle);
@@ -532,13 +501,9 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 	}
 
 	pool_id_normal = *pool_id;
-	pool_id_normal.reserved_pool_id = 0;
 	heap = cambufmanager_pool_handle_get(&pool_id_normal, buf_manager_handle);
-	if (IS_RESERVED_ID_VALID(pool_id->reserved_pool_id) &&
-		buf_manager->reserve_buf_pool[pool_id->reserved_pool_id])
-		resverve_heap = buf_manager->reserve_buf_pool[pool_id->reserved_pool_id];
 
-	if (!heap && !resverve_heap) {
+	if (!heap) {
 		pr_err("fail to get valid pool id\n");
 		goto exit;
 	}
@@ -571,22 +536,16 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 		}
 	}
 
-	if (!tmp && resverve_heap) {/* && pool_id->tag_id != isp_blk_param*/
-		cambufmanager_reserve_q_cnt_check(resverve_heap);
-		tmp = CAM_QUEUE_DEQUEUE(resverve_heap, struct cam_frame, list);
-		src = resverve_heap;
-		pr_debug("res pool %d %px deq, frame %px, cnt %d, cb:%pS\n\n", pool_id->reserved_pool_id, resverve_heap, tmp, resverve_heap->cnt, __builtin_return_address(0));
-	} else
-		pr_debug("pri %d, tag %d, %px, frame %px, cnt %d\n", pool_id->private_pool_id, pool_id->tag_id, heap, tmp, heap->cnt);
-
 	if (!buf_desc || !tmp)
 		goto exit;
+	else
+		pr_debug("pri %d, tag %d, %px, frame %px, cnt %d\n", pool_id->private_pool_id, pool_id->tag_id, heap, tmp, heap->cnt);
 
 	if (buf_desc->buf_ops_cmd == CAM_BUF_STATUS_GET_IOVA)
 		buf_desc->buf_ops_cmd = CAM_BUF_GET_IOVA_METHOD(tmp);
 	ret = cam_buf_manager_buf_status_cfg(&tmp->common.buf, buf_desc->buf_ops_cmd, buf_desc->mmu_type);
 	if (ret) {
-		pr_err("fail to cfg buf status, (p %d, t %d, r %d), ori %d, cmd %d\n", pool_id->private_pool_id, pool_id->tag_id, pool_id->reserved_pool_id, tmp->common.buf.status, buf_desc->buf_ops_cmd);
+		pr_err("fail to cfg buf status, (p %d, t %d), ori %d, cmd %d\n", pool_id->private_pool_id, pool_id->tag_id, tmp->common.buf.status, buf_desc->buf_ops_cmd);
 		if (src)
 			CAM_QUEUE_ENQUEUE(src, &tmp->list);
 		return NULL;
@@ -594,7 +553,7 @@ struct cam_frame *cam_buf_manager_buf_dequeue(struct cam_buf_pool_id *pool_id, s
 
 exit:
 	if (!tmp)
-		pr_debug("(p %d, t %d, r %d) deq null\n", pool_id->private_pool_id, pool_id->tag_id, pool_id->reserved_pool_id);
+		pr_debug("(p %d, t %d) deq null\n", pool_id->private_pool_id, pool_id->tag_id);
 	return tmp;
 }
 
@@ -633,12 +592,11 @@ int cam_buf_manager_buf_enqueue(struct cam_buf_pool_id *pool_id,
 		ret = CAM_QUEUE_ENQUEUE(heap, &pframe->list);
 
 	if (ret) {
-		pr_err("fail to enq, (p %d, t %d, r%d) buf cnt %d, frame %px\n", pool_id->private_pool_id, pool_id->tag_id, pool_id->reserved_pool_id, heap->cnt, pframe);
+		pr_err("fail to enq, (p %d, t %d) buf cnt %d, frame %px\n", pool_id->private_pool_id, pool_id->tag_id, heap->cnt, pframe);
 		return -1;
 	}
 
-	pr_debug("pool p%d t%d r%d, buf cnt %d, cb:%pS\n",
-		pool_id->private_pool_id, pool_id->tag_id, pool_id->reserved_pool_id,
+	pr_debug("pool p%d t%d, buf cnt %d, cb:%pS\n", pool_id->private_pool_id, pool_id->tag_id,
 		heap->cnt, __builtin_return_address(0));
 
 	return 0;
@@ -655,7 +613,7 @@ void cam_buf_manager_buf_clear(struct cam_buf_pool_id *pool_id, void *buf_manage
 		return;
 	}
 
-	pr_debug("pool r%d p%d t%d, cnt %d clear\n", pool_id->reserved_pool_id, pool_id->private_pool_id, pool_id->tag_id, heap->cnt);
+	pr_debug("pool p%d t%d, cnt %d clear\n", pool_id->private_pool_id, pool_id->tag_id, heap->cnt);
 	do {
 		pframe = CAM_QUEUE_DEQUEUE(heap, struct cam_frame, list);
 		if (pframe)
@@ -815,27 +773,10 @@ int cam_buf_manager_deinit(uint32_t cam_id, void *buf_manager_handle)
 		return -1;
 	}
 
-	pool_id.reserved_pool_id = cam_id + 1;
-	tmp_q = buf_manager->reserve_buf_pool[cam_id + 1];
-	if (tmp_q) {
-		cam_buf_manager_buf_clear(&pool_id, buf_manager_handle);
-		cam_buf_kernel_sys_vfree(tmp_q);
-		buf_manager->reserve_buf_pool[cam_id + 1] = NULL;
-	}
-	pr_info("cam%d buf manager deinit, unreg %px\n", cam_id, tmp_q);
+	pr_info("cam%d buf manager deinit\n", cam_id);
 
 	if (atomic_dec_return(&buf_manager->user_cnt) == 0) {
 		uint32_t i = 0;
-
-		for (i = 0; i < CAM_COUNT_MAX; i++) {
-			tmp_q = buf_manager->reserve_buf_pool[i];
-			if (!tmp_q)
-				continue;
-			pool_id.reserved_pool_id = i;
-			cam_buf_manager_buf_clear(&pool_id, buf_manager_handle);
-			cam_buf_kernel_sys_vfree(tmp_q);
-			buf_manager->reserve_buf_pool[i] = NULL;
-		}
 
 		for (i = 0; i < PRIVATE_POOL_NUM_MAX; i++) {
 			tmp_q = buf_manager->private_buf_pool[i];
