@@ -146,7 +146,7 @@ int cam_statis_isp_port_buffer_deinit(void *isp_handle, void *node)
 				continue;
 			}
 
-			pr_info("ctx %d free buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
+			pr_debug("ctx %d free buf %d, off %d, kaddr 0x%lx iova 0x%08x\n",
 				inode->node_id, ion_buf->mfd, ion_buf->offset[0],
 				ion_buf->addr_k, (uint32_t)ion_buf->iova[CAM_BUF_IOMMUDEV_ISP]);
 

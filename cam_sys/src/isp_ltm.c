@@ -378,10 +378,10 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 	ltm_hist_frame->common.ltm_info.tile_height = param->tile_height;
 	ltm_hist_frame->common.ltm_info.tile_num_x = param->tile_num_x;
 	ltm_hist_frame->common.ltm_info.tile_num_y = param->tile_num_y;
-	ltm_hist_frame->common.ltm_info.frame_width = ctx->frame_width;
-	ltm_hist_frame->common.ltm_info.frame_height = ctx->frame_height;
-	ltm_hist_frame->common.width = ctx->frame_width;
-	ltm_hist_frame->common.height = ctx->frame_height;
+	ltm_hist_frame->common.ltm_info.frame_width = param->frame_width;
+	ltm_hist_frame->common.ltm_info.frame_height = param->frame_height;
+	ltm_hist_frame->common.width = param->frame_width;
+	ltm_hist_frame->common.height = param->frame_height;
 	ltm_hist_frame->common.fid = ctx->fid;
 
 	hists->clip_limit = tuning->clip_limit;

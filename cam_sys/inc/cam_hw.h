@@ -891,6 +891,7 @@ struct isp_hw_nr3_fbc_slice {
 struct isp_hw_ltm_slice {
 	struct isp_fmcu_ctx_desc *fmcu_handle;
 	struct slice_ltm_map_info *map;
+	struct slice_ltm_hist_info *hist;
 };
 
 struct isp_hw_gtm_slice{

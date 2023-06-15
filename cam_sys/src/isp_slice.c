@@ -2465,11 +2465,14 @@ static int ispslice_ltm_info_cfg(struct isp_ltm_ctx_desc *ltm_ctx,
 	int ret = 0, idx = 0;
 	struct isp_ltm_rtl_param rtl_param;
 	struct isp_ltm_rtl_param *prtl = &rtl_param;
-
 	struct isp_slice_desc *cur_slc = NULL;
-	struct slice_ltm_map_info *slc_ltm_map;
+	struct slice_ltm_hist_info *slice_ltm_hist = NULL;
+	struct slice_ltm_map_info *slc_ltm_map = NULL;
 	uint32_t slice_info[4];
 	struct isp_ltm_map *map = NULL;
+	struct isp_ltm_hists *hist = NULL;
+	uint32_t half_num_tile_width = 0, slice_start_x_after_bining = 0;
+	uint32_t ltm_slice_num = 0;
 
 	if (!ltm_ctx || !slc_ctx) {
 		pr_err("fail to get invalid in_ptr\n");
@@ -2477,31 +2480,38 @@ static int ispslice_ltm_info_cfg(struct isp_ltm_ctx_desc *ltm_ctx,
 	}
 
 	map = &ltm_ctx->map;
-	if (map->bypass)
+	hist = &ltm_ctx->hists;
+	if (map->bypass && hist->bypass)
 		return 0;
 
-	if (ltm_ctx->mode == MODE_LTM_OFF) {
-		for (idx = 0; idx < SLICE_NUM_MAX; idx++) {
-			cur_slc = &slc_ctx->slices[idx];
-			if (cur_slc->valid == 0)
-				continue;
+	for (idx = 0; idx < SLICE_NUM_MAX; idx++) {
+		cur_slc = &slc_ctx->slices[idx];
+		if (cur_slc->valid == 0)
+			continue;
+		ltm_slice_num++;
+		if (ltm_ctx->mode == MODE_LTM_OFF) {
 			slc_ltm_map = &cur_slc->slice_ltm_map;
 			slc_ltm_map->bypass = 1;
+			slice_ltm_hist = &cur_slc->slice_ltm_hist;
+			slice_ltm_hist->bypass = 1;
 		}
-
-		return 0;
 	}
+
+	if (ltm_ctx->mode == MODE_LTM_OFF)
+		return 0;
 
 	for (idx = 0; idx < SLICE_NUM_MAX; idx++) {
 		cur_slc = &slc_ctx->slices[idx];
 		if (cur_slc->valid == 0)
 			continue;
 		slc_ltm_map = &cur_slc->slice_ltm_map;
+		slice_ltm_hist = &cur_slc->slice_ltm_hist;
 
 		slice_info[0] = cur_slc->slice_pos.start_col;
 		slice_info[1] = cur_slc->slice_pos.start_row;
 		slice_info[2] = cur_slc->slice_pos.end_col;
 		slice_info[3] = cur_slc->slice_pos.end_row;
+		slc_ltm_map->bypass = map->bypass;
 
 		isp_ltm_map_slice_config_gen(ltm_ctx, prtl, slice_info, cfg_in);
 
@@ -2522,6 +2532,43 @@ static int ispslice_ltm_info_cfg(struct isp_ltm_ctx_desc *ltm_ctx,
 			slc_ltm_map->tile_right_flag, slc_ltm_map->tile_left_flag,
 			slc_ltm_map->tile_start_x, slc_ltm_map->tile_start_y,
 			slc_ltm_map->mem_addr);
+		if (ltm_slice_num == 1) {
+			slice_ltm_hist->roi_startx = hist->roi_start_x;
+			slice_ltm_hist->roi_starty = hist->roi_start_y;
+			slice_ltm_hist->tile_num_x_minus1 = hist->tile_num_x_minus;
+			slice_ltm_hist->tile_num_y_minus1 = hist->tile_num_y_minus;
+			slice_ltm_hist->tile_width = hist->tile_width;
+			slice_ltm_hist->tile_height = hist->tile_height;
+			slice_ltm_hist->mem_addr = hist->addr;
+			slice_ltm_hist->ddr_wr_num = hist->wr_num;
+			slice_ltm_hist->ddr_pitch = hist->pitch;
+		} else {
+			slice_ltm_hist->bypass = hist->bypass;
+			slice_ltm_hist->tile_num_y_minus1 = hist->tile_num_y_minus;
+			slice_ltm_hist->ddr_pitch = hist->pitch;
+			slice_ltm_hist->tile_width = hist->tile_width;
+			slice_ltm_hist->tile_height = hist->tile_height;
+
+			if (idx == 0) {
+				slice_ltm_hist->roi_startx = hist->roi_start_x;
+				slice_ltm_hist->roi_starty = hist->roi_start_y;
+				slice_ltm_hist->tile_num_x_minus1 = (hist->tile_num_x_minus + 1) / 2 - 1;
+				slice_ltm_hist->mem_addr = hist->addr;
+				slice_ltm_hist->is_last_slice = 0;
+			} else {
+				half_num_tile_width = hist->tile_width * (hist->tile_num_x_minus + 1) / 2;
+				slice_start_x_after_bining = cur_slc->slice_pos.start_col / (1 + hist->binning_en);
+				slice_ltm_hist->roi_startx = half_num_tile_width - slice_start_x_after_bining + hist->roi_start_x;
+				slice_ltm_hist->roi_starty = hist->roi_start_y;
+				slice_ltm_hist->tile_num_x_minus1 = (hist->tile_num_x_minus + 1) / 2 - 1;
+				slice_ltm_hist->mem_addr = hist->addr + 128 * 2 * (hist->tile_num_x_minus + 1) / 2;
+				slice_ltm_hist->is_last_slice = 1;
+			}
+		}
+		pr_debug("ltm hist slice info: roi startx [%d], roi_starty [%d], tile num x minus [%d], \
+			tile width [%d], total tile num x minus [%d], crop left [%d], slice start x [%d], addr [%x]\n",
+			slice_ltm_hist->roi_startx, slice_ltm_hist->roi_starty, slice_ltm_hist->tile_num_x_minus1,
+			hist->tile_width, hist->tile_num_x_minus, hist->roi_start_x, cur_slc->slice_pos.start_col, slice_ltm_hist->mem_addr);
 	}
 
 	return ret;
@@ -3222,6 +3269,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		if (slc_ctx->ltm_rgb_eb){
 			ltm.fmcu_handle = fmcu;
 			ltm.map = &cur_slc->slice_ltm_map;
+			ltm.hist = &cur_slc->slice_ltm_hist;
 			hw->isp_ioctl(hw, ISP_HW_CFG_LTM_SLICE_SET, &ltm);
 		}
 		if (slc_ctx->gtm_rgb_eb) {

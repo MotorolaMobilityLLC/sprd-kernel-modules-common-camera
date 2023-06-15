@@ -2069,34 +2069,57 @@ static int  isphw_fbd_addr_set(void *handle, void *arg)
 static int isphw_ltm_slice_set(void *handle, void *arg)
 {
 	uint32_t addr = 0, cmd = 0;
-	struct isp_hw_ltm_slice *ltm_slice = NULL;
-	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct slice_ltm_hist_info *hist = NULL;
 	struct slice_ltm_map_info *map = NULL;
+	struct isp_fmcu_ctx_desc *fmcu = NULL;
+	struct isp_hw_ltm_slice *ltm_slice = NULL;
 
 	ltm_slice = (struct isp_hw_ltm_slice *)arg;
 	fmcu = ltm_slice->fmcu_handle;
 	map = ltm_slice->map;
+	hist = ltm_slice->hist;
 
-	if (map->bypass)
-		return 0;
+	if (!map->bypass) {
+		addr = ISP_GET_REG(ISP_LTM_MAP_PARAM1);
+		cmd = ((map->tile_num_y & 0x7) << 28) |
+			((map->tile_num_x & 0x7) << 24) |
+			((map->tile_height & 0x7FF) << 12) |
+			(map->tile_width & 0x7FF);
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM1);
-	cmd = ((map->tile_num_y & 0x7) << 28) |
-		((map->tile_num_x & 0x7) << 24) |
-		((map->tile_height & 0x7FF) << 12) |
-		(map->tile_width & 0x7FF);
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_LTM_MAP_PARAM3);
+		cmd = ((map->tile_right_flag & 0x1) << 31) |
+			((map->tile_start_y & 0xFFF) << 16) |
+			((map->tile_left_flag & 0x1) << 15) |
+			(map->tile_start_x & 0xFFF);
+		FMCU_PUSH(fmcu, addr, cmd);
 
-	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM3);
-	cmd = ((map->tile_right_flag & 0x1) << 31) |
-		((map->tile_start_y & 0xFFF) << 16) |
-		((map->tile_left_flag & 0x1) << 15) |
-		(map->tile_start_x & 0xFFF);
-	FMCU_PUSH(fmcu, addr, cmd);
+		addr = ISP_GET_REG(ISP_LTM_MAP_PARAM4);
+		cmd = map->mem_addr;
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
 
-	addr = ISP_GET_REG(ISP_LTM_MAP_PARAM4);
-	cmd = map->mem_addr;
-	FMCU_PUSH(fmcu, addr, cmd);
+	if (!hist->bypass) {
+		addr = ISP_GET_REG(ISP_LTM_ROI_START);
+		cmd = ((hist->roi_starty & 0x1FFF) << 16) | (hist->roi_startx & 0x1FFF);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_LTM_TILE_RANGE);
+		cmd = ((hist->tile_num_y_minus1 & 0x7) << 28) |
+			((hist->tile_height & 0x1FF) << 16) |
+			((hist->tile_num_x_minus1 & 0x7) << 12) |
+			(hist->tile_width & 0x1FF);
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_LTM_ADDR);
+		cmd = hist->mem_addr;
+		FMCU_PUSH(fmcu, addr, cmd);
+
+		addr = ISP_GET_REG(ISP_LTM_PITCH);
+		hist->ddr_wr_num = (hist->tile_num_x_minus1 + 1) * 16;
+		cmd = ((hist->ddr_wr_num & 0x1FF) << 16) | (hist->ddr_pitch & 0xFFFF);
+		FMCU_PUSH(fmcu, addr, cmd);
+	}
 
 	return 0;
 }
