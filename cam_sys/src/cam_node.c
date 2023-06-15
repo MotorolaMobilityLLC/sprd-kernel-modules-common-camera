@@ -1774,6 +1774,8 @@ void cam_node_destory(struct cam_node *node)
 	for (i = CAM_NODE_PORT_OUT_NUM - 1; i >= 0; i--) {
 		if (node->node_graph->outport[i].link_state != PORT_LINK_NORMAL)
 			continue;
+		if (!node->outport_list[i])
+			continue;
 		cam_port_destory(node->outport_list[i]);
 		node->outport_list[i] = NULL;
 	}
