@@ -50,6 +50,7 @@ struct cam_copy_node {
 	enum cam_copy_frame_mode copy_mode;
 	enum cam_copy_scene scene_id;
 	enum pre_raw_status pre_raw_flag;
+	atomic_t icap_cap_num;
 	uint32_t opt_buffer_num;
 	atomic_t opt_frame_done;
 	uint32_t record_channel_id;
@@ -63,6 +64,7 @@ struct cam_copy_node {
 };
 
 int cam_copy_node_buffer_cfg(void *handle, void *param);
+int cam_copy_node_buffer_num(void *handle, void *param);
 int cam_copy_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param);
 int cam_copy_outbuf_back(void *handle, void *param);
 int cam_copy_cfg_param(void *handle, void *param);

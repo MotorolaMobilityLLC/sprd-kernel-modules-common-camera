@@ -902,7 +902,8 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 	fetch->addr_hw.addr_ch0 = fetch->addr.addr_ch0 + trim_offset[0];
 	fetch->addr_hw.addr_ch1 = fetch->addr.addr_ch1 + trim_offset[1];
 	fetch->addr_hw.addr_ch2 = fetch->addr.addr_ch2 + trim_offset[2];
-	pr_debug("fetch fmt %s, y_addr: %x, u_addr: %x\n", camport_fmt_name_get(fetch->fetch_fmt), fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1);
+	pr_debug("fetch fmt %s, y_addr: %x, u_addr: %x, cfg_id %d\n",
+		camport_fmt_name_get(fetch->fetch_fmt), fetch->addr_hw.addr_ch0, fetch->addr_hw.addr_ch1, fetch->ctx_id);
 
 	return ret;
 }
@@ -1047,6 +1048,7 @@ static int ispport_store_normal_get(struct isp_port *port,
 		store->pitch.pitch_ch2 = 0;
 		break;
 	}
+	pr_debug("store fmt %s, cfg_id %d\n", camport_fmt_name_get(store->color_fmt), store_info->ctx_id);
 
 	return ret;
 }

@@ -156,7 +156,8 @@ static int pyrdec_node_fetch_get(struct pyr_dec_node *node, uint32_t idx)
 		slc_fetch->size.h = end_row - start_row + 1;
 		slc_fetch->size.w = end_col - start_col + 1;
 
-		PYR_DEC_DEBUG("slice fetch size %d, %d\n", slc_fetch->size.w, slc_fetch->size.h);
+		PYR_DEC_DEBUG("fetch fmt %s, slice fetch size %d, %d\n",
+			camport_fmt_name_get(fetch->color_format), slc_fetch->size.w, slc_fetch->size.h);
 	}
 
 	return ret;
@@ -248,8 +249,8 @@ static int pyrdec_node_store_dct_get(struct pyr_dec_node *node, uint32_t idx)
 		slc_dct_store->border.left_border = overlap_left;
 		slc_dct_store->border.right_border = overlap_right;
 
-		PYR_DEC_DEBUG("slice store size %d, %d offset %x %x\n",
-			slc_dct_store->size.w, slc_dct_store->size.h, ch_offset[0], ch_offset[1]);
+		PYR_DEC_DEBUG("dct store fmt %s, slice store size %d, %d offset %x %x\n",
+				camport_fmt_name_get(store_dct->color_format), slc_dct_store->size.w, slc_dct_store->size.h, ch_offset[0], ch_offset[1]);
 	}
 
 	return ret;
@@ -332,8 +333,8 @@ static int pyrdec_node_store_dec_get(struct pyr_dec_node *node, uint32_t idx)
 		slc_dec_store->border.left_border = overlap_left;
 		slc_dec_store->border.right_border = overlap_right;
 
-		PYR_DEC_DEBUG("slice store size %d, %d offset %x %x\n",
-			slc_dec_store->size.w, slc_dec_store->size.h, ch_offset[0], ch_offset[1]);
+		PYR_DEC_DEBUG("store fmt %s, slice store size %d, %d offset %x %x\n",
+			camport_fmt_name_get(store_dec->color_format), slc_dec_store->size.w, slc_dec_store->size.h, ch_offset[0], ch_offset[1]);
 	}
 
 	return ret;
