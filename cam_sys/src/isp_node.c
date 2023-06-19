@@ -190,6 +190,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 			port_cfg.faststop = &inode->is_fast_stop;
 			port_cfg.faststop_done = inode->fast_stop_done;
 			port_cfg.out_buf_clear = 0;
+			port_cfg.result_queue_ops = CAM_QUEUE_FRONT;
 			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 				if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0)
 					port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
@@ -242,6 +243,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		break;
 	case POSTPROC_FRAME_ERROR_DONE:
 		port_cfg.out_buf_clear = 0;
+		port_cfg.result_queue_ops = CAM_QUEUE_TAIL;
 		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 			if (atomic_read(&port->user_cnt) > 0)
 				port->port_cfg_cb_func(&port_cfg, ISP_PORT_START_ERROR, port);
@@ -995,6 +997,7 @@ static int ispnode_start_proc(void *node)
 
 exit:
 	port_cfg.out_buf_clear = 0;
+	port_cfg.result_queue_ops = CAM_QUEUE_TAIL;
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0)
 			port->port_cfg_cb_func(&port_cfg, ISP_PORT_START_ERROR, port);
