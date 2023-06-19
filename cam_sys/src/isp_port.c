@@ -1313,9 +1313,9 @@ static int ispport_pipeinfo_get(struct isp_port *port, void *param)
 
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	if (port->type == PORT_TRANSFER_IN) {
+		port_cfg->pipe_info->fetch_fbd_yuv.ctx_id = port_cfg->cfg_id;
 		if (port_cfg->src_frame->common.is_compressed) {
 			port->fetch_path_sel = ISP_FETCH_PATH_FBD;
-			port_cfg->pipe_info->fetch_fbd_yuv.ctx_id = port_cfg->cfg_id;
 			ispport_fbdfetch_yuv_get(port, &port_cfg->pipe_info->fetch_fbd_yuv, port_cfg->src_frame);
 		}
 		ret = ispport_fetch_pipeinfo_get(port, port_cfg);
