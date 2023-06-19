@@ -66,6 +66,7 @@ struct slice_cfg_input {
 	uint32_t nlm_center_y;
 	uint32_t ynr_center_x;
 	uint32_t ynr_center_y;
+	uint32_t sw_slice_num;
 	struct img_size frame_in_size;
 	struct img_size *frame_out_size[ISP_SPATH_NUM];
 	struct isp_hw_fetch_info *frame_fetch;

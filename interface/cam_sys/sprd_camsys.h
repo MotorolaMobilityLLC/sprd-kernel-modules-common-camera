@@ -1096,6 +1096,7 @@ struct sprd_cfg_param_status {
 #define SPRD_ISP_IO_CFG_PARAM_BUF        _IOWR(SPRD_IMG_IO_MAGIC, 85, struct isp_buf_param)
 #define SPRD_ISP_IO_CFG_PARAM_BUF_INIT   _IOWR(SPRD_IMG_IO_MAGIC, 86, struct isp_buf_param_init)
 #define SPRD_IMG_IO_SET_PRE_RAW_FLAG     _IOW(SPRD_IMG_IO_MAGIC, 87, uint32_t)
+#define SPRD_IMG_IO_PUT_OUTPUT_SIZE      _IOW(SPRD_IMG_IO_MAGIC, 88, struct sprd_img_parm)
 
 /*
  * Dump dcam register.

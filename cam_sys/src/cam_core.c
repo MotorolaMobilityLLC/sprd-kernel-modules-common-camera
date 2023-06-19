@@ -2097,6 +2097,7 @@ static struct cam_ioctl_cmd ioctl_cmds_table[] = {
 	[_IOC_NR(SPRD_IMG_IO_SET_960FPS_PARAM)]     = {SPRD_IMG_IO_SET_960FPS_PARAM,     camioctl_960fps_param_set},
 	[_IOC_NR(SPRD_IMG_IO_CFG_PARAM_STATUS)]     = {SPRD_IMG_IO_CFG_PARAM_STATUS,     camioctl_cfg_param_start_end},
 	[_IOC_NR(SPRD_IMG_IO_SET_PRE_RAW_FLAG)]     = {SPRD_IMG_IO_SET_PRE_RAW_FLAG,     camioctl_pre_raw_flag_set},
+	[_IOC_NR(SPRD_IMG_IO_PUT_OUTPUT_SIZE)]      = {SPRD_IMG_IO_PUT_OUTPUT_SIZE,      camioctl_output_size_put},
 };
 
 static long camcore_ioctl(struct file *file, unsigned int cmd,

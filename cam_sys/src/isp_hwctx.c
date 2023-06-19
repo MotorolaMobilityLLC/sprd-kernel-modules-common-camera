@@ -198,7 +198,7 @@ static int isphwctx_init_dyn_ov_param(struct slice_cfg_input *slc_cfg_in,
 	return 0;
 }
 
-int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_info *pipe_info)
+int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_info *pipe_info, uint32_t sw_slice_num)
 {
 	int ret = 0;
 	int i = 0;
@@ -223,6 +223,7 @@ int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_inf
 	slc_cfg_in.frame_fbd_yuv = &pipe_info->fetch_fbd_yuv;
 	slc_cfg_in.frame_fetch = &pipe_info->fetch;
 	slc_cfg_in.thumb_scaler = &pipe_info->thumb_scaler;
+	slc_cfg_in.sw_slice_num = sw_slice_num;
 
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		slc_cfg_in.calc_dyn_ov.path_en[i] = pipe_info->store[i].used;

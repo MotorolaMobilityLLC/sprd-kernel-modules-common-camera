@@ -679,6 +679,32 @@ static int camioctl_cap_skip_num_set(	struct camera_module *module,
 	return 0;
 }
 
+static int camioctl_output_size_put(struct camera_module *module,
+		unsigned long arg)
+{
+	int ret = 0;
+	enum cam_ch_id channel_id = CAM_CH_MAX;
+	struct channel_context *ch = NULL;
+	struct sprd_img_parm __user *uparam = NULL;
+
+	module->last_channel_id = CAM_CH_MAX;
+	uparam = (struct sprd_img_parm __user *)arg;
+
+	ret = get_user(channel_id, &uparam->channel_id);
+	if (channel_id >= CAM_CH_MAX) {
+		pr_err("fail to get valid channel %\n", channel_id);
+		return -EFAULT;
+	} else
+		pr_info("cam%d put channel %d.\n", module->idx, channel_id);
+
+	ch = &module->channel[channel_id];
+	camcore_pipeline_deinit(module, ch);
+	memset(ch, 0, sizeof(struct channel_context));
+	camcore_channel_default_param_set(ch, channel_id);
+
+	return ret;
+}
+
 static int camioctl_output_size_set(struct camera_module *module,
 		unsigned long arg)
 {
@@ -747,10 +773,9 @@ static int camioctl_output_size_set(struct camera_module *module,
 	} else if (module->channel[CAM_CH_CAP].enable == 0) {
 		channel = &module->channel[CAM_CH_CAP];
 		channel->enable = 1;
-	}
-
-	if (channel == NULL) {
-		pr_err("fail to get valid channel\n");
+	} else {
+		pr_err("fail to get valid channel,cap status %d, pre status %d\n",
+			module->channel[CAM_CH_CAP].enable, module->channel[CAM_CH_PRE].enable);
 		ret = -EINVAL;
 		goto exit;
 	}
