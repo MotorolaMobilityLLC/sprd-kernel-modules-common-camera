@@ -1393,7 +1393,7 @@ static int ispport_start_error(struct isp_port *port, void *param)
 		if (port_cfg->out_buf_clear) {
 			pframe = cam_buf_manager_buf_dequeue(&port->fetch_unprocess_pool, NULL, port->buf_manager_handle);
 		} else {
-			buf_desc.q_ops_cmd = CAM_QUEUE_TAIL;
+			buf_desc.q_ops_cmd = port_cfg->result_queue_ops;
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
 			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
 			pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, &buf_desc, port->buf_manager_handle);

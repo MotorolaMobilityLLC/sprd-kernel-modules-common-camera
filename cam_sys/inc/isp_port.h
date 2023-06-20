@@ -64,6 +64,7 @@ struct isp_port_cfg {
 	uint32_t in_fmt;
 	uint32_t vid_valid;
 	enum cam_en_status out_buf_clear;
+	enum cam_queue_ops_cmd result_queue_ops;
 	enum cam_en_status ltm_enable;
 	enum cam_en_status vid_cap_en;
 	int valid_out_frame;
