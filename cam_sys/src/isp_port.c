@@ -347,38 +347,36 @@ static struct cam_frame *ispport_out_frame_get(struct isp_port *port, struct isp
 	uint32_t buf_type = 0;
 	struct camera_buf_get_desc buf_desc = {0};
 
-	if (!port || !port_cfg) {
-		pr_err("fail to get valid input pctx %p\n", port);
+	if (!port || !port_cfg || !port_cfg->src_frame) {
+		pr_err("fail to get valid input pctx %p %p %p\n", port, port_cfg, port_cfg->src_frame);
 		return NULL;
 	}
 
-	if (port_cfg->src_frame) {
-		buf_type = port_cfg->src_frame->common.buf_type;
-		switch (buf_type) {
-		case ISP_STREAM_BUF_OUT:
-			goto normal_out_put;
-		case ISP_STREAM_BUF_RESERVED:
-			out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
-			if (out_frame) {
-				port_cfg->valid_out_frame = 1;
-				pr_debug("reserved buffer %d %lx\n", out_frame->common.is_reserved, out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
-			}
-			break;
-		case ISP_STREAM_BUF_POSTPROC:
-			out_frame = port_cfg->superzoom_frame;
-			if (out_frame) {
-				port_cfg->valid_out_frame = 1;
-				pr_debug("postproc buf %px\n", out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
-				if (ret)
-					out_frame = NULL;
-			}
-			break;
-		default:
-			pr_err("fail to support buf_type %d\n", buf_type);
-			break;
+	buf_type = port_cfg->src_frame->common.buf_type;
+	switch (buf_type) {
+	case ISP_STREAM_BUF_OUT:
+		goto normal_out_put;
+	case ISP_STREAM_BUF_RESERVED:
+		out_frame = ispport_reserved_buf_get(port->resbuf_get_cb, port->resbuf_cb_data, port);
+		if (out_frame) {
+			port_cfg->valid_out_frame = 1;
+			pr_debug("reserved buffer %d %lx\n", out_frame->common.is_reserved, out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
 		}
-		goto exit;
+		break;
+	case ISP_STREAM_BUF_POSTPROC:
+		out_frame = port_cfg->superzoom_frame;
+		if (out_frame) {
+			port_cfg->valid_out_frame = 1;
+			pr_debug("postproc buf %px\n", out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP]);
+			if (ret)
+				out_frame = NULL;
+		}
+		break;
+	default:
+		pr_err("fail to support buf_type %d\n", buf_type);
+		break;
 	}
+	goto exit;
 
 normal_out_put:
 	if (port->vid_cap_en && (!port_cfg->uinfo->cap_type || (port_cfg->uinfo->cap_type &&
