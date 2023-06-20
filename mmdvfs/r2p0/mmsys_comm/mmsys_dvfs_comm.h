@@ -41,6 +41,11 @@
 #define MM_DVFS_SUCCESS 0
 #define TOP_SW_DVFS_ENABLE 0 //1:enable 0:disable
 #define MM_SW_DVFS_ENABLE 0  //1:enable 0:disable
+
+/* for confirm lowv chip */
+#define NORMAL_CHIP 0
+#define LOWV_CHIP 1
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 #define DEVFREQ_NAME_LEN 16
 #endif

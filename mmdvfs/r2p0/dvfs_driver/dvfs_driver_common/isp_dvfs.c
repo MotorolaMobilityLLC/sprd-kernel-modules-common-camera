@@ -141,6 +141,13 @@ static void set_ip_dvfs_work_index(struct devfreq *devfreq,
 static int set_work_freq(struct devfreq *devfreq, unsigned long work_freq) {
 #ifdef DVFS_VERSION_N6P
 	u32 index = 0,mm_mtx_index = 0;
+	struct module_dvfs *isp;
+
+	isp = dev_get_drvdata(devfreq->dev.parent);
+	if (isp->is_lowv_chip) {
+		pr_info("N6p LOWV chip, isp has already vote 0.75V !");
+		return MM_DVFS_SUCCESS;
+	}
 
 	get_ip_index_from_table(isp_dvfs_config_table, work_freq, &index);
 
@@ -339,6 +346,33 @@ static void set_ip_dvfs_idle_index(struct devfreq *devfreq,
     DVFS_REG_WR(REG_MM_DVFS_AHB_ISP_DVFS_INDEX_IDLE_CFG, index_cfg_reg);
 }
 
+#ifdef DVFS_VERSION_N6P
+unsigned int get_lowv_chip(void) {
+	struct device_node *hwf = NULL;
+	const char* auto_efuse = NULL;
+
+	hwf = of_find_node_by_path("/hwfeature/auto");
+	if (hwf) {
+		auto_efuse = of_get_property(hwf, "lowv", NULL);
+		if (auto_efuse == NULL) {
+			pr_info("lowv node is not exist, return normal chip");
+			return NORMAL_CHIP;
+		}
+	} else {
+		pr_info("/hwfeature/auto is not exist, return normal chip");
+		return NORMAL_CHIP;
+	}
+
+	if (!strcmp(auto_efuse, "true")){
+		pr_info("LOWV chip, camera need vote 0.75V !");
+		return LOWV_CHIP;
+	} else {
+		pr_info("NORMAL chip, camera can be switched to  0.7V");
+		return NORMAL_CHIP;
+	}
+}
+#endif
+
 static int ip_dvfs_init(struct devfreq *devfreq) {
 
     struct module_dvfs *isp;
@@ -365,6 +399,11 @@ static int ip_dvfs_init(struct devfreq *devfreq) {
     isp->freq = isp_dvfs_config_table[ISP_WORK_INDEX_DEF].clk_freq;
     pr_info("isp dvfs init param: HDSK_EN %d WORK_INDEX_DEF %d IDLE_INDEX_DEF %d\n", ISP_FREQ_UPD_HDSK_EN,ISP_WORK_INDEX_DEF,
             ISP_IDLE_INDEX_DEF);
+
+#ifdef DVFS_VERSION_N6P
+    isp->is_lowv_chip = get_lowv_chip();
+#endif
+
     return MM_DVFS_SUCCESS;
 }
 
