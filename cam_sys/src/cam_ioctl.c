@@ -1940,7 +1940,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 	module->cap_scene = CAPTURE_COMMON;
 	module->is_flash_status = 0;
 
-	if (module->cam_uinfo.zsl_num) {
+	if (module->cam_uinfo.zsl_num && module->opt_frame_fid) {
 		cap_param.cap_opt_frame_scene = 0;
 		module->opt_frame_fid = 0;
 		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME, &module->opt_frame_fid);
