@@ -347,8 +347,12 @@ static struct cam_frame *ispport_out_frame_get(struct isp_port *port, struct isp
 	uint32_t buf_type = 0;
 	struct camera_buf_get_desc buf_desc = {0};
 
-	if (!port || !port_cfg || !port_cfg->src_frame) {
-		pr_err("fail to get valid input pctx %p %p %p\n", port, port_cfg, port_cfg->src_frame);
+	if (!port || !port_cfg) {
+		pr_err("fail to get valid input pctx %p %p\n", port, port_cfg);
+		return NULL;
+	}
+	if(!port_cfg->src_frame) {
+		pr_err("fail to get valid input src frame\n");
 		return NULL;
 	}
 
