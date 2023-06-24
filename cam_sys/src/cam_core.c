@@ -362,6 +362,7 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.dcamonline_buf_alloc_num = dcamonline_buf_num;
 	alloc_param.dcamoffline_buf_alloc_num = dcamoffline_buf_num;
 	alloc_param.stream_on_buf_com = &channel->stream_on_buf_com;
+	alloc_param.alloc_stop_signal = &channel->alloc_stop_signal;
 	alloc_param.not_to_isp = (module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1);
 	if (module->icap_scene && channel->ch_id == CAM_CH_CAP) {
 		alloc_param.cam_copy_buf_alloc_num = 3;

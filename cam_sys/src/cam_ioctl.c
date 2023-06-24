@@ -1332,9 +1332,11 @@ static int camioctl_stream_off(struct camera_module *module,
 	if (ch) {
 		mutex_lock(&module->buf_lock[ch->ch_id]);
 		if (ch->enable && ch->alloc_start) {
+			ch->alloc_stop_signal = CAM_ENABLE;
 			wait_for_completion(&ch->alloc_com);
 			pr_debug("alloc buffer done.\n");
 			ch->alloc_start = 0;
+			ch->alloc_stop_signal = CAM_DISABLE;
 		}
 		mutex_unlock(&module->buf_lock[ch->ch_id]);
 	}

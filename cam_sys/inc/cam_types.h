@@ -393,6 +393,7 @@ struct cam_buf_alloc_desc {
 	struct img_size chvid_dst_size;
 	uint32_t stream_on_need_buf_num;
 	struct completion *stream_on_buf_com;
+	uint32_t *alloc_stop_signal;
 	uint32_t nr3_enable;
 	uint32_t compress_3dnr;
 	uint32_t dcam_out_fmt;

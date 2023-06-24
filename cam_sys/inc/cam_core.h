@@ -215,6 +215,7 @@ struct channel_context {
 	enum cam_format dcam_out_fmt; /*for online path*/
 
 	enum cam_en_status alloc_start;
+	enum cam_en_status alloc_stop_signal;
 	struct completion alloc_com;
 	struct completion stream_on_buf_com;
 	struct completion fast_stop;

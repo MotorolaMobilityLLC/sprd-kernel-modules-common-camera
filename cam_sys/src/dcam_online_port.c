@@ -1232,6 +1232,11 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 	if ((total == 0) && param->stream_on_buf_com)
 		complete(param->stream_on_buf_com);
 	for (i = 0; i < total; i++) {
+		if (param->alloc_stop_signal && (*param->alloc_stop_signal)) {
+			if (param->stream_on_buf_com)
+				complete(param->stream_on_buf_com);
+			break;
+		}
 		pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
 		if (!pframe) {
 			pr_err("fail to get frame\n");
