@@ -2598,7 +2598,6 @@ static int isphw_fmcu_start(void *handle, void *arg)
 static int isphw_yuv_block_ctrl(void *handle, void *arg)
 {
 	uint32_t idx = 0, type = 0;
-	struct dcam_isp_k_block *p = NULL;
 	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
 
 	if (!arg) {
@@ -2611,7 +2610,6 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	idx = blk_ctrl->idx;
 
 	if (type == ISP_YUV_BLOCK_CFG) {
-		p = blk_ctrl->blk_param;
 		goto BLOCK_CFG;
 	} else if (type == ISP_YUV_BLOCK_DISABLE) {
 		goto BLOCK_BYPASS;
@@ -2620,25 +2618,6 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	}
 
 BLOCK_CFG:
-	if (!p) {
-		pr_err("fail to get reconfig blk param\n");
-		return -EFAULT;
-	}
-
-	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, p->cce_info.bypass);
-	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, p->bchs_info.bchs_bypass);
-	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
-	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info.bypass);
-	ISP_REG_MWR(idx, ISP_IIRCNR_PARAM, BIT_0, p->iircnr_info.bypass);
-	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, p->nf_info.yrandom_bypass);
-	ISP_REG_MWR(idx, ISP_POSTCDN_COMMON_CTRL,
-		BIT_0, p->post_cdn_info.bypass);
-	ISP_REG_MWR(idx, ISP_PRECDN_PARAM, BIT_0, p->pre_cdn_info.bypass);
-	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, p->pstrz_info_v2.bypass);
-	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v2.bypass);
-	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info.bypass);
-	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, p->ynr_info_v2.bypass);
-	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
 	return 0;
 
 BLOCK_BYPASS:

@@ -36,6 +36,7 @@ int isp_k_yrandom_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	if (g_isp_bypass[idx] & (1 << _EISP_YRAND))
 		yrandom_info->bypass = 1;
 
+	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, yrandom_info->bypass);
 	if (yrandom_info->bypass)
 		return 0;
 
