@@ -1652,6 +1652,8 @@ static int camcore_virtual_sensor_proc(struct camera_module *module,
 	src_frame->common.sensor_time.tv_sec = cur_ts.tv_sec;
 	src_frame->common.sensor_time.tv_usec = cur_ts.tv_nsec / NSEC_PER_USEC;
 	src_frame->common.boot_sensor_time = os_adapt_time_get_boottime();
+	src_frame->common.link_from.node_type = CAM_NODE_TYPE_USER;
+	src_frame->common.link_from.node_id = CAM_LINK_DEFAULT_NODE_ID;
 	ret = cam_buf_ionbuf_get(&src_frame->common.buf);
 	if (ret)
 		goto virtualsensor_src_fail;

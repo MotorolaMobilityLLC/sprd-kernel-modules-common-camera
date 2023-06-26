@@ -143,7 +143,8 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 		unsigned long arg)
 {
 	int ret = 0, cfg_to_dcam = 0, cfg_to_isp = 0;
-	struct channel_context *ch = NULL;
+	struct channel_context *ch_pre = NULL;
+	struct channel_context *ch_cap = NULL;
 	struct isp_statis_buf_input statis_buf = {0};
 	struct cam_hw_info *hw = module->dcam_dev_handle->hw;
 	struct dcam_statis_param statis_param = {0};
@@ -171,7 +172,9 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 			atomic_read(&module->state));
 		goto exit;
 	}
-	ch = &module->channel[CAM_CH_PRE];
+
+	ch_pre = &module->channel[CAM_CH_PRE];
+	ch_cap = &module->channel[CAM_CH_CAP];
 	pr_debug("cam%d type %d mfd %d\n", module->idx, statis_buf.type, statis_buf.mfd);
 
 	switch (statis_buf.type) {
@@ -209,8 +212,8 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 			break;
 		case STATIS_LTMHIST:
 			if (hw->ip_isp->isphw_abt->rgb_ltm_support) {
-				if (!ch->enable) {
-					pr_warn("warning:channel:%d not eb, can not set ltm buf\n", ch->ch_id);
+				if (!ch_pre->enable) {
+					pr_warn("warning:channel:%d not eb, can not set ltm buf\n", ch_pre ->ch_id);
 					break;
 				}
 				cfg_to_isp = 1;
@@ -222,31 +225,29 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 	}
 
 	if (cfg_to_isp) {
-		if (ch->enable) {
-			ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
+		if (ch_pre->enable) {
+			ret = CAM_PIPEINE_ISP_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
 			if (ret)
 				pr_err("fail to config isp STATIS, statis_buf.type %d\n", statis_buf.type);
 		} else {
 			pr_debug("prev channel disable, can not set buf\n");
-			ch = &module->channel[CAM_CH_CAP];
-			if (ch->enable && module->cam_uinfo.dcam_slice_mode)
-				ret = CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
+			if (ch_cap->enable && module->cam_uinfo.dcam_slice_mode)
+				ret = CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
 		}
 	}
 
 	if (cfg_to_dcam) {
-		if (ch->enable) {
+		if (ch_pre->enable) {
 			statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 			statis_param.param = &statis_buf;
-			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 			if (ret)
 				pr_err("fail to config dcam STATIS, statis_buf.type %d\n", statis_buf.type);
 		} else {
-			ch = &module->channel[CAM_CH_CAP];
-			if (ch->enable && module->cam_uinfo.is_longexp) {
+			if (ch_cap->enable && module->cam_uinfo.is_longexp) {
 				statis_param.statis_cmd = DCAM_IOCTL_CFG_STATIS_BUF;
 				statis_param.param = &statis_buf;
-				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
+				ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_STATIS_BUF, &statis_param);
 				if (ret)
 					pr_err("fail to config longxp STATIS, statis_buf.type %d\n", statis_buf.type);
 			}

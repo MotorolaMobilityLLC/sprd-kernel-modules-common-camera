@@ -26,6 +26,23 @@
 #define FORMAT_FRGB_VAL                2
 #endif
 
+#define MIN_MAX(src, min, max) ({ \
+	if (src < min || src > max) \
+		pr_warn("warning: %s out of range,num:%d\n", #src, src); \
+})
+
+#define SMALL_EQUAL(src, max) ({ \
+	if (src > max) \
+		pr_warn("warning: %s out of range,num:%d\n", #src, src); \
+})
+
+#define EQUAL(src, dst) ({ \
+	if (src != dst) \
+		pr_warn("warning: %s is invalid,num:%d\n", #src, src); \
+})
+
+#define IF_POSNUM(src) ((src >= 0) ? src : 0)
+
 struct isp_blkparam_adapt {
 	uint32_t new_width;
 	uint32_t new_height;
