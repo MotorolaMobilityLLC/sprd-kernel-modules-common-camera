@@ -645,7 +645,9 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 			continue;
 		if (channel->pipeline_type == pipeline_type) {
 			pr_debug("ch %d type %d\n", channel->ch_id, pipeline_type);
+			spin_lock_irqsave(&channel->lastest_zoom_lock, flag);
 			zoom_frame = CAM_QUEUE_DEQUEUE(&channel->zoom_param_q, struct cam_frame, list);
+			spin_unlock_irqrestore(&channel->lastest_zoom_lock, flag);
 			if (zoom_frame) {
 				memcpy(zoom_param, &zoom_frame->node_zoom, sizeof(struct cam_zoom_frame));
 				cam_queue_empty_frame_put(zoom_frame);
@@ -658,7 +660,9 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 		}
 		if (channel->nonzsl_pre_pipeline && pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW) {
 			pr_debug("ch %d type %d\n", channel->ch_id, pipeline_type);
+			spin_lock_irqsave(&channel->nonzsl_pre.lastest_zoom_lock, flag);
 			zoom_frame = CAM_QUEUE_DEQUEUE(&channel->nonzsl_pre.zoom_param_q, struct cam_frame, list);
+			spin_unlock_irqrestore(&channel->nonzsl_pre.lastest_zoom_lock, flag);
 			if (zoom_frame) {
 				memcpy(zoom_param, &zoom_frame->node_zoom, sizeof(struct cam_zoom_frame));
 				cam_queue_empty_frame_put(zoom_frame);
