@@ -342,7 +342,7 @@ struct slice_ltm_hist_info {
 	uint32_t ddr_pitch;
 	uint32_t ddr_wr_num;
 	uint32_t is_last_slice;
-	uint32_t mem_addr;
+	unsigned long mem_addr;
 };
 
 struct slice_ltm_map_info {
