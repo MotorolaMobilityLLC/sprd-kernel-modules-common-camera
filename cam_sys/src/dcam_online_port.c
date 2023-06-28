@@ -164,9 +164,11 @@ static struct cam_frame *dcamonline_port_reserved_buf_get(struct dcam_online_por
 
 	if (dcam_port->resbuf_get_cb)
 		dcam_port->resbuf_get_cb((void *)&frame, dcam_port->resbuf_cb_data);
-	frame->common.priv_data = dcam_port;
-	if (dcam_port->compress_en)
-		frame->common.is_compressed = 1;
+	if (frame) {
+		frame->common.priv_data = dcam_port;
+		if (dcam_port->compress_en)
+			frame->common.is_compressed = 1;
+	}
 	pr_debug("dcam use reserved buffer for port %s\n", cam_port_name_get(dcam_port->port_id));
 	return frame;
 }
