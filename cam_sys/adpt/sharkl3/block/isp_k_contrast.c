@@ -32,6 +32,8 @@ int isp_k_contrast1_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	isp_k_param->contrast_info.isupdate = 0;
 	if (g_isp_bypass[idx] & (1 << _EISP_CONTRAST))
 		contrast_info->bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, contrast_info->bypass);
 	if (contrast_info->bypass)
 		return 0;
 

@@ -33,6 +33,8 @@ int isp_k_brightness1_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 
 	if (g_isp_bypass[idx] & (1 << _EISP_BRIGHT))
 		brightness_info->bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, brightness_info->bypass);
 	if ((brightness_info->bypass))
 		return 0;
 

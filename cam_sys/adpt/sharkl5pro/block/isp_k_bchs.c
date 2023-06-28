@@ -34,6 +34,8 @@ int isp_k_bchs_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 
 	if (g_isp_bypass[idx] & (1 << _EISP_BCHS))
 		bchs_info->bchs_bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, bchs_info->bchs_bypass);
 	if (bchs_info->bchs_bypass)
 		return 0;
 

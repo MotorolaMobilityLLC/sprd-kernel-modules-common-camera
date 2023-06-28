@@ -34,6 +34,8 @@ int isp_k_ynr_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 	isp_k_param->ynr_info.isupdate = 0;
 	if (g_isp_bypass[idx] & (1 << _EISP_YNR))
 		ynr->bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_YNR_CONTRL0, BIT_0, ynr->bypass);
 	if (ynr->bypass)
 		return 0;
 

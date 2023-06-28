@@ -1040,12 +1040,13 @@ int cam_zoom_param_set(struct cam_zoom_desc *in_ptr)
 		if (cur_zoom) {
 			camzoom_frame_param_cfg(in_ptr, &cur_zoom->node_zoom);
 			pr_debug("set cur_zoom %px\n", cur_zoom);
+			spin_lock_irqsave(in_ptr->zoom_lock, flag);
 			ret = CAM_QUEUE_ENQUEUE(zoom_q, &cur_zoom->list);
 			if (ret) {
+				spin_unlock_irqrestore(in_ptr->zoom_lock, flag);
 				pr_err("fail to enq zoom cnt %d, state:%d\n", zoom_q->cnt, zoom_q->state);
 				return ret;
 			}
-			spin_lock_irqsave(in_ptr->zoom_lock, flag);
 			for (i = 0; i < NODE_ZOOM_CNT_MAX; i++)
 				latest_zoom->zoom_node[i] = cur_zoom->node_zoom.zoom_node[i];
 			spin_unlock_irqrestore(in_ptr->zoom_lock, flag);
@@ -1091,7 +1092,7 @@ int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_ind
 		}
 	}
 
-	if (i == NODE_ZOOM_CNT_MAX && j == PORT_ZOOM_CNT_MAX)
+	if (i == NODE_ZOOM_CNT_MAX || j == PORT_ZOOM_CNT_MAX)
 		pr_warn("warning: not find correct zoom data i %d j %d\n", i, j);
 
 	return ret;

@@ -34,6 +34,7 @@ struct module_dvfs {
     uint32_t dvfs_modules_opp_microvolt;
     uint32_t dvfs_modules_opp_microamp;
     uint32_t dvfs_modules_clock_latency;
+    unsigned int is_lowv_chip;
     unsigned long freq, target_freq;
     unsigned long volt, target_volt;
     unsigned long user_freq;

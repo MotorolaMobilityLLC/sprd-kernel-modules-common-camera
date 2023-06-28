@@ -3157,6 +3157,7 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 		return -EFAULT;
 	}
 
+#if 0
 	/* TBD: need update if isp process more than once */
 	ISP_REG_MWR(idx, ISP_YUV_REC_YNR_CONTRL0, BIT_0, p->ynr_info_v3.bypass);
 	ISP_REG_MWR(idx, ISP_YUV_REC_CNR_CONTRL0, BIT_0, p->cnr_info.bypass);
@@ -3173,6 +3174,7 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
 	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, p->bchs_info.bchs_bypass);
 	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, p->nf_info.yrandom_bypass);
+#endif
 
 	return 0;
 }

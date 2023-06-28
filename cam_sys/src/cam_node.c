@@ -1770,6 +1770,10 @@ void cam_node_destory(struct cam_node *node)
 		break;
 	}
 	node->handle = NULL;
+	node->zoom_cb_func = NULL;
+	node->data_cb_func = NULL;
+	node->data_cb_handle = NULL;
+	node->buf_manager_handle = NULL;
 
 	for (i = CAM_NODE_PORT_OUT_NUM - 1; i >= 0; i--) {
 		if (node->node_graph->outport[i].link_state != PORT_LINK_NORMAL)
@@ -1786,7 +1790,7 @@ void cam_node_destory(struct cam_node *node)
 		cam_port_destory(node->inport_list[i]);
 		node->inport_list[i] = NULL;
 	}
-
+	node->node_graph = NULL;
 	cam_buf_kernel_sys_vfree(node);
 	node = NULL;
 }

@@ -41,6 +41,8 @@ static int isp_k_pstrz_block(struct isp_io_param *param,
 	}
 	if (g_isp_bypass[idx] & (1 << _EISP_PSTRZ))
 		pstrz_info->bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_PSTRZ_PARAM, BIT_0, pstrz_info->bypass);
 	if (pstrz_info->bypass)
 		return 0;
 

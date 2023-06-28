@@ -42,6 +42,8 @@ int isp_k_3dlut_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 
 	if (g_isp_bypass[idx] & (1 << _EISP_3DLUT))
 		lut3d_info->rgb3dlut_bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_CTM_PARAM, BIT_0, lut3d_info->rgb3dlut_bypass);
 	if (lut3d_info->rgb3dlut_bypass) {
 		pr_debug("idx %d, 3dlut_bypass!\n", idx);
 		return 0;

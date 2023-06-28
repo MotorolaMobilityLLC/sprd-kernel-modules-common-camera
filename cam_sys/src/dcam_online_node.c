@@ -711,7 +711,7 @@ dispatch_sof:
 	hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 
 	if (!irq_proc->not_dispatch && (!node->slowmotion_count
-		|| !(hw_ctx->fid % node->slowmotion_count))) {
+		|| !hw_ctx->fid || (!((hw_ctx->fid + 1) % node->slowmotion_count)))) {
 		dcamonline_sof_event_dispatch(node, hw_ctx);
 	}
 	hw_ctx->iommu_status = 0xffffffff;

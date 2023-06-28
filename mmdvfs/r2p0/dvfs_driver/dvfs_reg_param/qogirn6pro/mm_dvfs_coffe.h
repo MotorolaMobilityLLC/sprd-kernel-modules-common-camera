@@ -29,7 +29,7 @@
 #define ISP_FREQ_UPD_HDSK_EN 1
 #define ISP_GFREE_WAIT_DELAY 308
 #define ISP_SW_TRIG_EN 0
-#define ISP_WORK_INDEX_DEF 3
+#define ISP_WORK_INDEX_DEF 7
 #define ISP_IDLE_INDEX_DEF 0
 #define ISP_DFS_EN 1
 

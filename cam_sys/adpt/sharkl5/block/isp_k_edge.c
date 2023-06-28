@@ -34,6 +34,8 @@ int isp_k_edge_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 
 	if (g_isp_bypass[idx] & (1 << _EISP_EE))
 		edge_info->bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, edge_info->bypass);
 	if (edge_info->bypass)
 		return 0;
 

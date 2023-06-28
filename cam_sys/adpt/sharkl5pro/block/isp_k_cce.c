@@ -35,6 +35,8 @@ int isp_k_cce_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx)
 
 	if ((g_isp_bypass[idx] >> _EISP_CCE) & 1)
 		cce_info->bypass = 1;
+
+	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, cce_info->bypass);
 	if (cce_info->bypass)
 		return 0;
 
