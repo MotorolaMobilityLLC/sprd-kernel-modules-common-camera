@@ -341,8 +341,7 @@ int cam_buf_kmap(struct camera_buf *buf_info)
 	if (IS_ERR_OR_NULL((void *)buf_info->addr_k)) {
 		pr_err("fail to map k_addr %p for dmabuf[%p]\n", (void *)buf_info->addr_k, buf_info->dmabuf_p);
 		buf_info->addr_k = 0;
-		ret = -EINVAL;
-		goto map_fail;
+		return -EINVAL;
 	}
 	buf_info->addr_k += buf_info->offset[0];
 	pr_debug("buf_info %p, addr_k %p, dmabuf[%p]\n", buf_info, (void *)buf_info->addr_k, buf_info->dmabuf_p);
@@ -355,11 +354,6 @@ int cam_buf_kmap(struct camera_buf *buf_info)
 		atomic_inc(&g_mem_dbg->ion_kmap_cnt);
 
 	return 0;
-
-map_fail:
-	cambuf_adapt_buf_kunmap(buf_info);
-	buf_info->addr_k = 0;
-	return ret;
 }
 
 int cam_buf_kunmap(struct camera_buf *buf_info)
