@@ -26,7 +26,6 @@ static void afm_blockparam_check(struct dcam_isp_k_block *param)
 {
 	int i = 0;
 	s16 iir_info = 0;
-	s8 fv1_coeff[4][9] = {0}, fv1_sum = 0, fv1_pos_sum = 0;
 	struct dcam_dev_afm_info *afm_info = &param->afm.af_param;
 
 	SMALL_EQUAL(afm_info->afm_iir_enable, 1);
@@ -61,40 +60,6 @@ static void afm_blockparam_check(struct dcam_isp_k_block *param)
 	if (afm_info->afm_clip_en1 == 1) {
 		SMALL_EQUAL(afm_info->afm_fv1_th.min, ((1 << 12) - 1));
 		SMALL_EQUAL(afm_info->afm_fv1_th.max, ((1 << 20) - 1));
-	}
-
-	for (i = 0; i < 4; i++) {
-		fv1_coeff[i][0] = afm_info->afm_fv1_coeff[i][0] & 0xFF;
-		fv1_sum += fv1_coeff[i][0];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][0]);
-		fv1_coeff[i][1] = afm_info->afm_fv1_coeff[i][1] & 0xFF;
-		fv1_sum += fv1_coeff[i][1];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][1]);
-		fv1_coeff[i][2] = afm_info->afm_fv1_coeff[i][2] & 0xFF;
-		fv1_sum += fv1_coeff[i][2];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][2]);
-		fv1_coeff[i][3] = afm_info->afm_fv1_coeff[i][3] & 0xFF;
-		fv1_sum += fv1_coeff[i][3];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][3]);
-		fv1_coeff[i][4] = afm_info->afm_fv1_coeff[i][4] & 0xFF;
-		fv1_sum += fv1_coeff[i][4];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][4]);
-		fv1_coeff[i][5] = afm_info->afm_fv1_coeff[i][5] & 0xFF;
-		fv1_sum += fv1_coeff[i][5];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][5]);
-		fv1_coeff[i][6] = afm_info->afm_fv1_coeff[i][6] & 0xFF;
-		fv1_sum += fv1_coeff[i][6];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][6]);
-		fv1_coeff[i][7] = afm_info->afm_fv1_coeff[i][7] & 0xFF;
-		fv1_sum += fv1_coeff[i][7];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][7]);
-		fv1_coeff[i][8] = afm_info->afm_fv1_coeff[i][8] & 0xFF;
-		fv1_sum += fv1_coeff[i][8];
-		fv1_pos_sum += IF_POSNUM(fv1_coeff[i][8]);
-		EQUAL(fv1_sum, 0);
-		EQUAL(fv1_pos_sum, 16);
-		fv1_sum = 0;
-		fv1_pos_sum = 0;
 	}
 }
 

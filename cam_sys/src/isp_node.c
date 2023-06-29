@@ -1238,12 +1238,6 @@ preview_param:
 			} else {
 				cam_queue_recycle_blk_param(&inode->param_share_queue, param_pframe);
 				param_pframe = NULL;
-				pr_warn("warning:pre param not match, cam %d, cfg_id %d, fid %d\n",
-					inode->attach_cam_id, inode->cfg_id, target_fid);
-				if (param_last_fid != -1)
-					pr_warn("warning:pre use old param, param id %d, frame id %d\n", param_last_fid, target_fid);
-				else
-					pr_warn("warning:pre no param update, frame id %d\n", target_fid);
 				break;
 			}
 		} else
@@ -1276,8 +1270,6 @@ capture_param:
 				param_pframe = NULL;
 			} else {
 				mutex_unlock(&inode->blkpm_q_lock);
-				pr_warn("warning:cap param not match, cam %d, cfg_id %d, fid %d\n",
-					inode->attach_cam_id, inode->cfg_id, target_fid);
 				if (!last_param) {
 					pr_warn("warning:dont have old param, use latest param, cam %d, cfg_id %d, fid %d\n",
 						inode->attach_cam_id, inode->cfg_id, target_fid);

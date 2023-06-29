@@ -48,12 +48,12 @@ static void framecache_capzslframe_deal(struct frame_cache_node *node)
 {
 	struct cam_frame *pframe = NULL;
 
+	pr_debug("q status:%d, cnt:%d.\n", node->cache_buf_queue.state, node->cache_buf_queue.cnt);
 	do {
 		pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->cache_buf_queue, struct cam_frame, list);
-		if (!pframe) {
-			pr_warn("warning:q status:%d, cnt:%d.\n", node->cache_buf_queue.state, node->cache_buf_queue.cnt);
+		if (!pframe)
 			return;
-		}
+
 		if (node->cap_param.zsl_num) {
 			node->link_info = pframe->common.link_from;
 			pframe->common.link_from.node_type = CAM_NODE_TYPE_FRAME_CACHE;
