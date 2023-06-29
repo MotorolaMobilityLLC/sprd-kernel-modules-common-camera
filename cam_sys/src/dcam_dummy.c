@@ -216,8 +216,10 @@ static void dcamdummy_dummy_finish(struct dcam_dummy_slave *dummy_slave, struct 
 		}
 	}
 	if (!dummy_enable) {
-		cam_queue_empty_frame_put(dummy_slave->reserved_buf);
-		dummy_slave->reserved_buf = NULL;
+		if (dummy_slave->reserved_buf){
+			cam_queue_empty_frame_put(dummy_slave->reserved_buf);
+			dummy_slave->reserved_buf = NULL;
+		}
 		atomic_set(&dummy_slave->status, DCAM_DUMMY_IDLE);
 		pr_info("dummy finish\n");
 	}
@@ -516,8 +518,10 @@ static int dcamdummy_enable(void *handle, void *arg)
 			}
 		}
 		if (!enable) {
-			cam_queue_empty_frame_put(dummy_slave->reserved_buf);
-			dummy_slave->reserved_buf = NULL;
+			if (dummy_slave->reserved_buf){
+				cam_queue_empty_frame_put(dummy_slave->reserved_buf);
+				dummy_slave->reserved_buf = NULL;
+			}
 			atomic_set(&dummy_slave->status, DCAM_DUMMY_DISABLE);
 			enable_param.enable = 0;
 			hw->dcam_ioctl(hw, dummy_param->hw_ctx_id, DCAM_HW_CFG_DUMMY_ENABLE, &enable_param);
