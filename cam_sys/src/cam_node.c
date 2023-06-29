@@ -1673,7 +1673,7 @@ void *cam_node_creat(struct cam_node_desc *param)
 		port_desc.port_graph = &param->node_graph->outport[i];
 		port_desc.dcam_online = &param->dcam_online_desc->port_desc[i];
 		if (port_desc.port_graph->link_state != PORT_LINK_NORMAL) {
-			if (port_desc.dcam_online->update_state) {
+			if (port_desc.dcam_online->update_state && param->node_graph->type == CAM_NODE_TYPE_DCAM_ONLINE) {
 				port_desc.port_graph->link_state = PORT_LINK_NORMAL;
 				port_desc.dcam_online->update_state = 0;
 			}

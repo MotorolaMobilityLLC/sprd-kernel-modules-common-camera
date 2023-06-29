@@ -462,6 +462,7 @@ static int dcamfetch_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 	int ret = 0;
 
 	dcam_hwctx_frame_param_set(hw_ctx);
+	dcam_hwctx_binning_4in1_set(hw_ctx);
 	ret = dcam_hwctx_fetch_set(hw_ctx);
 	return ret;
 }
@@ -504,15 +505,35 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node, struct dcam_isp_k_
 
 		mutex_lock(&pm->lsc.lsc_lock);
 		if (slice->slice_num > 1) {
-			if (i == 0)
+			if (i == 0) {
+				pm->lsc.grid_offset = 0;
 				ret = dcam_init_lsc(pm, 0);
-			else
+				if (ret < 0) {
+					mutex_unlock(&pm->lsc.lsc_lock);
+					return ret;
+				}
+			} else if (i == slice->w_slice_num) {
+				/* LSC table is divided into two pieces, grid_offset is the offset address of the lower one,
+				 * grid_offset = index * grid_x_num * 4 * sizeof(uint16_t)
+				 * index:the height of each cell in the table,
+				 * grid_x_num:the number of cells in the wide direction of the table,
+				 * 4:four channels; the type of the table is uint16_t.
+				 */
+				pm->lsc.grid_offset = pm->lsc.grid_x_index * pm->lsc.lens_info.grid_x_num * 4 * sizeof(uint16_t);
+				ret = dcam_init_lsc(pm, 0);
+				if (ret < 0) {
+					mutex_unlock(&pm->lsc.lsc_lock);
+					return ret;
+				}
+			} else {
 				ret = dcam_init_lsc_slice(pm, 0);
-			if (ret < 0) {
-				pr_err("fail to init lsc\n");
-				return ret;
+				if (ret < 0) {
+					pr_err("fail to init lsc\n");
+					return ret;
+				}
 			}
 		}
+
 		mutex_unlock(&pm->lsc.lsc_lock);
 
 		/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
@@ -530,6 +551,12 @@ static int dcamfetch_node_frame_start(void *param)
 	int ret = 0;
 	struct dcam_fetch_node *node = NULL;
 	struct dcam_online_node *online_node = NULL;
+	struct dcam_online_port *dcam_port = NULL;
+	uint32_t path_id = 0;
+	struct dcam_hw_path_start *hw_start = NULL;
+	struct dcam_hw_path_size *hw_size = NULL;
+	struct dcam_hw_cfg_store_addr *hw_store = NULL;
+
 	struct cam_frame *pframe = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
@@ -554,12 +581,14 @@ static int dcamfetch_node_frame_start(void *param)
 		online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, online_node->data_cb_handle);
 		return ret;
 	}
+
 	slice = &online_node->hw_ctx->slice_info;
 	pframe = dcamfetch_cycle_frame(node);
 	if (!pframe)
 		goto fetch_input_err;
 
 	pm = &online_node->blk_pm;
+	pm->dev = online_node->dev;
 	node->hw_ctx->index_to_set = pframe->common.fid + 1;
 	dev_fid = pframe->common.fid;
 	if (pframe->common.sensor_time.tv_sec || pframe->common.sensor_time.tv_usec) {
@@ -575,7 +604,51 @@ static int dcamfetch_node_frame_start(void *param)
 
 	/* fetch in node may put it into hw ctx */
 	slice->fetch_fmt= node->fetch_info.fmt;
+
 	dcam_slice_needed_info_get(online_node->hw_ctx, &lbuf_width, pframe->common.width);
+
+	CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &online_node->port_queue.head, list) {
+		if (atomic_read(&dcam_port->is_work) < 1) {
+			pr_debug("dcam offline port %s is not work\n",cam_port_name_get(dcam_port->port_id));
+			continue;
+		}
+		path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
+		if (path_id >= DCAM_PATH_MAX) {
+			pr_err("fail to port %s convert to path id %d\n", cam_port_name_get(dcam_port->port_id), path_id);
+			continue;
+		}
+		hw_store = &online_node->hw_ctx->hw_path[path_id].hw_store;
+		hw_size = &online_node->hw_ctx->hw_path[path_id].hw_size;
+		hw_start = &online_node->hw_ctx->hw_path[path_id].hw_start;
+
+		hw_store->idx = online_node->hw_ctx->hw_ctx_id;
+		hw_store->path_id = path_id;
+		hw_store->out_fmt = dcam_port->dcamout_fmt;
+		hw_store->out_size.h = dcam_port->out_size.h;
+		hw_store->out_size.w = dcam_port->out_size.w;
+		hw_store->out_pitch = dcam_port->out_pitch;
+		hw_store->blk_param = online_node->hw_ctx->blk_pm;
+
+		hw_size->idx = online_node->hw_ctx->hw_ctx_id;
+		hw_size->path_id = path_id;
+		hw_size->bin_ratio = dcam_port->bin_ratio;
+		hw_size->scaler_sel = dcam_port->scaler_sel;
+		hw_size->in_size = dcam_port->in_size;
+		hw_size->in_trim = dcam_port->in_trim;
+		hw_size->out_size = dcam_port->out_size;
+		hw_size->out_pitch = dcam_port->out_pitch;
+		hw_size->scaler_info = &dcam_port->scaler_info;
+
+		hw_start->idx = online_node->hw_ctx->hw_ctx_id;
+		hw_start->path_id = path_id;
+		hw_start->slowmotion_count = 0;
+		hw_start->pdaf_path_eb = 0;
+		hw_start->src_sel = dcam_port->src_sel;
+		hw_start->in_trim = dcam_port->in_trim;
+		hw_start->endian = dcam_port->endian;
+		hw_start->out_fmt = dcam_port->dcamout_fmt;
+	}
+
 	dcam_slice_hw_info_set(slice, pframe, lbuf_width, &online_node->blk_pm);
 	dcamfetch_hw_frame_param_set(online_node->hw_ctx);
 
@@ -755,6 +828,7 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 		node->online_node.slw_type = DCAM_SLW_OFF;
 	else
 		node->online_node.slw_type = DCAM_SLW_AP;
+	node->online_node.dcam_slice_mode = param->online_node_desc->dcam_slice_mode;
 	node->online_node.is_4in1 = param->online_node_desc->is_4in1;
 	node->online_node.is_3dnr = param->online_node_desc->enable_3dnr;
 	node->online_node.nr3_frm = NULL;
@@ -766,6 +840,7 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 	node->online_node.alg_type = param->online_node_desc->alg_type;
 	node->online_node.param_frame_sync = param->online_node_desc->param_frame_sync;
 	node->online_node.buf_manager_handle = param->online_node_desc->buf_manager_handle;
+	node->fetch_info.fmt = param->fetch_fmt;
 	node->fetch_info.pattern = param->online_node_desc->pattern;
 	node->fetch_info.endian = param->online_node_desc->endian;
 	pr_debug("pattern %d, endian %d\n", node->fetch_info.pattern, node->fetch_info.endian);

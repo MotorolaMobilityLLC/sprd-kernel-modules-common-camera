@@ -363,7 +363,7 @@ static int camcore_buffers_alloc(void *param)
 	alloc_param.dcamoffline_buf_alloc_num = dcamoffline_buf_num;
 	alloc_param.stream_on_buf_com = &channel->stream_on_buf_com;
 	alloc_param.alloc_stop_signal = &channel->alloc_stop_signal;
-	alloc_param.not_to_isp = (module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1);
+	alloc_param.not_to_isp = ((module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1) && !module->cam_uinfo.virtualsensor);
 	if (module->icap_scene && channel->ch_id == CAM_CH_CAP) {
 		alloc_param.cam_copy_buf_alloc_num = 3;
 		alloc_param.dcamoffline_lsc_buf_alloc_num = 2;
@@ -1393,6 +1393,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 			dcam_fetch_desc = &pipeline_desc->dcam_fetch_desc;
 			dcam_fetch_desc->online_node_desc = dcam_online_desc;
 			dcam_fetch_desc->virtualsensor = module->cam_uinfo.virtualsensor;
+			dcam_fetch_desc->fetch_fmt = channel->ch_uinfo.sensor_raw_fmt;
 			if (dcam_fetch_desc->virtualsensor && channel->ch_id == CAM_CH_CAP)
 				dcam_fetch_desc->virtualsensor_cap_en = 1;
 		}

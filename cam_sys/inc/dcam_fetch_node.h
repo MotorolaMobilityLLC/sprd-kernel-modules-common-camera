@@ -26,6 +26,7 @@
 
 struct dcam_fetch_node_desc {
 	struct dcam_online_node_desc *online_node_desc;
+	enum cam_format fetch_fmt;
 	enum cam_en_status virtualsensor;
 	enum cam_en_status virtualsensor_cap_en;
 	void **node_dev;

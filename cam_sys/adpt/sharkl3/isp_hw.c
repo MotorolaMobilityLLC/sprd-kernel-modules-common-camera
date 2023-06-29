@@ -434,7 +434,7 @@ static int isphw_abnormal_uevent(void *handle, void *arg)
 
 	pdev = (struct platform_device *)arg;
 	for (addr = 0x988; addr <= 0x9ac;addr += 16) {
-		sprintf(str_reg,"0x%x, 0x%x, 0x%x, 0x%x, 0x%x",
+		snprintf(str_reg, ARRAY_SIZE(str_reg), "0x%x, 0x%x, 0x%x, 0x%x, 0x%x",
 			addr,
 			ISP_HREG_RD(addr),
 			ISP_HREG_RD(addr + 4),
