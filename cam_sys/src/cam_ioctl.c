@@ -1853,7 +1853,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->capture_type = CAM_CAPTURE_START;
 		module->capture_times = param.timestamp;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
-		if (ch->need_framecache)
+		if (ch->need_framecache && cap_param.cap_opt_frame_scene == 0)
 			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF, NULL);
 		break;
 	case DCAM_CAPTURE_START_3DNR:

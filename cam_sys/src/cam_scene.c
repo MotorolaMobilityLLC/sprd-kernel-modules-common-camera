@@ -2506,19 +2506,24 @@ int cam_scene_isp_yuv_scaler_desc_get(void *module_ptr,
 	return ret;
 }
 
-int cam_scene_camcopy_desc_get(struct cam_copy_node_desc *cam_copy_desc, uint32_t pipeline_type)
+int cam_scene_camcopy_desc_get(void *module_ptr, struct cam_copy_node_desc *cam_copy_desc, uint32_t pipeline_type)
 {
 	int ret = 0;
+	struct camera_module *module = NULL;
 
-	if (!cam_copy_desc) {
-		pr_err("fail to pipeline:%d valid inptr %p\n", pipeline_type, cam_copy_desc);
+	if (!cam_copy_desc || !module_ptr) {
+		pr_err("fail to pipeline:%d valid inptr %p, %p\n", pipeline_type, cam_copy_desc, module_ptr);
 		return -EINVAL;
 	}
+	module = (struct camera_module *)module_ptr;
 
 	if (pipeline_type == CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV)
 		cam_copy_desc->copy_mode = CAM_COPY_FRAME_IN_DSTBUF;
 	else
 		cam_copy_desc->copy_mode = CAM_COPY_FRAME_IN_SRCBUF;
+	cam_copy_desc->pre_frame_status = camcore_pre_frame_status;
+	cam_copy_desc->private_cb_data = module;
 
 	return ret;
 }
+

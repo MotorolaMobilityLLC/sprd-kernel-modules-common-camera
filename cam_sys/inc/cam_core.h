@@ -344,4 +344,6 @@ struct cam_ioctl_cmd {
 };
 
 uint32_t camcore_dcampath_id_convert(uint32_t path_k_id);
+int camcore_pre_frame_status(uint32_t param, void *priv_data);
+
 #endif

@@ -254,6 +254,9 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_CFG_DUAL_SYNC_BUF_GET:
 		node_cmd = CAM_NODE_CFG_DUAL_SYNC_BUF_GET;
 		break;
+	case CAM_PIPELINE_CFG_PRE_FRAME_STATUS:
+		node_cmd = CAM_NODE_CFG_PRE_FRAME_STATUS;
+		break;
 	case CAM_PIPELINE_CFG_BLK_PARAM:
 		node_cmd = CAM_NODE_CFG_BLK_PARAM;
 		break;

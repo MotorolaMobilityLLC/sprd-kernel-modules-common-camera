@@ -36,6 +36,6 @@ int cam_scene_dcamoffline_bpcraw_desc_get(void *module_ptr, void *channel_ptr, s
 int cam_scene_dcamoffline_lscraw_desc_get(void *module_ptr, void *channel_ptr, struct dcam_offline_node_desc *dcam_offline_desc);
 int cam_scene_ispoffline_desc_get(void *module_ptr, void *channel_ptr, uint32_t pipeline_type, struct isp_node_desc *isp_node_description);
 int cam_scene_isp_yuv_scaler_desc_get(void *module_ptr, void *channel_ptr, struct isp_yuv_scaler_node_desc *isp_yuv_scaler_desc);
-int cam_scene_camcopy_desc_get(struct cam_copy_node_desc *cam_copy_desc, uint32_t pipeline_type);
+int cam_scene_camcopy_desc_get(void *module_ptr, struct cam_copy_node_desc *cam_copy_desc, uint32_t pipeline_type);
 
 #endif

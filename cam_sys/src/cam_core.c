@@ -540,6 +540,27 @@ static struct cam_frame *camcore_dual_frame_deal(void *param, void *priv_data, i
 	return pframe;
 }
 
+int camcore_pre_frame_status(uint32_t param, void *priv_data)
+{
+	struct camera_module *module = NULL;
+	struct channel_context *ch_cap = NULL;
+	int ret = 0;
+
+	if (!priv_data) {
+		pr_err("fail to get valid ptr\n");
+		return -EFAULT;
+	}
+
+	module = (struct camera_module *)priv_data;
+	ch_cap = &module->channel[CAM_CH_CAP];
+
+	ret =  CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_PRE_FRAME_STATUS, &param);
+	if(ret)
+		pr_err("fail to update cap status\n");
+
+	return ret;
+}
+
 static int camcore_cap_frame_status(uint32_t param, void *priv_data)
 {
 	struct camera_module *module = NULL;
@@ -1462,7 +1483,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	if (pipeline_desc->pipeline_graph->need_copy_node) {
 		cam_copy_desc = &pipeline_desc->cam_copy_desc;
-		cam_scene_camcopy_desc_get(cam_copy_desc, pipeline_type);
+		cam_scene_camcopy_desc_get(module, cam_copy_desc, pipeline_type);
 	}
 
 	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {

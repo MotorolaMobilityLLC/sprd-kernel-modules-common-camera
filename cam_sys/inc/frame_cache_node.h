@@ -46,7 +46,6 @@ struct frame_cache_node {
 	enum cam_en_status need_dual_sync;
 	enum pre_raw_status pre_raw_flag;
 	uint32_t opt_frame_fid;
-	atomic_t opt_frame_done;
 	atomic_t user_cnt;
 	void *data_cb_handle;
 	void *buf_manager_handle;
@@ -55,6 +54,7 @@ struct frame_cache_node {
 	dual_slave_frame_set_cb dual_slave_frame_set;
 	cap_frame_status_cb cap_frame_status;
 	void *dual_sync_cb_data;
+	enum cam_en_status pre_frame_status;
 
 	struct cam_port_linkage link_info;
 	struct cam_capture_param cap_param;
@@ -65,6 +65,7 @@ int frame_cache_outbuf_back(void *handle, void *param);
 int frame_cache_cfg_param(void *handle, uint32_t cmd, void *param);
 int frame_cache_node_request_proc(struct frame_cache_node *node, void *param);
 int frame_cache_node_set_pre_raw_flag(void *handle, void *param);
+int frame_cache_node_get_pre_frame_status(void *handle, void *param);
 int frame_cache_node_get_cap_frame(void *handle, void *param);
 void *frame_cache_node_get(uint32_t node_id, struct frame_cache_node_desc *param);
 void frame_cache_node_put(struct frame_cache_node *node);

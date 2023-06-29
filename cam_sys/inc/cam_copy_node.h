@@ -29,6 +29,8 @@ struct cam_copy_node_desc {
 	enum cam_copy_frame_mode copy_mode;
 	void *copy_cb_handle;
 	cam_data_cb copy_cb_func;
+	cap_frame_status_cb pre_frame_status;
+	void *private_cb_data;
 };
 
 enum cam_copy_node_id {
@@ -50,6 +52,7 @@ struct cam_copy_node {
 	enum cam_copy_frame_mode copy_mode;
 	enum cam_copy_scene scene_id;
 	enum pre_raw_status pre_raw_flag;
+	enum cam_en_status pre_cache_done;
 	atomic_t icap_cap_num;
 	uint32_t opt_buffer_num;
 	atomic_t opt_frame_done;
@@ -60,6 +63,8 @@ struct cam_copy_node {
 	struct camera_queue out_queue;
 	struct cam_thread_info thread;
 	struct cam_capture_param cap_param;
+	cap_frame_status_cb pre_frame_status;
+	void *private_cb_data;
 };
 
 int cam_copy_node_buffer_cfg(void *handle, void *param);
