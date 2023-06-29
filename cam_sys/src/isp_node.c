@@ -76,7 +76,7 @@ static void ispnode_rgb_gtm_hist_done_process(struct isp_node *inode, uint32_t h
 
 	frame  = cam_buf_manager_buf_dequeue(&inode->gtmhist_resultpool, NULL, inode->buf_manager_handle);
 	if (!frame) {
-		pr_warn("warning:isp ctx_id[%d] gtmhist_result_queue buffer\n", gtm_ctx->ctx_id);
+		pr_debug("isp ctx_id[%d] gtmhist_result_queue buffer\n", gtm_ctx->ctx_id);
 		return;
 	} else {
 		buf = (uint32_t *)frame->common.buf.addr_k;
@@ -1925,6 +1925,8 @@ pool_reg_err:
 
 void isp_node_put(struct isp_node *node)
 {
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+
 	if (!node) {
 		pr_err("fail to get invalid node ptr\n");
 		return;
@@ -1937,6 +1939,9 @@ void isp_node_put(struct isp_node *node)
 		}
 
 		if (node->rgb_ltm_handle) {
+			rgb_ltm = (struct isp_ltm_ctx_desc *)node->rgb_ltm_handle;
+			rgb_ltm->resbuf_get_cb = NULL;
+			rgb_ltm->resbuf_cb_data = NULL;
 			isp_ltm_rgb_ctx_put(node->rgb_ltm_handle);
 			node->rgb_ltm_handle = NULL;
 		}
