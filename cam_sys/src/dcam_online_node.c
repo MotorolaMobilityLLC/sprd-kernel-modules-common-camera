@@ -30,8 +30,7 @@
 			atomic_set(&__port->is_work, 1); \
 		else \
 			pr_warn("warning:not get the port:%s.\n", cam_port_name_get(port_id)); \
-	} else \
-		pr_warn("warning:the %s statis port is bypass:%d.\n", cam_port_name_get(port_id), bypass); \
+	} \
 })
 
 #define DCAM_ONLINE_NODE_SHUTOFF_CALLBACK(dcam_port)  ({ \

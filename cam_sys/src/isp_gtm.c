@@ -87,7 +87,7 @@ static void ispgtm_histbuf_param_cfg(struct isp_gtm_ctx_desc *gtm_ctx, struct dc
 			if (ret)
 				pr_err("fail to enqueue gtm frame\n");
 		} else
-			pr_warn("warning:there is no frame in gtm  outpool:%d.\n", gtm_ctx->outpool->private_pool_id);
+			pr_debug("There is no frame in gtm outpool:%d.\n", gtm_ctx->outpool->private_pool_id);
 	} else
 		pr_debug("gtm mod disable or hist bypass,needn't sethist buf, mod_en:%d, hist bypass:%d.\n",mod_en, hist_bypass);
 }
