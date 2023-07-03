@@ -2359,8 +2359,6 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->post_cnr_bypass = slice_input->nofilter_ctx->post_cnr_h_info.bypass;
 	slice_overlap->cnr_bypass = slice_input->nofilter_ctx->cnr_info.bypass;
 
-	/* current close ltm, after ltm param normal, open it again */
-	slice_overlap->ltm_sat.bypass = 1;
 	if (0 == slice_overlap->ltm_sat.bypass) {
 		uint32_t frame_width = slc_ctx->img_width;
 		uint32_t frame_height = slc_ctx->img_height;

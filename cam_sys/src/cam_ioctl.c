@@ -311,10 +311,8 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 	for_capture = (param.scene_id == PM_SCENE_CAP ? 1 : 0) | for_fdr;
 
 	if (for_capture && (module->channel[CAM_CH_CAP].enable == 0)) {
-		pr_warn("warning: ch scene_id[%d] ch_cap en[%d] ch_pre en[%d]\n",
-		param.scene_id,
-		module->channel[CAM_CH_CAP].enable,
-		module->channel[CAM_CH_PRE].enable);
+		pr_debug("ch scene_id[%d] ch_cap en[%d] ch_pre en[%d]\n", param.scene_id,
+			module->channel[CAM_CH_CAP].enable, module->channel[CAM_CH_PRE].enable);
 
 		return 0;
 	}
