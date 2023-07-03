@@ -969,17 +969,9 @@ static int ispnode_start_proc(void *node)
 	pctx_hw->slowmotion_count = inode->pipe_src.slowmotion_count;
 	start_param.blkpm_lock = &inode->blkpm_lock;
 	if (!pctx_hw->fmcu_handle && slice_need) {
-		if (port_cfg.in_fmt == CAM_YVU420_2FRAME)
-			start_param.type = ISP_YUV_BLOCK_DISABLE;
-		else
-			start_param.type = ISP_YUV_BLOCK_CFG;
 		start_param.isp_using_param = &inode->isp_using_param;
 		ret = isp_hwctx_slices_proc(pctx_hw, inode->dev, &start_param);
 	} else {
-		if (port_cfg.in_fmt == CAM_YVU420_2FRAME)
-			start_param.type = ISP_YUV_BLOCK_DISABLE;
-		else
-			start_param.type = ISP_YUV_BLOCK_CFG;
 		start_param.slw_state = &inode->pipe_src.slw_state;
 		start_param.isp_using_param = &inode->isp_using_param;
 		start_param.is_dual = inode->is_dual;

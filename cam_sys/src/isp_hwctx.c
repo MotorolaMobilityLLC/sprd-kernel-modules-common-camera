@@ -119,7 +119,6 @@ uint32_t isp_hwctx_fmcu_reset(void *handle)
 
 uint32_t isp_hwctx_hw_start(struct isp_hw_context *pctx_hw, void *dev_handle, struct isp_start_param *param)
 {
-	struct isp_hw_yuv_block_ctrl blk_ctrl;
 	struct isp_fmcu_ctx_desc *fmcu = NULL;
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct isp_pipe_dev *dev = NULL;
@@ -131,10 +130,6 @@ uint32_t isp_hwctx_hw_start(struct isp_hw_context *pctx_hw, void *dev_handle, st
 		cfg_desc = VOID_PTR_TO(dev->cfg_handle, struct isp_cfg_ctx_desc);
 		/* blkpm_lock to avoid user config block param across frame */
 		mutex_lock(param->blkpm_lock);
-		blk_ctrl.idx = pctx_hw->cfg_id;
-		blk_ctrl.blk_param = pctx_hw->isp_using_param;
-		blk_ctrl.type = param->type;
-		pctx_hw->hw->isp_ioctl(pctx_hw->hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
 		if (pctx_hw->fmcu_handle)
 			fmcu_used = 1;
 		ret = cfg_desc->ops->hw_cfg(cfg_desc, pctx_hw->cfg_id, pctx_hw->hw_ctx_id, fmcu_used);
@@ -287,7 +282,6 @@ int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, stru
 	uint32_t slice_id, cnt = 0;
 	struct isp_cfg_ctx_desc *cfg_desc = NULL;
 	struct cam_hw_info *hw = NULL;
-	struct isp_hw_yuv_block_ctrl blk_ctrl;
 	struct isp_pipe_dev *dev = NULL;
 	pr_debug("enter. valid_slc_num %d\n", pctx_hw->valid_slc_num);
 	dev = (struct isp_pipe_dev *)dev_handle;
@@ -308,10 +302,6 @@ int isp_hwctx_slices_proc(struct isp_hw_context *pctx_hw, void *dev_handle, stru
 		pr_debug("slice %d, valid %d, last %d\n", slice_id, pctx_hw->valid_slc_num, pctx_hw->is_last_slice);
 
 		mutex_lock(param->blkpm_lock);
-		blk_ctrl.idx = pctx_hw->cfg_id;
-		blk_ctrl.blk_param = pctx_hw->isp_using_param;
-		blk_ctrl.type = param->type;
-		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
 
 		if (pctx_hw->is_last_slice) {
 			*param->isp_using_param = NULL;
