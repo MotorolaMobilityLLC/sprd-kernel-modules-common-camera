@@ -71,6 +71,7 @@ enum cam_node_cfg_cmd {
 	CAM_NODE_CFG_BLK_GTM_LTM,
 	CAM_NODE_CFG_RESET,
 	CAM_NODE_CFG_XTM_EN,
+	CAM_NODE_CFG_LTM_PARM_GET,
 	CAM_NODE_CFG_RECYCLE_BLK_PARAM,
 	CAM_NODE_CFG_BUF_CLR,
 	/*TEMP:for cfg isp cur_ctx_id to pyrdecnode*/

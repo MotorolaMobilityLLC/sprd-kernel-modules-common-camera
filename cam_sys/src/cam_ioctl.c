@@ -1459,6 +1459,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	}
 
 	atomic_set(&module->state, CAM_STREAM_ON);
+	ch_pre = &module->channel[CAM_CH_PRE];
 	module->flash_skip_fid = 0;
 	module->is_flash_status = 0;
 	module->simu_fid = 0;
@@ -1469,7 +1470,6 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	ret = cam_zoom_channels_size_init(module);
 	cam_zoom_channel_size_calc(module);
 
-	ch_pre = &module->channel[CAM_CH_PRE];
 	for (i = 0; i < CAM_CH_MAX; i++) {
 		ch = &module->channel[i];
 		if (!ch->enable || !ch->pipeline_handle)

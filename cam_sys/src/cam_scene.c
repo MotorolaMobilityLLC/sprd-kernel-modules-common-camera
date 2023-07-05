@@ -1002,6 +1002,7 @@ static void camscene_onlinebpcraw2user2offlineyuv_pipeline_get(struct cam_pipeli
 		return;
 	}
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
+	cur_node->buf_type = CAM_NODE_BUF_USER;
 	if (pyrdec_support) {
 		cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
 		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_PYR_DEC;
@@ -1021,7 +1022,6 @@ static void camscene_onlinebpcraw2user2offlineyuv_pipeline_get(struct cam_pipeli
 	}
 	cur_node++;
 	cur_node->id = ISP_NODE_MODE_CAP_ID;
-	cur_node->buf_type = CAM_NODE_BUF_USER;
 	if (pyrdec_support) {
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_PYR_DEC;
@@ -2284,6 +2284,7 @@ int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr,
 	if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
 		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
 		|| pipeline_type == CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2YUV
+		|| pipeline_type == CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV
 		|| (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV && !module->cam_uinfo.is_4in1
 		&& module->cam_uinfo.alg_type != ALG_TYPE_VID_NR))
 		dcam_offline_desc->buf_type = CAM_NODE_BUF_USER;

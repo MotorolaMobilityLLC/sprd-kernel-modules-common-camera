@@ -1101,9 +1101,11 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 			mutex_unlock(&dev->path_mutex);
 			return 0;
 		}
-		if (io_param->scene_id == PM_SCENE_PRE)
+		if (io_param->scene_id == PM_SCENE_PRE) {
 			ret = cfg_fun_ptr(io_param, inode->isp_receive_param->isp_blk.param_block);
-		else {
+			if (io_param->sub_block == ISP_BLOCK_RGB_LTM)
+				inode->ltm_hist_bypass = inode->isp_receive_param->isp_blk.param_block->ltm_rgb_info.ltm_stat.bypass;
+		} else {
 			ret = cfg_fun_ptr(io_param, &inode->isp_k_param);
 			if (inode->ultra_cap_en && inode->ch_id == CAM_CH_CAP &&
 				io_param->sub_block == ISP_BLOCK_RGB_LTM) {
@@ -1595,6 +1597,9 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 			if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 				port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
 		}
+		break;
+	case ISP_NODE_CFG_LTM_PARAM:
+		*((uint32_t *)param) = inode->ltm_hist_bypass;
 		break;
 	default:
 		pr_err("fail to support vaild cmd:%d\n", cmd);

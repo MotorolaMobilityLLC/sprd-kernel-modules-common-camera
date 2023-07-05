@@ -41,6 +41,7 @@ enum cam_pipeline_cfg_cmd {
 	CAM_PIPELINE_CFG_GTM_LTM,
 	CAM_PIPELINE_CFG_RESET,
 	CAM_PIPELINE_CFG_XTM_EN,
+	CAM_PIPELINE_CFG_LTM_PRAM_GET,
 	CAM_PIPELINE_CFG_BUF_CLR,
 	/*TEMP:for cfg isp cur_ctx_id to pyrdecnode*/
 	CAM_PIPELINE_CFG_CTXID,
