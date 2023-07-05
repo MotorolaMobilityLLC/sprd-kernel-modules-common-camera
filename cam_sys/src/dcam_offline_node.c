@@ -265,10 +265,12 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 	int ret = 0, time_out = 0, port_id = 0, is_frm_port = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_frame *frame = NULL;
-	struct dcam_offline_node *node = NULL;
+	struct dcam_offline_node *node = NULL, *lsc_node = NULL;
 	struct dcam_irq_proc_desc *irq_desc = NULL;
 	struct dcam_offline_slice_info *slice_info = NULL;
 	uint32_t i = 0, path_done[DCAM_PATH_MAX] = {0};
+	struct cam_pipeline *pipeline = NULL;
+	struct cam_node *cam_node = NULL, *cam_lsc_node = NULL;
 
 	if (!param || !handle) {
 		pr_err("fail to get valid param %px %px\n", param, handle);
@@ -277,6 +279,8 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 
 	node = (struct dcam_offline_node *)handle;
 	irq_desc = (struct dcam_irq_proc_desc *)param;
+	cam_node = (struct cam_node *)node->data_cb_handle;
+	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 
 	slice_info = &node->hw_ctx->slice_info;
 	hw = node->dev->hw;
@@ -333,7 +337,23 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 				pr_err("fail to reset dcam%d\n", node->hw_ctx_id);
 		}
 		dcamoffline_ctx_unbind(node);
-		complete(&node->frm_done);
+		if (pipeline->pipeline_graph->type == CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV)
+			if (node->node_type == CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW)
+				pr_debug("Icap Scene First Statge No Set Complete\n");
+			else if (node->node_type == CAM_NODE_TYPE_DCAM_OFFLINE) {
+				for (i = 0; i < pipeline->pipeline_graph->node_cnt; i++) {
+					if (pipeline->pipeline_graph->nodes[i].type == CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW)
+						break;
+				}
+				cam_lsc_node = pipeline->node_list[i];
+				lsc_node = (struct dcam_offline_node *)cam_lsc_node->handle;
+				complete(&lsc_node->frm_done);
+				complete(&node->frm_done);
+				pr_debug("Icap Scene Second Statge Set Twice Complete\n");
+			} else
+				pr_err("fail to get valid node type\n");
+		else
+			complete(&node->frm_done);
 	}
 	node->in_irq_proc = 0;
 	return ret;

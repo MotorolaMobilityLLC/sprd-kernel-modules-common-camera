@@ -397,7 +397,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		} else {
 			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 			/* only for L3 icap scene config, due to L3 hw limit so need take two walk dcam offline */
-			if (module->icap_scene) {
+			if (module->offline_icap_scene) {
 				/* it is strongly dependent on the hardware block to match the software  macor definition */
 				if (blk_type.sub_block <= DCAM_BLOCK_LSC) {
 					ret = CAM_PIPEINE_DCAM_OFFLINE_LSC_RAW_NODE_CFG(&module->channel[CAM_CH_CAP], CAM_PIPELINE_CFG_BLK_PARAM, &param);
@@ -1218,7 +1218,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			} else {
 				node_id = (ch->ch_id == CAM_CH_CAP && ch->isp_port_id != PORT_VID_OUT) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
 				ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF, node_id, pframe);
-				if (module->icap_scene && ch->ch_id == CAM_CH_CAP)
+				if (module->offline_icap_scene && ch->ch_id == CAM_CH_CAP && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE)
 					ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_BUF_NUM, &buffer_count);
 			}
 		} else {
@@ -1234,7 +1234,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				} else
 					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
 						CAM_PIPELINE_CFG_BUF, pframe);
-			} else if (module->icap_scene || module->bigsize_icap_scene)  {
+			} else if (module->offline_icap_scene) {
 				/* for sharkl3 icap scene and bigsize icap scene*/
 				ret = camcore_icap_buffer_set(module, ch, pframe);
 			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable  && module->cam_uinfo.need_dcam_raw &&
@@ -1343,7 +1343,7 @@ static int camioctl_stream_off(struct camera_module *module,
 	atomic_set(&module->state, CAM_STREAM_OFF);
 	module->capture_type = CAM_CAPTURE_STOP;
 
-	if (module->icap_scene || module->bigsize_icap_scene)
+	if (module->offline_icap_scene)
 		camcore_icap_scene_config(module, CAM_DISABLE);
 
 	if (running) {
@@ -1466,7 +1466,7 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	module->is_flash_status = 0;
 	module->simu_fid = 0;
 
-	if (module->icap_scene || module->bigsize_icap_scene)
+	if (module->offline_icap_scene)
 		camcore_icap_scene_config(module, CAM_ENABLE);
 
 	ret = cam_zoom_channels_size_init(module);
@@ -1894,8 +1894,8 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (ch_pre->enable)
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
-	if (module->icap_scene) {
-		cap_param.icap_scene = CAM_ENABLE;
+	if (module->offline_icap_scene && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
+		cap_param.offline_icap_scene = CAM_ENABLE;
 		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 	}
 
@@ -1959,8 +1959,8 @@ static int camioctl_capture_stop(struct camera_module *module,
 	if (ch_pre->enable)
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
-	if (module->icap_scene) {
-		cap_param.icap_scene = CAM_DISABLE;
+	if (module->offline_icap_scene && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
+		cap_param.offline_icap_scene = CAM_DISABLE;
 		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 	}
 
