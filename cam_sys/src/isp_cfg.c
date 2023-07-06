@@ -386,6 +386,7 @@ static int ispcfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	ret = ispcfg_cctx_buf_init(cfg_ctx);
 	if (ret) {
 		pr_err("fail to init isp cfg ctx buffer.\n");
+		atomic_dec(&cfg_ctx->user_cnt);
 		return -EFAULT;
 	}
 
