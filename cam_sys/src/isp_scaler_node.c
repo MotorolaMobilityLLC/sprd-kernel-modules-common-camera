@@ -286,8 +286,7 @@ static void *ispscaler_node_hw_start(struct isp_yuv_scaler_node *inode, struct i
 		/* blkpm_lock to avoid user config block param across frame */
 		mutex_lock(&inode->blkpm_lock);
 		blk_ctrl.idx = inode->cfg_id;
-		blk_ctrl.type = ISP_YUV_BLOCK_DISABLE;
-		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
+		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_BYPASS, &blk_ctrl);
 		ret = cfg_desc->ops->hw_cfg(cfg_desc, inode->cfg_id, pctx_hw->hw_ctx_id, pctx_hw->fmcu_used);
 		mutex_unlock(&inode->blkpm_lock);
 		if (pctx_hw->fmcu_used) {
@@ -687,8 +686,7 @@ static int ispscaler_node_hwctx_slices_proc(void *inode, struct isp_hw_context *
 		mutex_lock(&node->blkpm_lock);
 		blk_ctrl.idx = pctx_hw->cfg_id;
 		blk_ctrl.blk_param = pctx_hw->isp_using_param;
-		blk_ctrl.type = ISP_YUV_BLOCK_DISABLE;
-		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE, &blk_ctrl);
+		hw->isp_ioctl(hw, ISP_HW_CFG_YUV_BLOCK_BYPASS, &blk_ctrl);
 
 		if (dev->wmode == ISP_CFG_MODE)
 			cfg_desc->ops->hw_cfg(cfg_desc, node->cfg_id, pctx_hw->hw_ctx_id, 0);

@@ -242,7 +242,6 @@ static int ispport_fetchport_postproc(struct isp_port *port, void *param)
 	pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, NULL, port->buf_manager_handle);
 	if (pframe) {
 		if (pframe->common.pframe_data != NULL) {
-
 			pframe_data = &((struct cam_frame *)pframe->common.pframe_data)->common;
 			cam_buf_manager_buf_status_cfg(&pframe_data->buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
 			port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe->common.pframe_data, port->data_cb_handle);

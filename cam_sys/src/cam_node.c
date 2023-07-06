@@ -738,6 +738,9 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 	case CAM_NODE_CFG_FAST_STOP:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_FAST_STOP, in_param->param);
 		break;
+	case CAM_NODE_CFG_LTM_PARM_GET:
+		ret = isp_node_config(node->handle, ISP_NODE_CFG_LTM_PARAM, in_param->param);
+		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);
 		ret = -EFAULT;

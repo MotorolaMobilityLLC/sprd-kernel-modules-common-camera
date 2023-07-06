@@ -248,10 +248,11 @@ static int camzoom_channel_swapsize_calc(struct camera_module *module)
 	return 0;
 }
 
-static int camzoom_binning_shift_calc(struct camera_module *module, struct img_trim trim_pv) {
-	uint32_t i = 0, shift = 0, binning_limit = 2;
+static int camzoom_binning_shift_calc(struct camera_module *module, struct img_trim trim_pv)
+{
 	uint32_t factor = 0, src_binning = 0;
-	uint32_t output_stg = 0;
+	uint32_t i = 0, shift = 0, binning_limit = 2;
+	uint32_t output_stg = 0, ltm_hist_bypass = 0;
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct img_size max_dst_pv = {0}, max = {0};
@@ -260,6 +261,8 @@ static int camzoom_binning_shift_calc(struct camera_module *module, struct img_t
 	ch_vid = &module->channel[CAM_CH_VID];
 	output_stg = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->output_strategy;
 
+	if (ch_prev->enable && ch_prev->pipeline_handle)
+		CAM_PIPEINE_ISP_NODE_CFG(ch_prev, CAM_PIPELINE_CFG_BLK_PARAM, ISP_NODE_MODE_PRE_ID, &ltm_hist_bypass);
 	switch (output_stg) {
 	case IMG_POWER_CONSUM_PRI:
 		if ((ch_prev->ch_uinfo.src_size.w * 2) <= module->cam_uinfo.sn_max_size.w)
@@ -268,7 +271,8 @@ static int camzoom_binning_shift_calc(struct camera_module *module, struct img_t
 		if ((trim_pv.size_x >= (ch_prev->ch_uinfo.dst_size.w * 4)) &&
 			(trim_pv.size_x >= (ch_vid->ch_uinfo.dst_size.w * 4)) &&
 			(trim_pv.size_y >= (ch_prev->ch_uinfo.dst_size.h * 4)) &&
-			(trim_pv.size_y >= (ch_vid->ch_uinfo.dst_size.h * 4)))
+			(trim_pv.size_y >= (ch_vid->ch_uinfo.dst_size.h * 4)) &&
+			ltm_hist_bypass)
 			shift = 2;
 		else if ((trim_pv.size_x >= (ch_prev->ch_uinfo.dst_size.w * 2 * factor / 10)) &&
 			(trim_pv.size_x >= (ch_vid->ch_uinfo.dst_size.w * 2 * factor / 10)) &&

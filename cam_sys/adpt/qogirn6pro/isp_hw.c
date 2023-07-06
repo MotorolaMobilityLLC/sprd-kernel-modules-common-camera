@@ -3135,50 +3135,6 @@ static int isphw_fmcu_start(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_yuv_block_ctrl(void *handle, void *arg)
-{
-	uint32_t idx = 0;
-	struct dcam_isp_k_block *p = NULL;
-	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
-	struct cam_hw_info *hw = NULL;
-
-	hw = (struct cam_hw_info *)handle;
-	if (!arg) {
-		pr_err("fail to get valid input arg\n");
-		return -EFAULT;
-	}
-
-	blk_ctrl = (struct isp_hw_yuv_block_ctrl *)arg;
-	idx = blk_ctrl->idx;
-	p = blk_ctrl->blk_param;
-
-	if (!p) {
-		pr_err("fail to get reconfig blk param\n");
-		return -EFAULT;
-	}
-
-#if 0
-	/* TBD: need update if isp process more than once */
-	ISP_REG_MWR(idx, ISP_YUV_REC_YNR_CONTRL0, BIT_0, p->ynr_info_v3.bypass);
-	ISP_REG_MWR(idx, ISP_YUV_REC_CNR_CONTRL0, BIT_0, p->cnr_info.bypass);
-	ISP_REG_MWR(idx, ISP_YUV_CNR_CONTRL0, BIT_0, p->post_cnr_h_info.bypass);
-	ISP_REG_MWR(idx, ISP_UVD_PARAM, BIT_0, p->uvd_info_v1.bypass);
-	if (hw->prj_id == QOGIRN6pro)
-		ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, p->hsv_info3.hsv_bypass);
-	else
-		ISP_REG_MWR(idx, ISP_HSV_PARAM, BIT_0, p->hsv_info4.hsv_bypass);
-	ISP_REG_MWR(idx, ISP_CTM_PARAM, BIT_0, p->lut3d_info.rgb3dlut_bypass);
-	ISP_REG_MWR(idx, ISP_YGAMMA_PARAM, BIT_0, p->ygamma_info_v1.bypass);
-	ISP_REG_MWR(idx, ISP_EE_PARAM, BIT_0, p->edge_info_v3.bypass);
-	ISP_REG_MWR(idx, ISP_CDN_PARAM, BIT_0, p->cdn_info.bypass);
-	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, p->yrandom_info.bypass);
-	ISP_REG_MWR(idx, ISP_BCHS_PARAM, BIT_0, p->bchs_info.bchs_bypass);
-	ISP_REG_MWR(idx, ISP_YUV_NF_CTRL, BIT_0, p->nf_info.yrandom_bypass);
-#endif
-
-	return 0;
-}
-
 static int isphw_fmcu_cmd_align(void *handle, void *arg)
 {
 	struct isp_fmcu_ctx_desc * fmcu = (struct isp_fmcu_ctx_desc *)arg;
@@ -3301,7 +3257,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
-	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
 	{ISP_HW_CFG_FMCU_CMD_ALIGN,          isphw_fmcu_cmd_align},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},

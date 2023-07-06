@@ -2284,9 +2284,9 @@ static int isphw_fmcu_start(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_yuv_block_ctrl(void *handle, void *arg)
+static int isphw_yuv_block_bypass(void *handle, void *arg)
 {
-	uint32_t idx = 0, type = 0;
+	uint32_t idx = 0;
 	struct isp_hw_yuv_block_ctrl *blk_ctrl = NULL;
 
 	if (!arg) {
@@ -2295,23 +2295,8 @@ static int isphw_yuv_block_ctrl(void *handle, void *arg)
 	}
 
 	blk_ctrl = (struct isp_hw_yuv_block_ctrl *)arg;
-	type = blk_ctrl->type;
 	idx = blk_ctrl->idx;
 
-	if (type == ISP_YUV_BLOCK_CFG) {
-		goto BLOCK_CFG;
-	} else if (type == ISP_YUV_BLOCK_DISABLE) {
-		goto BLOCK_BYPASS;
-	} else {
-		pr_err("fail to support type %d\n", type);
-	}
-
-BLOCK_CFG:
-	ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 1 << 31);
-
-	return 0;
-
-BLOCK_BYPASS:
 	ISP_REG_MWR(idx, ISP_CCE_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_BRIGHT_PARAM, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_CONTRAST_PARAM, BIT_0, 1);
@@ -2332,6 +2317,7 @@ BLOCK_BYPASS:
 	ISP_REG_MWR(idx, ISP_YRANDOM_PARAM1, BIT_0, 1);
 	ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 0 << 31);
 
+	pr_debug("idx %d, bypass all yuv block done!\n", idx);
 	return 0;
 }
 
@@ -2374,6 +2360,7 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 	isp_k_csa1_block(p, idx);
 	isp_k_hue1_block(p, idx);
 	isp_3dnr_config_blend(idx, &p->nr3_info_base.blend);
+	ISP_REG_MWR(idx, ISP_YUV_MULT, BIT_31, 1 << 31);
 	return 0;
 }
 
@@ -2432,7 +2419,7 @@ static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
 	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
-	{ISP_HW_CFG_YUV_BLOCK_CTRL_TYPE,     isphw_yuv_block_ctrl},
+	{ISP_HW_CFG_YUV_BLOCK_BYPASS,        isphw_yuv_block_bypass},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
 };

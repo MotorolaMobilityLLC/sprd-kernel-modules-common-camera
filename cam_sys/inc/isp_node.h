@@ -46,6 +46,7 @@ enum isp_node_cfg_cmd {
 	ISP_NODE_CFG_POSTPROC_PARAM,
 	ISP_NODE_CFG_PARAM_Q_CLEAR,
 	ISP_NODE_CFG_FAST_STOP,
+	ISP_NODE_CFG_LTM_PARAM,
 	ISP_NODE_CFG_CMD_MAX,
 };
 
@@ -169,6 +170,7 @@ struct isp_node {
 	struct cam_buf_pool_id hist2_pool;
 	struct cam_buf_pool_id gtmhist_outpool;
 	struct cam_buf_pool_id gtmhist_resultpool;
+	uint32_t ltm_hist_bypass;
 	struct cam_buf_pool_id ltmhist_outpool;
 	struct cam_buf_pool_id ltmhist_resultpool;
 	struct isp_int_ctxs_com ctxs_com;
