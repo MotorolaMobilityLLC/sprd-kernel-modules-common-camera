@@ -928,7 +928,13 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 
 	node->dev = (struct isp_pipe_dev *)param->dev;
 	cfg_desc = (struct isp_cfg_ctx_desc *)node->dev->cfg_handle;
-	node->cfg_id = atomic_inc_return(&cfg_desc->node_cnt);
+	ret = cfg_desc->ops->ctx_get(cfg_desc);
+	if (ret < 0) {
+		pr_err("fail to get cfg ctx\n");
+		cam_buf_kernel_sys_vfree(node);
+		return NULL;
+	}
+	node->cfg_id = ret;
 	cfg_desc->ops->ctx_reset(cfg_desc, node->cfg_id);
 	node->dev->isp_hw->isp_ioctl(node->dev->isp_hw, ISP_HW_CFG_DEFAULT_PARA_CFG, &node->cfg_id);
 
@@ -1002,11 +1008,12 @@ void isp_yuv_scaler_node_put (struct isp_yuv_scaler_node *node)
 	}
 
 	if (atomic_dec_return(&node->user_cnt) == 0) {
+		struct isp_cfg_ctx_desc *cfg_desc = node->dev->cfg_handle;
 		mutex_destroy(&node->blkpm_lock);
 		camthread_stop(&node->thread);
 		if (node->slice_ctx)
 			isp_slice_ctx_put(&node->slice_ctx);
-		atomic_dec(&((struct isp_cfg_ctx_desc *)(node->dev->cfg_handle))->node_cnt);
+		cfg_desc->ops->ctx_put(cfg_desc, node->cfg_id);
 
 		pr_info("isp yuv scaler node %d put success\n", node->node_id);
 		cam_buf_kernel_sys_vfree(node);

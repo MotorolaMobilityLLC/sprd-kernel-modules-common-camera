@@ -75,6 +75,7 @@ static void ispcfg_cctx_page_buf_addr_deinit(struct isp_cfg_ctx_desc *cfg_ctx)
 
 	for (c_id = 0; c_id < ISP_CONTEXT_SW_NUM; c_id++) {
 		cfg_buf = &cfg_ctx->cfg_buf[c_id];
+		atomic_set(&cfg_buf->user_cnt, 0);
 		for (bid = 0; bid < CFG_BUF_NUM; bid++) {
 			cfg_buf->reg_buf[bid].sw_addr = NULL;
 			cfg_buf->reg_buf[bid].hw_addr = 0UL;
@@ -382,7 +383,6 @@ static int ispcfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 	}
 
 	atomic_set(&cfg_ctx->map_cnt, 0);
-	atomic_set(&cfg_ctx->node_cnt, -1);
 	ret = ispcfg_cctx_buf_init(cfg_ctx);
 	if (ret) {
 		pr_err("fail to init isp cfg ctx buffer.\n");
@@ -390,8 +390,10 @@ static int ispcfg_ctx_init(struct isp_cfg_ctx_desc *cfg_ctx)
 		return -EFAULT;
 	}
 
-	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++)
+	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
 		isp_cfg_poll_addr[i] = &isp_cfg_ctx_addr[i];
+		atomic_set(&cfg_ctx->cfg_buf[i].user_cnt, 0);
+	}
 
 exit:
 	pr_info("cfg ctx init done\n");
@@ -447,12 +449,46 @@ static int ispcfg_ctx_buf_reset(
 	return 0;
 }
 
+int ispcfg_ctx_get(struct isp_cfg_ctx_desc *cfg_ctx)
+{
+	int i = 0;
+
+	if (!cfg_ctx) {
+		pr_err("fail to get cfg_ctx pointer\n");
+		return -EFAULT;
+	}
+
+	for (i = 0; i < ISP_CONTEXT_SW_NUM; i++) {
+		if (atomic_inc_return(&cfg_ctx->cfg_buf[i].user_cnt) == 1)
+			break;
+		atomic_dec(&cfg_ctx->cfg_buf[i].user_cnt);
+	}
+	if (i == ISP_CONTEXT_SW_NUM)
+		return -1;
+
+	return i;
+}
+
+int ispcfg_ctx_put(struct isp_cfg_ctx_desc *cfg_ctx, uint32_t ctx_id)
+{
+	if (!cfg_ctx || (ctx_id >= ISP_CONTEXT_SW_NUM)) {
+		pr_err("fail to get cfg_ctx pointer or ctx_id %d\n", ctx_id);
+		return -EFAULT;
+	}
+
+	atomic_dec(&cfg_ctx->cfg_buf[ctx_id].user_cnt);
+
+	return 0;
+}
+
 struct isp_cfg_ops cfg_ops = {
 	.ctx_init = ispcfg_ctx_init,
 	.ctx_deinit = ispcfg_ctx_deinit,
 	.ctx_reset = ispcfg_ctx_buf_reset,
 	.hw_init = ispcfg_map_init,
 	.hw_cfg = ispcfg_block_config,
+	.ctx_get = ispcfg_ctx_get,
+	.ctx_put = ispcfg_ctx_put,
 };
 
 struct isp_cfg_ctx_desc s_ctx_desc = {

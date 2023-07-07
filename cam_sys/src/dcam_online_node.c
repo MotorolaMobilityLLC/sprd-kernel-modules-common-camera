@@ -2320,7 +2320,7 @@ void *dcam_online_node_get(uint32_t node_id, struct dcam_online_node_desc *param
 		}
 	} else {
 		node = *param->node_dev;
-		pr_info("dcam online node has been alloc %p\n", node);
+		pr_info("dcam online node has been alloc %px\n", node);
 		goto exit;
 	}
 

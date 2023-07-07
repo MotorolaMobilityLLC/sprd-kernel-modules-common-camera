@@ -1922,6 +1922,7 @@ void isp_node_put(struct isp_node *node)
 	}
 
 	if (atomic_dec_return(&node->user_cnt) == 0) {
+		struct isp_cfg_ctx_desc *cfg_desc = node->dev->cfg_handle;
 		if (node->rgb_gtm_handle && node->dev->isp_hw->ip_isp->isphw_abt->rgb_gtm_support) {
 			isp_gtm_rgb_ctx_put(node->rgb_gtm_handle);
 			node->rgb_gtm_handle = NULL;
@@ -1966,7 +1967,7 @@ void isp_node_put(struct isp_node *node)
 		node->data_cb_func = NULL;
 		isp_int_common_irq_sw_cnt_trace(node->cfg_id);
 		cam_statis_isp_port_buffer_deinit(node->dev, node);
-		atomic_dec(&((struct isp_cfg_ctx_desc *)(node->dev->cfg_handle))->node_cnt);
+		cfg_desc->ops->ctx_put(cfg_desc, node->cfg_id);
 
 		pr_info("isp offline node %d put success\n", node->node_id);
 		cam_buf_kernel_sys_vfree(node);

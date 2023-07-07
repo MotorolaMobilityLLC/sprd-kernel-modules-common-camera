@@ -500,7 +500,12 @@ static int ispdev_ioctl(void *isp_handle, enum isp_ioctrl_cmd cmd, void *param)
 	case ISP_IOCTL_INIT_NODE_HW:
 		if (dev->wmode == ISP_CFG_MODE) {
 			cfg_desc = (struct isp_cfg_ctx_desc *)dev->cfg_handle;
-			cfg_id = atomic_inc_return(&cfg_desc->node_cnt);
+			ret = cfg_desc->ops->ctx_get(cfg_desc);
+			if (ret < 0) {
+				pr_err("fail to get cfg ctx\n");
+				break;
+			}
+			cfg_id = ret;
 			cfg_desc->ops->ctx_reset(cfg_desc, cfg_id);
 		}
 		dev->isp_hw->isp_ioctl(dev->isp_hw, ISP_HW_CFG_DEFAULT_PARA_CFG, &cfg_id);
