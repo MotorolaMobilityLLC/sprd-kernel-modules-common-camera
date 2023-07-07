@@ -2080,6 +2080,9 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	if (module->icap_scene && channel->ch_id == CAM_CH_CAP)
 		num = 0;
 
+	if (module->bigsize_icap_scene && channel->ch_id == CAM_CH_CAP)
+		num = 0;
+
 	return num;
 }
 
@@ -2104,6 +2107,12 @@ uint32_t cam_scene_dcamoffline_buffers_alloc_num(void *channel_ptr, void *module
 
 	if (module->icap_scene && channel->ch_id == CAM_CH_CAP) {
 		num = 3;
+		if (module->channel[CAM_CH_RAW].enable)
+			num = 0;
+	}
+
+	if (module->bigsize_icap_scene && channel->ch_id == CAM_CH_CAP) {
+		num = 1;
 		if (module->channel[CAM_CH_RAW].enable)
 			num = 0;
 	}

@@ -303,6 +303,7 @@ struct camera_module {
 	uint32_t dcam_ctx_bind_state;/* 0: dcam_ctx_unbind, 1: dcam_ctx_bind */
 	uint32_t is_flash_status;
 	uint32_t simu_fid;
+	enum cam_en_status bigsize_icap_scene;
 };
 
 struct camera_group {

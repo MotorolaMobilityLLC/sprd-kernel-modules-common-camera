@@ -1234,8 +1234,8 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 				} else
 					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
 						CAM_PIPELINE_CFG_BUF, pframe);
-			} else if (module->icap_scene) {
-				/* only for sharkl3 icap scene */
+			} else if (module->icap_scene || module->bigsize_icap_scene)  {
+				/* for sharkl3 icap scene and bigsize icap scene*/
 				ret = camcore_icap_buffer_set(module, ch, pframe);
 			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable  && module->cam_uinfo.need_dcam_raw &&
 				(module->grp->hw_info->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR))){
@@ -1342,6 +1342,9 @@ static int camioctl_stream_off(struct camera_module *module,
 
 	atomic_set(&module->state, CAM_STREAM_OFF);
 	module->capture_type = CAM_CAPTURE_STOP;
+
+	if (module->icap_scene || module->bigsize_icap_scene)
+		camcore_icap_scene_config(module, CAM_DISABLE);
 
 	if (running) {
 		for (i = 0; i < CAM_CH_MAX; i++) {
@@ -1464,8 +1467,8 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 	module->is_flash_status = 0;
 	module->simu_fid = 0;
 
-	if (module->icap_scene)
-		camcore_icap_scene_config(module);
+	if (module->icap_scene || module->bigsize_icap_scene)
+		camcore_icap_scene_config(module, CAM_ENABLE);
 
 	ret = cam_zoom_channels_size_init(module);
 	cam_zoom_channel_size_calc(module);
