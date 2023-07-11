@@ -86,6 +86,7 @@ struct isp_dev_cfg_info {
 struct isp_cfg_buf {
 	struct regfile_buf_info reg_buf[CFG_BUF_NUM];
 	enum cfg_buf_id cur_buf_id;
+	atomic_t user_cnt;
 };
 
 struct isp_cfg_ops;
@@ -96,7 +97,6 @@ struct isp_cfg_ctx_desc {
 	struct camera_buf ion_pool_cached;
 	atomic_t user_cnt;
 	atomic_t map_cnt;
-	atomic_t node_cnt;
 	struct isp_cfg_ops *ops;
 	struct cam_hw_ops *hw_ops;
 	struct cam_hw_info *hw;
@@ -114,6 +114,8 @@ struct isp_cfg_ops {
 			uint32_t fmcu_enable);
 	int (*hw_start)(struct isp_cfg_ctx_desc *cfg_ctx,
 			enum isp_context_hw_id ctx_id);
+	int (*ctx_get)(struct isp_cfg_ctx_desc *cfg_ctx);
+	int (*ctx_put)(struct isp_cfg_ctx_desc *cfg_ctx, uint32_t ctx_id);
 };
 
 struct isp_cfg_ctx_desc *isp_cfg_ctx_desc_get(void);
