@@ -201,7 +201,7 @@ static void ispltm_rgb_map_dump_data_rtl(ltm_param_t *param_map,
 	param_map_rtl->tile_right_flag_rtl = tile_right_flag;
 }
 
-static int ispltm_histo_param_calc(ltm_param_t *param_histo, uint32_t alignment)
+static int ispltm_histo_param_calc(struct isp_ltm_ctx_desc *ctx, ltm_param_t *param_histo, uint32_t alignment)
 {
 	uint32_t max_tile_col, min_tile_row;
 	uint32_t tile_num_x, tile_num_y;
@@ -219,42 +219,55 @@ static int ispltm_histo_param_calc(ltm_param_t *param_histo, uint32_t alignment)
 	frame_height = param_histo->frame_height;
 
 	if (param_histo->tile_num_auto) {
-		int v_ceil = 0;
-		int tmp = 0;
+		if (!ctx->ltmhist_update) {
+			int v_ceil = 0;
+			int tmp = 0;
 
-		max_tile_col = MAX(MIN(frame_width / (TILE_WIDTH_MIN * 2) * 2,
-				TILE_NUM_MAX), TILE_NUM_MIN);
-		min_tile_width = frame_width / (max_tile_col * alignment) * alignment;
-		max_tile_height = TILE_MAX_SIZE / (min_tile_width * 2) * 2;
-		/*
-		 * min_tile_row = (uint8)MAX(MIN(ceil((float)frame_height /
-		 *  max_tile_height), TILE_NUM_MAX), TILE_NUM_MIN);
-		 */
-		v_ceil = (frame_height + max_tile_height - 1) / max_tile_height;
-		min_tile_row = MAX(MIN(v_ceil, TILE_NUM_MAX), TILE_NUM_MIN);
+			max_tile_col = MAX(MIN(frame_width / (TILE_WIDTH_MIN * 2) * 2,
+					TILE_NUM_MAX), TILE_NUM_MIN);
+			min_tile_width = frame_width / (max_tile_col * alignment) * alignment;
+			max_tile_height = TILE_MAX_SIZE / (min_tile_width * 2) * 2;
+			/*
+			 * min_tile_row = (uint8)MAX(MIN(ceil((float)frame_height /
+			 *  max_tile_height), TILE_NUM_MAX), TILE_NUM_MIN);
+			 */
+			v_ceil = (frame_height + max_tile_height - 1) / max_tile_height;
+			min_tile_row = MAX(MIN(v_ceil, TILE_NUM_MAX), TILE_NUM_MIN);
 
-		tile_num_y = (min_tile_row / 2) * 2;
-		tile_num_x = MIN(MAX(((tile_num_y * frame_width / frame_height) / 2) * 2,
-				TILE_NUM_MIN), max_tile_col);
-
-		tile_width = frame_width / (alignment * tile_num_x) * alignment;
-		tile_height = frame_height / (2 * tile_num_y) * 2;
-
-		while (tile_width * tile_height >= TILE_MAX_SIZE) {
-			tile_num_y = MIN(MAX(tile_num_y + 2, TILE_NUM_MIN), TILE_NUM_MAX);
-			tmp = ((tile_num_y * frame_width / frame_height) / 2) * 2;
-			tile_num_x = MIN(MAX(tmp, TILE_NUM_MIN), max_tile_col);
+			tile_num_y = (min_tile_row / 2) * 2;
+			tile_num_x = MIN(MAX(((tile_num_y * frame_width / frame_height) / 2) * 2,
+					TILE_NUM_MIN), max_tile_col);
 
 			tile_width = frame_width / (alignment * tile_num_x) * alignment;
 			tile_height = frame_height / (2 * tile_num_y) * 2;
-                        calculate_times++;
-                        if (calculate_times > 2) {
-                            tile_num_y = 8;
-                            tile_num_x = 8;
-                            tile_width = frame_width / (4 * tile_num_x) *4;
-                            tile_height = frame_height / (2 * tile_num_y) *2;
-                            break;
-                        }
+
+			while (tile_width * tile_height >= TILE_MAX_SIZE) {
+				tile_num_y = MIN(MAX(tile_num_y + 2, TILE_NUM_MIN), TILE_NUM_MAX);
+				tmp = ((tile_num_y * frame_width / frame_height) / 2) * 2;
+				tile_num_x = MIN(MAX(tmp, TILE_NUM_MIN), max_tile_col);
+
+				tile_width = frame_width / (alignment * tile_num_x) * alignment;
+				tile_height = frame_height / (2 * tile_num_y) * 2;
+	                        calculate_times++;
+	                        if (calculate_times > 2) {
+	                            tile_num_y = 8;
+	                            tile_num_x = 8;
+	                            tile_width = frame_width / (4 * tile_num_x) *4;
+	                            tile_height = frame_height / (2 * tile_num_y) *2;
+	                            break;
+	                        }
+			}
+			if (tile_num_x && tile_num_y) {
+				ctx->hists.tile_num_x = tile_num_x;
+				ctx->hists.tile_num_y = tile_num_y;
+				ctx->ltmhist_update = CAM_ENABLE;
+			} else
+				pr_err("fail to get tile num x_y:%d, %d.\n", tile_num_x, tile_num_y);
+		} else {
+			tile_num_x = ctx->hists.tile_num_x;
+			tile_num_y = ctx->hists.tile_num_y;
+			tile_width = frame_width / (alignment * tile_num_x) * alignment;
+			tile_height = frame_height / (2 * tile_num_y) * 2;
 		}
 	} else {
 		tile_num_x = param_histo->tile_num_x;
@@ -332,7 +345,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 			tuning->tile_num_auto, tuning->tile_num.tile_num_x, tuning->tile_num.tile_num_y);
 	pr_debug("frame height %d, width %d clip_limit %d clip_limit_min %d\n",  ctx->frame_height, ctx->frame_width, tuning->clip_limit,tuning->clip_limit_min);
 
-	ispltm_histo_param_calc(param, ISP_LTM_ALIGNMENT);
+	ispltm_histo_param_calc(ctx, param, ISP_LTM_ALIGNMENT);
 
 	hists->bypass = param->bypass;
 	hists->channel_sel = param->channel_sel;
