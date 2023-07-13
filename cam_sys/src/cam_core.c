@@ -1033,16 +1033,18 @@ static int camcore_icap_scene_config(struct camera_module *module, enum cam_en_s
 		if (ret)
 			pr_err("fail to cfg dcam raw scene\n");
 
-		/* update dcamoffline scene store fmt */
-		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path),
-				CAM_PIPELINE_CFG_FMT, &fmt, CAM_NODE_TYPE_DCAM_OFFLINE);
-		if (ret)
-			pr_err("fail to cfg dcamoffline fmt\n");
+		if (hw->ip_isp->isphw_abt->fetch_raw_support == CAM_ENABLE) {
+			/* update dcamoffline scene store fmt */
+			ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->aux_dcam_path),
+					CAM_PIPELINE_CFG_FMT, &fmt, CAM_NODE_TYPE_DCAM_OFFLINE);
+			if (ret)
+				pr_err("fail to cfg dcamoffline fmt\n");
 
-		/* update ispoffline scene fetch fmt */
-		ret = CAM_PIPEINE_ISP_IN_PORT_CFG(ch_cap, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_FMT, ISP_NODE_MODE_CAP_ID, &fmt);
-		if (ret)
-			pr_err("fail to cfg isp fetch fmt\n");
+			/* update ispoffline scene fetch fmt */
+			ret = CAM_PIPEINE_ISP_IN_PORT_CFG(ch_cap, PORT_ISP_OFFLINE_IN, CAM_PIPELINE_CFG_FMT, ISP_NODE_MODE_CAP_ID, &fmt);
+			if (ret)
+				pr_err("fail to cfg isp fetch fmt\n");
+		}
 	}
 
 	return ret;
