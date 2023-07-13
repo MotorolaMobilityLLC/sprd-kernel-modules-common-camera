@@ -721,7 +721,6 @@ int cam_buf_manager_pool_cnt(struct cam_buf_pool_id *pool_id, void *buf_manager_
 
 int cam_buf_manager_init(uint32_t cam_id, void *buf_manager_handle)
 {
-	struct camera_queue *tmp_q = NULL;
 	struct cam_buf_manager **buf_manager = (struct cam_buf_manager **)buf_manager_handle;
 
 	if ((cam_id + 1) >= CAM_COUNT_MAX) {
@@ -743,21 +742,7 @@ int cam_buf_manager_init(uint32_t cam_id, void *buf_manager_handle)
 
 	atomic_inc(&(*buf_manager)->user_cnt);
 
-	tmp_q = cam_buf_kernel_sys_vzalloc(sizeof(struct camera_queue));
-	if (IS_ERR_OR_NULL(tmp_q)) {
-		pr_err("fail to alloc reserved q, cam%d\n", cam_id);
-		if (atomic_dec_return(&(*buf_manager)->user_cnt) == 0) {
-			mutex_destroy(&(*buf_manager)->pool_lock);
-			cam_buf_kernel_sys_vfree(*buf_manager);
-			*buf_manager = NULL;
-		}
-		return -1;
-	}
-	CAM_QUEUE_INIT(tmp_q, RESERVE_BUF_Q_LEN, NULL);
-	(*buf_manager)->reserve_buf_pool[cam_id + 1] = tmp_q;
 	buf_manager_handle = (void *)(*buf_manager);
-
-	pr_info("reg reserved pool %d, %px\n", cam_id, tmp_q);
 
 	return (cam_id + 1);
 }

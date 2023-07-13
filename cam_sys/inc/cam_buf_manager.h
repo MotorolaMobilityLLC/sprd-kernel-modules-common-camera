@@ -112,7 +112,6 @@ struct camera_buf_get_desc {
 
 struct cam_buf_manager {
 	atomic_t user_cnt;
-	struct camera_queue *reserve_buf_pool[CAM_COUNT_MAX];
 	struct camera_queue *private_buf_pool[PRIVATE_POOL_NUM_MAX];
 	struct camera_queue *tag_pool[CAM_BUF_POOL_TAG_ID_NUM];
 	struct mutex pool_lock;
