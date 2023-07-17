@@ -67,7 +67,6 @@ struct isp_node_uinfo {
 	enum cam_en_status gtm_rgb;
 	enum isp_gtm_mode mode_gtm;
 	enum isp_3dnr_mode mode_3dnr;
-	enum cam_slw_state slw_state;
 	enum cam_en_status enable_slowmotion;
 	uint32_t slowmotion_240fp_count;
 	uint32_t slowmotion_count;
@@ -96,7 +95,6 @@ struct isp_node_desc {
 	enum cam_format in_fmt;
 	uint32_t bayer_pattern;
 	enum cam_en_status enable_slowmotion;
-	enum cam_slw_state slw_state;
 	uint32_t slowmotion_count;
 	enum cam_format pyr_out_fmt;
 	enum cam_format store_3dnr_fmt;

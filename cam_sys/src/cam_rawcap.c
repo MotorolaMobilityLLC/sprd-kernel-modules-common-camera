@@ -89,7 +89,6 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	isp_node_description->bayer_pattern = proc_info->src_pattern;
 	isp_node_description->enable_slowmotion = 0;
 	isp_node_description->is_high_fps = 0;
-	isp_node_description->slw_state = CAM_SLOWMOTION_OFF;
 	isp_node_description->cam_id = module->idx;
 	isp_node_description->buf_manager_handle = pipeline_desc->buf_manager_handle;
 	isp_node_description->dev = module->isp_dev_handle;
@@ -441,7 +440,6 @@ int camrawcap_storeccm_frgb_pre_proc(struct camera_module *module,
 	isp_node_description->bayer_pattern = proc_info->src_pattern;
 	isp_node_description->enable_slowmotion = 0;
 	isp_node_description->is_high_fps = 0;
-	isp_node_description->slw_state = CAM_SLOWMOTION_OFF;
 	isp_node_description->cam_id = module->idx;
 	isp_node_description->dev = module->isp_dev_handle;
 	isp_node_description->port_desc.out_fmt = CAM_YVU420_2FRAME;

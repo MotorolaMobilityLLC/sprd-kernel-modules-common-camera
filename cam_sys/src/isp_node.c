@@ -972,7 +972,6 @@ static int ispnode_start_proc(void *node)
 		start_param.isp_using_param = &inode->isp_using_param;
 		ret = isp_hwctx_slices_proc(pctx_hw, inode->dev, &start_param);
 	} else {
-		start_param.slw_state = &inode->pipe_src.slw_state;
 		start_param.isp_using_param = &inode->isp_using_param;
 		start_param.is_dual = inode->is_dual;
 		isp_hwctx_hw_start(pctx_hw, inode->dev, &start_param);
@@ -1861,7 +1860,6 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	node->node_type = param->node_type;
 	node->ultra_cap_en = param->ultra_cap_en;
 	*param->node_dev = node;
-	uinfo->slw_state = param->slw_state;
 
 	pr_info("node id %d cur_ctx_id %d cfg_id %d blkparam_node_num:%d\n", node_id, node->pctx_hw_id, node->cfg_id, param->blkparam_node_num);
 

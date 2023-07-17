@@ -2408,7 +2408,6 @@ int cam_scene_ispoffline_desc_get(void *module_ptr, void *channel_ptr,
 	isp_node_description->bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
 	isp_node_description->enable_slowmotion = channel->ch_uinfo.is_high_fps;
 	isp_node_description->slowmotion_count = channel->ch_uinfo.high_fps_skip_num;
-	isp_node_description->slw_state = CAM_SLOWMOTION_OFF;
 	isp_node_description->ch_id = channel->ch_id;
 	isp_node_description->sn_size = module->cam_uinfo.sn_size;
 	isp_node_description->ultra_cap_en = module->cam_uinfo.dcam_slice_mode ? CAM_ENABLE : CAM_DISABLE;
