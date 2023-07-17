@@ -1115,7 +1115,8 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 					inode->isp_k_param.ltm_rgb_info.ltm_stat.bypass)
 					inode->ultra_cap_en = CAM_DISABLE;
 				else
-					pr_err("fail to support ltm property:%d.\n", io_param->property);
+					pr_debug("ultra capture: property:%d, bypass:%d.\n",
+						io_param->property, inode->isp_k_param.ltm_rgb_info.ltm_stat.bypass);
 			}
 		}
 	}

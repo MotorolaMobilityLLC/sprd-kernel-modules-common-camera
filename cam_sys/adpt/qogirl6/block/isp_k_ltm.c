@@ -199,11 +199,11 @@ int isp_k_cfg_rgb_ltm(struct isp_io_param *param,
 
 	switch (param->property) {
 	case ISP_PRO_RGB_LTM_BLOCK:
+	case ISP_PRO_RGB_LTM_CAP_PARAM:
 		ret = isp_k_ltm_rgb_block(param, isp_k_param, idx);
 		break;
 	default:
-		pr_err("fail to support cmd id = %d\n",
-			param->property);
+		pr_err("fail to support cmd id = %d\n", param->property);
 		break;
 	}
 
