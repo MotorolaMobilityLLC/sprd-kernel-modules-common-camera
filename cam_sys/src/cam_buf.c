@@ -219,7 +219,7 @@ int cam_buf_mdbg_check(void)
 	val[8] = atomic_read(&g_mem_dbg->ion_alloc_size);
 
 	pr_info("mdbg info: k_alloc_cnt: %d, k_map_cnt: %d, u_ion_cnt: %d, frm_cnt: %d, isp_map_cnt: %d, "
-			"dcam_map_cnt: %d kzalloc_cnt: %d vzalloc_cnt: %d k_alloc_size: %d Bytes\n",
+			"dcam_map_cnt: %d, kzalloc_cnt: %d, vzalloc_cnt: %d, k_alloc_size: %d, Bytes\n",
 			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8]);
 	return 0;
 }

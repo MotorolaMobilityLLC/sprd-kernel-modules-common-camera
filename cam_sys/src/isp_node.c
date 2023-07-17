@@ -1115,7 +1115,8 @@ static int ispnode_blkparam_cfg(void *node, void *param)
 					inode->isp_k_param.ltm_rgb_info.ltm_stat.bypass)
 					inode->ultra_cap_en = CAM_DISABLE;
 				else
-					pr_err("fail to support ltm property:%d.\n", io_param->property);
+					pr_debug("ultra capture: property:%d, bypass:%d.\n",
+						io_param->property, inode->isp_k_param.ltm_rgb_info.ltm_stat.bypass);
 			}
 		}
 	}
@@ -1292,7 +1293,7 @@ capture_param:
 		}
 		inode->blk_param_node = last_param;
 		if (param_last_fid != target_fid)
-			pr_warn("warning:cap use old param, cam %d, cfg_id %d, param id %d, frame id %d\n",
+			pr_debug("warning:cap use old param, cam %d, cfg_id %d, param id %d, frame id %d\n",
 				inode->attach_cam_id, inode->cfg_id, param_last_fid, target_fid);
 	} else if (inode->isp_using_param == NULL) {
 		pr_warn("warning:cap cam %d cfg_id %d not have param in q, use latest param, frame id %d\n",
