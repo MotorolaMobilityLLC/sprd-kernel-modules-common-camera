@@ -2563,19 +2563,6 @@ static int isphw_fetch_start(void *handle, void *arg)
 	return 0;
 }
 
-static int isphw_fmcu_cmd_set(void *handle, void *arg)
-{
-	struct isp_hw_fmcu_cmd *cmdarg = NULL;
-
-	cmdarg = (struct isp_hw_fmcu_cmd *)arg;
-
-	ISP_HREG_WR(cmdarg->base + ISP_FMCU_DDR_ADDR, cmdarg->hw_addr);
-	ISP_HREG_MWR(cmdarg->base + ISP_FMCU_CTRL, 0xFFFF0000, cmdarg->cmd_num << 16);
-	ISP_HREG_WR(cmdarg->base + ISP_FMCU_CMD_READY, 1);
-
-	return 0;
-}
-
 static int isphw_fmcu_start(void *handle, void *arg)
 {
 	struct isp_hw_fmcu_start *startarg = NULL;
@@ -2725,7 +2712,6 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_START_ISP,               isphw_isp_start_cfg},
 	{ISP_HW_CFG_UPDATE_HIST_ROI,         isphw_hist_roi_update},
 	{ISP_HW_CFG_FETCH_START,             isphw_fetch_start},
-	{ISP_HW_CFG_FMCU_CMD,                isphw_fmcu_cmd_set},
 	{ISP_HW_CFG_FMCU_START,              isphw_fmcu_start},
 	{ISP_HW_CFG_YUV_BLOCK_BYPASS,        isphw_yuv_block_bypass},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},

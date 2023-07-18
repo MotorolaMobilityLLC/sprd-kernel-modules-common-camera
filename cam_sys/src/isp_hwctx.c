@@ -146,13 +146,7 @@ uint32_t isp_hwctx_hw_start(struct isp_hw_context *pctx_hw, void *dev_handle, st
 		}
 		if (pctx_hw->fmcu_handle) {
 			fmcu = (struct isp_fmcu_ctx_desc *)pctx_hw->fmcu_handle;
-			if (*(param->slw_state) == CAM_SLOWMOTION_ON) {
-				ret = fmcu->ops->cmd_ready(fmcu);
-			} else {
-				ret = fmcu->ops->hw_start(fmcu);
-				if (!ret && pctx_hw->enable_slowmotion)
-					*(param->slw_state) = CAM_SLOWMOTION_ON;
-			}
+			ret = fmcu->ops->hw_start(fmcu);
 		} else
 			pctx_hw->hw->isp_ioctl(pctx_hw->hw, ISP_HW_CFG_START_ISP, &pctx_hw->hw_ctx_id);
 	} else {

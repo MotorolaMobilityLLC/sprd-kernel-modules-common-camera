@@ -660,21 +660,18 @@ static int ispltm_cfg_param(void *handle,
 		break;
 	case ISP_LTM_CFG_FRAME_ID:
 		fid = *(uint32_t *)param;
-		if (ltm_ctx->mode == MODE_LTM_PRE) {
-			if (fid == 0)
-				ltm_ctx->map.bypass = 1;
-		}
 		ltm_ctx->fid = fid;
 		pr_debug("LTM frame id %d, map %d\n", ltm_ctx->fid, ltm_ctx->map.bypass);
 		break;
 	case ISP_LTM_CFG_SIZE_INFO:
 		crop = (struct img_trim *)param;
 		if (ltm_ctx->mode == MODE_LTM_PRE) {
-			if ((crop->size_x != ltm_ctx->frame_width) ||
-				(crop->size_y != ltm_ctx->frame_height)) {
+			if (((crop->size_x != ltm_ctx->frame_width) ||
+				(crop->size_y != ltm_ctx->frame_height)) && ltm_ctx->fid != 0) {
 				ltm_ctx->map.bypass = 1;
 			}
 		}
+		pr_debug("frame size: %d, %d.\n", ltm_ctx->frame_width, ltm_ctx->frame_height);
 		ltm_ctx->frame_width = crop->size_x;
 		ltm_ctx->frame_height = crop->size_y;
 		pr_debug("LTM frame id %d, crop %d, %d, map %d\n", ltm_ctx->fid, crop->size_x, crop->size_y, ltm_ctx->map.bypass);

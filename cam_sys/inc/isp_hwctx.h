@@ -76,7 +76,6 @@ struct isp_start_param {
 	struct mutex *blkpm_lock;
 	uint32_t type;
 	uint32_t is_dual;
-	uint32_t *slw_state;
 	struct dcam_isp_k_block **isp_using_param;
 };
 

@@ -73,44 +73,6 @@ static int ispfmcu_cmd_push(void *handle, uint32_t addr, uint32_t cmd)
 	return ret;
 }
 
-static int ispfmcu_cmd_ready(void *handle)
-{
-	int ret = 0, cmd_num = 0;
-	unsigned long base;
-	struct isp_hw_fmcu_cmd cmdarg;
-	struct isp_fmcu_ctx_desc *fmcu_ctx = NULL;
-
-	if (!handle) {
-		pr_err("fail to get fmcu_ctx pointer\n");
-		return -EFAULT;
-	}
-
-	fmcu_ctx = (struct isp_fmcu_ctx_desc *)handle;
-	if (fmcu_ctx->fid == 0)
-		base = ISP_FMCU0_BASE;
-	else
-		base = ISP_FMCU1_BASE;
-
-	if (fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id]
-		>= (fmcu_ctx->cmdq_size / sizeof(uint32_t))) {
-		pr_err("fail to get fmcu%d cmdq, overflow.\n", fmcu_ctx->fid);
-		return -EFAULT;
-	}
-
-	ispfmcu_cmd_debug(fmcu_ctx);
-	cmd_num = (int) fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] / 2;
-	cmdarg.base = base;
-	cmdarg.hw_addr = fmcu_ctx->hw_addr[fmcu_ctx->cur_buf_id];
-	cmdarg.cmd_num = cmd_num;
-	fmcu_ctx->hw->isp_ioctl(fmcu_ctx->hw, ISP_HW_CFG_FMCU_CMD, &cmdarg);
-
-	pr_debug("fmcu%d start done, cmdq len %d\n",
-		fmcu_ctx->fid, (uint32_t)fmcu_ctx->cmdq_pos[fmcu_ctx->cur_buf_id] * 4);
-
-	fmcu_ctx->cur_buf_id = !(fmcu_ctx->cur_buf_id);
-	return ret;
-}
-
 static int ispfmcu_start(void *handle)
 {
 	int ret = 0, cmd_num = 0;
@@ -258,7 +220,6 @@ struct isp_fmcu_ops fmcu_ops = {
 	.ctx_reset = ispfmcu_ctx_reset,
 	.push_cmdq = ispfmcu_cmd_push,
 	.hw_start = ispfmcu_start,
-	.cmd_ready = ispfmcu_cmd_ready,
 };
 
 struct isp_fmcu_ctx_desc s_fmcu_desc[ISP_FMCU_NUM] = {
