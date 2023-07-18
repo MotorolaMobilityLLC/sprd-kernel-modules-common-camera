@@ -2626,6 +2626,63 @@ static int isphw_cfg_mmu_wbypass(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_block_param_config(void *handle, void *arg)
+{
+	struct dcam_isp_k_block *p = NULL;
+	struct isp_pipeline_param_l5  *blkpm_ptr = NULL;
+
+	if (!arg || !handle) {
+		pr_err("fail to get valid input arg%px, %px.\n", arg, handle);
+		return -EFAULT;
+	}
+
+	p = (struct dcam_isp_k_block *)handle;
+	blkpm_ptr = (struct isp_pipeline_param_l5 *)arg;
+
+	memcpy(&p->bchs_info, &blkpm_ptr->bchs_param, sizeof(struct isp_dev_bchs_info));
+	p->bchs_info.isupdate = 1;
+	memcpy(&p->cce_info, &blkpm_ptr->cce_param, sizeof(struct isp_dev_cce_info));
+	p->cce_info.isupdate = 1;
+	memcpy(&p->cdn_info, &blkpm_ptr->cdn_param, sizeof(struct isp_dev_cdn_info));
+	p->cdn_info.isupdate = 1;
+	memcpy(&p->cfa_info, &blkpm_ptr->cfa_param, sizeof(struct isp_dev_cfa_info));
+	p->cfa_info.isupdate = 1;
+	memcpy(&p->cmc10_info, &blkpm_ptr->cmc10_param, sizeof(struct isp_dev_cmc10_info));
+	p->cmc10_info.isupdate = 1;
+	memcpy(&p->edge_info, &blkpm_ptr->edge_param, sizeof(struct isp_dev_edge_info_v2));
+	p->edge_info.isupdate = 1;
+	memcpy(&p->gamma_info, &blkpm_ptr->gamma_param, sizeof(struct isp_dev_gamma_info));
+	p->gamma_info.isupdate = 1;
+	memcpy(&p->hsv_info, &blkpm_ptr->hsv_param, sizeof(struct isp_dev_hsv_info_v2));
+	p->hsv_info.isupdate = 1;
+	memcpy(&p->iircnr_info, &blkpm_ptr->iircnr_param, sizeof(struct isp_dev_iircnr_info));
+	p->iircnr_info.isupdate = 1;
+	memcpy(&p->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
+	p->nlm_info_base.isupdate = 1;
+	memcpy(&p->imbalance_info_v0_base, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance));
+	p->imbalance_info_v0_base.isupdate = 1;
+	memcpy(&p->post_cdn_info, &blkpm_ptr->postcdn_param, sizeof(struct isp_dev_post_cdn_info));
+	p->post_cdn_info.isupdate = 1;
+	memcpy(&p->pre_cdn_info, &blkpm_ptr->precdn_param, sizeof(struct isp_dev_pre_cdn_info));
+	p->pre_cdn_info.isupdate = 1;
+	memcpy(&p->yrandom_info, &blkpm_ptr->yrandom_param, sizeof(struct isp_dev_yrandom_info));
+	p->yrandom_info.isupdate = 1;
+	memcpy(&p->uvd_info_v2, &blkpm_ptr->uvd_param, sizeof(struct isp_dev_uvd_info_v2));
+	p->uvd_info_v2.isupdate = 1;
+	memcpy(&p->ynr_info_v2_base, &blkpm_ptr->ynr_param, sizeof(struct isp_dev_ynr_info_v2));
+	p->ynr_info_v2_base.isupdate = 1;
+	memcpy(&p->ygamma_info, &blkpm_ptr->ygamma_param, sizeof(struct isp_dev_ygamma_info));
+	p->ygamma_info.isupdate = 1;
+	memcpy(&p->nr3_info_base, &blkpm_ptr->nr3_param, sizeof(struct isp_dev_3dnr_info));
+	p->nr3_info_base.blend.isupdate = ISP_3DNR_ISUPDATE_STAUE_WORK;
+	memcpy(&p->ltm_rgb_info, &blkpm_ptr->ltm_param, sizeof(struct isp_dev_rgb_ltm_info));
+	p->ltm_rgb_info.isupdate = 1;
+	memcpy(&p->nf_info, &blkpm_ptr->nf_param, sizeof(struct isp_dev_noise_filter_info));
+	p->nf_info.isupdate = 1;
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
@@ -2680,6 +2737,7 @@ static struct hw_io_ctrl_fun isp_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_YUV_BLOCK_BYPASS,        isphw_yuv_block_bypass},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
+	{ISP_HW_CFG_BLOCKPARAM_CFG,          isphw_block_param_config},
 };
 
 static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)

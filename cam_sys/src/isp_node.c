@@ -228,7 +228,6 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		if (unlikely(pframe->common.is_reserved)) {
 			cam_queue_empty_frame_put(pframe);
 		} else {
-			pframe->common.ltm_info.channel_id = inode->ch_id;
 			if (inode->ultra_cap_en)
 				pframe->common.ltm_info.channel_id = CAM_CH_CAP;
 			inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
@@ -549,9 +548,9 @@ static int ispnode_ltm_frame_process(struct isp_node *inode, struct isp_port_cfg
 	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_HIST_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_ltm_hist);
 	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BYPASS, &port_cfg->src_frame->common.xtm_conflict.need_ltm_map);
 	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MODE, &inode->pipe_src.mode_ltm);
-	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, &port_cfg->src_frame->common.fid);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_FRAME_ID, port_cfg->src_frame);
 	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_SIZE_INFO, &port_cfg->src_crop);
-	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BUF, &inode->isp_using_param->ltm_rgb_info.ltm_map);
+	rgb_ltm->ltm_ops.cfg_param(rgb_ltm, ISP_LTM_CFG_MAP_BUF, inode->isp_using_param);
 	ret = rgb_ltm->ltm_ops.pipe_proc(rgb_ltm, &inode->isp_using_param->ltm_rgb_info);
 	if (ret == -1) {
 		inode->pipe_src.mode_ltm = MODE_LTM_OFF;
@@ -1520,7 +1519,6 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		param_frame = cam_queue_empty_blk_param_get(&inode->param_share_queue);
 		if (param_frame) {
 			param_frame->isp_blk.fid = postproc_param->fid;
-
 			/* Temp get param from mw by do offset on base addr, need to discuss
 				param & image buf share set way in offline proc scene. */
 			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->post_cnr_h_info,
@@ -1604,7 +1602,11 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 				}
 
 				if (param_frame) {
-					memcpy(param_frame->isp_blk.param_block, &inode->isp_k_param, sizeof(struct dcam_isp_k_block));
+					if (param_status->blkpm_ptr) {
+						inode->dev->isp_hw->isp_ioctl(param_frame->isp_blk.param_block, ISP_HW_CFG_BLOCKPARAM_CFG, param_status->blkpm_ptr);
+						memcpy(&inode->isp_k_param, param_frame->isp_blk.param_block, sizeof(struct dcam_isp_k_block));
+					} else
+						memcpy(param_frame->isp_blk.param_block, &inode->isp_k_param, sizeof(struct dcam_isp_k_block));
 					param_frame->isp_blk.update = param_status->update;
 					param_frame->isp_blk.fid = param_status->frame_id;
 					ret = CAM_QUEUE_ENQUEUE(&inode->param_buf_queue, &param_frame->list);
@@ -1634,6 +1636,9 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 			if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0)
 				port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
 		}
+		break;
+	case ISP_NODE_CFG_XTM_EN:
+		*((uint32_t *)param) = !inode->isp_k_param.ltm_rgb_info.ltm_stat.bypass;
 		break;
 	default:
 		pr_err("fail to support vaild cmd:%d\n", cmd);
@@ -1895,7 +1900,7 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	node->ultra_cap_en = param->ultra_cap_en;
 	*param->node_dev = node;
 
-	pr_info("node id %d cur_ctx_id %d cfg_id %d blkparam_node_num:%d\n", node_id, node->pctx_hw_id, node->cfg_id, param->blkparam_node_num);
+	pr_info("ch id:%d, node id %d cur_ctx_id %d cfg_id %d blkparam_node_num:%d\n", node->ch_id, node_id, node->pctx_hw_id, node->cfg_id, param->blkparam_node_num);
 
 exit:
 	if (param->is_high_fps) {

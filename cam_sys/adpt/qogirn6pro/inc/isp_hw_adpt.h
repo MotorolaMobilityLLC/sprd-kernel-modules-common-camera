@@ -42,7 +42,10 @@
 #define ISP_FBD_TILE_WIDTH              32
 #define ISP_FBD_TILE_HEIGHT             8
 
-#define ISP_LTM_ALIGNMENT               4
+#define ISP_OVERSIZE_XTM_SLICENUM_W     2
+#define ISP_OVERSIZE_SLICENUM_W         1
+#define ISP_LTM_TILE_W_ALIGNMENT        4
+#define ISP_LTM_TILE_H_ALIGNMENT        2
 #define LTM_MIN_TILE_WIDTH              160
 #define LTM_MIN_TILE_HEIGHT             20
 

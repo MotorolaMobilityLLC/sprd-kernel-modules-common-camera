@@ -24,7 +24,7 @@
 #define pr_fmt(fmt) "NLM: %d %d %s : " fmt, current->pid, __LINE__, __func__
 #define ISP_VST_IVST_BUF_ADDR_IDX		1024
 
-static int isp_k_save_vst_ivst(struct dcam_isp_k_block *isp_k_param)
+int isp_k_save_vst_ivst(struct dcam_isp_k_block *isp_k_param)
 {
 	int ret = 0;
 	uint32_t buf_len = 0;

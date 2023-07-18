@@ -172,8 +172,7 @@ int dcam_init_lsc(void *in, uint32_t online)
 
 	/* step2: load grid table */
 	DCAM_REG_WR(idx, DCAM_LENS_BASE_RADDR, hw_addr);
-	DCAM_REG_MWR(idx, DCAM_LENS_GRID_NUMBER, 0x7FF,
-			info->grid_num_t & 0x7FF);
+	DCAM_REG_MWR(idx, DCAM_LENS_GRID_NUMBER, 0x7FF, info->grid_num_t & 0x7FF);
 
 	/* trigger load immediately */
 	DCAM_REG_MWR(idx, DCAM_LENS_LOAD_CLR, BIT_2 | BIT_0, (0 << 2) | 1);

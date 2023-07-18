@@ -529,8 +529,7 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
 			ret = cam_buf_alloc(&pframe->common.buf, size, param->iommu_enable);
 			if (ret) {
-				pr_err("fail to alloc buf: %d ch %d\n",
-					i, param->ch_id);
+				pr_err("fail to alloc buf: %d ch %d\n", i, param->ch_id);
 				cam_queue_empty_frame_put(pframe);
 				continue;
 			}

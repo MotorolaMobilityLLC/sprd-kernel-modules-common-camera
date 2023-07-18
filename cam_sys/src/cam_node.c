@@ -448,6 +448,9 @@ static int camnode_cfg_node_param_dcam_offline(void *handle, enum cam_node_cfg_c
 	case CAM_NODE_CFG_INSERT_PORT:
 		ret = dcam_offline_node_port_insert(node->handle, in_param->param);
 		break;
+	case CAM_NODE_CFG_PARAM_SWITCH:
+		ret = dcamoffline_blkpm_prepare(node->handle, in_param->param);
+		break;
 	case CAM_NODE_CFG_BUF_CLR:
 		if (in_param->port_type == PORT_TRANSFER_OUT)
 			ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_CLR, node->handle);
@@ -737,6 +740,9 @@ static int camnode_cfg_node_param_isp_offline(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_CFG_FAST_STOP:
 		ret = isp_node_config(node->handle, ISP_NODE_CFG_FAST_STOP, in_param->param);
+		break;
+	case CAM_NODE_CFG_XTM_EN:
+		ret = isp_node_config(node->handle, ISP_NODE_CFG_XTM_EN, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);

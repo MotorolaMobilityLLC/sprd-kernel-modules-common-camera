@@ -64,14 +64,15 @@ static struct cam_node *campipeline_linked_node_get(
 		cur_node = pipeline->node_list[i];
 		if (cur_node && cur_node->node_graph->type == link.node_type
 				&& cur_node->node_graph->id == link.node_id) {
-			pr_debug("node: %s\n", cam_node_name_get(link.node_type));
+			pr_debug("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type, cam_node_name_get(link.node_type),
+				link.node_id);
 			return pipeline->node_list[i];
 		}
 	}
 
 	pr_err("fail to find linked node %d, cnt %d pipeline type %s link node type %s id %d\n",
-			i, pipeline->pipeline_graph->node_cnt, pipeline->pipeline_graph->name,
-			cam_node_name_get(link.node_type), link.node_id);
+		i, pipeline->pipeline_graph->node_cnt, pipeline->pipeline_graph->name,
+		cam_node_name_get(link.node_type), link.node_id);
 	return NULL;
 }
 
@@ -123,9 +124,9 @@ static int campipeline_zoom_callback(void *priv_data, void *param)
 static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0;
-	struct cam_pipeline *pipeline = NULL;
 	struct cam_frame *pframe = NULL;
 	struct cam_node *link_node = NULL;
+	struct cam_pipeline *pipeline = NULL;
 	struct cam_node_cfg_param node_param = {0};
 
 	if (!param || !priv_data) {
@@ -145,7 +146,7 @@ static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_d
 	case CAM_CB_FRAME_CACHE_DATA_DONE:
 		link_node = campipeline_linked_node_get(pipeline, pframe);
 		if (link_node) {
-			if (pframe->common.height > ISP_SLCIE_HEIGHT_MAX
+			if (pframe->common.nonzsl_xtm.full_size.h > ISP_SLCIE_HEIGHT_MAX
 				&& (link_node->node_graph->type == CAM_NODE_TYPE_ISP_OFFLINE)) {
 				ret = pipeline->slice_cb_func(pframe, pipeline->data_cb_handle);
 			} else {
