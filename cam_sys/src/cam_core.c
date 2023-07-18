@@ -823,7 +823,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		break;
 	case CAM_CB_DCAM_IRQ_EVENT:
 		channel = &module->channel[CAM_CH_PRE];
-		if (pframe->common.irq_property == IRQ_DCAM_SN_EOF) {
+		if (pframe->common.irq_property == IRQ_DCAM_SN_EOF && module->cam_uinfo.ipg_skip_first_frm == 0) {
 			cam_queue_empty_frame_put(pframe);
 			break;
 		}

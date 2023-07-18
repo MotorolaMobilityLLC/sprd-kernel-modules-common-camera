@@ -124,6 +124,7 @@ static void dcamint_irq_cap_sof(void *param)
 static void dcamint_irq_sensor_sof(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	struct dcam_irq_proc irq_proc = {0};
 
 	pr_debug("DCAM%d, dcamint_sensor_sof\n", dcam_hw_ctx->hw_ctx_id);
 
@@ -133,6 +134,8 @@ static void dcamint_irq_sensor_sof(void *param)
 		else
 			dcamint_irq_cap_sof(param);
 	}
+	irq_proc.of = SN_START_OF_FRAME;
+	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
 static void dcamint_raw_port_done(void *param)

@@ -104,7 +104,7 @@ static int cambuf_adapt_buffer_alloc(struct camera_buf *buf_info,
 
 	dmaheap = dma_heap_find(heap_name);
 	if (dmaheap == NULL) {
-		pr_err("fail to get dmaheap\n");
+		pr_err("fail to get dmaheap %s\n", heap_name);
 		ret = -ENOMEM;
 		return ret;
 	}

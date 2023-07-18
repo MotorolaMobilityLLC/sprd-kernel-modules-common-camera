@@ -76,6 +76,7 @@ static int camscene_cap_info_set(struct camera_module *module, struct dcam_mipi_
 	cap_info->cap_size.start_y = info->sn_rect.y;
 	cap_info->cap_size.size_x = info->sn_rect.w;
 	cap_info->cap_size.size_y = info->sn_rect.h;
+	cap_info->ipg_skip_first_frm = info->ipg_skip_first_frm;
 
 	return ret;
 }

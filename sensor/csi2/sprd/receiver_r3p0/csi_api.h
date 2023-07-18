@@ -48,5 +48,6 @@ int csi_api_open(int bps_per_lane, int phy_id, int lane_num, int sensor_id, int 
 int csi_api_close(uint32_t phy_id, int sensor_id);
 void csi_api_reg_trace(void);
 int csi_api_switch(int sensor_id);
+void csi_api_off_ipg(void);
 #endif
 

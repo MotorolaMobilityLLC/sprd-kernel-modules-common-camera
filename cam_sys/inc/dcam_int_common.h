@@ -64,6 +64,7 @@ void dcam_int_common_full_port_done(void *param);
 void dcam_int_common_bin_port_done(void *param);
 void dcam_int_common_vch2_port_done(void *param);
 void dcam_int_common_gtm_port_done(void *param);
+void dcam_int_common_irq_sensor_sof(void *param);
 void dcam_int_common_irq_sensor_eof(void *param);
 void dcam_int_common_lscm_port_done(void *param);
 void dcam_int_common_aem_port_done(void *param);

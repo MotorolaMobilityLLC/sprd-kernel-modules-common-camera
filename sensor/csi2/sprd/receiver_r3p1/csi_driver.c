@@ -59,8 +59,8 @@
 #define IPG_IMAGE_MODE_MASK		BIT_1
 #define IPG_ENABLE_MASK			BIT_0
 
-#define IPG_IMAGE_W			4672//3264
-#define IPG_IMAGE_H			3504//2448
+#define IPG_IMAGE_W			640
+#define IPG_IMAGE_H			480
 
 
 #define IPG_IMAGE_H_REG			(((IPG_IMAGE_H)/8) << 21)
@@ -111,7 +111,7 @@
 #define IPG_V_BLANK_MASK		(0xFFF << 13)
 #define IPG_H_BLANK_MASK		0x1FFF
 #define IPG_V_BLANK			(0xFFF << 13)
-#define IPG_H_BLANK			(0x1FFF)
+#define IPG_H_BLANK			(0x7D0)
 
 static unsigned long s_csi_regbase[SPRD_SENSOR_ID_MAX];
 static unsigned long csi_dump_regbase[CSI_MAX_COUNT];
@@ -167,6 +167,27 @@ int csi_reg_base_save(struct csi_dt_node_info *dt_info, int32_t idx)
 	csi_dump_regbase[dt_info->controller_id] = 0;
 
 	return 0;
+}
+
+static int csi_ipg_id = 0xff;
+static int csi_ipg_status = 0x0;
+
+void csi_ipg_stream_off(void) {
+
+    if (0xff == csi_ipg_id) {
+               pr_info("no csi ipg mode\n");
+               return;
+    }
+    if (0 == csi_ipg_status) {
+               pr_info("csi ipg already off\n");
+               return;
+    }
+       pr_info("stream off csi ipg mode\n");
+       CSI_REG_MWR(csi_ipg_id, MODE_CFG, IPG_ENABLE_MASK, ~IPG_ENABLE);
+       csi_ipg_id = 0xff;
+       csi_ipg_status = 0;
+
+       return;
 }
 
 void csi_ipg_mode_cfg(uint32_t idx, int enable)
@@ -239,8 +260,13 @@ void csi_ipg_mode_cfg(uint32_t idx, int enable)
 		CSI_REG_MWR(idx, IPG_OTHER_CFG0, IPG_H_BLANK_MASK, IPG_H_BLANK);
 
 		CSI_REG_MWR(idx, MODE_CFG, IPG_ENABLE_MASK, IPG_ENABLE);
-	} else
+	        csi_ipg_id = idx;
+                csi_ipg_status = 1;
+	} else {
 		CSI_REG_MWR(idx, MODE_CFG, IPG_ENABLE_MASK, ~IPG_ENABLE);
+                csi_ipg_id = 0xff;
+                csi_ipg_status = 0;
+	}
 
 	pr_info("CSI IPG enable %d\n", enable);
 }
