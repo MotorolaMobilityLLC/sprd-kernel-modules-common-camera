@@ -212,10 +212,14 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 			ret = -EFAULT;
 			goto exit;
 		}
-		if (unlikely(pframe->common.is_reserved))
+		if (unlikely(pframe->common.is_reserved)) {
 			cam_queue_empty_frame_put(pframe);
-		else
+		} else {
+			pframe->common.ltm_info.channel_id = inode->ch_id;
+			if (inode->ultra_cap_en)
+				pframe->common.ltm_info.channel_id = CAM_CH_CAP;
 			inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
+		}
 		break;
 	case POSTPROC_RGB_GTM_HISTS_DONE:
 		ispnode_rgb_gtm_hist_done_process(inode, hw_idx, dev);
