@@ -296,6 +296,19 @@ int dcam_k_lsc_block(struct dcam_isp_k_block *p)
 		goto exit;
 	}
 
+	if (info->weight_num > DCAM_LSC_WEIGHT_TAB_SIZE) {
+		pr_err("fail to get weight length wrong %d\n", info->weight_num);
+		ret = -EPERM;
+		goto exit;
+	}
+
+	gain_tab = (uint16_t *)param->buf.addr_k;
+	if (IS_ERR_OR_NULL(gain_tab) || (info->gridtab_len > DCAM_LSC_BUF_SIZE)) {
+		pr_err("fail to get gain tab, length 0x%x\n", info->gridtab_len);
+		ret = -EPERM;
+		goto exit;
+	}
+
 	w_buff = (uint16_t *)param->weight_tab;
 	wtab_uaddr = (unsigned long)info->weight_tab_addr;
 	ret = copy_from_user((void *)w_buff,
@@ -306,17 +319,9 @@ int dcam_k_lsc_block(struct dcam_isp_k_block *p)
 		goto exit;
 	}
 
-	gain_tab = (uint16_t *)param->buf.addr_k;
-	if (IS_ERR_OR_NULL(gain_tab)) {
-		pr_err("fail to get buf,no buffer for gain tab\n");
-		ret = -EPERM;
-		goto exit;
-	}
-
 	gtab_uaddr = (unsigned long)info->grid_tab_addr;
 	ret = copy_from_user((void *)gain_tab,
 			(void __user *)gtab_uaddr, info->gridtab_len);
-
 	if (ret != 0) {
 		pr_err("fail to copy from user, ret = %d\n", ret);
 		ret = -EPERM;
