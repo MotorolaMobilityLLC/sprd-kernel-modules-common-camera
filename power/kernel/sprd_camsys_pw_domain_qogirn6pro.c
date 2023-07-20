@@ -117,6 +117,8 @@ static int sprd_cam_domain_eb(struct camsys_power_info *pw_info)
 	clk_prepare_enable(pw_info->u.qogirn6pro.mm_mtx_data_en);
 	clk_set_parent(pw_info->u.qogirn6pro.mm_mtx_clk, pw_info->u.qogirn6pro.mm_mtx_clk_parent);
 	clk_prepare_enable(pw_info->u.qogirn6pro.mm_mtx_clk);
+	clk_set_parent(pw_info->u.qogirn6pro.mm_sys_cfg, pw_info->u.qogirn6pro.mm_sys_cfg_parent);
+	clk_prepare_enable(pw_info->u.qogirn6pro.mm_sys_cfg);
 	ret = clk_prepare_enable(pw_info->u.qogirn6pro.blk_cfg_en);
 	if (ret)
 		pr_err("fail to power on blk_cfg_en");
@@ -140,6 +142,8 @@ static int sprd_cam_domain_disable(struct camsys_power_info *pw_info)
 
 	/* mm bus enable */
 	clk_disable_unprepare(pw_info->u.qogirn6pro.blk_cfg_en);
+	clk_set_parent(pw_info->u.qogirn6pro.mm_sys_cfg, pw_info->u.qogirn6pro.mm_sys_cfg_default);
+	clk_disable_unprepare(pw_info->u.qogirn6pro.mm_sys_cfg);
 	clk_set_parent(pw_info->u.qogirn6pro.mm_mtx_clk, pw_info->u.qogirn6pro.mm_mtx_clk_defalut);
 	clk_disable_unprepare(pw_info->u.qogirn6pro.mm_mtx_clk);
 	clk_disable_unprepare(pw_info->u.qogirn6pro.mm_mtx_data_en);
@@ -416,6 +420,17 @@ static long sprd_campw_init(struct platform_device *pdev, struct camsys_power_in
 	pw_info->u.qogirn6pro.mm_mtx_clk_parent = of_clk_get_by_name(np, "clk_mm_mtx_parent");
 	if (IS_ERR_OR_NULL(pw_info->u.qogirn6pro.mm_mtx_clk_parent))
 		return PTR_ERR(pw_info->u.qogirn6pro.mm_mtx_clk_parent);
+
+	pw_info->u.qogirn6pro.mm_sys_cfg = of_clk_get_by_name(np, "clk_mm_sys_cfg");
+
+	if (IS_ERR_OR_NULL(pw_info->u.qogirn6pro.mm_sys_cfg))
+		return PTR_ERR(pw_info->u.qogirn6pro.mm_sys_cfg);
+
+	pw_info->u.qogirn6pro.mm_sys_cfg_parent = of_clk_get_by_name(np, "clk_mm_sys_cfg_parent");
+	if (IS_ERR_OR_NULL(pw_info->u.qogirn6pro.mm_sys_cfg_parent))
+		return PTR_ERR(pw_info->u.qogirn6pro.mm_sys_cfg_parent);
+
+	pw_info->u.qogirn6pro.mm_sys_cfg_default = clk_get_parent(pw_info->u.qogirn6pro.mm_sys_cfg);
 
 	/* read csi-switch and cam-ahb-syscon registers*/
 	pw_info->u.qogirn6pro.switch_map = syscon_regmap_lookup_by_phandle(np, "sprd,csi-switch");

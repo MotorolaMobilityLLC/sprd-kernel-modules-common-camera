@@ -156,6 +156,9 @@ struct camsys_power_info {
 			struct clk *mm_mtx_clk_parent;
 			struct clk *mm_mtx_clk_defalut;
 			struct register_gpr regs[14];
+			struct clk *mm_sys_cfg;
+			struct clk *mm_sys_cfg_parent;
+			struct clk *mm_sys_cfg_default;
 			struct regmap *ahb_map;
 			struct regmap *switch_map;
 		} qogirn6pro;
