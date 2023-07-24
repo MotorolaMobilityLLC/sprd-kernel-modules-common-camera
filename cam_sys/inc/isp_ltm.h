@@ -27,6 +27,7 @@ extern "C" {
 #define LTM_ID_MAX                      3
 
 typedef struct isp_ltm_hist_param {
+	enum cam_en_status update;
 	/* match ltm stat info */
 	uint32_t bypass;
 	uint32_t region_est_en;
@@ -87,8 +88,10 @@ struct isp_ltm_hists {
 	uint32_t roi_start_x;
 	uint32_t roi_start_y;
 	uint32_t tile_width;
+	uint32_t tile_num_x;
 	uint32_t tile_num_x_minus;
 	uint32_t tile_height;
+	uint32_t tile_num_y;
 	uint32_t tile_num_y_minus;
 	uint32_t clip_limit;
 	uint32_t clip_limit_min;
@@ -181,6 +184,7 @@ struct isp_ltm_ctx_desc {
 	uint32_t frame_width_stat;
 	uint32_t frame_height_stat;
 
+	enum cam_en_status ltmhist_update;
 	struct isp_ltm_hists hists;
 	struct isp_ltm_map map;
 	struct camera_frame_buf ltm_frame[ISP_LTM_BUF_NUM];

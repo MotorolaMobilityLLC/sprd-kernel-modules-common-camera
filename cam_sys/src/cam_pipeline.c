@@ -299,9 +299,6 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_CFG_XTM_EN:
 		node_cmd = CAM_NODE_CFG_XTM_EN;
 		break;
-	case CAM_PIPELINE_CFG_LTM_PRAM_GET:
-		node_cmd = CAM_NODE_CFG_LTM_PARM_GET;
-		break;
 	case CAM_PIPELINE_CFG_FAST_STOP:
 		node_cmd = CAM_NODE_CFG_FAST_STOP;
 		break;
