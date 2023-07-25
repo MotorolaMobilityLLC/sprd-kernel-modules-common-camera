@@ -48,6 +48,7 @@ struct dcam_online_port_desc {
 	void *shutoff_cb_handle;
 	uint32_t dcam_path_id;
 	enum cam_en_status is_raw;
+	enum cam_en_status is_ultr_virtualsensor;
 	enum dcam_full_src_sel_type raw_src;
 	uint32_t bayer_pattern;
 	uint32_t sn_if_fmt;

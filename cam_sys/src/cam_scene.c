@@ -2174,10 +2174,14 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 		dcam_online_desc->port_desc[i].pyr_out_fmt = hw->ip_dcam[0]->dcamhw_abt->store_pyr_fmt;
 		dcam_online_desc->port_desc[i].resbuf_get_cb = cam_scene_reserved_buf_cfg;
 		dcam_online_desc->port_desc[i].resbuf_cb_data = module;
-		if (i == PORT_FULL_OUT)
+		if (i == PORT_FULL_OUT) {
 			dcam_online_desc->port_desc[i].share_full_path = module->cam_uinfo.need_share_buf;
-		if (i == PORT_BIN_OUT)
+			dcam_online_desc->port_desc[i].is_ultr_virtualsensor = 0;
+		}
+		if (i == PORT_BIN_OUT) {
 			dcam_online_desc->port_desc[i].is_pyr_rec = dcam_online_desc->is_pyr_rec;
+			dcam_online_desc->port_desc[i].is_ultr_virtualsensor = 0;
+		}
 		cam_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->dcampath_abt[rawpath_id]->format[0]);
 		dcam_online_desc->port_desc[i].dcam_out_fmt = channel->dcam_out_fmt;
 		dcam_online_desc->port_desc[i].compress_en = channel->compress_en;
@@ -2527,4 +2531,3 @@ int cam_scene_camcopy_desc_get(void *module_ptr, struct cam_copy_node_desc *cam_
 
 	return ret;
 }
-

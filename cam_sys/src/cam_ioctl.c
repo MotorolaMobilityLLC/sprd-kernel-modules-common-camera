@@ -1515,6 +1515,13 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 				pr_err("fail to cfg path buffer\n");
 				goto exit;
 			}
+			if ((i == CAM_CH_CAP) && (ch->nonzsl_pre_pipeline) && (module->cam_uinfo.virtualsensor)) {
+				ret = camcore_buffer_path_cfg(module, i);
+				if (ret) {
+					pr_err("fail to cfg path buffer\n");
+					goto exit;
+				}
+			}
 		}
 	}
 	module->dual_frame = NULL;

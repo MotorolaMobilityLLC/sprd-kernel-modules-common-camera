@@ -1310,6 +1310,8 @@ void *dcam_online_port_get(uint32_t port_id, struct dcam_online_port_desc *param
 		goto exit;
 	} else {
 		port = *param->port_dev;
+		if (param->is_ultr_virtualsensor)
+			port->zoom_cb_handle = param->zoom_cb_handle;
 		pr_debug("dcam online port has been alloc %p %s\n", port, cam_port_name_get(port_id));
 		goto exit;
 	}

@@ -396,8 +396,13 @@ static int camcore_buffers_alloc(void *param)
 		alloc_param.ch_id = 1;
 		alloc_param.width = alloc_param.width / ratio;
 		alloc_param.height = alloc_param.height / ratio;
-		alloc_param.dcamonline_buf_alloc_num = 0;
-		alloc_param.dcamoffline_buf_alloc_num = 1;
+		if (!module->cam_uinfo.virtualsensor) {
+			alloc_param.dcamonline_buf_alloc_num = 0;
+			alloc_param.dcamoffline_buf_alloc_num = 1;
+		} else {
+			alloc_param.dcamonline_buf_alloc_num = 1;
+			alloc_param.dcamoffline_buf_alloc_num = 0;
+		}
 
 		ret = cam_pipeline_buffer_alloc(channel->nonzsl_pre_pipeline, &alloc_param);
 		if (ret) {
@@ -680,7 +685,7 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 			}
 			break;
 		}
-		if (channel->nonzsl_pre_pipeline && pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW) {
+		if (channel->nonzsl_pre_pipeline && (pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW || (pipeline_type == CAM_PIPELINE_PREVIEW && module->cam_uinfo.virtualsensor))) {
 			pr_debug("ch %d type %d\n", channel->ch_id, pipeline_type);
 			spin_lock_irqsave(&channel->nonzsl_pre.lastest_zoom_lock, flag);
 			zoom_frame = CAM_QUEUE_DEQUEUE(&channel->nonzsl_pre.zoom_param_q, struct cam_frame, list);
@@ -1259,6 +1264,10 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 			module->offline_icap_scene = CAM_ENABLE;
 	}
 
+	if (module->cam_uinfo.dcam_slice_mode && module->cam_uinfo.virtualsensor) {
+		module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
+	}
+
 	if (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV &&
 		hw->ip_dcam[0]->dcamhw_abt->output_yuv_support == CAM_DISABLE) {
 		*isp_port_id = PORT_VID_OUT;
@@ -1282,7 +1291,7 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 static int camcore_pipeline_init(struct camera_module *module,
 		struct channel_context *channel)
 {
-	int ret = 0;
+	int ret = 0, i = 0;
 	int dcam_port_id = 0, isp_port_id = 0;
 	uint32_t pipeline_type = 0, pyrdec_support = 0;
 	struct cam_hw_info *hw = NULL;
@@ -1507,6 +1516,47 @@ static int camcore_pipeline_init(struct camera_module *module,
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
 		dcam_offline_desc->offline_pre_en = CAM_DISABLE;
 		isp_node_description->ch_id = channel->ch_id;
+		if (module->cam_uinfo.is_rgb_ltm)
+			isp_node_description->mode_ltm = MODE_LTM_CAP;
+		isp_node_description->port_desc.output_size = channel->ch_uinfo.dst_size;
+	}
+	if (module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1 && module->cam_uinfo.virtualsensor) {
+		uint32_t rawpath_id = 0, statis_pipe_type = CAM_PIPELINE_PREVIEW;
+		rawpath_id = camcore_dcampath_id_convert(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
+		isp_node_description->ch_id = CAM_CH_PRE;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].raw_src = PROCESS_RAW_SRC_SEL;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].endian = ENDIAN_LITTLE;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].bayer_pattern = module->cam_uinfo.sensor_if.img_ptn;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].sn_if_fmt = module->cam_uinfo.sensor_if.img_fmt;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].pyr_out_fmt = hw->ip_dcam[0]->dcamhw_abt->store_pyr_fmt;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].resbuf_get_cb = cam_scene_reserved_buf_cfg;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].resbuf_cb_data = module;
+		cam_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->dcampath_abt[rawpath_id]->format[0]);
+		dcam_online_desc->port_desc[PORT_BIN_OUT].dcam_out_fmt = channel->dcam_out_fmt;
+		dcam_online_desc->port_desc[PORT_BIN_OUT].compress_en = channel->compress_en;
+		dcam_fetch_desc->offline_pre_en = CAM_ENABLE;
+		if (module->cam_uinfo.is_rgb_ltm)
+			isp_node_description->mode_ltm = MODE_LTM_PRE;
+		isp_node_description->port_desc.output_size.w = channel->ch_uinfo.dst_size.w / 4;
+		isp_node_description->port_desc.output_size.h = channel->ch_uinfo.dst_size.h / 4;
+		if ((channel->ch_uinfo.src_size.w / 2) > g_camctrl.isp_linebuf_len)
+			channel->ch_uinfo.nonzsl_pre_ratio = 4;
+		else
+			channel->ch_uinfo.nonzsl_pre_ratio = 2;
+		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[statis_pipe_type];
+		channel->nonzsl_pre_pipeline = cam_pipeline_creat(pipeline_desc);
+		if (!channel->nonzsl_pre_pipeline) {
+			pr_err("fail to get statis pipeline.\n");
+			return -ENOMEM;
+		}
+		for (i = PORT_BIN_OUT; i <= PORT_FULL_OUT; i++) {
+			if (module->static_topology->pipeline_list[pipeline_type].nodes[CAM_NODE_TYPE_DCAM_ONLINE].outport[i].link_state != PORT_LINK_NORMAL)
+				continue;
+			dcam_online_desc->port_desc[i].is_ultr_virtualsensor = 1;
+		}
+		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
+		isp_node_description->ch_id = channel->ch_id;
+		dcam_fetch_desc->offline_pre_en = CAM_DISABLE;
 		if (module->cam_uinfo.is_rgb_ltm)
 			isp_node_description->mode_ltm = MODE_LTM_CAP;
 		isp_node_description->port_desc.output_size = channel->ch_uinfo.dst_size;
