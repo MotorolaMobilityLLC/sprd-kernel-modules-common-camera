@@ -519,7 +519,6 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 	hw_ctx = node->hw_ctx;
 	hw = hw_ctx->hw;
 	slice = &hw_ctx->slice_info;
-
 	for (i = 0; i < slice->slice_num; i++) {
 		ret = wait_for_completion_interruptible_timeout(
 				&node->slice_done, DCAM_OFFLINE_TIMEOUT);

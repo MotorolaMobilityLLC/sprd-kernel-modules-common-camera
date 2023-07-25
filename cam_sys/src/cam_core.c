@@ -924,7 +924,12 @@ static int camcore_icap_buffer_set(struct camera_module *module, struct channel_
 		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(aux_dcam_path),
 				CAM_PIPELINE_CFG_BUF, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
 	} else if (channel->ch_id == CAM_CH_DCAM_VCH) {
-		dcam_raw_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
+		if (module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX) {
+			pframe->common.width = ch_cap->ch_uinfo.src_size.w;
+			pframe->common.height = ch_cap->ch_uinfo.src_size.h;
+			dcam_raw_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id;
+		} else
+			dcam_raw_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
 		ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch_cap, dcamonline_pathid_convert_to_portid(dcam_raw_path), CAM_PIPELINE_CFG_BUF, pframe);
 	} else {
 		pr_err("fail to set output buffer for ch%d.\n", channel->ch_id);
