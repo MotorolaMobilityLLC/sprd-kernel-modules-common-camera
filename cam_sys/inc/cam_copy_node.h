@@ -56,6 +56,7 @@ struct cam_copy_node {
 	uint32_t record_channel_id;
 	void *copy_cb_handle;
 	cam_data_cb copy_cb_func;
+	uint32_t cache_num;
 	struct camera_queue in_queue;
 	struct camera_queue out_queue;
 	struct cam_thread_info thread;

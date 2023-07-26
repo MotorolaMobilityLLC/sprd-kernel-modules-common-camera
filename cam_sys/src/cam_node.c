@@ -100,7 +100,7 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 		if ((cap_param->fid && pframe->common.fid >= cap_param->fid)
 			|| (!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp &&
 			camnode_capture_skip_condition(pframe, cap_param))
-			|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene))
+			|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.icap_scene))
 			pframe->common.link_to = cap_new_link;
 		else
 			pframe->common.link_to = cap_ori_link;
@@ -116,7 +116,7 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 		} else {
 			if (((pframe->common.boot_sensor_time >= cap_param->cap_timestamp || cap_param->cap_opt_frame_scene) &&
 				atomic_read(&cap_param->cap_cnt) > 0 &&
-				camnode_capture_skip_condition(pframe, cap_param)) || (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene)) {
+				camnode_capture_skip_condition(pframe, cap_param)) || (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.icap_scene)) {
 				pframe->common.link_to = cap_new_link;
 				atomic_dec(&cap_param->cap_cnt);
 			} else
@@ -925,12 +925,12 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 		node->cap_param.no_need_skip_frame_scene = cap_param->no_need_skip_frame_scene;
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
-		node->cap_param.offline_icap_scene = cap_param->offline_icap_scene;
+		node->cap_param.icap_scene = cap_param->icap_scene;
 		node->cap_param.fid = cap_param->fid;
-		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d offline_icap_scene %d\n",
+		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, opt_scene %d icap_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
-			node->cap_param.skip_first_num, node->cap_param.cap_timestamp,  node->cap_param.cap_opt_frame_scene, node->cap_param.offline_icap_scene);
+			node->cap_param.skip_first_num, node->cap_param.cap_timestamp,  node->cap_param.cap_opt_frame_scene, node->cap_param.icap_scene);
 		ret = cam_copy_cfg_param(node->handle, in_param->param);
 		break;
 	case CAM_NODE_CFG_INSERT_PORT:

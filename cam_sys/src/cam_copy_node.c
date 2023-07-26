@@ -120,6 +120,7 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 				out_frame->common.link_from.node_type = CAM_NODE_TYPE_DATA_COPY;
 				out_frame->common.link_from.port_id = PORT_COPY_OUT;
 				ret = node->copy_cb_func(CAM_CB_DCAM_DATA_DONE, out_frame, node->copy_cb_handle);
+				atomic_dec(&node->cap_param.cap_cnt);
 				break;
 			default :
 				pr_err("fail to support scene id %d\n", node->scene_id);
@@ -191,19 +192,28 @@ static int camcopy_node_frame_start(void *param)
 		}
 		break;
 	case CAM_COPY_ICAP_SCENE:
-		if (node->cap_param.cap_type == DCAM_CAPTURE_STOP || atomic_read(&node->icap_cap_num) == 0) {
-			pr_debug("current condition cap_type %d and icap_cap_num %d\n", node->cap_param.cap_type, atomic_read(&node->icap_cap_num));
-			pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
-			if (pframe) {
-				pframe->common.link_to = pframe->common.link_from;
-				pframe->common.copy_en = 0;
-				ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+		if (node->cap_param.cap_type == DCAM_CAPTURE_STOP) {
+			if (node->in_queue.cnt > node->cache_num) {
+				pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
+				if (pframe) {
+					pframe->common.copy_en = 0;
+					ret = node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+					return ret;
+				} else {
+					pr_err("fail to dequeue frame for node %d\n", node->node_id);
+					return -EFAULT;
+				}
+			} else
 				return ret;
-			} else {
-				pr_err("fail to dequeue frame for node %d\n", node->node_id);
-				return -EFAULT;
-			}
 		}
+		pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
+		if (atomic_read(&node->icap_cap_num) == 0) {
+			pr_debug("time or cnt canot meet the conditions\n");
+			pframe->common.copy_en = 0;
+			node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+			return ret;
+		} else
+			CAM_QUEUE_ENQUEUE_HEAD(&node->in_queue, &pframe->list);
 		break;
 	default :
 		pr_err("fail to support scene id %d\n", node->scene_id);
@@ -371,6 +381,7 @@ int cam_copy_node_set_icap_scene(void *handle, void *param)
 	icap_buffer_num = *(uint32_t *)param;
 	node = (struct cam_copy_node *)handle;
 	node->copy_flag = CAM_ENABLE;
+	node->cache_num = icap_buffer_num ;
 	node->scene_id = CAM_COPY_ICAP_SCENE;
 
 	return ret;
@@ -491,6 +502,7 @@ void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param)
 	node->pre_raw_flag = PRE_RAW_CACHE;
 	node->opt_buffer_num = 0;
 	node->scene_id = CAM_COPY_NORMAL_SCENE;
+	node->cache_num = 0;
 	atomic_set(&node->icap_cap_num, 0);
 
 	thrd = &node->thread;
