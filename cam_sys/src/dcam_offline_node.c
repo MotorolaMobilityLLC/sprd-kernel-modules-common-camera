@@ -262,7 +262,7 @@ static int dcamoffline_data_callback(struct dcam_offline_node *node,
 
 static int dcamoffline_irq_proc(void *param, void *handle)
 {
-	int ret = 0, time_out = 0, port_id = 0, is_frm_port = 0;
+	int ret = 0, port_id = 0, is_frm_port = 0;
 	struct cam_hw_info *hw = NULL;
 	struct cam_frame *frame = NULL;
 	struct dcam_offline_node *node = NULL;
@@ -303,9 +303,6 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			slice_info->slice_count--;
 			complete(&node->slice_done);
 		}
-		time_out = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
-		if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT)
-			pr_warn("Warning:dcam fetch status is busy. timeout %d\n", time_out);
 
 		if (path_done[DCAM_PATH_FULL] != slice_info->slice_num
 			&& path_done[DCAM_PATH_BIN] != slice_info->slice_num
@@ -318,9 +315,6 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		pr_err("fail to data cb, slice_num %d, port %s\n", slice_info->slice_num, cam_port_dcam_offline_out_id_name_get(port_id));
 
 	if (is_frm_port && slice_info->slice_count == 0) {
-		time_out = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
-		if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT)
-			pr_warn("Warning:dcam fetch status is busy.\n");
 		frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL, node->buf_manager_handle);
 		if (frame) {
 			cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
@@ -514,7 +508,7 @@ static int dcamoffline_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 
 static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_isp_k_block *pm)
 {
-	int i = 0, ret = 0;
+	int i = 0, ret = 0, time_out = 0;
 	struct cam_hw_reg_trace trace = {0};
 	struct dcam_fetch_info *fetch = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
@@ -536,6 +530,14 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 			hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 			return -EFAULT;
 		}
+		if (i != 0) {
+			time_out = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
+			if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT) {
+				pr_warn("Warning:dcam fetch status is busy on %d out of slice_num %d.\n", i, slice->slice_num);
+				return -EFAULT;
+			}
+		}
+
 		if (atomic_read(&node->status) == STATE_ERROR) {
 			pr_info("warning dcam offline slice%d/%d\n", i, slice->slice_num);
 			return 0;
@@ -617,7 +619,8 @@ static struct dcam_isp_k_block *dcamoffline_frm_param_get(struct cam_frame *pfra
 
 static int dcamoffline_node_frame_start(void *param)
 {
-	int ret = 0, loop = 0;
+	int ret = 0, loop = 0, time_out = 0;
+	struct cam_hw_info *hw = NULL;
 	struct dcam_offline_node *node = NULL;
 	struct dcam_offline_port *port = NULL;
 	struct cam_frame *pframe = NULL;
@@ -633,6 +636,7 @@ static int dcamoffline_node_frame_start(void *param)
 		return -EFAULT;
 	}
 
+	hw = node->dev->hw;
 	pr_info("dcam offline frame start %px\n", param);
 	ret = wait_for_completion_interruptible_timeout(&node->frm_done, DCAM_OFFLINE_TIMEOUT);
 	if (ret <= 0) {
@@ -649,6 +653,12 @@ static int dcamoffline_node_frame_start(void *param)
 
 	os_adapt_time_get_ts(&node->start_ts);
 	PERFORMANCE_DEBUG("node_start_time %d.%06d\n", node->start_ts.tv_sec, node->start_ts.tv_nsec / NSEC_PER_USEC);
+
+	time_out = hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
+	if (time_out > DCAM_OFFLINE_AXI_STOP_TIMEOUT) {
+		pr_warn("Warning:dcam fetch status is busy. timeout %d\n", time_out);
+		goto return_buf;
+	}
 
 	loop = 0;
 	do {
@@ -718,12 +728,16 @@ static int dcamoffline_node_frame_start(void *param)
 	}
 
 	ret = dcamoffline_slice_proc(node, pm);
+	if (ret == -EFAULT)
+		goto return_buf;
 	pr_debug("done\n");
 
 	return ret;
 
 return_buf:
 	pframe = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL, node->buf_manager_handle);
+	if (!pframe)
+		pframe = cam_buf_manager_buf_dequeue(&node->in_pool, NULL, node->buf_manager_handle);
 	if (pframe) {
 		cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
 		node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
