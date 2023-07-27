@@ -258,17 +258,19 @@ int dcam_k_cfg_raw_gtm(struct isp_io_param *param, struct dcam_isp_k_block *p)
 		/* if stream on, init_flag is 1, else, init_flag is 0 */
 		if (gtm_block->init_flag) {
 			if (p->offline == 0) {
-				if (p->idx == DCAM_HW_CONTEXT_MAX)
+				if (p->idx >= DCAM_HW_CONTEXT_MAX)
 					return 0;
 				dcam_k_raw_gtm_block(p);
 			}
 		} else {
-			gtm_bypass = &p->rgb_gtm.rgb_gtm_info.bypass_info;
-			if (p->idx == DCAM_HW_CONTEXT_MAX)
-				return 0;
-			dcam_k_gtm_bypass(p, gtm_bypass);
+			if (p->offline == 0) {
+				gtm_bypass = &p->rgb_gtm.rgb_gtm_info.bypass_info;
+				if (p->idx >= DCAM_HW_CONTEXT_MAX)
+					return 0;
+				dcam_k_gtm_bypass(p, gtm_bypass);
+				dcam_k_rgb_gtm_mapping(gtm_block, p->idx);
+			}
 			pr_debug("get mapping info, scene_id %d, offline %d\n", param->scene_id, p->offline);
-			dcam_k_rgb_gtm_mapping(gtm_block, p->idx);
 		}
 		break;
 	default:
