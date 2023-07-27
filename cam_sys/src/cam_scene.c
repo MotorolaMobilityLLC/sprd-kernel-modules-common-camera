@@ -2077,10 +2077,7 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	if (module->cam_uinfo.need_dcam_raw && channel->ch_id == CAM_CH_PRE)
 		num += module->cam_uinfo.opt_buffer_num;
 
-	if (module->icap_scene && channel->ch_id == CAM_CH_CAP)
-		num = 0;
-
-	if (module->bigsize_icap_scene && channel->ch_id == CAM_CH_CAP)
+	if (module->offline_icap_scene && channel->ch_id == CAM_CH_CAP)
 		num = 0;
 
 	return num;
@@ -2105,13 +2102,7 @@ uint32_t cam_scene_dcamoffline_buffers_alloc_num(void *channel_ptr, void *module
 		module->cam_uinfo.alg_type != ALG_TYPE_CAP_AI_SFNR) && module->cam_uinfo.is_raw_alg))
 		num = 0;
 
-	if (module->icap_scene && channel->ch_id == CAM_CH_CAP) {
-		num = 3;
-		if (module->channel[CAM_CH_RAW].enable)
-			num = 0;
-	}
-
-	if (module->bigsize_icap_scene && channel->ch_id == CAM_CH_CAP) {
+	if (module->offline_icap_scene && channel->ch_id == CAM_CH_CAP) {
 		num = 1;
 		if (module->channel[CAM_CH_RAW].enable)
 			num = 0;
@@ -2205,7 +2196,7 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 			}
 			if (channel->dcam_port_id == PORT_VCH2_OUT)
 				dcam_online_desc->port_desc[i].dcam_out_fmt = CAM_RAW_PACK_10;
-			if (module->icap_scene && i == PORT_FULL_OUT)
+			if (module->offline_icap_scene && i == PORT_FULL_OUT)
 				dcam_online_desc->port_desc[i].dcam_out_fmt = module->channel[CAM_CH_DCAM_VCH].ch_uinfo.sensor_raw_fmt;
 		} else if (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_BPCRAW_2_USER_2_OFFLINEYUV
 				|| pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_RAW2USER2YUV
@@ -2266,7 +2257,7 @@ int cam_scene_dcamoffline_desc_get(void *module_ptr, void *channel_ptr,
 		dcam_offline_desc->fetch_fmt = CAM_RAW_PACK_10;
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
 	}
-	if (module->icap_scene)
+	if (module->offline_icap_scene)
 		dcam_offline_desc->fetch_fmt = module->channel[CAM_CH_DCAM_VCH].ch_uinfo.sensor_raw_fmt;
 	if (module->cam_uinfo.dcam_slice_mode)
 		dcam_offline_desc->port_desc.compress_en = channel->compress_offline;
