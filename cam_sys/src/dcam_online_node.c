@@ -771,7 +771,7 @@ static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
 		node->nr3_me.slw_mv_cnt ++;
 		pr_debug("dcam %d, bin_path_cnt %d, slw_mv_cnt %d", node->hw_ctx_id, node->nr3_me.bin_path_cnt, node->nr3_me.slw_mv_cnt);
 		if (node->nr3_me.bin_path_cnt && node->nr3_me.slw_mv_cnt == node->slowmotion_count) {
-			while (++i < node->slowmotion_count) {
+			while (i++ < node->slowmotion_count) {
 				CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
 					if (!dcam_port)
 						continue;
