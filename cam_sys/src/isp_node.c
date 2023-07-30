@@ -1223,10 +1223,10 @@ preview_param:
 		if (param_pframe) {
 			pr_debug("pre cam %d inode =%d, param_pframe.id=%d,pframe.id=%d\n",
 				inode->attach_cam_id, inode->cfg_id, param_pframe->isp_blk.fid, target_fid);
-			CAM_QUEUE_DEQUEUE(&inode->param_buf_queue, struct cam_frame, list);
-			mutex_unlock(&inode->blkpm_q_lock);
 			if (param_pframe->isp_blk.fid <= target_fid) {
 				/*update old preview param into inode, cache latest capture param*/
+				CAM_QUEUE_DEQUEUE(&inode->param_buf_queue, struct cam_frame, list);
+				mutex_unlock(&inode->blkpm_q_lock);
 				if (param_pframe->isp_blk.update) {
 					pr_debug("cam %d cfg_id %d update param %d\n", inode->attach_cam_id, inode->cfg_id, param_pframe->isp_blk.fid);
 					ispnode_copy_param(&param_pframe->isp_blk, inode);
@@ -1238,7 +1238,7 @@ preview_param:
 					break;
 				param_pframe = NULL;
 			} else {
-				cam_queue_recycle_blk_param(&inode->param_share_queue, param_pframe);
+				mutex_unlock(&inode->blkpm_q_lock);
 				param_pframe = NULL;
 				break;
 			}
