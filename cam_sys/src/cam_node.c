@@ -142,7 +142,6 @@ static void camnode_frame_flag_update(struct cam_node *node, struct cam_frame *p
 	if (node->cap_param.cap_scene == CAPTURE_FDR ||
 		node->cap_param.cap_scene == CAPTURE_HW3DNR ||
 		node->cap_param.cap_scene == CAPTURE_FLASH ||
-		node->cap_param.cap_scene == CAPTURE_RAWALG ||
 		node->cap_param.cap_scene == CAPTURE_AI_SFNR) {
 		pframe->common.xtm_conflict.need_ltm_map = 0;
 		pframe->common.xtm_conflict.need_ltm_hist = 0;
