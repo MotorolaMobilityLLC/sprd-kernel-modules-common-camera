@@ -423,7 +423,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		break;
 	case DEC_BLOCK_TYPE:
 		if (channel->enable) {
-			if (param.scene_id == PM_SCENE_PRE)
+			if (param.scene_id == PM_SCENE_PRE || module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
 				goto exit;
 			ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 		}

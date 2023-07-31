@@ -1869,6 +1869,7 @@ int cam_scene_online2user2offline_dynamic_config(void *module_ptr, enum cam_ch_i
 		outport_type = camscene_outport_type_get(PIPELINE_CAPTURE_TYPE, ISP_OUT);
 
 	if (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
+		topology->need_pyr_dec = 0;
 		topology->pyr_layer_num = pyrrec_support ? DCAM_PYR_DEC_LAYER_NUM : 0;
 		dcamonline_node->outport[dcam_online_raw_port_id].link.node_type = CAM_NODE_TYPE_USER;
 		dcamonline_node->outport[dcam_online_raw_port_id].link.port_id = PORT_USER_IN;
