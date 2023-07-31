@@ -16,6 +16,7 @@
 #include "cam_statis.h"
 #include "dcam_int_common.h"
 #include "dcam_hwctx.h"
+#include "csi_api.h"
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -737,6 +738,7 @@ static void dcamonline_preview_sof(struct dcam_online_node *node, struct dcam_hw
 static void dcamonline_sensor_eof(struct dcam_online_node *node)
 {
 	struct cam_frame *pframe = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if (!node) {
 		pr_err("fail to get valid input dcam_online_node\n");
@@ -752,6 +754,10 @@ static void dcamonline_sensor_eof(struct dcam_online_node *node)
 		pframe->common.irq_property = IRQ_DCAM_SN_EOF;
 		node->data_cb_func(CAM_CB_DCAM_IRQ_EVENT, pframe, node->data_cb_handle);
 	};
+
+	hw = node->dev->hw;
+	if (node->cap_info.ipg_skip_first_frm)
+		hw->dcam_ioctl(hw, node->hw_ctx->hw_ctx_id, DCAM_HW_CFG_DIS_SN_EOF, &node->hw_ctx->hw_ctx_id);
 }
 
 static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
@@ -1807,6 +1813,11 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 		dcamonline_preview_sof(node, hw_ctx);
 		break;
 	case SN_START_OF_FRAME:
+		if (node->cap_info.ipg_skip_first_frm) {
+			hw = node->dev->hw;
+			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DIS_SN_SOF, &hw_ctx->hw_ctx_id);
+			csi_api_off_ipg();
+		}
 		break;
 	case SN_END_OF_FRAME:
 		dcamonline_sensor_eof(node);

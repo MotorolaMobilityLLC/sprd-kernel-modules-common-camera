@@ -262,7 +262,7 @@ static int dcamhw_start(void *handle, void *arg)
 		image_data_type = 0;
 	DCAM_REG_WR(parm->idx, DCAM_INT_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
-	if (parm->raw_callback == 1)
+	if (parm->raw_callback == 1 || parm->cap_info.ipg_skip_first_frm)
 		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL | BIT(DCAM_SENSOR_SOF));
 	else
 		DCAM_REG_WR(parm->idx, DCAM_INT_EN, DCAMINT_IRQ_LINE_EN_NORMAL);
@@ -1460,6 +1460,34 @@ static int dcamhw_fetch_sts_get(void *handle, void *arg)
 	return time_out;
 }
 
+static int dcamhw_disable_sn_sof(void *handle, void *arg)
+{
+	uint32_t hw_ctx_id = 0;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg\n");
+		return -EFAULT;
+	}
+
+	hw_ctx_id = *((uint32_t *)arg);
+	DCAM_REG_MWR(hw_ctx_id, DCAM_INT_EN, BIT(DCAM_SENSOR_SOF), 0);
+	return 0;
+}
+
+static int dcamhw_disable_sn_eof(void *handle, void *arg)
+{
+	uint32_t hw_ctx_id = 0;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg\n");
+		return -EFAULT;
+	}
+
+	hw_ctx_id = *((uint32_t *)arg);
+	DCAM_REG_MWR(hw_ctx_id, DCAM_INT_EN, BIT(DCAM_SENSOR_EOF), 0);
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1494,6 +1522,8 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_FETCH_STATUS_GET,      dcamhw_fetch_sts_get},
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
 	{DCAM_HW_CFG_IRQ_DISABLE,           dcamhw_irq_disable},
+	{DCAM_HW_CFG_DIS_SN_SOF,            dcamhw_disable_sn_sof},
+	{DCAM_HW_CFG_DIS_SN_EOF,            dcamhw_disable_sn_eof},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

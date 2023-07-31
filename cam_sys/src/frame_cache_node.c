@@ -79,10 +79,7 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 	pframe->common.priv_data = node;
 	CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
 	if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
-		if (node->pre_raw_flag)
-			pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->cache_buf_queue, struct cam_frame, list);
-		else
-			pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
+		pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 
@@ -95,34 +92,75 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 		pftmp = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		if (!pftmp)
 			return NULL;
-		if (node->opt_frame_fid) {
-			if (node->pre_raw_flag == PRE_RAW_CACHE) {
-				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
-				return NULL;
-			}
-			if (node->opt_frame_fid != pftmp->common.fid) {
-				if (atomic_read(&node->opt_frame_done) == 0 && node->opt_frame_fid < pftmp->common.fid) {
-					node->pre_raw_flag = PRE_RAW_CACHE;
-					atomic_set(&node->opt_frame_done, 1);
-					node->cap_frame_status(node->pre_raw_flag, node->dual_sync_cb_data);
-					break;
-				} else
-					node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
-			} else {
-				node->pre_raw_flag = PRE_RAW_CACHE;
-				node->cap_frame_status(node->pre_raw_flag, node->dual_sync_cb_data);
-				break;
-			}
-		} else {
-			if ((node->cap_param.fid && pftmp->common.fid < node->cap_param.fid)
-				|| (!node->cap_param.fid && pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp))
-				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
-			else
-				break;
-		}
+		if ((node->cap_param.fid && pftmp->common.fid < node->cap_param.fid)
+			|| (!node->cap_param.fid && pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp))
+			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
+		else
+			break;
 	} while (pftmp);
 
 	return pftmp;
+}
+
+static int framecache_optframe_get(struct frame_cache_node *node,
+		struct cam_frame *pframe)
+{
+	struct cam_frame *pftmp = NULL;
+	int ret = 0;
+
+	pframe->common.priv_data = node;
+	CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
+	if (node->pre_raw_flag) {
+		if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
+			pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->cache_buf_queue, struct cam_frame, list);
+			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
+		}
+	} else {
+		if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
+			pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
+			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
+		}
+		return 0;
+	}
+
+	do {
+		pftmp = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
+		if (!pftmp)
+			return ret;
+		pr_debug("statge pframe->common.fid %d and node->opt_frame_fid %d\n", pftmp->common.fid, node->opt_frame_fid);
+		if (node->opt_frame_fid != pftmp->common.fid) {
+			if (pftmp->common.fid > node->opt_frame_fid) {
+				if (atomic_read(&node->cap_param.cap_cnt) > 0) {
+					atomic_dec(&node->cap_param.cap_cnt);
+					node->link_info = pftmp->common.link_from;
+					pftmp->common.link_from.node_type = CAM_NODE_TYPE_FRAME_CACHE;
+					pftmp->common.link_from.port_id = PORT_FRAME_CACHE_OUT;
+					node->data_cb_func(CAM_CB_FRAME_CACHE_DATA_DONE, pftmp, node->data_cb_handle);
+					if (atomic_read(&node->cap_param.cap_cnt) == 0) {
+						node->pre_raw_flag = PRE_RAW_CACHE;
+						node->cap_frame_status(node->pre_raw_flag, node->dual_sync_cb_data);
+						return ret;
+					}
+				}
+			} else
+				node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
+		} else {
+			if (atomic_read(&node->cap_param.cap_cnt) > 0) {
+				atomic_dec(&node->cap_param.cap_cnt);
+				node->link_info = pftmp->common.link_from;
+				pftmp->common.link_from.node_type = CAM_NODE_TYPE_FRAME_CACHE;
+				pftmp->common.link_from.port_id = PORT_FRAME_CACHE_OUT;
+				node->data_cb_func(CAM_CB_FRAME_CACHE_DATA_DONE, pftmp, node->data_cb_handle);
+				if (atomic_read(&node->cap_param.cap_cnt) == 0) {
+					node->pre_raw_flag = PRE_RAW_CACHE;
+					node->cap_frame_status(node->pre_raw_flag, node->dual_sync_cb_data);
+					return ret;
+				}
+			}
+		}
+	} while (pftmp);
+
+	return ret;
 }
 
 static int framecache_normal_proc(struct frame_cache_node *node,
@@ -134,6 +172,14 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 			node->cache_skip_num, node->cache_real_num, node->cache_buf_queue.cnt);
 	if (node->cap_param.cap_type == DCAM_CAPTURE_STOP) {
 		if (node->pre_raw_flag == PRE_RAW_DEAL) {
+			if (node->pre_frame_status == CAM_DISABLE) {
+				ret = CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
+				if (node->cache_buf_queue.cnt > node->cache_real_num) {
+					pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
+					node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
+				}
+				return ret;
+			}
 			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 			return 0;
 		}
@@ -155,6 +201,8 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 				node->cur_cache_skip_num = node->cache_skip_num;
 		}
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
+	} else if (node->opt_frame_fid) {
+		ret = framecache_optframe_get(node, pframe);
 	} else {
 		pframe = framecache_capframe_get(node, pframe);
 		if (!pframe)
@@ -227,6 +275,24 @@ int frame_cache_node_set_pre_raw_flag(void *handle, void *param)
 	return ret;
 }
 
+int frame_cache_node_get_pre_frame_status(void *handle, void *param)
+{
+	int ret = 0;
+	uint32_t pre_frame_status = 0;
+	struct frame_cache_node *node = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	pre_frame_status = *(uint32_t *)param;
+	node = (struct frame_cache_node *)handle;
+	node->pre_frame_status = pre_frame_status;
+
+	return ret;
+}
+
 int frame_cache_node_get_cap_frame(void *handle, void *param)
 {
 	int ret = 0;
@@ -241,7 +307,6 @@ int frame_cache_node_get_cap_frame(void *handle, void *param)
 	opt_frame_fid = *(uint32_t *)param;
 	node = (struct frame_cache_node *)handle;
 	node->opt_frame_fid = opt_frame_fid;
-	atomic_set(&node->opt_frame_done, 0);
 
 	return ret;
 }
@@ -380,6 +445,7 @@ void *frame_cache_node_get(uint32_t node_id, struct frame_cache_node_desc *param
 	node->buf_manager_handle = param->buf_manager_handle;
 	node->cap_frame_status = param->cap_frame_status;
 	node->pre_raw_flag = PRE_RAW_CACHE;
+	node->pre_frame_status = CAM_DISABLE;
 	node->opt_frame_fid = 0;
 	if (node->data_cb_func == NULL) {
 		node->data_cb_func = param->data_cb_func;

@@ -100,7 +100,7 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 		if ((cap_param->fid && pframe->common.fid >= cap_param->fid)
 			|| (!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp &&
 			camnode_capture_skip_condition(pframe, cap_param))
-			|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene))
+			|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene) || cap_param->cap_opt_frame_scene)
 			pframe->common.link_to = cap_new_link;
 		else
 			pframe->common.link_to = cap_ori_link;
@@ -114,9 +114,10 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 			} else
 				pframe->common.link_to = cap_ori_link;
 		} else {
-			if (((pframe->common.boot_sensor_time >= cap_param->cap_timestamp || cap_param->cap_opt_frame_scene) &&
-				atomic_read(&cap_param->cap_cnt) > 0 &&
-				camnode_capture_skip_condition(pframe, cap_param)) || (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene)) {
+			if ((cap_param->fid && pframe->common.fid >= cap_param->fid)
+				|| (((!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp) || cap_param->cap_opt_frame_scene)
+				&& atomic_read(&cap_param->cap_cnt) > 0 && camnode_capture_skip_condition(pframe, cap_param))
+				|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene)) {
 				pframe->common.link_to = cap_new_link;
 				atomic_dec(&cap_param->cap_cnt);
 			} else
@@ -827,6 +828,9 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_CFG_GET_CAP_FRAME:
 		ret = frame_cache_node_get_cap_frame(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_PRE_FRAME_STATUS:
+		ret = frame_cache_node_get_pre_frame_status(node->handle, in_param->param);
 		break;
 	default:
 		pr_err("fail to support node: %s cmd: %d\n", cam_node_name_get(node->node_graph->type), cmd);

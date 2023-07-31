@@ -102,6 +102,7 @@ int csi_ahb_reset(struct csi_phy_info *phy,
 		  unsigned int csi_id);
 void csi_reg_trace(unsigned int idx);
 void csi_ipg_mode_cfg(uint32_t idx, int enable);
+void csi_ipg_stream_off(void);
 int reg_rd(unsigned int reg);
 
 #define CSI_REG_WR(idx, reg, val)  (REG_WR(CSI_BASE(idx)+reg, val))

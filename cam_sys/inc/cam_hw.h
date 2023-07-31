@@ -198,6 +198,8 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_DUMMY_SET,
 	DCAM_HW_CFG_DUMMY_ENABLE,
 	DCAM_HW_CFG_GTM_HIST_BYPASS_GET,
+	DCAM_HW_CFG_DIS_SN_SOF,
+	DCAM_HW_CFG_DIS_SN_EOF,
 	DCAM_HW_CFG_MAX
 };
 
@@ -677,6 +679,7 @@ struct dcam_mipi_info {
 	uint32_t is_4in1;
 	uint32_t dcam_slice_mode;
 	uint32_t is_cphy;
+	uint32_t ipg_skip_first_frm;
 	struct img_trim cap_size;
 };
 

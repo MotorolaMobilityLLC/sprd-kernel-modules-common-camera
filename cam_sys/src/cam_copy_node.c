@@ -173,10 +173,15 @@ static int camcopy_node_frame_start(void *param)
 				}
 				return ret;
 			} else if (atomic_read(&node->opt_frame_done) == 0 && node->pre_raw_flag == PRE_RAW_DEAL) {
-				if (node->in_queue.cnt < node->opt_buffer_num)
-					break;
+				if (node->in_queue.cnt < node->opt_buffer_num) {
+					node->pre_cache_done = CAM_DISABLE;
+					node->pre_frame_status(node->pre_cache_done, node->private_cb_data);
+					return ret;
+				}
 				atomic_set(&node->opt_frame_done, 1);
 				loop_num = node->opt_buffer_num;
+				node->pre_cache_done = CAM_ENABLE;
+				node->pre_frame_status(node->pre_cache_done, node->private_cb_data);
 			} else {
 				pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->in_queue, struct cam_frame, list);
 				if (pframe) {
@@ -492,6 +497,8 @@ void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param)
 	node->opt_buffer_num = 0;
 	node->scene_id = CAM_COPY_NORMAL_SCENE;
 	atomic_set(&node->icap_cap_num, 0);
+	node->pre_frame_status = param->pre_frame_status;
+	node->private_cb_data = param->private_cb_data;
 
 	thrd = &node->thread;
 	sprintf(thrd->thread_name, "cam_copy_node%d", node->node_id);

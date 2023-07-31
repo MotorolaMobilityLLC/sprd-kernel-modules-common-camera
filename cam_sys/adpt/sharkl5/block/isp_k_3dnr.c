@@ -476,6 +476,10 @@ int isp_k_update_3dnr(uint32_t idx,
 	pdst = &isp_k_param->nr3d_info;
 	pnr3 = &isp_k_param->nr3_info_base;
 
+	if (old_width == 0) {
+		pr_err("fail to get valid old size %d %d\n", old_width, old_height);
+		return -EFAULT;
+	}
 	r1_circle = pnr3->blend.r1_circle * new_width / old_width;
 	r1_circle_limit = (new_width / 2);
 	r1_circle_limit *= pnr3->blend.r1_circle_factor;

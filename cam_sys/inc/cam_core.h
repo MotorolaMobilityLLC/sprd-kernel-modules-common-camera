@@ -165,6 +165,7 @@ struct camera_uinfo {
 	enum cam_en_status virtualsensor;/* 1: virtual sensor 0: normal */
 	uint32_t opt_buffer_num;
 	uint32_t dual_buf_num;
+	uint32_t ipg_skip_first_frm;
 };
 
 struct sprd_img_flash_info {
@@ -344,4 +345,6 @@ struct cam_ioctl_cmd {
 };
 
 uint32_t camcore_dcampath_id_convert(uint32_t path_k_id);
+int camcore_pre_frame_status(uint32_t param, void *priv_data);
+
 #endif

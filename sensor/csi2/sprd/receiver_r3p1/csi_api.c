@@ -448,6 +448,12 @@ void csi_api_reg_trace(void)
 }
 EXPORT_SYMBOL(csi_api_reg_trace);
 
+void csi_api_off_ipg(void)
+{
+       csi_ipg_stream_off();
+}
+EXPORT_SYMBOL(csi_api_off_ipg);
+
 int csi_api_switch(int sensor_id)
 {
 	return 0;

@@ -274,6 +274,20 @@ void dcam_int_common_gtm_port_done(void *param)
 		dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
+void dcam_int_common_irq_sensor_sof(void *param)
+{
+	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
+	struct dcam_irq_proc irq_proc = {0};
+
+	if (dcam_hw_ctx->dcam_irq_cb_func == NULL) {
+		pr_err("fail to dcamonline callback fun is NULL\n");
+		return;
+	}
+
+	irq_proc.of = SN_START_OF_FRAME;
+	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
+}
+
 void dcam_int_common_irq_sensor_eof(void *param)
 {
 	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;

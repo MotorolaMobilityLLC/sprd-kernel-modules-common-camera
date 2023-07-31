@@ -447,7 +447,7 @@ static int dcamhw_start(void *handle, void *arg)
 	DCAM_REG_WR(parm->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(parm->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	/* see DCAM_PREVIEW_SOF in dcam_int.h for details */
-	if (parm->raw_callback == 1 || parm->cap_info.cap_size.size_x > DCAM_TOTAL_LBUF)
+	if (parm->raw_callback == 1 || parm->cap_info.cap_size.size_x > DCAM_TOTAL_LBUF || parm->cap_info.ipg_skip_first_frm)
 		DCAM_REG_WR(parm->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL | BIT(DCAM_IF_IRQ_INT0_SENSOR_SOF));
 	else
 		DCAM_REG_WR(parm->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
@@ -2814,6 +2814,34 @@ static int dcamhw_dummy_enable(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_disable_sn_sof(void *handle, void *arg)
+{
+	uint32_t hw_ctx_id = 0;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg\n");
+		return -EFAULT;
+	}
+
+	hw_ctx_id = *((uint32_t *)arg);
+	DCAM_REG_MWR(hw_ctx_id, DCAM_INT0_EN, BIT(DCAM_IF_IRQ_INT0_SENSOR_SOF), 0);
+	return 0;
+}
+
+static int dcamhw_disable_sn_eof(void *handle, void *arg)
+{
+	uint32_t hw_ctx_id = 0;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg\n");
+		return -EFAULT;
+	}
+
+	hw_ctx_id = *((uint32_t *)arg);
+	DCAM_REG_MWR(hw_ctx_id, DCAM_INT0_EN, BIT(DCAM_IF_IRQ_INT0_SENSOR_EOF), 0);
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -2865,6 +2893,8 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_DUMMY_SET,             dcamhw_dummy_set},
 	{DCAM_HW_CFG_DUMMY_ENABLE,          dcamhw_dummy_enable},
 	{DCAM_HW_CFG_GTM_HIST_BYPASS_GET,   dcamhw_gtm_hist_bypass_get},
+	{DCAM_HW_CFG_DIS_SN_SOF,            dcamhw_disable_sn_sof},
+	{DCAM_HW_CFG_DIS_SN_EOF,            dcamhw_disable_sn_eof},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

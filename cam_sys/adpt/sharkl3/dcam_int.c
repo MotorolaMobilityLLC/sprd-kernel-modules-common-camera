@@ -67,15 +67,8 @@ static void dcamint_irq_cap_sof(void *param)
 	dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 }
 
-static void dcamint_irq_sensor_sof(void *param)
-{
-	struct dcam_hw_context *dcam_hw_ctx = (struct dcam_hw_context *)param;
-
-	pr_debug("DCAM%d, dcamint_sensor_sof\n", dcam_hw_ctx->hw_ctx_id);
-}
-
 static const dcam_int_isr _DCAM0_ISR_IRQ[32] = {
-	[DCAM_SENSOR_SOF] = dcamint_irq_sensor_sof,
+	[DCAM_SENSOR_SOF] = dcam_int_common_irq_sensor_sof,
 	[DCAM_SENSOR_EOF] = dcam_int_common_irq_sensor_eof,
 	[DCAM_CAP_SOF] = dcamint_irq_cap_sof,
 	[DCAM_PREVIEW_SOF] = dcam_int_common_irq_preview_sof,

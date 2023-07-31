@@ -476,7 +476,7 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 
 	if (type == ISP_PRO_LTM_PRE_PARAM) {
 		if ((frame_width_stat * ctx->frame_height) != (frame_height_stat * ctx->frame_width)) {
-			pr_warn("warning:zoom pre can not match prv size with cap size\n");
+			pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
 			ctx->map.bypass = 1;
 			return 0;
 		}
@@ -486,7 +486,7 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 			pr_debug("fid %d delta %d prv size [%d %d] cap size [%d %d]\n",
 					ctx->fid, ratio_delta, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
 		} else {
-			pr_warn("warning:cap fail to match prv size with cap size\n");
+			pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
 			map->bypass = 1;
 			return 0;
 		}

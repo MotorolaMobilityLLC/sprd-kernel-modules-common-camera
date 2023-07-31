@@ -76,6 +76,7 @@ static int camscene_cap_info_set(struct camera_module *module, struct dcam_mipi_
 	cap_info->cap_size.start_y = info->sn_rect.y;
 	cap_info->cap_size.size_x = info->sn_rect.w;
 	cap_info->cap_size.size_y = info->sn_rect.h;
+	cap_info->ipg_skip_first_frm = info->ipg_skip_first_frm;
 
 	return ret;
 }
@@ -2173,10 +2174,14 @@ int cam_scene_dcamonline_desc_get(void *module_ptr, void *channel_ptr, uint32_t 
 		dcam_online_desc->port_desc[i].pyr_out_fmt = hw->ip_dcam[0]->dcamhw_abt->store_pyr_fmt;
 		dcam_online_desc->port_desc[i].resbuf_get_cb = cam_scene_reserved_buf_cfg;
 		dcam_online_desc->port_desc[i].resbuf_cb_data = module;
-		if (i == PORT_FULL_OUT)
+		if (i == PORT_FULL_OUT) {
 			dcam_online_desc->port_desc[i].share_full_path = module->cam_uinfo.need_share_buf;
-		if (i == PORT_BIN_OUT)
+			dcam_online_desc->port_desc[i].is_ultr_virtualsensor = 0;
+		}
+		if (i == PORT_BIN_OUT) {
 			dcam_online_desc->port_desc[i].is_pyr_rec = dcam_online_desc->is_pyr_rec;
+			dcam_online_desc->port_desc[i].is_ultr_virtualsensor = 0;
+		}
 		cam_valid_fmt_get(&channel->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->dcampath_abt[rawpath_id]->format[0]);
 		dcam_online_desc->port_desc[i].dcam_out_fmt = channel->dcam_out_fmt;
 		dcam_online_desc->port_desc[i].compress_en = channel->compress_en;
@@ -2506,19 +2511,23 @@ int cam_scene_isp_yuv_scaler_desc_get(void *module_ptr,
 	return ret;
 }
 
-int cam_scene_camcopy_desc_get(struct cam_copy_node_desc *cam_copy_desc, uint32_t pipeline_type)
+int cam_scene_camcopy_desc_get(void *module_ptr, struct cam_copy_node_desc *cam_copy_desc, uint32_t pipeline_type)
 {
 	int ret = 0;
+	struct camera_module *module = NULL;
 
-	if (!cam_copy_desc) {
-		pr_err("fail to pipeline:%d valid inptr %p\n", pipeline_type, cam_copy_desc);
+	if (!cam_copy_desc || !module_ptr) {
+		pr_err("fail to pipeline:%d valid inptr %p, %p\n", pipeline_type, cam_copy_desc, module_ptr);
 		return -EINVAL;
 	}
+	module = (struct camera_module *)module_ptr;
 
 	if (pipeline_type == CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV)
 		cam_copy_desc->copy_mode = CAM_COPY_FRAME_IN_DSTBUF;
 	else
 		cam_copy_desc->copy_mode = CAM_COPY_FRAME_IN_SRCBUF;
+	cam_copy_desc->pre_frame_status = camcore_pre_frame_status;
+	cam_copy_desc->private_cb_data = module;
 
 	return ret;
 }

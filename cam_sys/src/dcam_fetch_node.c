@@ -151,7 +151,7 @@ static void dcamfetch_frame_dispatch(void *param, void *handle)
 
 static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context *hw_ctx)
 {
-	int ret = 0, cnt = 0, i = 0;
+	int ret = 0, cnt = 0, i = 0, path_done[DCAM_PATH_MAX] = {0};
 	struct dcam_fetch_node *node = NULL;
 	struct dcam_online_node *online_node = NULL;
 	struct dcam_irq_proc *irq_proc = NULL;
@@ -166,29 +166,37 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 	online_node = &node->online_node;
 	slice_info = &node->hw_ctx->slice_info;
 
+	if (slice_info->slice_num > 0) {
+		pr_debug("dcam%d fetch slice num %d count %d\n", online_node->hw_ctx_id,slice_info->slice_num , slice_info->slice_count);
+		for (i = DCAM_PATH_FULL; i <= DCAM_PATH_BIN; i++)
+			path_done[i] = atomic_read(&node->hw_ctx->path_done[i]);
+		if ((node->offline_pre_en && path_done[DCAM_PATH_FULL] == path_done[DCAM_PATH_BIN])
+				|| (!node->offline_pre_en)){
+			slice_info->slice_count--;
+			complete(&node->slice_done);
+		}
+		if (path_done[DCAM_PATH_FULL] != slice_info->slice_num
+				&& path_done[DCAM_PATH_BIN] != slice_info->slice_num)
+			return 0;
+	}
+
 	CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &online_node->port_queue.head, list) {
 		if (dcam_port->port_id != irq_proc->dcam_port_id)
 			continue;
 		switch (irq_proc->dcam_port_id) {
 		case PORT_FULL_OUT:
-			if (slice_info->slice_num > 0) {
-				pr_debug("dcam%d fetch slice%d done.\n", online_node->hw_ctx_id,
-						(slice_info->slice_num - slice_info->slice_count));
-				complete(&node->slice_done);
-				if (slice_info->slice_count > 0)
-					slice_info->slice_count--;
-				if (slice_info->slice_count > 0)
-					return 0;
-			}
 			if (online_node->is_3dnr) {
 				mv_ready = online_node->nr3_me.full_path_mv_ready;
 				if (mv_ready == 0) {
 					online_node->nr3_me.full_path_cnt++;
+					complete(&node->frm_done);
 					return ret;
 				} else if (mv_ready == 1) {
 					frame = dcamfetch_frame_prepare(online_node, dcam_port, hw_ctx);
-					if (frame == NULL)
+					if (frame == NULL) {
+						complete(&node->frm_done);
 						return ret;
+					}
 
 					dcamfetch_nr3_mv_get(hw_ctx, frame);
 					online_node->nr3_me.full_path_mv_ready = 0;
@@ -216,15 +224,6 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 			complete(&node->frm_done);
 			break;
 		case PORT_BIN_OUT:
-			if (!node->virtualsensor_cap_en && slice_info->slice_num > 0) {
-				pr_debug("dcam%d online slice%d done.\n", online_node->hw_ctx_id,
-						(slice_info->slice_num - slice_info->slice_count));
-				complete(&node->slice_done);
-				if (slice_info->slice_count > 0)
-					slice_info->slice_count--;
-				if (slice_info->slice_count > 0)
-					return 0;
-			}
 			cnt = atomic_read(&dcam_port->set_frm_cnt);
 			if (cnt <= online_node->slowmotion_count) {
 				pr_warn("warning: DCAM%u BIN cnt %d, deci %u, out %u, result %u\n",
@@ -293,7 +292,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 
 static int dcamfetch_irq_proc(void *param, void *handle)
 {
-	int ret = 0;
+	int ret = 0, path_id = 0;
 	struct dcam_fetch_node *node = NULL;
 	struct dcam_online_node *online_node = NULL;
 	struct dcam_irq_proc *irq_proc = NULL;
@@ -332,9 +331,11 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 		break;
 	case CAP_DATA_DONE:
 		if (irq_proc->dcam_port_id == PORT_FULL_OUT
-			|| irq_proc->dcam_port_id == PORT_BIN_OUT)
+				|| irq_proc->dcam_port_id == PORT_BIN_OUT) {
+			path_id = dcamonline_portid_convert_to_pathid(irq_proc->dcam_port_id);
+			atomic_inc(&hw_ctx->path_done[path_id]);
 			dcamfetch_done_proc(param, handle, hw_ctx);
-		else
+		} else
 			dcam_online_node_irq_proc(param, online_node);
 		break;
 	default:
@@ -548,7 +549,7 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node, struct dcam_isp_k_
 
 static int dcamfetch_node_frame_start(void *param)
 {
-	int ret = 0;
+	int ret = 0, i = 0;
 	struct dcam_fetch_node *node = NULL;
 	struct dcam_online_node *online_node = NULL;
 	struct dcam_online_port *dcam_port = NULL;
@@ -581,6 +582,9 @@ static int dcamfetch_node_frame_start(void *param)
 		online_node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, online_node->data_cb_handle);
 		return ret;
 	}
+
+	for (i = DCAM_PATH_FULL; i <= DCAM_PATH_BIN; i++)
+		atomic_set(&online_node->hw_ctx->path_done[i], 0);
 
 	slice = &online_node->hw_ctx->slice_info;
 	pframe = dcamfetch_cycle_frame(node);
@@ -766,6 +770,7 @@ int dcam_fetch_node_request_proc(struct dcam_fetch_node *node, void *param)
 	node->hw_ctx->dcam_irq_cb_func = dcamfetch_irq_proc;
 	node->hw_ctx->dcam_irq_cb_handle = node;
 	node->hw_ctx->is_virtualsensor_proc = 1;
+	node->hw_ctx->offline_pre_en = node->offline_pre_en;
 	return ret;
 }
 
@@ -781,6 +786,7 @@ int dcam_fetch_node_stop_proc(struct dcam_fetch_node *node, void *param)
 	node->hw_ctx->is_virtualsensor_proc = 0;
 	node->hw_ctx->dcam_irq_cb_func = NULL;
 	node->hw_ctx->dcam_irq_cb_handle = NULL;
+	node->hw_ctx->offline_pre_en = CAM_DISABLE;
 
 	ret = dcam_online_node_stop_proc(&node->online_node, param);
 
@@ -886,9 +892,10 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 	*param->node_dev = node;
 
 exit:
+	node->offline_pre_en |= param->offline_pre_en;
 	node->online_node.is_3dnr |= param->online_node_desc->enable_3dnr;
 	atomic_inc(&node->user_cnt);
-	pr_info("node id %d\n", node->online_node.node_id);
+	pr_info("node id %d offline pre en %d\n", node->online_node.node_id,node->offline_pre_en);
 	return node;
 }
 
