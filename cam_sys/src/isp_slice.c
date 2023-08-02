@@ -884,6 +884,10 @@ static int ispslice_slice_nr_info_cfg(
 		cur_slc->slice_nlm.center_x_relative = in_ptr->nlm_center_x - start_col;
 		cur_slc->slice_nlm.center_y_relative = in_ptr->nlm_center_y - start_row;
 
+		/* IMBLANCE */
+		cur_slc->slice_imblance.global_x_start = start_col;
+		cur_slc->slice_imblance.global_y_start = start_row;
+
 		/* Post CDN */
 		cur_slc->slice_postcdn.start_row_mod4 = cur_slc->slice_pos.start_row & 0x3;
 
@@ -3239,6 +3243,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		nrarg.fmcu = fmcu;
 		nrarg.slice_ynr = &cur_slc->slice_ynr;
 		nrarg.slice_nlm = &cur_slc->slice_nlm;
+		nrarg.slice_imblance = &cur_slc->slice_imblance;
 		nrarg.start_row_mod4 = cur_slc->slice_postcdn.start_row_mod4;
 		nrarg.slice_postcnr_info = &cur_slc->slice_postcnr;
 		nrarg.slice_edge = &cur_slc->slice_edge;
