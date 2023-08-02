@@ -1832,6 +1832,7 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 	struct cam_hw_reg_trace trace = {0};
 	struct dcam_hw_force_copy copyarg = {0};
 	struct cam_hw_info *hw = NULL;
+	struct dcam_switch_param csi_switch = {0};
 
 	if (!handle || !param) {
 		pr_err("fail to get valid param %px %px\n", handle, param);
@@ -1888,7 +1889,13 @@ int dcam_online_node_irq_proc(void *param, void *handle)
 		if ((g_dbg_recovery == DEBUG_DCAM_RECOVERY_IDLE
 			&& (node->dev->hw->ip_dcam[0]->dcamhw_abt->recovery_support & irq_proc->status))
 			|| g_dbg_recovery == DEBUG_DCAM_RECOVERY_OPEN) {
-			node->dev->hw->dcam_ioctl(node->dev->hw, node->hw_ctx_id, DCAM_HW_CFG_IRQ_DISABLE, &node->hw_ctx_id);
+			hw = node->dev->hw;
+			csi_switch.csi_id = node->csi_controller_idx;
+			csi_switch.dcam_id = node->hw_ctx_id;
+			hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
+			hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_IRQ_DISABLE, &node->hw_ctx_id);
+			hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_STOP, hw_ctx);
+			hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_RESET, &node->hw_ctx_id);
 			/* force copy must be after first load done and load clear */
 			copyarg.id = DCAM_CTRL_ALL;
 			copyarg.idx = node->hw_ctx_id;
