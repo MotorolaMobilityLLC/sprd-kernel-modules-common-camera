@@ -1370,6 +1370,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		pm->is_high_fps = 0;
 	if (atomic_read(&node->pm_cnt) <= 0) {
 		pr_err("fail to user_cnt hw context%d\n", node->hw_ctx_id);
+		dcamonline_ctx_unbind(node);
 		return -1;
 	}
 
@@ -1378,6 +1379,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	ret = atomic_read(&node->state);
 	if (unlikely(ret != STATE_IDLE)) {
 		pr_err("fail to get a valid state, starting DCAM%u in state %d\n", hw_ctx->hw_ctx_id, ret);
+		dcamonline_ctx_unbind(node);
 		return -EINVAL;
 	}
 
