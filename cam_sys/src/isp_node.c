@@ -848,7 +848,7 @@ static int ispnode_start_proc(void *node)
 	if (inode->ch_id == CAM_CH_CAP) {
 		os_adapt_time_get_ts(&inode->start_ts);
 		PERFORMANCE_DEBUG("node_start_time %03d.%06d\n", inode->start_ts.tv_sec, inode->start_ts.tv_nsec / NSEC_PER_USEC);
-		if (inode->ultra_cap_en && inode->pipe_src.mode_ltm && (port_cfg.src_frame->common.slice_info.slice_no == 0)) {
+		if (inode->ultra_cap_en && inode->uinfo.mode_ltm && (port_cfg.src_frame->common.slice_info.slice_no == 0)) {
 			ret = wait_for_completion_timeout(&inode->ultra_cap_com, ISP_CONTEXT_TIMEOUT);
 			if (ret == 0) {
 				pr_err("fail to wait isp node %d, timeout.\n", inode->node_id);
