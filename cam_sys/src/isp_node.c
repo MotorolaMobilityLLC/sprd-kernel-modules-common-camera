@@ -246,6 +246,10 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
 		break;
 	case POSTPROC_FRAME_ERROR_DONE:
+		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
+			port->data_cb_func(CAM_CB_ISP_DEV_ERR, &ret, port->data_cb_handle);
+			break;
+		}
 		port_cfg.out_buf_clear = 0;
 		port_cfg.result_queue_ops = CAM_QUEUE_TAIL;
 		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
