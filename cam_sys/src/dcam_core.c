@@ -274,10 +274,9 @@ static int dcamcore_ctx_bind(void *dev_handle, void *node, uint32_t node_id,
 	if (mode == DCAM_BIND_FIXED) {
 		pctx_hw = &dev->hw_ctx[csi_controller_idx];
 		if (node_id == pctx_hw->node_id && pctx_hw->node == node) {
-			atomic_inc(&pctx_hw->user_cnt);
-			pr_info("node %d & hw %d are already binded, cnt=%d\n",
+			pr_err("fail to node %d & hw %d are already binded, cnt=%d\n",
 				node_id, csi_controller_idx, atomic_read(&pctx_hw->user_cnt));
-			return 0;
+			return -1;
 		}
 		if (atomic_inc_return(&pctx_hw->user_cnt) == 1) {
 			hw_ctx_id = pctx_hw->hw_ctx_id;
@@ -369,15 +368,9 @@ static int dcamcore_ctx_unbind(void *dev_handle, void *node, uint32_t node_id)
 			for (i = DCAM_PATH_FULL; i < DCAM_PATH_MAX; i++)
 				atomic_set(&pctx_hw->path_done[i], 0);
 			goto exit;
-		}
-
-		cnt = atomic_read(&pctx_hw->user_cnt);
-		if (cnt >= 1) {
-			pr_info("node id=%d, hw_id=%d, cnt=%d\n", node_id, pctx_hw->hw_ctx_id, cnt);
 		} else {
-			pr_info("should not be here: sw id=%d, hw id=%d, cnt=%d\n",
-				node_id, pctx_hw->hw_ctx_id, cnt);
-			return -EINVAL;
+			pr_err("fail to cnt set 0, node id=%d, hw_id=%d, cnt=%d\n", node_id, pctx_hw->hw_ctx_id, cnt);
+			return -1;
 		}
 	}
 
