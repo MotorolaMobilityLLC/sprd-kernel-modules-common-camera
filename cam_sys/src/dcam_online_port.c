@@ -610,16 +610,16 @@ static inline int dcamonline_port_hist_out_frm_set(struct dcam_online_port *dcam
 
 	hw = hw_ctx->hw;
 	port_id = dcam_port->port_id;
+	slm_path = hw->ip_dcam[idx]->dcamhw_abt->slm_path;
 
 	/* assign last buffer for AEM and HIST in slow motion */
 	i = hw_ctx->slowmotion_count - 1;
-	if (hw_ctx->slowmotion_count)
+	if (hw_ctx->slowmotion_count && (!frame->common.fid || (slm_path & BIT(port_id))))
 		frame->common.fid += i;
 
 	dcamonline_port_update_addr_and_size(dcam_port, frame, hw_ctx, NULL, idx, blk_dcam_pm);
 	dcamonline_port_hist_update_statis_head(dcam_port, frame, hw_ctx, blk_dcam_pm);
 
-	slm_path = hw->ip_dcam[idx]->dcamhw_abt->slm_path;
 	if (hw_ctx->slowmotion_count && !hw_ctx->index_to_set && (slm_path & BIT(port_id))) {
 		/* configure reserved buffer for AEM and hist */
 		frame = dcamonline_port_reserved_buf_get(dcam_port);
@@ -659,15 +659,16 @@ static inline int dcamonline_port_aem_out_frm_set(struct dcam_online_port *dcam_
 
 	hw = hw_ctx->hw;
 	port_id = dcam_port->port_id;
+	slm_path = hw->ip_dcam[idx]->dcamhw_abt->slm_path;
 
 	/* assign last buffer for AEM and HIST in slow motion */
 	i = hw_ctx->slowmotion_count - 1;
-	if (hw_ctx->slowmotion_count)
+	if (hw_ctx->slowmotion_count && (!frame->common.fid || (slm_path & BIT(port_id))))
 		frame->common.fid += i;
 
 	dcamonline_port_update_addr_and_size(dcam_port, frame, hw_ctx, NULL, idx, blk_dcam_pm);
 	dcamonline_port_aem_update_statis_head(dcam_port, frame, hw_ctx, blk_dcam_pm);
-	slm_path = hw->ip_dcam[idx]->dcamhw_abt->slm_path;
+
 	if (hw_ctx->slowmotion_count && !hw_ctx->index_to_set && (slm_path & BIT(port_id))) {
 		/* configure reserved buffer for AEM and hist */
 		frame = dcamonline_port_reserved_buf_get(dcam_port);
@@ -962,7 +963,7 @@ static inline int dcamonline_port_frm_set(struct dcam_online_port *dcam_port, st
 	default:
 		if (dcam_port->port_id == PORT_GTM_HIST_OUT)
 			return 0;
-		if (hw_ctx->slowmotion_count)
+		if (hw_ctx->slowmotion_count && !frame->common.fid && dcam_port->port_id != PORT_AFL_OUT)
 			frame->common.fid += hw_ctx->slowmotion_count - 1;
 		dcamonline_port_update_addr_and_size(dcam_port, frame, hw_ctx, NULL, hw_ctx->hw_ctx_id, hw_ctx->blk_pm);
 		break;
