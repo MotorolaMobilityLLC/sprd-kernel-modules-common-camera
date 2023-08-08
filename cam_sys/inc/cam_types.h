@@ -75,6 +75,11 @@ extern uint32_t g_dbg_recovery;
 	__a = (type *)(from_param); \
 })
 
+enum dcam_offline_time_wait_status {
+	WAIT_IN_NORMAL_SCENE,
+	WAIT_IN_INTERRUPT_SCENE,
+};
+
 enum cam_en_status {
 	CAM_DISABLE,
 	CAM_ENABLE,

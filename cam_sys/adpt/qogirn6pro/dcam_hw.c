@@ -2756,7 +2756,7 @@ static int dcamhw_set_slw_addr(void *handle, void *arg)
 
 static int dcamhw_fetch_sts_get(void *handle, void *arg)
 {
-	int time_out = 0;
+	int time_out = 0, wait_time_flag = 0;
 	uint32_t hw_ctx_id = 0, dbg_sts_reg = 0;
 
 	if (!handle || !arg) {
@@ -2765,6 +2765,7 @@ static int dcamhw_fetch_sts_get(void *handle, void *arg)
 	}
 
 	hw_ctx_id = *((uint32_t *)arg);
+	wait_time_flag = *((int *)handle);
 	if (hw_ctx_id <= DCAM_ID_1)
 		dbg_sts_reg = AXIM_DBG_STS;
 	else
@@ -2773,7 +2774,10 @@ static int dcamhw_fetch_sts_get(void *handle, void *arg)
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
 		if (0 == (DCAM_AXIM_RD(hw_ctx_id, dbg_sts_reg) & BIT(16)))
 			break;
-		os_adapt_time_udelay(1000);
+		if (wait_time_flag == WAIT_IN_NORMAL_SCENE)
+			os_adapt_time_udelay(1000);
+		else
+			os_adapt_time_udelay(80);
 	}
 
 	return time_out;

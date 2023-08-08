@@ -707,7 +707,7 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 
 static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
-	int ret = 0;
+	int ret = 0, reset_flag = 0, i = 0;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
 	struct cam_hw_info *hw = NULL;
@@ -725,6 +725,19 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 
 	module = (struct camera_module *)priv_data;
 	hw = module->grp->hw_info;
+	if (unlikely(type == CAM_CB_ISP_DEV_ERR)) {
+		for (i = 0; i < DCAM_HW_CONTEXT_MAX; ++i) {
+			if (module->dcam_dev_handle->hw_ctx[i].dcam_irq_cb_func) {
+				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_IRQ_DISABLE, &i);
+				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_STOP, &module->dcam_dev_handle->hw_ctx[i]);
+				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_RESET, &i);
+			}
+		}
+		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
+		hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
+		return 0;
+	}
+
 	if (unlikely(type == CAM_CB_DCAM_DEV_ERR)) {
 		pr_err("fail to fatal err may need recovery\n");
 		if (hw->prj_id != QOGIRN6L)

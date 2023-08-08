@@ -1046,6 +1046,8 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 					i = 0;
 					while (++i < node->slowmotion_count) {
 						frame1 = dcamonline_frame_prepare(node, dcam_port, hw_ctx);
+						if (frame1 == NULL)
+							continue;
 						node->nr3_me.slw_mv_cnt = 0;
 						dcamonline_nr3_mv_get(hw_ctx, frame1);
 						irq_proc->param = frame1;
