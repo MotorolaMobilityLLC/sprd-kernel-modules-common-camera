@@ -151,7 +151,7 @@ static int ispnode_hw_ts_cal(struct isp_node *inode)
 
 static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type, void *param)
 {
-	int i = 0, ret = 0;
+	int i = 0, ret = 0, result_queue_cnt = 0;
 	struct isp_port *port = NULL;
 	struct isp_node *inode = NULL;
 	struct isp_pipe_dev *dev = NULL;
@@ -178,6 +178,33 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 
 	switch (type) {
 	case POSTPROC_FRAME_DONE:
+		if (inode->is_fast_stop) {
+			struct isp_port_cfg port_cfg = {0};
+			struct isp_port *port = NULL;
+			if (inode->uinfo.enable_slowmotion == 0) {
+				inode->dev->isp_ops->unbind(inode);
+			}
+			port_cfg.faststop = &inode->is_fast_stop;
+			port_cfg.faststop_done = inode->fast_stop_done;
+			port_cfg.out_buf_clear = 0;
+			port_cfg.result_queue_ops = CAM_QUEUE_FRONT;
+			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
+				if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0) {
+					if (port->type == PORT_TRANSFER_IN) {
+						result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, inode->buf_manager_handle);
+					}
+					port->port_cfg_cb_func(&port_cfg, ISP_PORT_IRQ_FAST_STOP, port);
+					if (port->type == PORT_TRANSFER_IN) {
+						for (i = 0; i < result_queue_cnt; i++) {
+							complete(&inode->frm_done);
+							if (inode->is_dual)
+								complete(&dev->frm_done);
+						}
+					}
+				}
+			}
+			break;
+		}
 		if (inode->uinfo.enable_slowmotion == 0) {
 			inode->dev->isp_ops->unbind(inode);
 			complete(&inode->frm_done);
@@ -185,19 +212,6 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 				complete(&dev->frm_done);
 		}
 
-		if (inode->is_fast_stop) {
-			struct isp_port_cfg port_cfg = {0};
-			struct isp_port *port = NULL;
-			port_cfg.faststop = &inode->is_fast_stop;
-			port_cfg.faststop_done = inode->fast_stop_done;
-			port_cfg.out_buf_clear = 0;
-			port_cfg.result_queue_ops = CAM_QUEUE_FRONT;
-			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
-				if (atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0)
-					port->port_cfg_cb_func(&port_cfg, ISP_PORT_FAST_STOP, port);
-			}
-			break;
-		}
 		ispnode_postproc_frame_return(inode);
 		break;
 	case POSTPROC_SLOWMOTION_FRAMEDONE:
@@ -957,7 +971,16 @@ static int ispnode_start_proc(void *node)
 		ret = -EFAULT;
 		goto exit;
 	}
-
+	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
+		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
+			result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, inode->buf_manager_handle);
+			if (result_queue_cnt == 0) {
+				if (inode->blk_param_node && inode->blk_param_node->isp_blk.param_block)
+					cam_queue_recycle_blk_param(&inode->param_share_queue, inode->blk_param_node);
+				return 0;
+			}
+		}
+	}
 	loop = 0;
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) > 0 && atomic_read(&port->is_work) > 0) {
