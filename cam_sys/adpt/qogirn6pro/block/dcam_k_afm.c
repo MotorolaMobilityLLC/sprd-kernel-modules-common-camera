@@ -340,19 +340,19 @@ int dcam_k_afm_iir_info(struct dcam_isp_k_block *param)
 	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER0, val);
 
 	val = ((p->afm_iir_c2 & 0xFFF) << 16) |
-			(p->afm_iir_c1 & 0xFFF);
+		(p->afm_iir_c1 & 0xFFF);
 	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER1, val);
 	val = ((p->afm_iir_c4 & 0xFFF) << 16) |
-			(p->afm_iir_c3 & 0xFFF);
+		(p->afm_iir_c3 & 0xFFF);
 	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER2, val);
 	val = ((p->afm_iir_c6 & 0xFFF) << 16) |
-			(p->afm_iir_c5 & 0xFFF);
+		(p->afm_iir_c5 & 0xFFF);
 	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER3, val);
 	val = ((p->afm_iir_c8 & 0xFFF) << 16) |
-			(p->afm_iir_c7 & 0xFFF);
+		(p->afm_iir_c7 & 0xFFF);
 	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER4, val);
 	val = ((p->afm_iir_c10 & 0xFFF) << 16) |
-			(p->afm_iir_c9 & 0xFFF);
+		(p->afm_iir_c9 & 0xFFF);
 	DCAM_REG_WR(idx, DCAM_AFM_IIR_FILTER5, val);
 
 	pr_debug("iir_enable %d\n", p->afm_iir_enable);
