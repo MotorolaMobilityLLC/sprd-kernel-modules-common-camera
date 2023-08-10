@@ -134,6 +134,7 @@ static void camzoom_scaler_swapsize_get(struct img_size src_size, struct channel
 {
 	uint32_t ratio_p = 0, ratio_v = 0, ratio_src = 0;
 	uint32_t max_dst_size = 0, min_dst_size = 0, min_dst_ratio = 0, max_dst_ratio = 0;
+	struct img_size min_swap = {0};
 
 	/* TBD: slowmotion case dcam keep no scaler first */
 	if (ch_prev->ch_uinfo.is_high_fps ||
@@ -172,6 +173,17 @@ static void camzoom_scaler_swapsize_get(struct img_size src_size, struct channel
 	max_scaler->h = ALIGN_UP(max_scaler->h, 2);
 	max_scaler->w = MIN(max_scaler->w, src_size.w);
 	max_scaler->h = MIN(max_scaler->h, src_size.h);
+	/* for stream on set 10x scenes */
+	min_swap.w = src_size.w / DCAM_SCALE_DOWN_MAX;
+	min_swap.h = (min_swap.w * src_size.h + src_size.w - 1) / src_size.w;
+	min_swap.w = ALIGN_UP(min_swap.w, 4);
+	min_swap.h = ALIGN_UP(min_swap.h, 2);
+	if (ch_prev->compress_en)
+		min_swap.h = ALIGN(min_swap.h, DCAM_FBC_TILE_HEIGHT);
+	if (max_scaler->w < min_swap.w)
+		max_scaler->w = min_swap.w;
+	if (max_scaler->h < min_swap.h)
+		max_scaler->h = min_swap.h;
 }
 
 static int camzoom_channel_swapsize_calc(struct camera_module *module)
