@@ -34,7 +34,7 @@ uint32_t irq_done_sw[ISP_CONTEXT_SW_NUM][32];
 
 char *isp_dev_name[] = {"isp0", "isp1"};
 
-static int ispint_common_error_done(enum isp_context_hw_id hw_idx, void *isp_handle)
+static int ispint_common_error_done(enum isp_context_hw_id hw_idx, void *isp_handle, uint32_t is_reset)
 {
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_hw_context *pctx_hw = NULL;
@@ -45,7 +45,7 @@ static int ispint_common_error_done(enum isp_context_hw_id hw_idx, void *isp_han
 
 	pr_debug("cxt_id:%d ispint error done.\n", hw_idx);
 	if (pctx_hw->postproc_func)
-		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_ERROR_DONE);
+		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_ERROR_DONE, &is_reset);
 
 	ret = ispint_err_pre_proc(hw_idx, dev);
 	return ret;
@@ -56,6 +56,7 @@ static int ispintcommon_isr_root_unlikely(int c_id, struct isp_int_ctxs_com ctxs
 	uint32_t val = 0;
 	struct isp_pipe_dev *isp_handle = (struct isp_pipe_dev *)priv;
 	struct isp_hw_context *pctx_hw = NULL;
+	enum cam_en_status is_reset;
 
 	pctx_hw = &isp_handle->hw_ctx[c_id];
 	if (unlikely(ctxs_com.err_mask & ctxs_com.irq_line)) {
@@ -68,9 +69,9 @@ static int ispintcommon_isr_root_unlikely(int c_id, struct isp_int_ctxs_com ctxs
 				ispint_iommu_regs_dump();
 			}
 		}
-
+		is_reset = (ctxs_com.irq_line & ISP_INT_FALAT_ERR_MASK) ? CAM_ENABLE : CAM_DISABLE;
 		/*handle the error here*/
-		if (ispint_common_error_done(c_id, isp_handle)) {
+		if (ispint_common_error_done(c_id, isp_handle, is_reset)) {
 			pr_err("fail to handle the error here c_id %d irq_line 0x%x\n", c_id, ctxs_com.irq_line);
 			return IRQ_HANDLED;
 		}
@@ -204,7 +205,7 @@ void isp_int_common_all_done(enum isp_context_hw_id hw_idx, void *isp_handle)
 		pr_debug("frame done.\n");
 	}
 	if (pctx_hw->postproc_func)
-		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_DONE);
+		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_DONE, NULL);
 }
 
 void isp_int_common_shadow_done(enum isp_context_hw_id idx, void *isp_handle)
@@ -246,9 +247,9 @@ void isp_int_common_fmcu_store_done(enum isp_context_hw_id hw_idx, void *isp_han
 
 	pr_debug("cxt_id:%d fmcu store done.\n", hw_idx);
 	if (pctx_hw->postproc_func)
-		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_DONE);
+		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_DONE, NULL);
 	if (pctx_hw->enable_slowmotion == 1 && pctx_hw->postproc_func)
-		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_SLOWMOTION_FRAMEDONE);
+		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_SLOWMOTION_FRAMEDONE, NULL);
 }
 
 void isp_int_common_fmcu_shadow_done(enum isp_context_hw_id hw_idx, void *isp_handle)
@@ -294,7 +295,7 @@ void isp_int_common_rgb_ltm_hists_done(enum isp_context_hw_id hw_idx, void *isp_
 		if (pctx_hw->valid_slc_num && pctx_hw->ltm_procslice_cnt != pctx_hw->valid_slc_num)
 			return;
 		pctx_hw->ltm_procslice_cnt = 0;
-		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_RGB_LTM_HISTS_DONE);
+		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_RGB_LTM_HISTS_DONE, NULL);
 	}
 }
 
