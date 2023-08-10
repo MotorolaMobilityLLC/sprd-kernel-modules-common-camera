@@ -626,7 +626,7 @@ static void dcamonline_cap_sof(struct dcam_online_node *node, void *param,
 			struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
-	uint32_t path_id = 0;
+	uint32_t path_id = 0, slm_path = 0, idx = 0;
 	unsigned long flag = 0;
 	enum dcam_fix_result fix_result = {0};
 	struct cam_hw_info *hw = NULL;
@@ -636,22 +636,29 @@ static void dcamonline_cap_sof(struct dcam_online_node *node, void *param,
 	struct dcam_irq_proc *irq_proc = NULL;
 
 	hw = hw_ctx->hw;
+	idx = hw_ctx->hw_ctx_id;
 	irq_proc = (struct dcam_irq_proc *)param;
+	slm_path = hw->ip_dcam[idx]->dcamhw_abt->slm_path;
 	fix_result = dcamonline_fix_index(node, param, hw_ctx);
 	if (fix_result == DEFER_TO_NEXT)
 		return;
 
 	pr_debug("DCAM%u cap_sof enter\n", hw_ctx->hw_ctx_id);
-	if (node->slowmotion_count) {
-		uint32_t n = hw_ctx->fid % node->slowmotion_count;
-		/* set buffer at first frame of a group of slow motion frames */
-		if (n || fix_result == BUFFER_READY)
-			goto dispatch_sof;
-
-		hw_ctx->index_to_set = hw_ctx->fid + node->slowmotion_count;
-	}
 
 	CAM_QUEUE_FOR_EACH_ENTRY(dcam_port, &node->port_queue.head, list) {
+		if (node->slowmotion_count) {
+			uint32_t n = hw_ctx->fid % node->slowmotion_count;
+			/*
+			 *set at first frame of a group of slowmotion frames when the path support slm_path &
+			 *set other paths buffers at last frame of a group of slowmotion frames
+			 */
+			if (((n != node->slowmotion_count - 1) && !(slm_path & BIT(dcam_port->port_id)))
+				|| (n && (slm_path & BIT(dcam_port->port_id))) || fix_result == BUFFER_READY)
+				continue;
+
+			hw_ctx->index_to_set = hw_ctx->fid + node->slowmotion_count;
+		}
+
 		if (atomic_read(&dcam_port->is_work) < 1)
 			continue;
 
@@ -703,7 +710,6 @@ static void dcamonline_cap_sof(struct dcam_online_node *node, void *param,
 		}
 	}
 
-dispatch_sof:
 	copyarg.id = DCAM_CTRL_ALL;
 	copyarg.idx = node->hw_ctx_id;
 	copyarg.glb_reg_lock = hw_ctx->glb_reg_lock;
