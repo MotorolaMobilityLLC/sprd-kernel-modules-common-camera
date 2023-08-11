@@ -2467,7 +2467,6 @@ rewait:
 				}
 			}
 			cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
-			cam_queue_frame_check_lock();
 			pframe = CAM_QUEUE_DEQUEUE(&module->frm_queue, struct cam_frame, list);
 		} else {
 			memset(&read_op, 0, sizeof(struct sprd_img_read_op));
@@ -2485,7 +2484,6 @@ rewait:
 				}
 			}
 			cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
-			cam_queue_frame_check_lock();
 			pframe = CAM_QUEUE_DEQUEUE(&module->img_queue, struct cam_frame, list);
 		}
 		if (!pframe) {
@@ -2510,7 +2508,6 @@ rewait:
 						pr_info("get output buffer with reserved frame fd %d, ch %d\n",
 							module->reserved_buf_fd, pchannel->ch_id);
 						cam_queue_empty_frame_put(pframe);
-						cam_queue_frame_check_unlock();
 						goto rewait;
 					}
 					read_op.parm.frame.channel_id = pframe->common.channel_id;
@@ -2576,11 +2573,9 @@ rewait:
 		if (pframe) {
 			if (pframe->common.irq_type != CAMERA_IRQ_4IN1_DONE) {
 				cam_queue_empty_frame_put(pframe);
-				cam_queue_frame_check_unlock();
 				break;
 			}
 		}
-		cam_queue_frame_check_unlock();
 		break;
 	case SPRD_IMG_GET_PATH_CAP:
 		pr_debug("get path capbility\n");
