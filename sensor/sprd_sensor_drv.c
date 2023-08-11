@@ -1272,13 +1272,11 @@ int sprd_sensor_burst_write_reg16_val8(struct sensor_reg_tag *p_reg_table,
 
 		while ((written_num < init_table_size) &&
 			(p_reg_table[written_num].reg_addr ==
-			p_reg_table[written_num - 1].reg_addr + 1)) {
+			p_reg_table[written_num - 1].reg_addr + 1) &&
+			(SPRD_SENSOR_WRITE_DELAY != p_reg_table[written_num].reg_addr)) {
 			p_reg_val_tmp[wr_num_once++] =
 				(uint8_t) (p_reg_table[written_num].reg_value & 0xff);
 			written_num++;
-			if(SPRD_SENSOR_WRITE_DELAY == p_reg_table[written_num].reg_addr) {
-				break;
-			}
 		}
 
 		for(i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
@@ -1364,15 +1362,13 @@ int sprd_sensor_burst_write_reg16_val16(struct sensor_reg_tag *p_reg_table,
 
 		while ((written_num < init_table_size) &&
 			(p_reg_table[written_num].reg_addr ==
-			p_reg_table[written_num - 1].reg_addr + 2)) {
+			p_reg_table[written_num - 1].reg_addr + 2) &&
+			(SPRD_SENSOR_WRITE_DELAY != p_reg_table[written_num].reg_addr)) {
 			p_reg_val_tmp[wr_num_once++] =
 				(uint8_t) ((p_reg_table[written_num].reg_value >> 8) & 0xff);
 			p_reg_val_tmp[wr_num_once++] =
 				(uint8_t) (p_reg_table[written_num].reg_value & 0xff);
 			written_num++;
-			if(SPRD_SENSOR_WRITE_DELAY == p_reg_table[written_num].reg_addr){
-				break;
-			}
 		}
 
 		for(i = 0; i < SPRD_SENSOR_I2C_OP_TRY_NUM; i++) {
