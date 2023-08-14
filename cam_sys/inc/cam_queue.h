@@ -256,7 +256,6 @@ struct cam_queue_frame_manager {
 	struct cam_frame *frame_array[CAM_EMP_ARRAY_LEN_MAX];
 	struct camera_queue empty_frame_q;
 	spinlock_t frame_lock;
-	struct rw_semaphore check_lock;
 };
 
 #define CAM_QUEUE_LIST_ADD_CHECK(head, _list) ({ \
@@ -557,8 +556,6 @@ struct cam_queue_frame_manager {
 
 struct cam_frame *cam_queue_dequeue_if(struct camera_queue *q, enum cam_en_status (*filter)(struct cam_frame *, void *), void *data);
 int cam_queue_same_frame_get(struct camera_queue *q0, struct cam_frame **pf0, int64_t t_sec, int64_t t_usec);
-void cam_queue_frame_check_lock(void);
-void cam_queue_frame_check_unlock(void);
 int cam_queue_frame_array_check(uint32_t mode);
 struct cam_frame * cam_queue_empty_blk_param_get(struct camera_queue *q);
 void cam_queue_empty_frame_put(void *pframe);

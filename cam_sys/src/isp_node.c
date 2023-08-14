@@ -149,7 +149,7 @@ static int ispnode_hw_ts_cal(struct isp_node *inode)
 	return 0;
 }
 
-static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type)
+static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type, void *param)
 {
 	int i = 0, ret = 0;
 	struct isp_port *port = NULL;
@@ -157,6 +157,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 	struct isp_pipe_dev *dev = NULL;
 	struct cam_frame *pframe = NULL;
 	struct isp_port_cfg port_cfg = {0};
+	enum cam_en_status *is_reset = NULL;
 
 	dev = (struct isp_pipe_dev *)handle;
 	if (!handle || type >= POSTPROC_MAX) {
@@ -246,9 +247,12 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		inode->data_cb_func(CAM_CB_ISP_STATIS_DONE, pframe, inode->data_cb_handle);
 		break;
 	case POSTPROC_FRAME_ERROR_DONE:
-		CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
-			port->data_cb_func(CAM_CB_ISP_DEV_ERR, &ret, port->data_cb_handle);
-			break;
+		is_reset = VOID_PTR_TO(param, enum cam_en_status);
+		if (*is_reset) {
+			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
+				port->data_cb_func(CAM_CB_ISP_DEV_ERR, &ret, port->data_cb_handle);
+				break;
+			}
 		}
 		port_cfg.out_buf_clear = 0;
 		port_cfg.result_queue_ops = CAM_QUEUE_TAIL;

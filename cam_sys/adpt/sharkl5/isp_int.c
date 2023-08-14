@@ -67,7 +67,7 @@ static void ispint_hist_cal_done(enum isp_context_hw_id hw_idx, void *isp_handle
 	ispint_hist_value_read(pctx_hw);
 
 	if (pctx_hw->postproc_func)
-		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_HIST_CAL_DONE);
+		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_HIST_CAL_DONE, NULL);
 	return;
 }
 

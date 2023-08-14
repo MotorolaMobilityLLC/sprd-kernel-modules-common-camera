@@ -90,6 +90,7 @@ enum isp_mmu_irq {
 	(1 << ISP_INT_FMCU_CMD_ERROR) |       \
 	(1 << ISP_INT_FMCU_STOP_DONE))
 
+#define ISP_INT_FALAT_ERR_MASK                 0
 struct isp_int_ctxs_com {
 	unsigned long irq_offset;
 	uint32_t err_mask;

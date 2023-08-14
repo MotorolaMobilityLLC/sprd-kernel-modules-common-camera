@@ -211,21 +211,10 @@ _EXT:
 	return ret;
 }
 
-void cam_queue_frame_check_lock()
-{
-	down_read(&g_frame_manager->check_lock);
-}
-
-void cam_queue_frame_check_unlock()
-{
-	up_read(&g_frame_manager->check_lock);
-}
-
 int cam_queue_frame_array_check(uint32_t mode)
 {
 	int32_t i = 0, j = 0;
 	struct cam_frame *pframe = NULL;
-	down_write(&g_frame_manager->check_lock);
 	for (i = 0; i < CAM_EMP_ARRAY_LEN_MAX; ++i) {
 		if (!g_frame_manager->frame_array[i])
 			break;
@@ -249,7 +238,6 @@ int cam_queue_frame_array_check(uint32_t mode)
 			}
 		}
 	}
-	up_write(&g_frame_manager->check_lock);
 	return 0;
 }
 
@@ -312,7 +300,6 @@ int cam_queue_empty_frame_init()
 		frame_manager->array_num = 0;
 		CAM_QUEUE_INIT(&frame_manager->empty_frame_q, CAM_EMP_ARRAY_LEN_MAX * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), NULL);
 		spin_lock_init(&frame_manager->frame_lock);
-		init_rwsem(&frame_manager->check_lock);
 		g_frame_manager = frame_manager;
 	}
 
