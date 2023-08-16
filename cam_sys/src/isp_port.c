@@ -1563,70 +1563,6 @@ static int ispport_fast_stop(struct isp_port *port, void *param)
 	return ret;
 }
 
-static int ispport_irq_fast_stop(struct isp_port *port, void *param)
-{
-	struct isp_port_cfg *port_cfg = NULL;
-	struct cam_frame *pframe = NULL;
-	struct cam_frame *pframe_data = NULL;
-	uint32_t ret = 0, out_buf_queue_cnt = 0, result_queue_cnt = 0;
-	struct camera_buf_get_desc buf_desc = {0};
-
-	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
-	if (port->type == PORT_TRANSFER_IN) {
-		out_buf_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_unprocess_pool, port->buf_manager_handle);
-		result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, port->buf_manager_handle);
-		if (result_queue_cnt) {
-			buf_desc.q_ops_cmd = port_cfg->result_queue_ops;
-			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
-			buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
-			pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, &buf_desc, port->buf_manager_handle);
-			while (pframe) {
-				pframe_data = (struct cam_frame *)pframe->common.pframe_data;
-				if (pframe_data != NULL) {
-					cam_buf_manager_buf_status_cfg(&pframe_data->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_ISP);
-					pframe->common.pframe_data = NULL;
-					port->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe_data, port->data_cb_handle);
-				}
-				port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
-				pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, &buf_desc, port->buf_manager_handle);
-			}
-			result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, port->buf_manager_handle);
-			if (out_buf_queue_cnt == 0 && result_queue_cnt == 0) {
-				*(port_cfg->faststop) = 0;
-				complete(port_cfg->faststop_done);
-			}
-		}
-
-	}
-
-	if (port->type == PORT_TRANSFER_OUT) {
-		buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
-		pframe = cam_buf_manager_buf_dequeue(&port->store_result_pool, &buf_desc, port->buf_manager_handle);
-		while (pframe) {
-			if (unlikely(pframe->common.is_reserved)) {
-				cam_queue_empty_frame_put(pframe);
-				continue;
-			}
-			if (pframe->common.state != ISP_STREAM_POST_PROC) {
-				if (pframe->common.buf.mfd == port->reserved_buf_fd) {
-					pframe->common.buf.size = port->reserve_buf_size;
-					pr_info("pframe->common.buf.size = %d, path->reserve_buf_size = %d\n",
-							(int)pframe->common.buf.size, (int)port->reserve_buf_size);
-				}
-				buf_desc.q_ops_cmd = CAM_QUEUE_FRONT;
-				buf_desc.buf_ops_cmd = CAM_BUF_STATUS_PUT_IOVA;
-				buf_desc.mmu_type = CAM_BUF_IOMMUDEV_ISP;
-				ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
-				if (ret)
-					pr_err("fail to enqueue frame\n");
-			}
-			buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
-			pframe = cam_buf_manager_buf_dequeue(&port->store_result_pool, &buf_desc, port->buf_manager_handle);
-		}
-	}
-	return ret;
-}
-
 static int ispport_cfg_callback(void *param, uint32_t cmd, void *handle)
 {
 	int ret = 0;
@@ -1663,9 +1599,6 @@ static int ispport_cfg_callback(void *param, uint32_t cmd, void *handle)
 		break;
 	case ISP_PORT_FAST_STOP:
 		ret = ispport_fast_stop(port, param);
-		break;
-	case ISP_PORT_IRQ_FAST_STOP:
-		ret = ispport_irq_fast_stop(port, param);
 		break;
 	default:
 		pr_err("fail to support port type %d\n", cmd);
