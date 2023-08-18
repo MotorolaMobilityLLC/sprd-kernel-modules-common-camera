@@ -1615,6 +1615,11 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 		return ret;
 	}
 
+	if (pause == DCAM_OVERFLOW_STOP) {
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
+		return ret;
+	}
+
 	atomic_set(&node->state, STATE_IDLE);
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
 		if (pause == DCAM_FORCE_STOP)
