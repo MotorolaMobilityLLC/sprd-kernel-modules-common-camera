@@ -44,8 +44,8 @@ int ispint_err_pre_proc(enum isp_context_hw_id hw_idx, void *isp_handle)
 	struct isp_pipe_dev *dev = NULL;
 	struct isp_hw_context *pctx_hw = NULL;
 	uint32_t isp_int_base[ISP_CONTEXT_HW_NUM] = {
-		ISP_P0_INT_BASE, ISP_C0_INT_BASE,
-		ISP_P1_INT_BASE, ISP_C1_INT_BASE,
+		ISP_P0_INT_BASE, ISP_P1_INT_BASE,
+		ISP_C0_INT_BASE, ISP_C1_INT_BASE,
 	};
 
 	dev = (struct isp_pipe_dev *)isp_handle;
