@@ -1401,6 +1401,9 @@ static int camcore_pipeline_init(struct camera_module *module,
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
 		cam_scene_onlineraw_ports_enable(module, dcam_port_id);
+		if (module->cam_uinfo.is_4in1) {
+			module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
+		}
 		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0 || module->cam_uinfo.dcam_slice_mode)
 			goto fail;
 		break;

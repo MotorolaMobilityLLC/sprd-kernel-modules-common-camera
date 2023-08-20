@@ -120,6 +120,11 @@ static spinlock_t csi_dump_lock[CSI_MAX_COUNT] = {
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 	__SPIN_LOCK_UNLOCKED(csi_dump_lock),
 };
+static spinlock_t csi_reset_lock[CSI_MAX_COUNT] = {
+	__SPIN_LOCK_UNLOCKED(csi_reset_lock),
+	__SPIN_LOCK_UNLOCKED(csi_reset_lock),
+	__SPIN_LOCK_UNLOCKED(csi_reset_lock),
+};
 #define ANALOG_G4_REG_BASE 0x64318000
 #define ANALOG_G4L_REG_BASE 0x6434C000
 #define MM_AHB_REG_BASE 0x30000000
@@ -1094,6 +1099,7 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 {
 	struct csi_phy_info *phy = NULL;
 	struct regmap *anlg_phy_syscon;
+	unsigned long flag = 0;
 
 	if (!dt_info) {
 		pr_err("fail to get valid phy ptr\n");
@@ -1105,26 +1111,29 @@ void csi_phy_init(struct csi_dt_node_info *dt_info, int32_t idx)
 		pr_err("fail to get valid phy ptr\n");
 		return;
 	}
-	pr_info("csi_reset[%d] %d\n", idx, csi_reset[idx]);
-	if(csi_reset[idx] < 0)
-		csi_reset[idx] = 0;
 
-    if (phy->phy_id == PHY_CPHY || phy->phy_id == PHY_4LANE || phy->phy_id == PHY_2P2 ||
+	if (phy->phy_id == PHY_CPHY || phy->phy_id == PHY_4LANE || phy->phy_id == PHY_2P2 ||
 		phy->phy_id == PHY_2P2_M || phy->phy_id == PHY_2P2_S){
 		anlg_phy_syscon = phy->anlg_phy_g4l_syscon;
 	}else{
 		anlg_phy_syscon = phy->anlg_phy_g4_syscon;
 	}
 
+	spin_lock_irqsave(&csi_reset_lock[idx], flag);
+	if(csi_reset[idx] < 0) {
+		csi_reset[idx] = 0;
+	}
+	pr_info("csi_reset[%d] %d\n", idx, csi_reset[idx]);
 	if(csi_reset[idx] == 0){
 		csi_ahb_reset(phy, dt_info->controller_id);
 		csi_reset_controller(idx);
 		csi_shut_down_phy(0, idx);
 		csi_reset_phy(idx);
 		csi_phy_testclr(dt_info->controller_id, &dt_info->phy);
-		csi_reset[idx]++;
-
 	}
+	csi_reset[idx]++;
+	spin_unlock_irqrestore(&csi_reset_lock[idx], flag);
+
 	switch (phy->phy_id) {
 	case PHY_4LANE:
 	//case PHY_4LANE1:

@@ -152,6 +152,7 @@ static int dcamonline_port_buffer_reset_cfg(void *handle, void *param)
 				cam_buf_manager_pool_cnt(&pool_id, dcam_online_port->buf_manager_handle),
 				pframe->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM]);
 		}
+		buf_desc.q_ops_cmd = CAM_QUEUE_DEL_TAIL;
 		pframe = cam_buf_manager_buf_dequeue(&dcam_online_port->result_pool, &buf_desc, dcam_online_port->buf_manager_handle);
 	}
 

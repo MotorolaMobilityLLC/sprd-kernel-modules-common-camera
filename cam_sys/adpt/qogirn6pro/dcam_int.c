@@ -314,7 +314,7 @@ static void dcamint_fmcu_config_done(void *param)
 		atomic_inc(&dcam_hw_ctx->shadow_done_cnt);
 		atomic_inc(&dcam_hw_ctx->shadow_config_cnt);
 		if (dcam_hw_ctx->fmcu) {
-			dcam_hw_ctx->index_to_set = dcam_hw_ctx->index_to_set + dcam_hw_ctx->slowmotion_count;
+			dcam_hw_ctx->index_to_set = dcam_hw_ctx->fid + dcam_hw_ctx->slowmotion_count;
 			irq_proc.of = CAP_DATA_DONE;
 			irq_proc.dcam_port_id = PORT_BIN_OUT;
 			irq_proc.slw_cmds_set = 1;
@@ -342,7 +342,7 @@ static void dcamint_fmcu_shadow_done(void *param)
 
 	atomic_inc(&dcam_hw_ctx->shadow_done_cnt);
 
-	dcam_hw_ctx->index_to_set = dcam_hw_ctx->index_to_set + dcam_hw_ctx->slowmotion_count;
+	dcam_hw_ctx->index_to_set = dcam_hw_ctx->fid + dcam_hw_ctx->slowmotion_count;
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_BIN_OUT;
 	irq_proc.slw_cmds_set = 1;
