@@ -284,7 +284,7 @@ static int ispscaler_port_store_frm_set(struct isp_pipe_info *pipe_info, uint32_
 static int ispscaler_port_store_frameproc(struct isp_scaler_port *port,
 	struct cam_frame *out_frame, struct isp_scaler_port_cfg *port_cfg)
 {
-	uint32_t hw_path_id = isp_port_id_switch(port->port_id);
+	uint32_t hw_path_id = -1;
 	uint32_t ret = 0, loop = 0;
 	struct isp_yuv_scaler_node *inode = NULL;
 
@@ -298,6 +298,12 @@ static int ispscaler_port_store_frameproc(struct isp_scaler_port *port,
 	out_frame->common.sensor_time = port_cfg->src_frame->common.sensor_time;
 	out_frame->common.boot_sensor_time = port_cfg->src_frame->common.boot_sensor_time;
 	out_frame->common.link_from.port_id = port->port_id;
+
+	hw_path_id = isp_port_id_switch(port->port_id);
+	if (hw_path_id >= ISP_SPATH_NUM) {
+		pr_err("fail to get correct path id\n");
+		return -EFAULT;
+	}
 
 	if (inode->ch_id == CAM_CH_CAP)
 		pr_info("isp scaler node %d is_reserved %d iova 0x%x, user_fid: %x mfd 0x%x\n",
