@@ -498,6 +498,7 @@ err:
 static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_frame, struct isp_port_cfg *port_cfg)
 {
 	uint32_t ret = 0, loop = 0;
+	uint32_t hw_path_id = -1;
 	struct camera_buf_get_desc buf_desc = {0};
 
 	if (out_frame == NULL || !port_cfg->src_frame) {
@@ -549,7 +550,12 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 	pr_debug("port %d, is_reserved %d iova 0x%x, user_fid: %d mfd 0x%x size %x fid: %d\n", port->port_id, out_frame->common.is_reserved,
 		(uint32_t)out_frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP], out_frame->common.user_fid, out_frame->common.buf.mfd, out_frame->common.buf.size, out_frame->common.fid);
 	/* config store buffer */
-	ret = isp_hwctx_store_frm_set(port_cfg->pipe_info, isp_port_id_switch(port->port_id), &out_frame->common);
+	hw_path_id = isp_port_id_switch(port->port_id);
+	if (hw_path_id >= ISP_SPATH_NUM) {
+		pr_err("fail to get correct path id\n");
+		return -EFAULT;
+	}
+	ret = isp_hwctx_store_frm_set(port_cfg->pipe_info, hw_path_id, &out_frame->common);
 	/* If some error comes then do not start ISP */
 	if (ret) {
 		pr_err("fail to set store buffer\n");

@@ -1189,7 +1189,7 @@ static int camcore_framecache_desc_get(struct camera_module *module, struct fram
 
 	real_cache_num = module->cam_uinfo.zsl_num;
 	if (module->cam_uinfo.is_dual)
-		real_cache_num = 3;
+		real_cache_num = module->cam_uinfo.dual_cache_buf_num;
 	frame_cache_desc->cache_real_num = real_cache_num;
 	frame_cache_desc->cache_skip_num = module->cam_uinfo.zsk_skip_num;
 	frame_cache_desc->is_share_buf = module->cam_uinfo.need_share_buf;
