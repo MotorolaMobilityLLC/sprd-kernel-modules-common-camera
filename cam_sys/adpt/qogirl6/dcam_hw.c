@@ -761,7 +761,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		}
 		break;
 	case DCAM_PATH_BIN:
-		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN, BIT_3 | BIT_2, patharg->endian << 2);
+		DCAM_REG_MWR(patharg->idx, DCAM_PATH_ENDIAN, BIT_19 | BIT_18, patharg->endian << 18);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG, BIT_2 | BIT_3, hwfmt << 2);
 		DCAM_REG_MWR(patharg->idx, DCAM_CAM_BIN_CFG,
 				BIT_16, !!patharg->slowmotion_count << 16);
