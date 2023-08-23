@@ -1389,7 +1389,7 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 		break;
 	case DCAM_PATH_PDAF:
 		if (param->blk_param->pdaf.pdaf_type == DCAM_PDAF_TYPE3) {
-			param->frame_addr[1] = param->frame_addr[0] + param->buf_size / 2;
+			param->frame_addr[1] = param->frame_addr[0] + param->frame_size / 2;
 			DCAM_REG_WR(idx, DCAM_PPE_RIGHT_WADDR, param->frame_addr[1]);
 		}
 		DCAM_REG_WR(idx, DCAM_PDAF_BASE_WADDR, param->frame_addr[0]);
