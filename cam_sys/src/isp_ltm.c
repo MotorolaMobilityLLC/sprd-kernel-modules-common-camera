@@ -422,7 +422,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 }
 
 static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
-			struct isp_ltm_map_info *tuning, int type)
+			struct isp_ltm_map_info *tuning)
 {
 	uint32_t ratio_delta = 0;
 	uint32_t slice_info[4] = {0};
@@ -442,8 +442,8 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	struct isp_ltm_hist_param *param = &map_param;
 
 	map->bypass = map->bypass || tuning->bypass;
-	pr_debug("ltm: type %d, map bypass %d, tuning bypass %d\n",
-			type, map->bypass, tuning->bypass);
+	pr_debug("ltm:%d, map bypass %d, tuning bypass %d\n",
+			map->bypass, tuning->bypass);
 
 	if (map->bypass)
 		return 0;
@@ -463,22 +463,14 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 		return 0;
 	}
 
-	if (type == ISP_PRO_LTM_PRE_PARAM) {
-		if ((frame_width_stat * ctx->frame_height) != (frame_height_stat * ctx->frame_width)) {
-			pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
-			ctx->map.bypass = 1;
-			return 0;
-		}
+	ratio_delta = abs((frame_width_stat * ctx->frame_height) * 100 / (frame_height_stat * ctx->frame_width) - 100);
+	if (ratio_delta <= 5) {
+		pr_debug("fid %d delta %d prv size [%d %d] cap size [%d %d]\n",
+				ctx->fid, ratio_delta, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
 	} else {
-		ratio_delta = abs((frame_width_stat * ctx->frame_height) * 100 / (frame_height_stat * ctx->frame_width) - 100);
-		if (ratio_delta <= 5) {
-			pr_debug("fid %d delta %d prv size [%d %d] cap size [%d %d]\n",
-					ctx->fid, ratio_delta, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
-		} else {
-			pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
-			map->bypass = 1;
-			return 0;
-		}
+		pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
+		map->bypass = 1;
+		return 0;
 	}
 
 	pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
@@ -612,7 +604,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 			pr_err("fail to preview hist config, ctx id %d, fid %d\n", ctx->ctx_id, ctx->fid);
 			break;
 		}
-		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_PRE_PARAM);
+		ispltm_map_config_gen(ctx, &ltm_info->ltm_map);
 		ltm_cfg_func.k_blk_func(ctx);
 		break;
 	case MODE_LTM_CAP:
@@ -622,7 +614,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 			pr_err("fail to capture hist config fail, maybe none-zsl, ctx id %d, fid %d\n", ctx->ctx_id, ctx->fid);
 			break;
 		}
-		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_CAP_PARAM);
+		ispltm_map_config_gen(ctx, &ltm_info->ltm_map);
 		ltm_cfg_func.k_blk_func(ctx);
 		break;
 	case MODE_LTM_OFF:
@@ -667,16 +659,9 @@ static int ispltm_cfg_param(void *handle,
 		break;
 	case ISP_LTM_CFG_SIZE_INFO:
 		crop = (struct img_trim *)param;
-		if (ltm_ctx->mode == MODE_LTM_PRE) {
-			if (((crop->size_x != ltm_ctx->frame_width) ||
-				(crop->size_y != ltm_ctx->frame_height)) && ltm_ctx->fid != 0) {
-				ltm_ctx->map.bypass = 1;
-			}
-		}
-		pr_debug("frame size: %d, %d.\n", ltm_ctx->frame_width, ltm_ctx->frame_height);
 		ltm_ctx->frame_width = crop->size_x;
 		ltm_ctx->frame_height = crop->size_y;
-		pr_debug("LTM frame id %d, crop %d, %d, map %d\n", ltm_ctx->fid, crop->size_x, crop->size_y, ltm_ctx->map.bypass);
+		pr_debug("LTM frame id %d, crop %d, %d, map %d\n", ltm_ctx->fid, ltm_ctx->frame_width, ltm_ctx->frame_height, ltm_ctx->map.bypass);
 		break;
 	case ISP_LTM_CFG_HIST_BYPASS:
 		ltm_ctx->hists.bypass = !(*(uint32_t *)param);
