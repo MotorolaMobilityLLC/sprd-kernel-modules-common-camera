@@ -260,14 +260,16 @@ dec_err:
 		dev->pyr_dec_handle = NULL;
 	}
 err_init:
-	hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
-	atomic_set(&dev->pd_clk_rdy, 0);
-	isp_drv_hw_deinit(dev);
-	mutex_destroy(&dev->path_mutex);
-	mutex_destroy(&dev->dev_lock);
-	mutex_destroy(&dev->pyr_mulshare_dec_lock);
-	mutex_destroy(&dev->pyr_mulshare_rec_lock);
-	atomic_dec(&dev->enable);
+	if (atomic_dec_return(&dev->enable) == 0) {
+		hw->isp_ioctl(hw, ISP_HW_CFG_STOP, NULL);
+		atomic_set(&dev->pd_clk_rdy, 0);
+		isp_drv_hw_deinit(dev);
+		mutex_destroy(&dev->path_mutex);
+		mutex_destroy(&dev->dev_lock);
+		mutex_destroy(&dev->pyr_mulshare_dec_lock);
+		mutex_destroy(&dev->pyr_mulshare_rec_lock);
+	}
+
 	pr_err("fail to open isp dev!\n");
 	return ret;
 }
