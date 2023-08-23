@@ -1081,6 +1081,8 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
 				irq_proc->param = frame;
 				irq_proc->type = CAM_CB_DCAM_DATA_DONE;
+				if (node->is_4in1)
+					frame->common.irq_type = CAMERA_IRQ_4IN1_DONE;
 				dcamonline_frame_dispatch(irq_proc, node);
 			}
 			break;

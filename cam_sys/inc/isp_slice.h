@@ -146,6 +146,11 @@ struct slice_nlm_info {
 	uint32_t center_y_relative;
 };
 
+struct slice_imblance_info {
+	uint32_t global_x_start;
+	uint32_t global_y_start;
+};
+
 struct slice_postcdn_info {
 	uint32_t start_row_mod4;
 };
@@ -453,6 +458,7 @@ struct isp_slice_desc {
 	struct slice_scaler_info slice_scaler[ISP_SPATH_NUM];
 	struct slice_thumbscaler_info slice_thumbscaler;
 	struct slice_nlm_info slice_nlm;
+	struct slice_imblance_info slice_imblance;
 	struct slice_postcdn_info slice_postcdn;
 	struct slice_ynr_info slice_ynr;
 	struct slice_3dnr_memctrl_info slice_3dnr_memctrl;
