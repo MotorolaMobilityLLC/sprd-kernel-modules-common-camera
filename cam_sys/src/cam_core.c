@@ -710,6 +710,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	int ret = 0, reset_flag = 0, i = 0;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
+	struct cam_pipeline_cfg_param pipe_param = {0};
 	struct cam_hw_info *hw = NULL;
 	struct cam_frame *pframe = NULL;
 	struct camera_module *module = NULL;
@@ -725,12 +726,32 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 
 	module = (struct camera_module *)priv_data;
 	hw = module->grp->hw_info;
+	pframe = (struct cam_frame *)param;
+	channel = &module->channel[pframe->common.channel_id];
+
 	if (unlikely(type == CAM_CB_ISP_DEV_ERR)) {
 		for (i = 0; i < DCAM_HW_CONTEXT_MAX; ++i) {
 			if (module->dcam_dev_handle->hw_ctx[i].dcam_irq_cb_func) {
+				if (module->dcam_dev_handle->hw_ctx[i].is_offline_proc == CAM_DISABLE) {
+					enum dcam_stop_cmd stop_cmd = DCAM_OVERFLOW_STOP;
+					pipe_param.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+					pipe_param.node_param.param = &stop_cmd;
+					ret = channel->pipeline_handle->ops.streamoff(channel->pipeline_handle, &pipe_param);
+				}
 				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_IRQ_DISABLE, &i);
 				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_STOP, &module->dcam_dev_handle->hw_ctx[i]);
 				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_RESET, &i);
+			}
+		}
+
+		pr_err("fail to fatal err may not do anything\n");
+		if (module->nodes_dev.dcam_online_node_dev) {
+			trace.type = ABNORMAL_REG_TRACE;
+			dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
+			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+				trace.idx = dcam_online_node_dev->hw_ctx_id;
+				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+				hw->isp_ioctl(hw, ISP_HW_CFG_ABNORMAL_UEVENT, module->grp->pdev);
 			}
 		}
 		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
@@ -750,22 +771,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		return 0;
 	}
 
-	if (unlikely(type == CAM_CB_ISP_DEV_ERR)) {
-		pr_err("fail to fatal err may not do anything\n");
-		if (module->nodes_dev.dcam_online_node_dev) {
-			trace.type = ABNORMAL_REG_TRACE;
-			dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
-			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
-				trace.idx = dcam_online_node_dev->hw_ctx_id;
-				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-				hw->isp_ioctl(hw, ISP_HW_CFG_ABNORMAL_UEVENT, module->grp->pdev);
-			}
-		}
-		return 0;
-	}
-
-	pframe = (struct cam_frame *)param;
-	channel = &module->channel[pframe->common.channel_id];
 	atomic_set(&module->timeout_flag, 0);
 
 	switch (type) {
