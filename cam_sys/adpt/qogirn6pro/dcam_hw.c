@@ -2846,6 +2846,27 @@ static int dcamhw_disable_sn_eof(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_slice_imblance_set(void *handle, void *arg)
+{
+	uint32_t idx = 0;
+	struct dcam_slice_imblance_info *slice_imblance = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get valid handle or arg\n");
+		return -EFAULT;
+	}
+
+	slice_imblance = (struct dcam_slice_imblance_info *)arg;
+	idx = slice_imblance->idx;
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
+	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA30,
+		((slice_imblance->global_y_start & 0xFFFF) << 16) | (slice_imblance->global_x_start & 0xFFFF));
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -2899,6 +2920,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_GTM_HIST_BYPASS_GET,   dcamhw_gtm_hist_bypass_get},
 	{DCAM_HW_CFG_DIS_SN_SOF,            dcamhw_disable_sn_sof},
 	{DCAM_HW_CFG_DIS_SN_EOF,            dcamhw_disable_sn_eof},
+	{DCAM_HW_CFG_SLICE_IMBLANCE_SET,    dcamhw_slice_imblance_set},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

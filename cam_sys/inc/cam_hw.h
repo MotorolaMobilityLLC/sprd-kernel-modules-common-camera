@@ -200,6 +200,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_GTM_HIST_BYPASS_GET,
 	DCAM_HW_CFG_DIS_SN_SOF,
 	DCAM_HW_CFG_DIS_SN_EOF,
+	DCAM_HW_CFG_SLICE_IMBLANCE_SET,
 	DCAM_HW_CFG_MAX
 };
 
@@ -510,6 +511,7 @@ struct isp_hw_cfg_map {
 struct isp_hw_set_slice_nr_info {
 	uint32_t start_row_mod4;
 	struct slice_nlm_info *slice_nlm;
+	struct slice_imblance_info *slice_imblance;
 	struct slice_ynr_info *slice_ynr;
 	struct isp_fmcu_ctx_desc *fmcu;
 	struct slice_postcnr_info *slice_postcnr_info;
@@ -586,6 +588,12 @@ struct dcam_slice_store_param {
 	struct store_border fbc_border;
 	struct img_trim crop;
 	struct img_size store_size;
+};
+
+struct dcam_slice_imblance_info {
+	uint32_t idx;
+	uint32_t global_x_start;
+	uint32_t global_y_start;
 };
 
 struct dcam_hw_slice_param {
