@@ -278,12 +278,12 @@ struct cam_queue_frame_manager {
 	if (prev->next != entry || next->prev != entry) { \
 		prev->next = next; \
 		next->prev = prev; \
-		prev == LIST_POISON2; \
-		next == LIST_POISON1; \
+		prev = LIST_POISON2; \
+		next = LIST_POISON1; \
 	} \
 	if (next == NULL || prev == NULL) { \
-		prev == LIST_POISON2; \
-		next == LIST_POISON1; \
+		prev = LIST_POISON2; \
+		next = LIST_POISON1; \
 	} \
 	if (prev == LIST_POISON2 || next == LIST_POISON1) \
 		ret = 1; \
