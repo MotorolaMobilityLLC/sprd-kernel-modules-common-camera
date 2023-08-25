@@ -476,6 +476,7 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node, struct dcam_isp_k_
 	struct dcam_offline_slice_info *slice = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct cam_hw_info *hw = NULL;
+	struct dcam_slice_imblance_info slice_imblance = {0};
 
 	fetch = &node->fetch_info;
 	hw_ctx = node->online_node.hw_ctx;
@@ -503,6 +504,12 @@ static int dcamfetch_slice_proc(struct dcam_fetch_node *node, struct dcam_isp_k_
 				slice->slice_trim[i].size_x, slice->slice_trim[i].size_y);
 			dcam_hwctx_slice_set(hw_ctx, fetch, slice);
 		}
+
+		/* IMBLANCE */
+		slice_imblance.idx = hw_ctx->hw_ctx_id;
+		slice_imblance.global_x_start = slice->slice_trim[i].start_x;
+		slice_imblance.global_y_start = slice->slice_trim[i].start_y;
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_SLICE_IMBLANCE_SET, &slice_imblance);
 
 		mutex_lock(&pm->lsc.lsc_lock);
 		if (slice->slice_num > 1) {

@@ -236,7 +236,9 @@ static uint32_t ispscaler_node_fid_across_context_get(struct isp_yuv_scaler_node
 
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_OUT && atomic_read(&port->user_cnt) >= 1 && inode->uinfo.uframe_sync) {
-			frame = CAM_QUEUE_DEQUEUE_PEEK(&port->out_buf_queue, struct cam_frame, list);
+			frame = CAM_QUEUE_DEQUEUE_PEEK(&port->out_buf_queue, struct cam_frame, list);
+
+
 			if (frame) {
 				target_fid = min(target_fid, frame->common.user_fid);
 				pr_debug("node id%d port%d user_fid %u\n", inode->node_id, port->port_id, frame->common.user_fid);
@@ -585,7 +587,7 @@ static int ispscaler_node_offline_param_cfg(struct isp_yuv_scaler_node *inode,
 	return ret;
 }
 
-static int ispscaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type)
+static int ispscaler_node_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc_type type, void *param)
 {
 	int hw_path_id= 0;
 	struct isp_pipe_dev *dev = NULL;

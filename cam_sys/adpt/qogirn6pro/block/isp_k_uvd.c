@@ -93,7 +93,7 @@ int isp_k_cfg_uvd(struct isp_io_param *param, struct dcam_isp_k_block *isp_k_par
 
 	switch (param->property) {
 	case ISP_PRO_UVD_BLOCK:
-		ret = copy_from_user((void *)uvd_info, param->property_param, sizeof(struct isp_dev_uvd_info_v2));
+		ret = copy_from_user((void *)uvd_info, param->property_param, sizeof(struct isp_dev_uvd_info_v1));
 		if (ret != 0) {
 			pr_err("fail to copy from user, ret = %d\n", ret);
 			return ret;

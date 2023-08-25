@@ -2021,6 +2021,12 @@ static int isphw_slice_nr_info(void *handle, void *arg)
 		(info->cur_slc->slice_nlm.center_x_relative & 0x7FFF);
 	ISP_REG_WR(info->ctx_id, addr, cmd);
 
+	/* IMBLANCE */
+	addr = ISP_NLM_IMBLANCE_PARA30;
+	cmd = ((info->cur_slc->slice_imblance.global_y_start & 0xFFFF) << 16) |
+		(info->cur_slc->slice_imblance.global_x_start & 0xFFFF);
+	ISP_REG_WR(info->ctx_id, addr, cmd);
+
 	/* Post CDN */
 	addr = ISP_POSTCDN_SLICE_CTRL;
 	cmd = info->cur_slc->slice_postcdn.start_row_mod4;
@@ -2455,6 +2461,12 @@ static int isphw_slice_nr_info_set(void *handle, void *arg)
 	addr = ISP_GET_REG(ISP_NLM_RADIAL_1D_DIST);
 	cmd = ((nrarg->slice_nlm->center_y_relative & 0x7FFF) << 16) |
 		(nrarg->slice_nlm->center_x_relative & 0x7FFF);
+	FMCU_PUSH(nrarg->fmcu, addr, cmd);
+
+	/* IMBLANCE */
+	addr = ISP_GET_REG(ISP_NLM_IMBLANCE_PARA30);
+	cmd = ((nrarg->slice_imblance->global_y_start & 0xFFFF) << 16) |
+		(nrarg->slice_imblance->global_x_start & 0xFFFF);
 	FMCU_PUSH(nrarg->fmcu, addr, cmd);
 
 	/* Post CDN */

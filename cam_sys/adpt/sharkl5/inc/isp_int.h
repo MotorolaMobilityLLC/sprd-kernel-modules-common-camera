@@ -85,6 +85,8 @@ enum isp_irq_id {
 	(1 << ISP_INT_MMU_PAOR_RD) |          \
 	(1 << ISP_INT_MMU_PAOR_WR))
 
+#define ISP_INT_FALAT_ERR_MASK                (1 << ISP_INT_AXI_TIMEOUT)
+
 struct isp_int_ctxs_com {
 	unsigned long irq_offset;
 	uint32_t err_mask;

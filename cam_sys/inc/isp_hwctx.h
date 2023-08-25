@@ -31,7 +31,7 @@ enum isp_postproc_type {
 };
 
 typedef int(*isp_irq_postproc)(void *handle, uint32_t idx,
-	enum isp_postproc_type type);
+	enum isp_postproc_type type, void *param);
 
 struct isp_pipe_info {
 	struct isp_hw_fetch_info fetch;

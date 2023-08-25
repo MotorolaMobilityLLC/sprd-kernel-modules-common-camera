@@ -652,6 +652,7 @@ struct sprd_img_function_mode {
 	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
 	uint32_t master_flag;/* master cam capture flag */
 	uint32_t dual_buf_num;
+	uint32_t dual_cache_buf_num;
 	uint32_t opt_buffer_num;/* pre raw malloc and cache buffer num */
 	uint32_t rawdata_src;
 	uint32_t ipg_skip_first_frm;/* in ultra size scene, dcam skip 1st frm use ipg*/

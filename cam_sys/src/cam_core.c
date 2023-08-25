@@ -1189,7 +1189,7 @@ static int camcore_framecache_desc_get(struct camera_module *module, struct fram
 
 	real_cache_num = module->cam_uinfo.zsl_num;
 	if (module->cam_uinfo.is_dual)
-		real_cache_num = 3;
+		real_cache_num = module->cam_uinfo.dual_cache_buf_num;
 	frame_cache_desc->cache_real_num = real_cache_num;
 	frame_cache_desc->cache_skip_num = module->cam_uinfo.zsk_skip_num;
 	frame_cache_desc->is_share_buf = module->cam_uinfo.need_share_buf;
@@ -1401,6 +1401,9 @@ static int camcore_pipeline_init(struct camera_module *module,
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
 		cam_scene_onlineraw_ports_enable(module, dcam_port_id);
+		if (module->cam_uinfo.is_4in1) {
+			module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
+		}
 		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0 || module->cam_uinfo.dcam_slice_mode)
 			goto fail;
 		break;
@@ -2467,7 +2470,6 @@ rewait:
 				}
 			}
 			cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
-			cam_queue_frame_check_lock();
 			pframe = CAM_QUEUE_DEQUEUE(&module->frm_queue, struct cam_frame, list);
 		} else {
 			memset(&read_op, 0, sizeof(struct sprd_img_read_op));
@@ -2485,7 +2487,6 @@ rewait:
 				}
 			}
 			cam_buf_manager_buf_clear(&recycle_pool, (void *)module->grp->global_buf_manager);
-			cam_queue_frame_check_lock();
 			pframe = CAM_QUEUE_DEQUEUE(&module->img_queue, struct cam_frame, list);
 		}
 		if (!pframe) {
@@ -2510,7 +2511,6 @@ rewait:
 						pr_info("get output buffer with reserved frame fd %d, ch %d\n",
 							module->reserved_buf_fd, pchannel->ch_id);
 						cam_queue_empty_frame_put(pframe);
-						cam_queue_frame_check_unlock();
 						goto rewait;
 					}
 					read_op.parm.frame.channel_id = pframe->common.channel_id;
@@ -2576,11 +2576,9 @@ rewait:
 		if (pframe) {
 			if (pframe->common.irq_type != CAMERA_IRQ_4IN1_DONE) {
 				cam_queue_empty_frame_put(pframe);
-				cam_queue_frame_check_unlock();
 				break;
 			}
 		}
-		cam_queue_frame_check_unlock();
 		break;
 	case SPRD_IMG_GET_PATH_CAP:
 		pr_debug("get path capbility\n");
