@@ -3022,7 +3022,7 @@ void alg_slice_pyramid_ovlap_temp(struct alg_pyramid_ovlap_temp *in_ptr)
 	struct alg_overlap_info ov_layer_rec[MAX_PYR_DEC_LAYER_NUM] = {0};
 	struct alg_fetch_region rec_slice_in = {0};
 	struct alg_fetch_region org_rec_slice_in = {0};
-	struct alg_overlap_info rec_slice_overlap[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM] = {{0}};
+	struct alg_overlap_info rec_slice_overlap[MAX_PYR_DEC_LAYER_NUM][PIPE_MAX_SLICE_NUM] = {0};
 	struct alg_overlap_info ov_layer[MAX_PYR_DEC_LAYER_NUM] = {0};
 	struct alg_fetch_region add_rec_slice_in = {0};
 

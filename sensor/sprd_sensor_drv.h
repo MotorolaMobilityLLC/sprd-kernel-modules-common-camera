@@ -77,7 +77,6 @@ struct sprd_sensor_dev_info_tag {
 	uint32_t i2c_burst;
 };
 
-static struct sprd_sensor_dev_info_tag *s_sensor_dev_data[SPRD_SENSOR_ID_MAX];
 struct sprd_sensor_dev_info_tag *sprd_sensor_get_dev_context(int sensor_id);
 void sprd_sensor_sync_lock(int sensor_id);
 void sprd_sensor_sync_unlock(int sensor_id);

@@ -26,6 +26,15 @@ extern g_dbg_raw2frgb_switch;
 	|| __s == CAPTURE_AI_SFNR);    \
 })
 
+/* Static Variables Declaration */
+static uint32_t output_img_fmt[] = {
+	/* CAM_YUV420_2FRAME */
+	IMG_PIX_FMT_NV12,
+	/* CAM_YVU420_2FRAME */
+	IMG_PIX_FMT_NV21,
+	IMG_PIX_FMT_GREY,
+};
+
 static int camioctl_time_get(struct camera_module *module,
 		unsigned long arg)
 {
