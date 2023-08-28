@@ -84,7 +84,7 @@ int camoffline_statis_dcam_port_bufferq_init(
 		dcam_port = dcam_offline_node_port_get(dcam_node, port_id);
 		if (!stats_type || !dcam_port)
 			continue;
-		if (port_id == PORT_GTM_HIST_OUT && dcam_node->dev->hw->ip_isp->isphw_abt->rgb_gtm_support)
+		if (port_id == PORT_OFFLINE_GTM_HIST_OUT && dcam_node->dev->hw->ip_isp->isphw_abt->rgb_gtm_support)
 			continue;
 
 		for (j = 0; j < STATIS_BUF_NUM_MAX; j++) {
@@ -205,7 +205,7 @@ int cam_offline_statis_dcam_port_buffer_cfg(
 		}
 	} else {
 		port_id = camoffstatis_dcam_type_to_port_id(input->type);
-		if (port_id == PORT_DCAM_OUT_MAX) {
+		if (port_id == PORT_DCAM_OFFLINE_OUT_MAX) {
 			pr_err("fail to get a valid statis type: %d\n", input->type);
 			ret = -EINVAL;
 			goto exit;

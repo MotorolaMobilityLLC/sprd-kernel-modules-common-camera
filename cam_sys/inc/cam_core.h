@@ -73,15 +73,6 @@ enum camera_raw_scene {
 	CAM_SCENE_RAW_MAX,
 };
 
-/* Static Variables Declaration */
-static uint32_t output_img_fmt[] = {
-	/* CAM_YUV420_2FRAME */
-	IMG_PIX_FMT_NV12,
-	/* CAM_YVU420_2FRAME */
-	IMG_PIX_FMT_NV21,
-	IMG_PIX_FMT_GREY,
-};
-
 struct compat_isp_io_param {
 	uint32_t scene_id;
 	uint32_t sub_block;

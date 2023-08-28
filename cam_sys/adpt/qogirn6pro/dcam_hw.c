@@ -29,7 +29,6 @@
 #define DCAM_BLOCK_SUM                 270
 #define IS_DCAM_IF(idx)                ((idx) < 2)
 
-static uint32_t g_gtm_bypass = 1;
 static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 extern contr_cap_eof;
