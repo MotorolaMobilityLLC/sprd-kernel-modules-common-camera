@@ -526,7 +526,8 @@ static int ispscaler_node_slice_fmcu(struct isp_yuv_scaler_node *inode,
 	ispscaler_node_slice_info_cfg(slc_cfg, inode->slice_ctx);
 
 	pr_info("use fmcu support slices for ctx %d\n", inode->cfg_id);
-	ret = ispscaler_node_slice_fmcu_cmds_set(pctx_hw->fmcu_handle, inode, pctx_hw);
+	if (pctx_hw->fmcu_handle)
+		ret = ispscaler_node_slice_fmcu_cmds_set(pctx_hw->fmcu_handle, inode, pctx_hw);
 
 	return ret;
 }
@@ -776,7 +777,7 @@ static int ispscaler_node_start_proc(void *node)
 		isp_hwctx_fmcu_reset(pctx_hw);
 	}
 
-	if (slice_need) {
+	if (pctx_hw->fmcu_handle || slice_need) {
 		ret = ispscaler_node_slice_fmcu(inode, pctx_hw, &slc_cfg);
 		if (!ret)
 			kick_fmcu = 1;

@@ -974,6 +974,7 @@ static int ispnode_start_proc(void *node)
 			if (result_queue_cnt == 0) {
 				if (inode->blk_param_node && inode->blk_param_node->isp_blk.param_block)
 					cam_queue_recycle_blk_param(&inode->param_share_queue, inode->blk_param_node);
+				inode->dev->isp_ops->unbind(inode);
 				return 0;
 			}
 		}
