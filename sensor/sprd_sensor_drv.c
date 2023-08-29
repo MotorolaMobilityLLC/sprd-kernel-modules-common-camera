@@ -44,6 +44,8 @@
 #define pr_fmt(fmt) "SENSOR_DRV: %d: %s L %d: " fmt, \
 	current->pid, __func__, __LINE__
 
+static struct sprd_sensor_dev_info_tag *s_sensor_dev_data[SPRD_SENSOR_ID_MAX];
+
 static const char *const sprd_sensor_supply_names[] = {
 	"vddio",
 	"vddcama",

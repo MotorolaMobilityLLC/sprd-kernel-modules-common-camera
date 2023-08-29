@@ -20,7 +20,6 @@
 #define IMG_TYPE_RAW8                  0x2A
 #define IMG_TYPE_YUV                   0x1E
 
-static uint32_t g_ltm_bypass = 1;
 static atomic_t clk_users;
 static int dcamhw_force_copy(void *handle, void *arg);
 
