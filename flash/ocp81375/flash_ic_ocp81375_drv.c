@@ -1151,6 +1151,7 @@ static int init_param_bk(void *drvd, int torch_max_current, int flash_max_curren
 
 static const struct of_device_id sprd_flash_ic_of_match_table[] = {
 	{.compatible = "sprd,flash-ocp81375"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct i2c_device_id sprd_flash_ic_ids[] = {
