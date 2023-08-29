@@ -336,7 +336,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		channel = &module->channel[CAM_CH_CAP];
 
 	if ((module->capture_type == CAM_CAPTURE_RAWPROC) && (param.sub_block == DCAM_BLOCK_LSCM
-		|| param.sub_block == DCAM_BLOCK_AEM || param.sub_block == DCAM_BLOCK_BAYERHIST)){
+		|| param.sub_block == DCAM_BLOCK_AEM || param.sub_block == DCAM_BLOCK_BAYERHIST)) {
 		channel = &module->channel[CAM_CH_CAP];
 		for_capture = 1;
 	}
@@ -377,6 +377,10 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		goto exit;
 	}
 	node_id = (channel->ch_id == CAM_CH_CAP) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
+	if (param.scene_id == PM_SCENE_OFFLINE_CAP &&
+		cam_pipeline_have_node_id(channel->pipeline_handle, CAM_NODE_TYPE_ISP_OFFLINE, ISP_NODE_MODE_OFFLINE_CAP_ID))
+		node_id = ISP_NODE_MODE_OFFLINE_CAP_ID;
+
 	switch (blk_type.block_type) {
 	case DCAM_BLOCK_TYPE:
 		if (blk_type.sub_block == ISP_BLOCK_RGB_GTM) {
