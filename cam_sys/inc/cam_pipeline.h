@@ -418,6 +418,7 @@ struct cam_pipeline {
 	ret; \
 })
 
+int cam_pipeline_have_node_id(struct cam_pipeline *pipe, uint32_t node_type, uint32_t node_id);
 int cam_pipeline_buffer_alloc(struct cam_pipeline *pipe, struct cam_buf_alloc_desc *param);
 void *cam_pipeline_creat(struct cam_pipeline_desc *param);
 void cam_pipeline_destory(struct cam_pipeline *pipeline);

@@ -538,6 +538,24 @@ static uint32_t campipeline_replace_en_cfg_get(uint32_t pipeline_type,
 	return g_replace_en;
 }
 
+int cam_pipeline_have_node_id(struct cam_pipeline *pipe, uint32_t node_type, uint32_t node_id)
+{
+	int i = 0;
+
+	if (!pipe)
+		return 0;
+
+	for (i = 0; i < CAM_PIPELINE_NODE_NUM; i++) {
+		if (!pipe->node_list[i])
+			continue;
+		if (pipe->node_list[i]->node_graph->type == node_type &&
+			pipe->node_list[i]->node_graph->id == node_id)
+			return 1;
+	}
+
+	return 0;
+}
+
 int cam_pipeline_buffer_alloc(struct cam_pipeline *pipe, struct cam_buf_alloc_desc *param)
 {
 	int ret = 0, i = 0;
