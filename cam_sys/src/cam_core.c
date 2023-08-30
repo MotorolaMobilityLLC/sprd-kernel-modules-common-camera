@@ -957,6 +957,19 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 
 	module = (struct camera_module *)priv_data;
 	hw = module->grp->hw_info;
+
+	if (unlikely(type == CAM_CB_DCAM_DEV_ERR)) {
+		pr_err("fail to fatal err may need recovery\n");
+		if (hw->prj_id != QOGIRN6L)
+			csi_api_reg_trace();
+		if (*(uint32_t *)param) {
+			pr_info("cam %d start recovery\n", module->idx);
+			if (atomic_cmpxchg(&module->grp->recovery_state, CAM_RECOVERY_NONE, CAM_RECOVERY_RUNNING) == CAM_RECOVERY_NONE)
+				complete(&module->grp->recovery_thrd.thread_com);
+		}
+		return 0;
+	}
+
 	pframe = (struct cam_frame *)param;
 	channel = &module->channel[pframe->common.channel_id];
 
@@ -987,18 +1000,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		}
 		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
 		hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
-		return 0;
-	}
-
-	if (unlikely(type == CAM_CB_DCAM_DEV_ERR)) {
-		pr_err("fail to fatal err may need recovery\n");
-		if (hw->prj_id != QOGIRN6L)
-			csi_api_reg_trace();
-		if (*(uint32_t *)param) {
-			pr_info("cam %d start recovery\n", module->idx);
-			if (atomic_cmpxchg(&module->grp->recovery_state, CAM_RECOVERY_NONE, CAM_RECOVERY_RUNNING) == CAM_RECOVERY_NONE)
-				complete(&module->grp->recovery_thrd.thread_com);
-		}
 		return 0;
 	}
 
