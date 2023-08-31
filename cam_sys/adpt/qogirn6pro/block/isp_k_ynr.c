@@ -83,14 +83,14 @@ int isp_k_update_ynr(void *handle)
 
 	block_param = (struct isp_k_block_param *)handle;
 	idx = block_param->cfg_id;
-	new_width = block_param->isp_k_param->blkparam_info.new_width;
-	new_height = block_param->isp_k_param->blkparam_info.new_height;
-	old_width = block_param->isp_k_param->blkparam_info.old_width;
-	old_height = block_param->isp_k_param->blkparam_info.old_height;
-	sensor_width = block_param->isp_k_param->sn_size.w;
-	sensor_height = block_param->isp_k_param->sn_size.h;
+	new_width = block_param->isp_using_param->blkparam_info.new_width;
+	new_height = block_param->isp_using_param->blkparam_info.new_height;
+	old_width = block_param->isp_using_param->blkparam_info.old_width;
+	old_height = block_param->isp_using_param->blkparam_info.old_height;
+	sensor_width = block_param->isp_using_param->sn_size.w;
+	sensor_height = block_param->isp_using_param->sn_size.h;
 
-	ynr_info = &block_param->isp_k_param->ynr_info_v3;
+	ynr_info = &block_param->isp_using_param->ynr_info_v3;
 	if (ynr_info->bypass)
 		return 0;
 
@@ -102,7 +102,7 @@ int isp_k_update_ynr(void *handle)
 	radius = (radius < radius_limit) ? radius : radius_limit;
 	radius = new_height * radius / old_height;
 
-	block_param->isp_k_param->ynr_radius = radius;
+	block_param->isp_using_param->ynr_radius = radius;
 	pr_debug("base %d, factor %d, radius %d\n", ynr_info->radius_base, ynr_info->radius_factor, radius);
 
 	return ret;
