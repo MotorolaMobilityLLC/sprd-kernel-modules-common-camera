@@ -38,6 +38,8 @@
 #define ISP_MAX_COUNT                   1
 #define ISP_CONTEXT_MAX                 4
 #define ISP_CONTEXT_SW_NUM              13
+#define ISP_OVERSIZE_LTM_SUBIMG_NUM     4
+#define ISP_NONZSL_PARAM_BUF_NUM        4
 
 extern unsigned long s_isp_regbase[ISP_MAX_COUNT];
 extern unsigned long isp_phys_base[ISP_MAX_COUNT];
@@ -131,6 +133,7 @@ struct cfg_param_status {
 	uint32_t scene_id;
 	uint32_t update;
 	uint32_t dcam_ctx_bind_state;/* 0: dcam_ctx_unbind, 1: dcam_ctx_bind */
+	void *blkpm_ptr;
 };
 
 static inline void isp_3dnr_cal_compressed_addr(uint32_t width,

@@ -92,6 +92,7 @@ struct dcam_offline_node {
 	struct mutex blkpm_dcam_lock;
 };
 
+int dcamoffline_blkpm_prepare(struct dcam_offline_node *node, void *param);
 int dcam_offline_node_port_insert(struct dcam_offline_node *node, void *param);
 struct dcam_offline_port *dcam_offline_node_port_get(struct dcam_offline_node *node, uint32_t port_id);
 void dcam_offline_node_buffer_clr(struct dcam_offline_node *node);

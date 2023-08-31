@@ -519,6 +519,8 @@ struct sprd_img_pdaf_info {
 
 struct sprd_img_ltm_info {
 	uint32_t channel_id;
+	uint32_t statis_no;
+	uint32_t statis_num;
 	uint32_t tile_num_x;
 	uint32_t tile_num_y;
 	uint32_t tile_width;

@@ -1472,8 +1472,9 @@ int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 {
 	int ret = 0;
 	struct pyr_dec_node *node = NULL;
-	struct cfg_param_status *param_status = NULL;
 	struct cam_frame *decblk_frame = NULL;
+	struct cfg_param_status *param_status = NULL;
+	struct isp_pipeline_param_n6pro *blkpm_ptr = NULL;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid param %px %px\n", handle, param);
@@ -1495,7 +1496,11 @@ int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 		if (decblk_frame) {
 			decblk_frame->dec_blk.fid = param_status->frame_id;
 			if (decblk_frame->dec_blk.decblk_pm) {
-				memcpy(decblk_frame->dec_blk.decblk_pm, &node->decblk_param, sizeof(struct dcam_isp_k_block));
+				if (param_status->blkpm_ptr) {
+					blkpm_ptr = (struct isp_pipeline_param_n6pro *)param_status->blkpm_ptr;
+					memcpy(&decblk_frame->dec_blk.decblk_pm->dct_info, &blkpm_ptr->dct_param, sizeof(struct isp_dev_dct_info));
+				} else
+					memcpy(decblk_frame->dec_blk.decblk_pm, &node->decblk_param, sizeof(struct dcam_isp_k_block));
 				ret = CAM_QUEUE_ENQUEUE(&node->param_buf_queue, &decblk_frame->list);
 				if (ret) {
 					pr_err("fail to enquene dec param_buf_queue:state:%d, cnt:%d\n", node->param_buf_queue.state, node->param_buf_queue.cnt);
@@ -1635,7 +1640,6 @@ void *pyr_dec_node_get(uint32_t node_id, struct pyr_dec_node_desc *param)
 	node->node_idx = param->node_idx;
 	node->is_4in1 = param->is_4in1;
 	node->dcam_slice_mode = param->dcam_slice_mode;
-	node->is_rawcap = param->is_rawcap;
 	node->sn_size = param->sn_size;
 	node->is_yuvsensor = param->is_yuvsensor;
 	node->layer_num = param->layer_num;

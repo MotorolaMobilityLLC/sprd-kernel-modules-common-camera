@@ -197,6 +197,7 @@ struct channel_context {
 
 	enum cam_pipeline_type pipeline_type;
 	struct cam_pipeline *pipeline_handle;
+	enum cam_pipeline_type nonzsl_statis_pipeline_type;
 	struct cam_pipeline *nonzsl_pre_pipeline;
 
 	struct camera_uchannel ch_uinfo;

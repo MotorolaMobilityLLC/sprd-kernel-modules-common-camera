@@ -1290,7 +1290,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		else
 			val = 4;
 		DCAM_REG_MWR(patharg->idx, DCAM_BWU1_PARAM, 0x70, val << 4);
-		/*bwd for RAW 10bit*/
+		/* bwd for RAW 10bit */
 		DCAM_REG_MWR(patharg->idx, DCAM_BWD1_PARAM, BIT_0, 0);
 		if (patharg->cap_info.format ==  DCAM_CAP_MODE_YUV || patharg->cap_info.cap_size.size_x > DCAM_TOTAL_LBUF)
 			DCAM_REG_MWR(patharg->idx, DCAM_RAW_PATH_CFG, BIT_12, 1 << 12);
@@ -1849,9 +1849,9 @@ static int dcamhw_slice_store_set(void *handle, void *arg)
 		DCAM_REG_MWR(idx, DCAM_STORE4_SLICE_SIZE, (0xFFFF << 16) | 0xFFFF,
 			(full_store->store_size.h << 16) | (full_store->store_size.w & 0xffff));
 		reg_val = DCAM_REG_RD(idx, DCAM_STORE4_SLICE_Y_ADDR);
-		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_Y_ADDR, reg_val  + full_store->store_offset[0]);
+		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_Y_ADDR, reg_val + full_store->store_offset[0]);
 		reg_val = DCAM_REG_RD(idx, DCAM_STORE4_SLICE_U_ADDR);
-		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_U_ADDR, reg_val  + full_store->store_offset[1]);
+		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_U_ADDR, reg_val + full_store->store_offset[1]);
 	} else {
 		start_title_num = (cur_slice->start_x - slicearg->relative_offset + 31) / 32;
 
@@ -2862,7 +2862,39 @@ static int dcamhw_slice_imblance_set(void *handle, void *arg)
 
 	DCAM_REG_WR(idx, DCAM_NLM_IMBLANCE_PARA30,
 		((slice_imblance->global_y_start & 0xFFFF) << 16) | (slice_imblance->global_x_start & 0xFFFF));
+	return 0;
+}
 
+static int dcamhw_block_param_config(void *handle, void *arg)
+{
+	struct dcam_isp_k_block *pm_ctx = NULL;
+	struct isp_pipeline_param_n6pro *blkpm_ptr = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg :%px, %px.\n", handle, arg);
+		return -EFAULT;
+	}
+
+	pm_ctx = (struct dcam_isp_k_block *)arg;
+	blkpm_ptr = (struct isp_pipeline_param_n6pro *)handle;
+
+	memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_lsc_info));
+	memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
+	memcpy(&pm_ctx->blc.blc_info, &blkpm_ptr->blc_param, sizeof(struct dcam_dev_blc_info));
+	memcpy(&pm_ctx->bpc_n6pro.bpc_param_n6pro.bpc_info, &blkpm_ptr->bpc_param, sizeof(struct dcam_dev_bpc_info_v1));
+	memcpy(&pm_ctx->bpc.bpc_ppi_info, &blkpm_ptr->ppi_param, sizeof(struct dcam_bpc_ppi_info));
+	memcpy(&pm_ctx->rgb.gain_info, &blkpm_ptr->gain_param, sizeof(struct dcam_dev_rgb_gain_info));
+	memcpy(&pm_ctx->rgb_gtm.rgb_gtm_info, &blkpm_ptr->gtm_param, sizeof(struct dcam_dev_rgb_gtm_block_info));
+	memcpy(&pm_ctx->rgb.rgb_dither, &blkpm_ptr->dither_param, sizeof(struct dcam_dev_rgb_dither_info));
+	memcpy(&pm_ctx->cmc10_info, &blkpm_ptr->cmc10_param, sizeof(struct isp_dev_cmc10_info));
+	memcpy(&pm_ctx->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
+	memcpy(&pm_ctx->imbalance_info_base2, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance_v2));
+	memcpy(&pm_ctx->cce_info, &blkpm_ptr->cce_param, sizeof(struct isp_dev_cce_info));
+	memcpy(&pm_ctx->cfa_info_v1, &blkpm_ptr->cfa_param, sizeof(struct isp_dev_cfa_info_v1));
+	memcpy(&pm_ctx->gamma_info_v1.gamma_info, &blkpm_ptr->gamma_param, sizeof(struct isp_dev_gamma_info_v1));
+
+	dcam_k_lsc_block(pm_ctx);
+	dcam_k_save_vst_ivst(pm_ctx);
 	return 0;
 }
 
@@ -2920,6 +2952,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_DIS_SN_SOF,            dcamhw_disable_sn_sof},
 	{DCAM_HW_CFG_DIS_SN_EOF,            dcamhw_disable_sn_eof},
 	{DCAM_HW_CFG_SLICE_IMBLANCE_SET,    dcamhw_slice_imblance_set},
+	{DCAM_HW_CFG_NONZSL_BLOCK_PARAM,    dcamhw_block_param_config},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

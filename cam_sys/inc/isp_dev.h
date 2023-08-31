@@ -53,6 +53,7 @@ struct isp_pipe_ops {
 };
 
 struct isp_pipe_dev {
+	uint32_t slice_num;
 	uint32_t irq_no[2];
 	atomic_t user_cnt;
 	atomic_t pd_clk_rdy;

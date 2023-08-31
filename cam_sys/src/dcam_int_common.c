@@ -182,13 +182,12 @@ static irqreturn_t dcamintcommon_isr_root(int irq, void *priv)
 		irq_status.status &= (~dcam_hw_ctx->irq_ops.error_bit.all_error);
 	}
 
+	pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_status.status);
 	if (dcam_hw_ctx->is_offline_proc) {
 		dcam_core_offline_irq_proc(dcam_hw_ctx, &irq_status);
-	} else {
-		pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_status.status);
+	} else
 		/*dcam isr root write status */
 		dcamintcommon_dcam_status_rw(irq_status, priv);
-	}
 	ret = IRQ_HANDLED;
 exit:
 	read_unlock(&dcam_hw_ctx->hw->soc_dcam->cam_ahb_lock);

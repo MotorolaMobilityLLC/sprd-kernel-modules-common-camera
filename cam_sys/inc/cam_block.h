@@ -26,6 +26,8 @@
 #define FORMAT_FRGB_VAL                2
 #endif
 
+#define CAM_BLOCK_ISP_LTM_MAP_PARAM_NUM 32768
+
 #define MIN_MAX(src, min, max) ({ \
 	if (src < min || src > max) \
 		pr_warn("warning: %s out of range,num:%d\n", #src, src); \
@@ -64,6 +66,7 @@ struct dcam_isp_k_block {
 	uint32_t src_h;
 	uint32_t vst_buf[ISP_VST_IVST_NUM2];
 	uint32_t ivst_buf[ISP_VST_IVST_NUM2];
+	uint16_t ltm_map_info[CAM_BLOCK_ISP_LTM_MAP_PARAM_NUM];
 	struct img_size sn_size;
 
 	struct dcam_dev_lsc_param lsc;
@@ -192,6 +195,7 @@ int dcam_k_blc_block(struct dcam_isp_k_block *param);
 int dcam_k_gamma_block(struct dcam_isp_k_block *param);
 int dcam_k_cmc10_block(struct dcam_isp_k_block *param);
 int dcam_k_cfa_block(struct dcam_isp_k_block *param);
+int dcam_k_save_vst_ivst(struct dcam_isp_k_block *param);
 int dcam_k_nlm_block(struct dcam_isp_k_block *param);
 int dcam_k_nlm_imblance(struct dcam_isp_k_block *param);
 int dcam_k_cce_block(struct dcam_isp_k_block *param);
@@ -231,6 +235,7 @@ int dcam_k_lscm_monitor(struct dcam_isp_k_block *param);
 
 int dcam_k_pdaf(struct dcam_isp_k_block *param);
 
+int isp_k_save_vst_ivst(struct dcam_isp_k_block *isp_k_param);
 int isp_k_nlm_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_nlm_imblance(struct dcam_isp_k_block *isp_k_param, uint32_t idx);
 int isp_k_edge_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx);
@@ -338,6 +343,7 @@ int isp_k_update_imbalance(void *handle);
 int cam_block_dcam_init(struct dcam_isp_k_block *blk_pm_ctx);
 int cam_block_isp_init(struct dcam_isp_k_block *isp_k_param);
 
+int isp_ltm_map_param_get(struct dcam_isp_k_block *isp_k_param);
 int isp_ltm_config_param(void *handle);
 int isp_pyr_rec_bypass(void *handle);
 int isp_pyr_rec_share_config(void *handle);

@@ -403,7 +403,6 @@ static int camcore_buffers_alloc(void *param)
 			alloc_param.dcamonline_buf_alloc_num = 1;
 			alloc_param.dcamoffline_buf_alloc_num = 0;
 		}
-
 		ret = cam_pipeline_buffer_alloc(channel->nonzsl_pre_pipeline, &alloc_param);
 		if (ret) {
 			pr_err("fail to alloc buffer for cam%d channel_prev\n", module->idx);
@@ -601,55 +600,6 @@ static uint32_t camcore_frame_start_proc(struct cam_frame *pframe,
 	return ret;
 }
 
-static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
-{
-	int ret = 0, i = 0, slice_num = 0;
-	struct camera_module *module = NULL;
-	struct channel_context *ch = NULL;
-	struct cam_frame *pframe = NULL;
-	struct cam_frame *pframe1 = NULL;
-	struct img_trim in_trim[SLICE_NUM_MAX] = {0};
-	struct cam_pipeline_cfg_param cfg_param = {0};
-
-	if (!param || !priv_data) {
-		pr_err("fail to get valid param %p %p\n", param, priv_data);
-		return -EFAULT;
-	}
-	module = (struct camera_module *)priv_data;
-	ch = &module->channel[CAM_CH_CAP];
-	if (!ch->enable) {
-		pr_err("fail to get cap channel on nonzsl\n");
-		return -EFAULT;
-	}
-
-	pframe = (struct cam_frame *)param;
-	slice_num = pframe->common.height / ISP_SLCIE_HEIGHT_MAX + 1;
-	for (i = 0; i < slice_num; i++) {
-		in_trim[i].start_x = 0;
-		in_trim[i].start_y = pframe->common.height / slice_num * i;
-		in_trim[i].size_x = pframe->common.width;
-		in_trim[i].size_y = pframe->common.height / slice_num;
-
-		if (i == slice_num - 1)
-			pframe1 = pframe;
-		else {
-			pframe1 = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-			memcpy(pframe1, pframe, sizeof(struct camera_frame));
-			pframe1->common.buf.type = CAM_BUF_NONE;
-		}
-		pframe1->common.slice_info.slice_num = slice_num;
-		pframe1->common.slice_info.slice_no = i;
-		pframe1->common.slice_info.in_trim = in_trim[i];
-
-		cfg_param.node_type = pframe1->common.link_to.node_type;
-		cfg_param.node_param.param = pframe1;
-		cfg_param.node_param.port_id = pframe1->common.link_to.port_id;
-		ret = ch->pipeline_handle->ops.streamon(ch->pipeline_handle, &cfg_param);
-	}
-
-	return ret;
-}
-
 static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_data, void *param)
 {
 	int i = 0;
@@ -705,6 +655,287 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 	return 0;
 }
 
+static int camcore_postproc_zoom_param_get(struct camera_module *module, enum cam_pipeline_type pipeline_type,
+	struct cam_zoom_base *zoom_param, struct cam_zoom_frame *zoom_data, struct cam_zoom_index *zoom_index)
+{
+	uint32_t i = 0, j = 0, ret = 0;
+	struct cam_zoom_port *zoom_port = NULL;
+	struct cam_zoom_node *zoom_node = NULL;
+
+	if (!module || !zoom_param || !zoom_data || !zoom_index) {
+		pr_err("fail to get input handle module:%px, channel:%px, zoom_data:%px, zoom_index:%px, zoom_param:%px.\n",
+			module, zoom_data, zoom_index, zoom_param);
+		return -EFAULT;
+	}
+
+	ret = camcore_zoom_param_get_callback(pipeline_type, module, zoom_data);
+	if (ret)
+		pr_warn("Warning: Not get postproc zoom data info.\n");
+
+	for (i = 0; i < NODE_ZOOM_CNT_MAX; i++) {
+		zoom_node = &zoom_data->zoom_node[i];
+		if (zoom_index->node_type == zoom_node->node_type
+			&& zoom_index->node_id == zoom_node->node_id) {
+			for (j = 0; j < PORT_ZOOM_CNT_MAX; j++) {
+				zoom_port = &zoom_node->zoom_port[j];
+				if (zoom_index->port_id == zoom_port->port_id
+					&& zoom_index->port_type == zoom_port->port_type)
+					zoom_port->zoom_base = *zoom_param;
+			}
+		}
+	}
+
+	return ret;
+}
+
+/* img0|img1; width_img0 = width_img1, height_img0 = height_img2
+*  img2|img3;
+*  in each subimg, tile_num_x = tile_num_y = 8; overlap_x = tile_x; overlap_y = tile_y;
+*  width_img0 = tile_num_x * tile_x = (tile_num_x -1) * tile_x + overlap_x = 7 * tile_x + overlap_x;
+*  whole_img_width = 2 * width_img0 - 2 * overlap_x = 14 * tile_x;
+*  whole_img_height = 2 * height_img0 - 2 * overlap_y = 14 * tile_y;
+*  tile_x align 4, tile_y align 2
+*  tile_x = ceil(width / 14 / 4) * 4 = ceil(width / 56) * 4; tile_y = ceil(height / 14 / 2) * 2 = ceil(height / 28) * 2;
+*/
+void camcore_oversize_img_sliceproc(struct camera_module *module,
+		struct cam_frame *pframe, uint32_t slice_no)
+{
+	int ret = 0;
+	uint32_t pipeline_type = 0;
+	uint32_t width = 0, height = 0, ltm_subimg_idx = 0;
+	uint32_t tile_x_align_coeff = 1, tile_y_align_coeff = 1;
+	uint32_t frm_trim_offset_x = 0, frm_trim_offset_y = 0;
+	uint32_t bin_width_aligned = 0, bin_height_aligned = 0;
+	uint32_t ratio = 2, w_align_cef = 1, h_align_cef = 1, width_aligned = 0, height_aligned = 0;
+	uint32_t tile_x = 0, tile_y = 0, img0_size_x = 0, img0_size_y = 0, img1_start_x = 0, img2_start_y = 0;
+	struct channel_context *channel = NULL;
+	struct cam_zoom_index zoom_index = {0};
+	struct cam_zoom_base zoom_param = {0};
+	struct img_trim sub_img_trim[ISP_OVERSIZE_LTM_SUBIMG_NUM] = {0};
+	struct img_trim sub_img_out_trim[ISP_OVERSIZE_LTM_SUBIMG_NUM] = {0};
+
+	width = pframe->common.width;
+	height = pframe->common.height;
+	channel = &module->channel[CAM_CH_CAP];
+	tile_x_align_coeff = ISP_LTM_TILE_W_ALIGNMENT * 14;
+	tile_y_align_coeff = ISP_LTM_TILE_H_ALIGNMENT * 14;
+	if (pframe->common.nonzsl_xtm.hist_eb == 0) {
+		if (height > DCAM_SW_SLICE_HEIGHT_MAX)
+			ratio = 4;
+		w_align_cef = 2 * ratio * 14;
+		h_align_cef = 2 * ratio * 14;
+		width_aligned = (width / w_align_cef) * w_align_cef;
+		height_aligned = (height / h_align_cef) * h_align_cef;
+		tile_x = (width_aligned + tile_x_align_coeff - 1) / tile_x_align_coeff * ISP_LTM_TILE_W_ALIGNMENT;
+		tile_y = (height_aligned + tile_y_align_coeff - 1) / tile_y_align_coeff * ISP_LTM_TILE_H_ALIGNMENT;
+		img0_size_x = 8 * tile_x;
+		img0_size_y = 8 * tile_y;
+		frm_trim_offset_x = (width - width_aligned) >> 1;
+		frm_trim_offset_y = (height - height_aligned) >> 1;
+		img1_start_x = width_aligned - img0_size_x + frm_trim_offset_x;
+		img2_start_y = height_aligned - img0_size_y + frm_trim_offset_y;
+		pipeline_type = channel->pipeline_type;
+		zoom_index.node_id = ISP_NODE_MODE_CAP_ID;
+		zoom_index.port_id = PORT_CAP_OUT;
+		zoom_param.dst.w = width_aligned;
+		zoom_param.dst.h = height_aligned;
+		zoom_param.crop.start_x = 0;
+		zoom_param.crop.start_y = 0;
+		zoom_param.crop.size_x = width_aligned;
+		zoom_param.crop.size_y = height_aligned;
+	} else {
+		uint32_t full_size_x = 0, full_size_y = 0;
+		full_size_x = pframe->common.nonzsl_xtm.full_size.w;
+		full_size_y = pframe->common.nonzsl_xtm.full_size.h;
+		if (full_size_x > DCAM_SW_SLICE_HEIGHT_MAX)
+			ratio = 4;
+		w_align_cef = 2 * ratio * 14;
+		h_align_cef = 2 * ratio * 14;
+		width_aligned = (full_size_x / w_align_cef) * w_align_cef;
+		height_aligned = (full_size_y / h_align_cef) * h_align_cef;
+		bin_width_aligned = width_aligned / ratio;
+		bin_height_aligned = height_aligned / ratio;
+		tile_x = (width_aligned + tile_x_align_coeff - 1) / tile_x_align_coeff * ISP_LTM_TILE_W_ALIGNMENT / ratio;
+		tile_y = (height_aligned + tile_y_align_coeff - 1) / tile_y_align_coeff * ISP_LTM_TILE_H_ALIGNMENT / ratio;
+		img0_size_x = 8 * tile_x;
+		img0_size_y = 8 * tile_y;
+		frm_trim_offset_x = (width - bin_width_aligned) >> 1;
+		frm_trim_offset_y = (height - bin_height_aligned) >> 1;
+		img1_start_x = bin_width_aligned - img0_size_x + frm_trim_offset_x;
+		img2_start_y = bin_height_aligned - img0_size_y + frm_trim_offset_y;
+		pipeline_type = channel->nonzsl_statis_pipeline_type;
+		zoom_index.node_id = ISP_NODE_MODE_PRE_ID;
+		zoom_index.port_id = PORT_PRE_OUT;
+		zoom_param.dst.w = bin_width_aligned;
+		zoom_param.dst.h = bin_height_aligned;
+		zoom_param.crop.start_x = 0;
+		zoom_param.crop.start_y = 0;
+		zoom_param.crop.size_x = bin_width_aligned;
+		zoom_param.crop.size_y = bin_height_aligned;
+	}
+	ltm_subimg_idx = slice_no;
+	pr_debug("idx:%d, hist eb:%d, tile size %d %d, align size %d %d\n", ltm_subimg_idx, pframe->common.nonzsl_xtm.hist_eb,
+		tile_x, tile_y, width_aligned, height_aligned);
+	sub_img_trim[0].start_x = frm_trim_offset_x;
+	sub_img_trim[0].start_y = frm_trim_offset_y;
+	sub_img_trim[0].size_x = img0_size_x ;
+	sub_img_trim[0].size_y = img0_size_y ;
+	sub_img_trim[1].start_x = img1_start_x;
+	sub_img_trim[1].start_y = frm_trim_offset_y;
+	sub_img_trim[1].size_x = img0_size_x;
+	sub_img_trim[1].size_y = img0_size_y;
+	sub_img_trim[2].start_x = frm_trim_offset_x;
+	sub_img_trim[2].start_y = img2_start_y;
+	sub_img_trim[2].size_x = img0_size_x;
+	sub_img_trim[2].size_y = img0_size_y;
+	sub_img_trim[3].start_x = img1_start_x;
+	sub_img_trim[3].start_y = img2_start_y;
+	sub_img_trim[3].size_x = img0_size_x;
+	sub_img_trim[3].size_y = img0_size_y;
+	pr_debug("img_in_trim, (%d %d %d %d) (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)\n",
+		sub_img_trim[0].start_x, sub_img_trim[0].start_y,
+		sub_img_trim[0].size_x, sub_img_trim[0].size_y, sub_img_trim[1].start_x, sub_img_trim[1].start_y,
+		sub_img_trim[1].size_x, sub_img_trim[1].size_y, sub_img_trim[2].start_x, sub_img_trim[2].start_y,
+		sub_img_trim[2].size_x, sub_img_trim[2].size_y, sub_img_trim[3].start_x, sub_img_trim[3].start_y,
+		sub_img_trim[3].size_x, sub_img_trim[3].size_y);
+	sub_img_out_trim[0].start_x = 0;
+	sub_img_out_trim[0].start_y = 0;
+	sub_img_out_trim[0].size_x = sub_img_trim[0].size_x - tile_x;
+	sub_img_out_trim[0].size_y = sub_img_trim[0].size_y - tile_y;
+	sub_img_out_trim[1].start_x = tile_x;
+	sub_img_out_trim[1].start_y = 0;
+	sub_img_out_trim[1].size_x = sub_img_trim[1].size_x - tile_x;
+	sub_img_out_trim[1].size_y = sub_img_trim[1].size_y - tile_y;
+	sub_img_out_trim[2].start_x = 0;
+	sub_img_out_trim[2].start_y = tile_y;
+	sub_img_out_trim[2].size_x = sub_img_trim[2].size_x - tile_x;
+	sub_img_out_trim[2].size_y = sub_img_trim[2].size_y - tile_y;
+	sub_img_out_trim[3].start_x = tile_x;
+	sub_img_out_trim[3].start_y = tile_y;
+	sub_img_out_trim[3].size_x = sub_img_trim[3].size_x - tile_x;
+	sub_img_out_trim[3].size_y = sub_img_trim[3].size_y - tile_y;
+	pr_debug("img_out_trim, (%d %d %d %d) (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)\n",
+		sub_img_out_trim[0].start_x, sub_img_out_trim[0].start_y,
+		sub_img_out_trim[0].size_x, sub_img_out_trim[0].size_y, sub_img_out_trim[1].start_x, sub_img_out_trim[1].start_y,
+		sub_img_out_trim[1].size_x, sub_img_out_trim[1].size_y, sub_img_out_trim[2].start_x, sub_img_out_trim[2].start_y,
+		sub_img_out_trim[2].size_x, sub_img_out_trim[2].size_y, sub_img_out_trim[3].start_x, sub_img_out_trim[3].start_y,
+		sub_img_out_trim[3].size_x, sub_img_out_trim[3].size_y);
+	if (ltm_subimg_idx >= ISP_OVERSIZE_LTM_SUBIMG_NUM) {
+		pr_err("fail to get target bin subimg idx, %d\n", ltm_subimg_idx);
+		return;
+	}
+	if (pframe->common.slice_info.slice_no == 0) {
+		uint32_t i = 0, j = 0;
+		unsigned long flag = 0;
+		struct cam_zoom_port *zoom_port = NULL;
+		struct cam_zoom_node *zoom_node = NULL;
+		zoom_index.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+		zoom_index.port_type = PORT_TRANSFER_OUT;
+		zoom_param.src.w = width;
+		zoom_param.src.h = height;
+		ret = camcore_postproc_zoom_param_get(module, pipeline_type, &zoom_param, &pframe->common.zoom_data, &zoom_index);
+		zoom_index.port_type = PORT_TRANSFER_IN;
+		zoom_index.port_id = PORT_ISP_OFFLINE_IN;
+		zoom_param.src.w = sub_img_trim[ltm_subimg_idx].size_x;
+		zoom_param.src.h = sub_img_trim[ltm_subimg_idx].size_y;
+		zoom_param.dst.w = sub_img_trim[ltm_subimg_idx].size_x;
+		zoom_param.dst.h = sub_img_trim[ltm_subimg_idx].size_y;
+		zoom_param.crop = sub_img_trim[ltm_subimg_idx];
+		for (i = 0; i < NODE_ZOOM_CNT_MAX; i ++) {
+			zoom_node = &pframe->common.zoom_data.zoom_node[i];
+			if (CAM_NODE_TYPE_ISP_OFFLINE == zoom_node->node_type
+				&& zoom_index.node_id == zoom_node->node_id) {
+				for (j = 0; j < PORT_ZOOM_CNT_MAX; j++) {
+					zoom_port = &zoom_node->zoom_port[j];
+					if (PORT_ISP_OFFLINE_IN == zoom_port->port_id
+						&& PORT_TRANSFER_IN == zoom_port->port_type)
+						zoom_port->zoom_base = zoom_param;
+				}
+			}
+		}
+		spin_lock_irqsave(&channel->lastest_zoom_lock, flag);
+		if (!pframe->common.nonzsl_xtm.hist_eb)
+			memcpy(&channel->latest_zoom_param, &pframe->common.zoom_data, sizeof(struct cam_zoom_frame));
+		else
+			memcpy(&channel->nonzsl_pre.latest_zoom_param, &pframe->common.zoom_data, sizeof(struct cam_zoom_frame));
+		spin_unlock_irqrestore(&channel->lastest_zoom_lock, flag);
+	}else
+		camcore_zoom_param_get_callback(pipeline_type, module,  &pframe->common.zoom_data);
+
+	pr_debug("send sub img %d to isp in_queue\n", ltm_subimg_idx);
+	pframe->common.slice_info.in_trim = sub_img_trim[ltm_subimg_idx];
+	pframe->common.slice_info.out_trim = sub_img_out_trim[ltm_subimg_idx];
+}
+
+static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
+{
+	int ret = 0, i = 0, j = 0;
+	uint32_t ltm_eb = 0;
+	uint32_t slice_num = 0, slice_num_h = 0, slice_num_w = 0;
+	struct channel_context *ch = NULL;
+	struct cam_frame *pframe = NULL;
+	struct cam_frame *pframe1 = NULL;
+	struct camera_module *module = NULL;
+	struct img_trim in_trim[SLICE_NUM_MAX] = {0};
+	struct cam_pipeline_cfg_param cfg_param = {0};
+
+	if (!param || !priv_data) {
+		pr_err("fail to get valid param %p %p\n", param, priv_data);
+		return -EFAULT;
+	}
+	module = (struct camera_module *)priv_data;
+	ch = &module->channel[CAM_CH_CAP];
+	if (!ch->enable) {
+		pr_err("fail to get cap channel on nonzsl\n");
+		return -EFAULT;
+	}
+
+	pframe = (struct cam_frame *)param;
+	slice_num_h = pframe->common.nonzsl_xtm.full_size.h / ISP_SLCIE_HEIGHT_MAX + 1;
+	ret = CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(ch, CAM_PIPELINE_CFG_XTM_EN, ISP_NODE_MODE_PRE_ID, &ltm_eb);
+	if (ret)
+		pr_err("warning: not get ltm enable status.\n");
+	if (ltm_eb)
+		slice_num_w = ISP_OVERSIZE_XTM_SLICENUM_W;
+	else {
+		memset(&pframe->common.zoom_data, 0 , sizeof(struct cam_zoom_frame));
+		camcore_zoom_param_get_callback(ch->pipeline_type, module, &pframe->common.zoom_data);
+		slice_num_w = ISP_OVERSIZE_SLICENUM_W;
+	}
+	slice_num = slice_num_w * slice_num_h;
+	for (j = 0; j  < slice_num_h; j++) {
+		for (i = 0; i < slice_num_w; i++) {
+			in_trim[i + 2 * j].start_x = pframe->common.width /slice_num_w * i ;
+			in_trim[i + 2 * j].start_y = pframe->common.height / slice_num_h * j;
+			in_trim[i + 2 * j].size_x = pframe->common.width / slice_num_w;
+			in_trim[i + 2 * j].size_y = pframe->common.height / slice_num_h;
+
+			if ((i + 2 * j) == slice_num - 1)
+				pframe1 = pframe;
+			else {
+				pframe1 = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+				memcpy(pframe1, pframe, sizeof(struct cam_frame));
+				pframe1->common.buf.type = CAM_BUF_NONE;
+			}
+			pframe1->common.slice_info.slice_num = slice_num_h * slice_num_w;
+			pframe1->common.slice_info.slice_no = i + 2 * j;
+			pframe1->common.slice_info.in_trim = in_trim[i + 2 * j];
+
+			if (ltm_eb)
+				camcore_oversize_img_sliceproc(module, pframe1, i + 2 * j);
+			cfg_param.node_type = pframe1->common.link_to.node_type;
+			cfg_param.node_param.param = pframe1;
+			cfg_param.node_param.port_id = pframe1->common.link_to.port_id;
+			if (pframe1->common.nonzsl_xtm.hist_eb)
+				ret = ch->nonzsl_pre_pipeline->ops.streamon(ch->nonzsl_pre_pipeline, &cfg_param);
+			else
+				ret = ch->pipeline_handle->ops.streamon(ch->pipeline_handle, &cfg_param);
+		}
+	}
+
+	return ret;
+}
+
 static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
 	int ret = 0, reset_flag = 0, i = 0;
@@ -726,6 +957,19 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 
 	module = (struct camera_module *)priv_data;
 	hw = module->grp->hw_info;
+
+	if (unlikely(type == CAM_CB_DCAM_DEV_ERR)) {
+		pr_err("fail to fatal err may need recovery\n");
+		if (hw->prj_id != QOGIRN6L)
+			csi_api_reg_trace();
+		if (*(uint32_t *)param) {
+			pr_info("cam %d start recovery\n", module->idx);
+			if (atomic_cmpxchg(&module->grp->recovery_state, CAM_RECOVERY_NONE, CAM_RECOVERY_RUNNING) == CAM_RECOVERY_NONE)
+				complete(&module->grp->recovery_thrd.thread_com);
+		}
+		return 0;
+	}
+
 	pframe = (struct cam_frame *)param;
 	channel = &module->channel[pframe->common.channel_id];
 
@@ -756,18 +1000,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		}
 		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
 		hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
-		return 0;
-	}
-
-	if (unlikely(type == CAM_CB_DCAM_DEV_ERR)) {
-		pr_err("fail to fatal err may need recovery\n");
-		if (hw->prj_id != QOGIRN6L)
-			csi_api_reg_trace();
-		if (*(uint32_t *)param) {
-			pr_info("cam %d start recovery\n", module->idx);
-			if (atomic_cmpxchg(&module->grp->recovery_state, CAM_RECOVERY_NONE, CAM_RECOVERY_RUNNING) == CAM_RECOVERY_NONE)
-				complete(&module->grp->recovery_thrd.thread_com);
-		}
 		return 0;
 	}
 
@@ -899,8 +1131,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			} else
 				cam_queue_empty_frame_put(pframe);
 		} else {
-			if (pframe->common.buf.type == CAM_BUF_USER) {
-				pr_info("dcam src buf return mfd %d\n", pframe->common.buf.mfd);
+			if (pframe->common.buf.type != CAM_BUF_KERNEL) {
 				ret = cam_buf_manager_buf_enqueue(&recycle_pool, pframe, NULL, (void *)module->grp->global_buf_manager);
 				if (ret)
 					pr_err("fail to enqueue recycle_pool\n");
@@ -916,13 +1147,17 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			} else {
 				pframe->common.priv_data = module;
 				pframe->common.evt = IMG_TX_DONE;
+				pframe->common.irq_type = CAMERA_IRQ_IMG;
 				if (module->capture_type == CAM_CAPTURE_RAWPROC) {
 					pr_info("raw proc return dst frame %px\n", pframe);
+
+					if (pframe->common.buf.type == CAM_BUF_KERNEL) {
+						cam_buf_free(&pframe->common.buf);
+						cam_queue_empty_frame_put(pframe);
+						return ret;
+					}
 					cam_buf_ionbuf_put(&pframe->common.buf);
-					pframe->common.irq_type = CAMERA_IRQ_DONE;
 					pframe->common.irq_property = IRQ_RAW_PROC_DONE;
-				} else {
-					pframe->common.irq_type = CAMERA_IRQ_IMG;
 				}
 				ret = CAM_QUEUE_ENQUEUE(&module->img_queue, &pframe->list);
 				if (ret)
@@ -1374,9 +1609,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 		camcore_cap_pipeline_info_get(module, channel, &pipeline_type, &dcam_port_id, &isp_port_id);
 		break;
 	case CAM_CH_RAW:
-		if ((module->grp->hw_info->prj_id == SHARKL5pro &&
-			module->cam_uinfo.sn_rect.w >= DCAM_HW_SLICE_WIDTH_MAX)
-			|| module->raw_callback)
+		if ((module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX) || module->raw_callback)
 			dcam_port_id = PORT_VCH2_OUT;
 		else
 			dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
@@ -1534,6 +1767,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 			pr_err("fail to get statis pipeline.\n");
 			return -ENOMEM;
 		}
+		channel->nonzsl_statis_pipeline_type = statis_pipe_type;
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[pipeline_type];
 		dcam_offline_desc->offline_pre_en = CAM_DISABLE;
 		isp_node_description->ch_id = channel->ch_id;
@@ -1926,6 +2160,7 @@ static void camcore_channel_default_param_set(struct channel_context *channel, u
 	init_completion(&channel->stream_on_buf_com);
 	init_completion(&channel->fast_stop);
 	spin_lock_init(&channel->lastest_zoom_lock);
+	spin_lock_init(&channel->nonzsl_pre.lastest_zoom_lock);
 }
 
 static int camcore_module_init(struct camera_module *module)
@@ -2114,45 +2349,6 @@ static void camcore_postproc_param_put(struct cam_postproc_param *postproc_param
 
 	if (postproc_param->dst_frm)
 		cam_queue_empty_frame_put(postproc_param->dst_frm);
-}
-
-static int camcore_postproc_zoom_param_get(struct camera_module *module, struct channel_context *channel,
-	struct cam_zoom_frame *zoom_data, struct cam_zoom_index *zoom_index)
-{
-	uint32_t i = 0, j = 0, ret = 0;
-	struct cam_zoom_port *zoom_port = NULL;
-	struct cam_zoom_node *zoom_node = NULL;
-
-	if (!module || !channel || !zoom_data || !zoom_index) {
-		pr_err("fail to get input handle module:%px, channel:%px, zoom_data:%px, zoom_index:%px.\n",
-			module, channel, zoom_data, zoom_index);
-		return -EFAULT;
-	}
-
-	ret = camcore_zoom_param_get_callback(channel->pipeline_type, module,  zoom_data);
-	if (ret)
-		pr_warn("Warning: Not get postproc zoom data info.\n");
-
-	for (i = 0; i < NODE_ZOOM_CNT_MAX; i++) {
-		zoom_node = &zoom_data->zoom_node[i];
-		if (zoom_index->node_type == zoom_node->node_type
-			&& zoom_index->node_id == zoom_node->node_id) {
-			for (j = 0; j < PORT_ZOOM_CNT_MAX; j++) {
-				zoom_port = &zoom_node->zoom_port[j];
-				if (zoom_index->port_id == zoom_port->port_id
-					&& zoom_index->port_type == zoom_port->port_type) {
-					zoom_port->zoom_base.dst.w = channel->ch_uinfo.dst_size.w;
-					zoom_port->zoom_base.dst.h = channel->ch_uinfo.dst_size.h;
-					zoom_port->zoom_base.crop.start_x = 0;
-					zoom_port->zoom_base.crop.start_y = 0;
-					zoom_port->zoom_base.crop.size_x= channel->ch_uinfo.dst_size.w;
-					zoom_port->zoom_base.crop.size_y= channel->ch_uinfo.dst_size.h;
-				}
-			}
-		}
-	}
-
-	return ret;
 }
 
 #define CAM_RAWCAP
