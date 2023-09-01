@@ -105,6 +105,8 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 	if (slice->slice_count % slice->w_slice_num == 0) {
 		scaler_p->im_trim0.start_x = in_trim.start_x;
 		scaler_p->im_trim0.size_x = scaler_p->src_size.w - in_trim.start_x;
+		if (in_trim.start_x + in_trim.size_x < slice->cur_slice->size_x)
+			scaler_p->im_trim0.size_x = in_trim.size_x + DCAM_OVERLAP;
 		scaler_p->im_trim0.size_y = scaler_p->src_size.h - in_trim.start_y * trim_y_coef;
 		scaler_p->dst_size.w = scaler_p->im_trim0.size_x / ratio;
 		scaler_p->dst_size.h = scaler_p->im_trim0.size_y / ratio;
@@ -117,6 +119,7 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 		store_p->store_offset[0] = store_offset[0];
 		store_p->store_offset[1] = store_offset[1];
 		store_p->crop.start_x = in_trim.start_x;
+		store_p->crop.start_y = in_trim.start_y;
 		store_p->crop.size_x = store_p->store_size.w * ratio;
 		store_p->crop.size_y = store_p->store_size.h * ratio;
 		store_p->out_border.left_border = 0;
@@ -125,6 +128,7 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 		hw_ctx->relative_offset[slicearg->path_id] = in_trim.start_x;
 	} else if (slice->slice_count % slice->w_slice_num == 1) {
 		scaler_p->im_trim0.start_x = 0;
+		scaler_p->im_trim0.start_y = in_trim.start_y;
 		scaler_p->im_trim0.size_x = scaler_p->src_size.w - in_trim.start_x;
 		scaler_p->im_trim0.size_y = scaler_p->src_size.h - in_trim.start_y * trim_y_coef;
 		scaler_p->dst_size.w = scaler_p->im_trim0.size_x / ratio;
@@ -137,6 +141,7 @@ static int dcamhwctx_slice_store_param_get(struct dcam_hw_context *hw_ctx, struc
 		}
 		store_p->store_offset[0] = store_p->store_offset[1] = (slice->cur_slice->start_x - relative_offset) / ratio * data_byte / 4;
 		store_p->crop.start_x = DCAM_OVERLAP;
+		store_p->crop.start_y = in_trim.start_y;
 		store_p->crop.size_x = store_p->store_size.w * ratio;
 		store_p->crop.size_y = store_p->store_size.h * ratio;
 		store_p->out_border.left_border = DCAM_OVERLAP / ratio;
@@ -276,7 +281,7 @@ void dcam_hwctx_slice_set(struct dcam_hw_context *hw_ctx, struct dcam_fetch_info
 	if (hw_ctx->offline_pre_en) {
 		slicearg.bin_store.bin_en = hw_ctx->offline_pre_en;
 		slicearg.path_id = DCAM_PATH_BIN;
-		ratio = fetch->trim.size_x / hw_ctx->hw_path[slicearg.path_id].hw_size.out_size.w;
+		ratio = hw_ctx->hw_path[slicearg.path_id].hw_size.in_trim.size_x / hw_ctx->hw_path[slicearg.path_id].hw_size.out_size.w;
 		dcamhwctx_slice_store_param_get(hw_ctx, &slicearg, &slicearg.bin_scaler, &slicearg.bin_store, ratio);
 	}
 	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_SLICE_FETCH_SET, &slicearg);
