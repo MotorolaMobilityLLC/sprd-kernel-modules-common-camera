@@ -2475,7 +2475,7 @@ struct isp_dev_rgb_ltm_map_info {
 	uint32_t frame_width;
 	uint32_t frame_height;
 	uint32_t ltm_map_size;/* normal is 8192 * sizeof(uint16_t), abnormal is 8192 * 4 * sizeof(uint16_t) in 108M nonzsl capture for qogirl6 */
-	void  __user  *ltm_map_addr;
+	uint64_t ltm_map_addr;
 };
 
 struct isp_dev_rgb_ltm_info {
