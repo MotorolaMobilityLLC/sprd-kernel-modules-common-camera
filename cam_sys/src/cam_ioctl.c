@@ -1438,6 +1438,7 @@ static int camioctl_stream_off(struct camera_module *module,
 		}
 		/* default 0, hal set 1 when needed */
 		module->auto_3dnr = 0;
+		module->offline_icap_scene = 0;
 	}
 
 	if (module->res_frame) {
