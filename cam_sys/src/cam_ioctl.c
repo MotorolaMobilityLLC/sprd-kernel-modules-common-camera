@@ -26,6 +26,15 @@ extern g_dbg_raw2frgb_switch;
 	|| __s == CAPTURE_AI_SFNR);    \
 })
 
+/* Static Variables Declaration */
+static uint32_t output_img_fmt[] = {
+	/* CAM_YUV420_2FRAME */
+	IMG_PIX_FMT_NV12,
+	/* CAM_YVU420_2FRAME */
+	IMG_PIX_FMT_NV21,
+	IMG_PIX_FMT_GREY,
+};
+
 static int camioctl_time_get(struct camera_module *module,
 		unsigned long arg)
 {
@@ -211,7 +220,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 			break;
 		case STATIS_LTMHIST:
 			if (hw->ip_isp->isphw_abt->rgb_ltm_support) {
-				if (!ch_pre->enable) {
+				if (!ch_pre->enable && !ch_cap->enable) {
 					pr_warn("warning:channel:%d not eb, can not set ltm buf\n", ch_pre ->ch_id);
 					break;
 				}
@@ -229,7 +238,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 			if (ret)
 				pr_err("fail to config isp STATIS, statis_buf.type %d\n", statis_buf.type);
 		} else {
-			pr_debug("prev channel disable, can not set buf\n");
+			pr_debug("prev channel disable, can not set buf %d, %d\n", ch_cap->enable, module->cam_uinfo.dcam_slice_mode);
 			if (ch_cap->enable && module->cam_uinfo.dcam_slice_mode)
 				ret = CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
 		}
@@ -327,7 +336,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		channel = &module->channel[CAM_CH_CAP];
 
 	if ((module->capture_type == CAM_CAPTURE_RAWPROC) && (param.sub_block == DCAM_BLOCK_LSCM
-		|| param.sub_block == DCAM_BLOCK_AEM || param.sub_block == DCAM_BLOCK_BAYERHIST)){
+		|| param.sub_block == DCAM_BLOCK_AEM || param.sub_block == DCAM_BLOCK_BAYERHIST)) {
 		channel = &module->channel[CAM_CH_CAP];
 		for_capture = 1;
 	}
@@ -368,6 +377,10 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		goto exit;
 	}
 	node_id = (channel->ch_id == CAM_CH_CAP) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
+	if (param.scene_id == PM_SCENE_OFFLINE_CAP &&
+		cam_pipeline_have_node_id(channel->pipeline_handle, CAM_NODE_TYPE_ISP_OFFLINE, ISP_NODE_MODE_OFFLINE_CAP_ID))
+		node_id = ISP_NODE_MODE_OFFLINE_CAP_ID;
+
 	switch (blk_type.block_type) {
 	case DCAM_BLOCK_TYPE:
 		if (blk_type.sub_block == ISP_BLOCK_RGB_GTM) {
@@ -1440,7 +1453,7 @@ static int camioctl_stream_off(struct camera_module *module,
 	atomic_set(&module->state, CAM_IDLE);
 
 	ret = cam_buf_mdbg_check();
-	pr_info("cam %d stream off done.\n", module->idx);
+	pr_info("cam %d stream off done, iommu:%d.\n", module->idx, module->iommu_enable);
 
 	return ret;
 }
@@ -2017,22 +2030,13 @@ static int camioctl_raw_proc(struct camera_module *module,
 
 	switch (proc_info.cmd) {
 	case RAW_PROC_PRE:
-		if (g_dbg_raw2frgb_switch == DEBUG_RAWCAP_MODE)
-			ret = camrawcap_raw_pre_proc(module, &proc_info);
-		else
-			ret = camrawcap_storeccm_frgb_pre_proc(module, &proc_info);
+		ret = camrawcap_raw_pre_proc(module, &proc_info);
 		break;
 	case RAW_PROC_POST:
-		if (g_dbg_raw2frgb_switch == DEBUG_RAWCAP_MODE)
-			ret = camrawcap_raw_post_proc(module, &proc_info);
-		else
-			ret = camrawcap_storeccm_frgb_post_proc(module, &proc_info);
+		ret = camrawcap_raw_post_proc(module, &proc_info);
 		break;
 	case RAW_PROC_DONE:
-		if (g_dbg_raw2frgb_switch == DEBUG_RAWCAP_MODE)
-			ret = camrawcap_raw_proc_done(module);
-		else
-			ret = camrawcap_storeccm_frgb_proc_done(module);
+		ret = camrawcap_raw_proc_done(module);
 		break;
 	case VIRTUAL_SENSOR_PROC:
 		ret = camcore_virtual_sensor_proc(module, &proc_info);
@@ -2051,6 +2055,7 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 	int ret = 0;
 	uint32_t mode_3dnr = 0, in_fmt = 0;
 	struct cam_zoom_index zoom_index = {0};
+	struct cam_zoom_base zoom_param = {0};
 	struct cam_pipeline_cfg_param param = {0};
 	struct cam_postproc_param postproc_param = {0};
 	struct channel_context *ch = NULL;
@@ -2072,7 +2077,13 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 		zoom_index.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		zoom_index.port_type = PORT_TRANSFER_IN;
 		zoom_index.port_id = PORT_ISP_OFFLINE_IN;
-		ret = camcore_postproc_zoom_param_get(module, ch, &postproc_param.src_frm->common.zoom_data, &zoom_index);
+		zoom_param.dst.w = ch->ch_uinfo.dst_size.w;
+		zoom_param.dst.h = ch->ch_uinfo.dst_size.h;
+		zoom_param.crop.start_x = 0;
+		zoom_param.crop.start_y = 0;
+		zoom_param.crop.size_x= ch->ch_uinfo.dst_size.w;
+		zoom_param.crop.size_y= ch->ch_uinfo.dst_size.h;
+		ret = camcore_postproc_zoom_param_get(module, ch->pipeline_type, &zoom_param, &postproc_param.src_frm->common.zoom_data, &zoom_index);
 	}
 	if (postproc_param.need_cfg_blkpm) {
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, ISP_NODE_MODE_CAP_ID, &postproc_param);

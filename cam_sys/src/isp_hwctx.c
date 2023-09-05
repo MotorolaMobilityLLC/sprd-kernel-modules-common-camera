@@ -213,7 +213,6 @@ int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_inf
 	slc_cfg_in.frame_fetch = &pipe_info->fetch;
 	slc_cfg_in.thumb_scaler = &pipe_info->thumb_scaler;
 	slc_cfg_in.sw_slice_num = sw_slice_num;
-
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		slc_cfg_in.calc_dyn_ov.path_en[i] = pipe_info->store[i].used;
 		if (slc_cfg_in.calc_dyn_ov.path_en[i]) {
@@ -247,11 +246,16 @@ exit:
 int isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input *slc_cfg)
 {
 	uint32_t i = 0, ret = 0;
+	struct img_trim intrim = {0};
 
 	for (i = 0; i < ISP_SPATH_NUM; i++) {
 		if (!pctx_hw->pipe_info.store[i].used)
 			continue;
 		slc_cfg->frame_store[i] = &pctx_hw->pipe_info.store[i].store;
+		if (slc_cfg->sw_slice_num)
+			slc_cfg->frame_trim0[i] = &pctx_hw->pipe_info.scaler[i].in_trim;
+		else
+			slc_cfg->frame_trim0[i] = &intrim;
 	}
 
 	slc_cfg->frame_fetch = &pctx_hw->pipe_info.fetch;
@@ -416,9 +420,6 @@ int isp_hwctx_fetch_frm_set(void *dev_handle, struct isp_hw_fetch_info *fetch, s
 		fetch->addr.addr_ch0 = yuv_addr[0];
 		fetch->addr.addr_ch1 = yuv_addr[1];
 		fetch->addr.addr_ch2 = yuv_addr[2];
-		yuv_addr[0] += fetch->trim_off.addr_ch0;
-		yuv_addr[1] += fetch->trim_off.addr_ch1;
-		yuv_addr[2] += fetch->trim_off.addr_ch2;
 		fetch->addr_hw.addr_ch0 = yuv_addr[0];
 		fetch->addr_hw.addr_ch1 = yuv_addr[1];
 		fetch->addr_hw.addr_ch2 = yuv_addr[2];

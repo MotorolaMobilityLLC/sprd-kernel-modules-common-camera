@@ -312,7 +312,7 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 		if (path_done[DCAM_PATH_FULL] != slice_info->slice_num
 			&& path_done[DCAM_PATH_BIN] != slice_info->slice_num
 			&& path_done[DCAM_PATH_RAW] != slice_info->slice_num)
-			return 0;
+				return 0;
 	}
 
 	ret = dcamoffline_data_callback(node, irq_desc->dcam_cb_type, port_id);
@@ -543,8 +543,7 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 	slice = &hw_ctx->slice_info;
 	wait_time_flag = WAIT_IN_NORMAL_SCENE;
 	for (i = 0; i < slice->slice_num; i++) {
-		ret = wait_for_completion_interruptible_timeout(
-				&node->slice_done, DCAM_OFFLINE_TIMEOUT);
+		ret = wait_for_completion_interruptible_timeout(&node->slice_done, DCAM_OFFLINE_TIMEOUT);
 		if (ret <= 0) {
 			pr_err("fail to wait as dcam%d offline timeout. ret: %d\n", hw_ctx->hw_ctx_id, ret);
 			trace.type = ABNORMAL_REG_TRACE;
@@ -559,7 +558,6 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 				return -EFAULT;
 			}
 		}
-
 		if (atomic_read(&node->status) == STATE_ERROR) {
 			pr_info("warning dcam offline slice%d/%d\n", i, slice->slice_num);
 			return 0;
@@ -611,7 +609,6 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 		mutex_unlock(&pm->lsc.lsc_lock);
 
 		/* DCAM_CTRL_COEF will always set in dcam_init_lsc() */
-
 		dcam_hwctx_slice_force_copy(hw_ctx, i);
 		dcamoffline_node_ts_cal(node);
 		/* start fetch */
@@ -643,6 +640,24 @@ static struct dcam_isp_k_block *dcamoffline_frm_param_get(struct cam_frame *pfra
 	mutex_unlock(&node->blkpm_dcam_lock);
 	pr_warn("Warning: not get param fm.\n");
 	return NULL;
+}
+
+int dcamoffline_blkpm_prepare(struct dcam_offline_node *node, void *param)
+{
+	int ret = 0;
+	struct cam_hw_info *hw = NULL;
+	struct cfg_param_status *cfg_param = NULL;
+
+	if (!node || !param) {
+		pr_err("fail to get valid param %px %px\n", node, param);
+		return -EFAULT;
+	}
+
+	hw = node->dev->hw;
+	cfg_param = (struct cfg_param_status *)param;
+	hw->dcam_ioctl(cfg_param->blkpm_ptr, DCAM_HW_CONTEXT_1, DCAM_HW_CFG_NONZSL_BLOCK_PARAM, &node->pm_ctx.blk_pm);
+
+	return ret;
 }
 
 static int dcamoffline_node_frame_start(void *param)

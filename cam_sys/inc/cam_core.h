@@ -73,15 +73,6 @@ enum camera_raw_scene {
 	CAM_SCENE_RAW_MAX,
 };
 
-/* Static Variables Declaration */
-static uint32_t output_img_fmt[] = {
-	/* CAM_YUV420_2FRAME */
-	IMG_PIX_FMT_NV12,
-	/* CAM_YVU420_2FRAME */
-	IMG_PIX_FMT_NV21,
-	IMG_PIX_FMT_GREY,
-};
-
 struct compat_isp_io_param {
 	uint32_t scene_id;
 	uint32_t sub_block;
@@ -206,6 +197,7 @@ struct channel_context {
 
 	enum cam_pipeline_type pipeline_type;
 	struct cam_pipeline *pipeline_handle;
+	enum cam_pipeline_type nonzsl_statis_pipeline_type;
 	struct cam_pipeline *nonzsl_pre_pipeline;
 
 	struct camera_uchannel ch_uinfo;

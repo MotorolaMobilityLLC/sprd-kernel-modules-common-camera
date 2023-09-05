@@ -338,7 +338,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 			tuning->tile_num_auto, tuning->tile_num.tile_num_x, tuning->tile_num.tile_num_y);
 	pr_debug("frame height %d, width %d clip_limit %d clip_limit_min %d\n",  ctx->frame_height, ctx->frame_width, tuning->clip_limit,tuning->clip_limit_min);
 
-	ispltm_histo_param_calc(ctx, param, ISP_LTM_ALIGNMENT);
+	ispltm_histo_param_calc(ctx, param, ISP_LTM_TILE_W_ALIGNMENT);
 
 	hists->bypass = param->bypass;
 	hists->channel_sel = param->channel_sel;
@@ -382,6 +382,8 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 	ltm_hist_frame->common.ltm_info.tile_num_y = param->tile_num_y;
 	ltm_hist_frame->common.ltm_info.frame_width = param->frame_width;
 	ltm_hist_frame->common.ltm_info.frame_height = param->frame_height;
+	ltm_hist_frame->common.ltm_info.statis_no = ctx->slice_no;
+	ltm_hist_frame->common.ltm_info.statis_num = ctx->slice_num;
 	ltm_hist_frame->common.width = param->frame_width;
 	ltm_hist_frame->common.height = param->frame_height;
 	ltm_hist_frame->common.fid = ctx->fid;
@@ -422,7 +424,7 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 }
 
 static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
-			struct isp_ltm_map_info *tuning, int type)
+			struct isp_ltm_map_info *tuning)
 {
 	uint32_t ratio_delta = 0;
 	uint32_t slice_info[4] = {0};
@@ -442,8 +444,8 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 	struct isp_ltm_hist_param *param = &map_param;
 
 	map->bypass = map->bypass || tuning->bypass;
-	pr_debug("ltm: type %d, map bypass %d, tuning bypass %d\n",
-			type, map->bypass, tuning->bypass);
+	pr_debug("ltm:%d, map bypass %d, tuning bypass %d\n",
+			map->bypass, tuning->bypass);
 
 	if (map->bypass)
 		return 0;
@@ -463,22 +465,14 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 		return 0;
 	}
 
-	if (type == ISP_PRO_LTM_PRE_PARAM) {
-		if ((frame_width_stat * ctx->frame_height) != (frame_height_stat * ctx->frame_width)) {
-			pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
-			ctx->map.bypass = 1;
-			return 0;
-		}
+	ratio_delta = abs((frame_width_stat * ctx->frame_height) * 100 / (frame_height_stat * ctx->frame_width) - 100);
+	if (ratio_delta <= 5) {
+		pr_debug("fid %d delta %d prv size [%d %d] cap size [%d %d]\n",
+				ctx->fid, ratio_delta, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
 	} else {
-		ratio_delta = abs((frame_width_stat * ctx->frame_height) * 100 / (frame_height_stat * ctx->frame_width) - 100);
-		if (ratio_delta <= 5) {
-			pr_debug("fid %d delta %d prv size [%d %d] cap size [%d %d]\n",
-					ctx->fid, ratio_delta, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
-		} else {
-			pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
-			map->bypass = 1;
-			return 0;
-		}
+		pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
+		map->bypass = 1;
+		return 0;
 	}
 
 	pr_debug("tile_num_x[%d], tile_num_y[%d], tile_width[%d], tile_height[%d], \
@@ -488,13 +482,13 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 		ts.tile_width, ts.tile_height,
 		frame_width_stat, frame_height_stat,
 		frame_width_map, frame_height_map,
-		ISP_LTM_ALIGNMENT);
+		ISP_LTM_TILE_W_ALIGNMENT);
 
 	/*
 	 * frame_width_map/frame_width_stat should be
 	 * equal to frame_height_map/frame_height_stat
 	 */
-	if (ISP_LTM_ALIGNMENT == 4) {
+	if (ISP_LTM_TILE_W_ALIGNMENT == 4) {
 		if (frame_width_stat != 0 && frame_height_stat != 0) {
 			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
 			ratio_h = ((frame_height_map << 8) + (frame_height_stat / 2)) / frame_height_stat;
@@ -612,7 +606,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 			pr_err("fail to preview hist config, ctx id %d, fid %d\n", ctx->ctx_id, ctx->fid);
 			break;
 		}
-		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_PRE_PARAM);
+		ispltm_map_config_gen(ctx, &ltm_info->ltm_map);
 		ltm_cfg_func.k_blk_func(ctx);
 		break;
 	case MODE_LTM_CAP:
@@ -622,7 +616,7 @@ static int ispltm_pipe_proc(void *handle, void *param)
 			pr_err("fail to capture hist config fail, maybe none-zsl, ctx id %d, fid %d\n", ctx->ctx_id, ctx->fid);
 			break;
 		}
-		ispltm_map_config_gen(ctx, &ltm_info->ltm_map, ISP_PRO_LTM_CAP_PARAM);
+		ispltm_map_config_gen(ctx, &ltm_info->ltm_map);
 		ltm_cfg_func.k_blk_func(ctx);
 		break;
 	case MODE_LTM_OFF:
@@ -639,10 +633,10 @@ static int ispltm_cfg_param(void *handle,
 		enum isp_ltm_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
-	uint32_t fid = 0;
 	struct img_trim *crop = NULL;
+	struct cam_frame *pframe = NULL;
 	struct isp_ltm_ctx_desc *ltm_ctx = NULL;
-	struct isp_dev_rgb_ltm_map_info *ltm_map = NULL;;
+	struct dcam_isp_k_block *isp_blk_param = NULL;;
 
 	if (!handle || !param) {
 		pr_err("fail to get valid input ptr\n");
@@ -650,7 +644,6 @@ static int ispltm_cfg_param(void *handle,
 	}
 
 	ltm_ctx = (struct isp_ltm_ctx_desc *)handle;
-	ltm_map = (struct isp_dev_rgb_ltm_map_info *)param;
 	switch (cmd) {
 	case ISP_LTM_CFG_EB:
 		ltm_ctx->enable = *(uint32_t *)param;
@@ -661,22 +654,19 @@ static int ispltm_cfg_param(void *handle,
 		pr_debug("ctx_id %d, LTM mode %d\n", ltm_ctx->ctx_id,ltm_ctx->mode);
 		break;
 	case ISP_LTM_CFG_FRAME_ID:
-		fid = *(uint32_t *)param;
-		ltm_ctx->fid = fid;
-		pr_debug("LTM frame id %d, map %d\n", ltm_ctx->fid, ltm_ctx->map.bypass);
+		pframe = (struct cam_frame *)param;
+		ltm_ctx->fid = pframe->common.fid;
+		ltm_ctx->slice_num = pframe->common.slice_info.slice_num;
+		ltm_ctx->slice_no = pframe->common.slice_info.slice_no;
+		if (!pframe->common.slice_info.slice_num)
+			ltm_ctx->slice_num = 1;
+		pr_debug("LTM frame id %d, slice num %d\n", ltm_ctx->fid, ltm_ctx->slice_num);
 		break;
 	case ISP_LTM_CFG_SIZE_INFO:
 		crop = (struct img_trim *)param;
-		if (ltm_ctx->mode == MODE_LTM_PRE) {
-			if (((crop->size_x != ltm_ctx->frame_width) ||
-				(crop->size_y != ltm_ctx->frame_height)) && ltm_ctx->fid != 0) {
-				ltm_ctx->map.bypass = 1;
-			}
-		}
-		pr_debug("frame size: %d, %d.\n", ltm_ctx->frame_width, ltm_ctx->frame_height);
 		ltm_ctx->frame_width = crop->size_x;
 		ltm_ctx->frame_height = crop->size_y;
-		pr_debug("LTM frame id %d, crop %d, %d, map %d\n", ltm_ctx->fid, crop->size_x, crop->size_y, ltm_ctx->map.bypass);
+		pr_debug("LTM frame id %d, crop %d, %d, map %d\n", ltm_ctx->fid, ltm_ctx->frame_width, ltm_ctx->frame_height, ltm_ctx->map.bypass);
 		break;
 	case ISP_LTM_CFG_HIST_BYPASS:
 		ltm_ctx->hists.bypass = !(*(uint32_t *)param);
@@ -687,10 +677,11 @@ static int ispltm_cfg_param(void *handle,
 		pr_debug("LTM frame id %d, map bypass %d\n", ltm_ctx->fid, ltm_ctx->map.bypass);
 		break;
 	case ISP_LTM_CFG_MAP_BUF:
+		isp_blk_param = (struct dcam_isp_k_block *)param;
 		ltm_ctx->cur_mapbuf_id = !ltm_ctx->cur_mapbuf_id;
 		if (ltm_ctx->ltm_frame[ltm_ctx->cur_mapbuf_id].buf.addr_k)
 			memcpy((void *)ltm_ctx->ltm_frame[ltm_ctx->cur_mapbuf_id].buf.addr_k,
-				ltm_map->ltm_map_info, sizeof(uint16_t) * 8192);
+				&isp_blk_param->ltm_map_info[ltm_ctx->slice_no * 8192], sizeof(uint16_t) * 8192);
 		break;
 	default:
 		pr_err("fail to get known cmd: %d\n", cmd);
@@ -790,7 +781,7 @@ int isp_ltm_map_slice_config_gen(struct isp_ltm_ctx_desc *ctx,
 	 * frame_width_map/frame_width_stat should be
 	 * equal to frame_height_map/frame_height_stat
 	 */
-	if (ISP_LTM_ALIGNMENT == 4) {
+	if (ISP_LTM_TILE_W_ALIGNMENT == 4) {
 		if (frame_width_stat != 0 && frame_height_stat != 0) {
 			ratio_w = ((frame_width_map << 8) + (frame_width_stat / 2)) / frame_width_stat;
 			ratio_h = ((frame_height_map << 8) + (frame_height_stat / 2)) / frame_height_stat;

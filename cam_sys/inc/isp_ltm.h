@@ -179,6 +179,8 @@ struct isp_ltm_ctx_desc {
 	uint32_t cur_mapbuf_id;
 
 	uint32_t fid;
+	uint32_t slice_num;
+	uint32_t slice_no;
 	uint32_t frame_width;
 	uint32_t frame_height;
 	uint32_t frame_width_stat;

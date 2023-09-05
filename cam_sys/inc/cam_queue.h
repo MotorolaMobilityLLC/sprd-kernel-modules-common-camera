@@ -138,6 +138,11 @@ struct isp_xtm_conflict_info {
 	uint32_t gtm_mod_en;
 };
 
+struct isp_xtm_nonzsl_info {
+	uint32_t hist_eb;
+	struct img_size full_size;
+};
+
 struct camera_zoom_frame {
 	struct sprd_img_rect zoom_crop;
 	struct sprd_img_rect total_zoom_crop;
@@ -215,6 +220,7 @@ struct camera_frame {
 	struct img_slice_info slice_info;
 
 	struct sprd_img_ltm_info ltm_info;
+	struct isp_xtm_nonzsl_info nonzsl_xtm;
 };
 
 enum camera_frame_type {
@@ -278,12 +284,12 @@ struct cam_queue_frame_manager {
 	if (prev->next != entry || next->prev != entry) { \
 		prev->next = next; \
 		next->prev = prev; \
-		prev == LIST_POISON2; \
-		next == LIST_POISON1; \
+		prev = LIST_POISON2; \
+		next = LIST_POISON1; \
 	} \
 	if (next == NULL || prev == NULL) { \
-		prev == LIST_POISON2; \
-		next == LIST_POISON1; \
+		prev = LIST_POISON2; \
+		next = LIST_POISON1; \
 	} \
 	if (prev == LIST_POISON2 || next == LIST_POISON1) \
 		ret = 1; \

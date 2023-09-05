@@ -239,7 +239,6 @@ struct pyr_dec_node {
 	uint32_t dcam_slice_mode;
 	enum cam_en_status is_yuvsensor;
 	enum cam_en_status is_4in1;
-	enum cam_en_status is_rawcap;
 	enum cam_en_status is_bind;
 	enum cam_en_status is_fast_stop;
 	struct completion *fast_stop_done;
@@ -307,7 +306,6 @@ struct pyr_dec_node_desc {
 	uint32_t dcam_slice_mode;
 	enum cam_en_status is_yuvsensor;
 	enum cam_en_status is_4in1;
-	enum cam_en_status is_rawcap;
 	uint32_t blkparam_buf_num;
 	struct img_size sn_size;
 

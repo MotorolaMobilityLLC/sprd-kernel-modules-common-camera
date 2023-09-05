@@ -106,7 +106,7 @@ static int isp_k_pdaf_type3_block(
 	struct isp_io_param *param, struct dcam_isp_k_block *p)
 {
 	int ret = 0;
-	enum dcam_id idx;
+	uint32_t idx = p->idx;
 	struct dev_dcam_vc2_control *vch2_info = &p->pdaf.vch2_info;
 
 	ret = copy_from_user((void *)vch2_info,
@@ -117,7 +117,6 @@ static int isp_k_pdaf_type3_block(
 		return -1;
 	}
 
-	idx = p->idx;
 	p->pdaf.pdaf_type = DCAM_PDAF_TYPE3;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;

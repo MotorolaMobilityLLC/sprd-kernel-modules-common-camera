@@ -40,12 +40,10 @@ static int ispport_slice_fetch_prepare(struct isp_port *port, void *param)
 	fetch->in_trim = slice->in_trim;
 	fetch->src.w = slice->in_trim.size_x;
 	fetch->src.h = slice->in_trim.size_y;
-	fetch->trim_off.addr_ch0 =
-		(slice->slice_no / (slice->slice_num / 2)) * fetch->pitch.pitch_ch0 * (height - fetch->in_trim.start_y);
 
-	pr_info("fetch src %d, %d, in_trim(%d, %d, %d, %d)\n",
+	pr_info("fetch src %d, %d, in_trim(%d, %d, %d, %d), slice info:(%d, %d)\n",
 		fetch->src.w, fetch->src.h, fetch->in_trim.start_x, fetch->in_trim.start_y,
-		fetch->in_trim.size_x, fetch->in_trim.size_y);
+		fetch->in_trim.size_x, fetch->in_trim.size_y, slice->slice_num, slice->slice_no);
 
 	return ret;
 }
@@ -53,6 +51,7 @@ static int ispport_slice_fetch_prepare(struct isp_port *port, void *param)
 static int ispport_slice_store_prepare(struct isp_port *port, void *param)
 {
 	uint32_t ret = 0, width = 0, height = 0, path_id = 0;
+	uint32_t store_start_x = 0, store_start_y = 0;
 	struct isp_port_cfg *port_cfg = NULL;
 	struct isp_store_info *store = NULL;
 	struct isp_hw_path_scaler *path = NULL;
@@ -71,22 +70,37 @@ static int ispport_slice_store_prepare(struct isp_port *port, void *param)
 	height = port_cfg->src_frame->common.height;
 	port->slice_info.slice_num = slice->slice_num;
 	port->slice_info.slice_no = slice->slice_no;
+	if ((slice->out_trim.size_x + slice->out_trim.size_y) == 0)
+		slice->out_trim = slice->in_trim;
 
 	path->src.w = slice->in_trim.size_x;
 	path->src.h = slice->in_trim.size_y;
-	path->in_trim = slice->in_trim;
-	path->dst.w = path->in_trim.size_x;
-	path->dst.h = path->in_trim.size_y;
-	path->out_trim = slice->in_trim;
-
-	store->pitch.pitch_ch0 = width;
-	store->pitch.pitch_ch1 = width;
+	path->in_trim= slice->out_trim;
+	path->dst = port->size;
+	path->out_trim = slice->out_trim;
+	if (slice->slice_no % 2 == 0){
+		store_start_x = 0;
+	} else {
+		store_start_x = slice->out_trim.size_x;
+	}
+	if (slice->slice_no < 2)
+		store_start_y = 0;
+	else
+		store_start_y = slice->out_trim.size_y;
+	store->pitch.pitch_ch0 = path->dst.w;
+	store->pitch.pitch_ch1 = path->dst.w;
 	store->size.w = ALIGN(path->out_trim.size_x, 2);
 	store->size.h = ALIGN(path->out_trim.size_y, 2);
-	store->slice_offset.addr_ch0 = slice->in_trim.start_x
-		+ (slice->slice_no / (slice->slice_num / 2)) * store->pitch.pitch_ch0 * (height - store->size.h);
-	store->slice_offset.addr_ch1 = slice->in_trim.start_x
-		+ (slice->slice_no / (slice->slice_num / 2)) * store->pitch.pitch_ch1 * (height - store->size.h) / 2;
+	if (slice->slice_num > SLICE_NUM_MAX) {
+		store->slice_offset.addr_ch0 = slice->in_trim.start_x
+			+ (slice->slice_no / (slice->slice_num / 2)) * store->pitch.pitch_ch0 * (height - store->size.h);
+		store->slice_offset.addr_ch1 = slice->in_trim.start_x
+			+ (slice->slice_no / (slice->slice_num / 2)) * store->pitch.pitch_ch1 * (height - store->size.h) / 2;
+	} else {
+		store->slice_offset.addr_ch0 = store_start_x + store_start_y * store->pitch.pitch_ch0;
+		store->slice_offset.addr_ch1 = store_start_x + store_start_y * store->pitch.pitch_ch0 / 2;
+		store->slice_offset.addr_ch2 = 0;
+	}
 	pr_info("scaler src %d, %d, in_trim(%d, %d, %d, %d), dst %d, %d, out_trim(%d, %d, %d, %d), store %d, %d\n",
 		path->src.w, path->src.h, path->in_trim.start_x, path->in_trim.start_y,
 		path->in_trim.size_x, path->in_trim.size_y, path->dst.w, path->dst.h,
@@ -179,8 +193,11 @@ static uint32_t ispport_buf_set(struct isp_port *port, void *param)
 	}
 
 	if (port->type == PORT_TRANSFER_OUT) {
-		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
-		ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
+		if (pframe->common.buf.type == CAM_BUF_USER) {
+			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
+			ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, &buf_desc, port->buf_manager_handle);
+		} else
+			ret = cam_buf_manager_buf_enqueue(&port->store_unprocess_pool, pframe, NULL, port->buf_manager_handle);
 		if (ret)
 			pr_err("fail to enqueue output buffer,type:%d port_id %d.\n", port->type, port->port_id);
 	}
@@ -277,7 +294,6 @@ static int ispport_storeport_postproc(struct isp_port *port, void *param)
 	}
 	pframe->common.zoom_ratio = post_param->zoom_ratio;
 	pframe->common.total_zoom = post_param->total_zoom;
-
 	pr_debug("port%d, ch_id %d, fid %d, mfd 0x%x, is_reserved %d\n",
 		port->port_id, pframe->common.channel_id, pframe->common.fid, pframe->common.buf.mfd, pframe->common.is_reserved);
 	pr_debug("time_sensor %03d.%6d\n", (uint32_t)pframe->common.sensor_time.tv_sec, (uint32_t)pframe->common.sensor_time.tv_usec);
@@ -412,9 +428,9 @@ normal_out_put:
 		if (out_frame->common.is_reserved == 0 && (out_frame->common.buf.mapping_state & CAM_BUF_MAPPING_ISP) == 0) {
 			if (out_frame->common.buf.mfd == port->reserved_buf_fd) {
 				out_frame->common.buf.size = port->reserve_buf_size;
-				pr_debug("out_frame->common.buf.size = %d, path->reserve_buf_size = %d\n", (int)out_frame->common.buf.size, (int)port->reserve_buf_size);
+				pr_debug("out_frame->common.buf.size = %x, path->reserve_buf_size = %d\n", out_frame->common.buf.iova, (int)port->reserve_buf_size);
 			} else
-				pr_debug("out_frame->common.buf.size = %d\n", (int)out_frame->common.buf.size);
+				pr_debug("out_frame->common.buf.size = %x\n", out_frame->common.buf.iova);
 		}
 	}
 exit:
@@ -511,7 +527,8 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 	out_frame->common.boot_sensor_time = port_cfg->src_frame->common.boot_sensor_time;
 	out_frame->common.link_from.port_id = port->port_id;
 	out_frame->common.slice_info.slice_num = port->slice_info.slice_num;
-
+	out_frame->common.width = port->size.w;
+	out_frame->common.height = port->size.h;
 	if (!port->need_post_proc) {
 		do {
 			if (!out_frame->common.is_reserved) {
@@ -675,8 +692,7 @@ static int ispport_scaler_param_calc(struct img_trim *in_trim,
 			deci->deci_y = 1;
 			deci->deci_y_eb = 0;
 		}
-		pr_debug("end out_size  w %d, h %d\n",
-			out_size->w, out_size->h);
+		pr_debug("end out_size  w %d, h %d\n", out_size->w, out_size->h);
 
 		scaler->scaler_factor_out = out_size->w;
 		scaler->scaler_ver_factor_out = out_size->h;
@@ -687,18 +703,20 @@ static int ispport_scaler_param_calc(struct img_trim *in_trim,
 	return ret;
 }
 
-static int ispport_scaler_get(struct isp_port *port, struct isp_hw_path_scaler *path)
+static int ispport_scaler_get(struct isp_port *port, struct isp_hw_path_scaler *path, struct img_slice_info *slice_info)
 {
 	int ret = 0;
 	uint32_t is_yuv422 = 0, scale2yuv420 = 0;
+	struct img_trim *out_trim = NULL;
 	struct yuv_scaler_info *scaler = NULL;
 
-	if (!port || !path) {
-		pr_err("fail to get valid input ptr %p, %p\n", port, path);
+	if (!port || !path || !slice_info) {
+		pr_err("fail to get valid input ptr %px, %px, %px\n", port, path, slice_info);
 		return -EFAULT;
 	}
 
 	scaler = &path->scaler;
+	out_trim = &slice_info->out_trim;
 	if (port->fmt == CAM_UYVY_1FRAME)
 		path->uv_sync_v = 1;
 	else
@@ -708,12 +726,20 @@ static int ispport_scaler_get(struct isp_port *port, struct isp_hw_path_scaler *
 	else
 		path->path_sel = 0;
 	path->frm_deci = 0;
-	if (!port->slice_info.slice_num) {
+
+	if (!slice_info->slice_num) {
 		path->dst = port->size;
 		path->out_trim.start_x = 0;
 		path->out_trim.start_y = 0;
 		path->out_trim.size_x = port->size.w;
 		path->out_trim.size_y = port->size.h;
+	} else {
+		path->dst.w = out_trim->size_x;
+		path->dst.h = out_trim->size_y;
+		path->out_trim.start_x = 0;
+		path->out_trim.start_y = 0;
+		path->out_trim.size_x = out_trim->size_x;
+		path->out_trim.size_y = out_trim->size_y;
 	}
 	path->regular_info.regular_mode = port->regular_mode;
 	ret = ispport_scaler_param_calc(&path->in_trim, &path->dst,
@@ -731,6 +757,8 @@ static int ispport_scaler_get(struct isp_port *port, struct isp_hw_path_scaler *
 		&& (is_yuv422 || port->scaler_bypass_ctrl))
 		|| port->fmt == CAM_FULL_RGB14) {
 		scaler->scaler_bypass = 1;
+		if (port->scaler_coeff_ex)
+			scaler->work_mode = 2;
 	} else {
 		scaler->scaler_bypass = 0;
 
@@ -757,16 +785,17 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		struct cam_frame *frame)
 {
 	int ret = 0;
+	uint32_t width = 0;
 	uint32_t trim_offset[3] = { 0 };
-	struct img_size *src = NULL;
-	struct img_trim *intrim = NULL;
-	struct isp_hw_fetch_info *fetch = NULL;
-	struct isp_port *port = NULL;
-	struct camera_frame *pframe_data = NULL;
 	uint32_t mipi_word_num_start[16] = {
 		0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5};
 	uint32_t mipi_word_num_end[16] = {
 		0, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5};
+	struct img_size *src = NULL;
+	struct isp_port *port = NULL;
+	struct img_trim *intrim = NULL;
+	struct isp_hw_fetch_info *fetch = NULL;
+	struct camera_frame *pframe_data = NULL;
 
 	if (!cfg_in || !cfg_out || !frame) {
 		pr_err("fail to get valid input ptr, %p, %p\n", cfg_in, cfg_out);
@@ -780,10 +809,13 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		pframe_data = &((struct cam_frame *)frame->common.pframe_data)->common;
 	fetch->src = *src;
 	if (!port->slice_info.slice_num) {
+		width = src->w;
 		intrim = &port->trim;
 		fetch->in_trim = *intrim;
-	} else
+	} else {
+		width = frame->common.width;
 		intrim = &fetch->in_trim;
+	}
 	fetch->fetch_fmt = port->fmt;
 	fetch->fetch_pyr_fmt = port->pyr_out_fmt;
 	fetch->fetch_3dnr_fmt = port->store_3dnr_fmt;
@@ -820,7 +852,7 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 		break;
 	case CAM_RAW_HALFWORD_10:
 	case CAM_RAW_14:
-		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, port->fmt);
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(width, port->fmt);
 		trim_offset[0] = intrim->start_y * fetch->pitch.pitch_ch0 + intrim->start_x * 2;
 		break;
 	case CAM_YUV422_2FRAME:
@@ -896,7 +928,7 @@ static int ispport_fetch_normal_get(void *cfg_in, void *cfg_out,
 			- mipi_word_num_start[(start_col + 1) & 0xF] + 1;
 		fetch->mipi_byte_rel_pos = mipi_byte_info;
 		fetch->mipi_word_num = mipi_word_info;
-		fetch->pitch.pitch_ch0 = cal_sprd_pitch(src->w, fetch->fetch_fmt);
+		fetch->pitch.pitch_ch0 = cal_sprd_pitch(width, fetch->fetch_fmt);
 		/* same as slice starts */
 		trim_offset[0] = start_row * fetch->pitch.pitch_ch0 + (start_col >> 2) * 5 + (start_col & 0x3);
 		break;
@@ -1255,7 +1287,8 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 	pipe_in->scaler[path_id].spath_id = path_id;
 	pipe_in->scaler[path_id].src.w = port_cfg->src_crop.size_x;
 	pipe_in->scaler[path_id].src.h = port_cfg->src_crop.size_y;
-	if (port->hw->ip_isp->isphw_abt->pyr_dec_support && (port_cfg->src_frame->common.channel_id == CAM_CH_CAP)) {
+	if (port->hw->ip_isp->isphw_abt->pyr_dec_support &&
+		(port_cfg->src_frame->common.channel_id == CAM_CH_CAP)) {
 		pipe_in->scaler[path_id].in_trim.start_x = 0;
 		pipe_in->scaler[path_id].in_trim.start_y = 0;
 		pipe_in->scaler[path_id].in_trim.size_x = port_cfg->src_crop.size_x;
@@ -1264,8 +1297,10 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 		pipe_in->scaler[path_id].in_trim = port->trim;
 	}
 
-	if (port_cfg->src_frame->common.slice_info.slice_num)
+	if (port_cfg->src_frame->common.slice_info.slice_num) {
+		pipe_in->scaler[path_id].in_trim = port_cfg->src_frame->common.slice_info.out_trim;
 		ispport_slice_store_prepare(port, port_cfg);
+	}
 
 	ret = ispport_store_normal_get(port, &pipe_in->store[path_id], port_cfg);
 	if (ret) {
@@ -1275,7 +1310,7 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 
 	port->scaler_coeff_ex = port_cfg->scaler_coeff_ex;
 	port->scaler_bypass_ctrl = port_cfg->scaler_bypass_ctrl;
-	ret = ispport_scaler_get(port, &pipe_in->scaler[path_id]);
+	ret = ispport_scaler_get(port, &pipe_in->scaler[path_id], &port_cfg->src_frame->common.slice_info);
 	if (ret) {
 		pr_err("fail to get pipe path scaler info\n");
 		return -EFAULT;
@@ -1769,6 +1804,7 @@ void *isp_port_get(uint32_t port_id, struct isp_port_desc *port_desc)
 	else
 		buffer_num = ISP_SLW_IN_Q_LEN;
 
+	port->reserved_buf_fd = -1;
 	port->resbuf_get_cb = port_desc->resbuf_get_cb;
 	port->resbuf_cb_data = port_desc->resbuf_cb_data;
 	port->data_cb_func = port_desc->data_cb_func;
@@ -1807,7 +1843,6 @@ void *isp_port_get(uint32_t port_id, struct isp_port_desc *port_desc)
 		port->data_endian = port_desc->endian;
 		port->regular_mode = port_desc->regular_mode;
 		port->size = port_desc->output_size;
-
 		/*store*/
 		ret = cam_buf_manager_pool_reg(NULL, ISP_OUT_BUF_Q_LEN, port->buf_manager_handle);
 		if (ret < 0) {

@@ -503,7 +503,7 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
-	if (param->is_pyr_rec && port->port_id == PORT_BIN_OUT) {
+	if (param->is_pyr_rec && port->port_id == PORT_OFFLINE_BIN_OUT) {
 		pyr_data_bits = cam_data_bits(out_fmt);
 		pyr_is_pack = cam_is_pack(out_fmt);
 		size += dcam_if_cal_pyramid_size(width, height,
@@ -529,8 +529,7 @@ int dcam_offline_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
 			ret = cam_buf_alloc(&pframe->common.buf, size, param->iommu_enable);
 			if (ret) {
-				pr_err("fail to alloc buf: %d ch %d\n",
-					i, param->ch_id);
+				pr_err("fail to alloc buf: %d ch %d\n", i, param->ch_id);
 				cam_queue_empty_frame_put(pframe);
 				continue;
 			}

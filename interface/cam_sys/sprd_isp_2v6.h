@@ -2474,7 +2474,8 @@ struct isp_dev_rgb_ltm_map_info {
 	uint32_t tile_y_num;
 	uint32_t frame_width;
 	uint32_t frame_height;
-	uint16_t ltm_map_info[8192];
+	uint32_t ltm_map_size;/* normal is 8192 * sizeof(uint16_t), abnormal is 8192 * 4 * sizeof(uint16_t) in 108M nonzsl capture for qogirl6 */
+	uint64_t ltm_map_addr;
 };
 
 struct isp_dev_rgb_ltm_info {
@@ -2609,11 +2610,13 @@ enum raw_proc_cmd {
 	VIRTUAL_SENSOR_PROC,
 };
 
-enum raw_proc_scene {
-	RAW_PROC_SCENE_RAWCAP = 0,
-	RAW_PROC_SCENE_HWSIM,
-	RAW_PROC_SCENE_HWSIM_NEW,
-};
+
+enum camraw_postproc_scene {
+	CAMRAW_POSTPROC_PIPELINE_DCAM_PROCESS = 0,
+	CAMRAW_POSTPROC_PIPELINE_ISP_PROCESS,
+	CAMRAW_POSTPROC_PIPELINE_PROCESS,
+	CAMRAW_POSTPROC_TYPE_MAX,
+ };
 
 struct isp_raw_proc_info {
 	enum raw_proc_cmd cmd;
@@ -2626,14 +2629,15 @@ struct isp_raw_proc_info {
 	uint32_t src_format;
 	uint32_t src_pattern;
 	uint32_t dst_format;
+	uint32_t frame_id;
 	int32_t fd_src;
-	int32_t fd_dst0;
-	int32_t fd_dst1;
+	int32_t fd_dst;
+	int32_t fd_pm;
+	uint32_t pm_offset;/* mw camera frame param pipeline param offset */
 	uint32_t src_offset;/*first bytes offset in buffer fd_src*/
-	uint32_t dst0_offset;/*first bytes offset in buffer fd_dst0*/
-	uint32_t dst1_offset;/*first bytes offset in buffer fd_dst1*/
+	uint32_t dst_offset;/*first bytes offset in buffer fd_dst0*/
 	uint32_t dcam_raw_fmt;
-	enum raw_proc_scene scene;
+	enum camraw_postproc_scene scene;
 };
 
 /********** which blocks need open in postproc process *************/

@@ -25,6 +25,25 @@
 
 #define ISP_LTM_HIST_BUF0                0
 
+int isp_ltm_map_param_get(struct dcam_isp_k_block *isp_k_param)
+{
+	int ret = 0;
+	unsigned long ltm_map_addr = 0;
+	struct isp_dev_rgb_ltm_info *p = NULL;
+
+	p = &isp_k_param->ltm_rgb_info;
+	ltm_map_addr = (unsigned long)p->ltm_map.ltm_map_addr;
+	ret = copy_from_user((void *)isp_k_param->ltm_map_info,
+			(void __user *)ltm_map_addr,
+			p->ltm_map.ltm_map_size);
+	if (ret != 0) {
+		pr_err("fail to get ltm from user, ret = %d\n", ret);
+		return -EPERM;
+	}
+
+	return ret;
+}
+
 static void isp_ltm_config_hists(uint32_t idx, struct isp_ltm_hists *hists)
 {
 	unsigned int val, i;
@@ -163,7 +182,7 @@ int isp_k_ltm_rgb_block(struct isp_io_param *param,
 		pr_err("fail to get ltm from user, ret = %d\n", ret);
 		return -EPERM;
 	}
-
+	ret = isp_ltm_map_param_get(isp_k_param);
 	pr_debug("isp %d ltm hist %d map %d\n", idx, p->ltm_stat.bypass, p->ltm_map.bypass);
 
 	return ret;
@@ -191,6 +210,7 @@ int isp_k_cpy_rgb_ltm(struct dcam_isp_k_block *param_block, struct dcam_isp_k_bl
 {
 	int ret = 0;
 	if (isp_k_param->ltm_rgb_info.isupdate == 1) {
+		memcpy(param_block->ltm_map_info, isp_k_param->ltm_map_info, isp_k_param->ltm_rgb_info.ltm_map.ltm_map_size);
 		memcpy(&param_block->ltm_rgb_info, &isp_k_param->ltm_rgb_info, sizeof(struct isp_dev_rgb_ltm_info));
 		isp_k_param->ltm_rgb_info.isupdate = 0;
 		param_block->ltm_rgb_info.isupdate = 1;

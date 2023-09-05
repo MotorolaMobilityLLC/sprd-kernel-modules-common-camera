@@ -1485,14 +1485,9 @@ static void camscene_offlineraw2yuv_pipeline_get(struct cam_pipeline_topology *p
 	cur_node->id = DCAM_OFFLINE_NODE_ID;
 	cur_node->outport[dcam_offline_port_id].dump_node_id = CAM_DUMP_NODE_ID_0;
 	cur_node->outport[dcam_offline_port_id].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_USER;
+	cur_node->outport[dcam_offline_port_id].link.port_id = PORT_USER_IN;
 	if (pyrdec_support) {
-		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_PYR_DEC;
-		cur_node->outport[dcam_offline_port_id].link.node_id = PYR_DEC_NODE_ID;
-		cur_node->outport[dcam_offline_port_id].link.port_id = PORT_DEC_IN;
-		for (i = PORT_OFFLINE_AEM_OUT; i < PORT_DCAM_OFFLINE_OUT_MAX; i++) {
-			cur_node->outport[i].link_state = PORT_LINK_NORMAL;
-			cur_node->outport[i].link.node_type = CAM_NODE_TYPE_USER;
-		}
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_0;
 		cur_node++;
@@ -1504,23 +1499,20 @@ static void camscene_offlineraw2yuv_pipeline_get(struct cam_pipeline_topology *p
 		cur_node->outport[PORT_DEC_OUT].link.port_id = PORT_ISP_OFFLINE_IN;
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_1;
+		cur_node++;
+		cur_node->id = ISP_NODE_MODE_CAP_ID;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_PYR_DEC;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = PYR_DEC_NODE_ID;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = PORT_DEC_OUT;
 	} else {
-		cur_node->outport[dcam_offline_port_id].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
-		cur_node->outport[dcam_offline_port_id].link.node_id = ISP_NODE_MODE_CAP_ID;
-		cur_node->outport[dcam_offline_port_id].link.port_id = PORT_ISP_OFFLINE_IN;
-		for (i = PORT_OFFLINE_AEM_OUT; i < PORT_DCAM_OFFLINE_OUT_MAX; i++) {
-			cur_node->outport[i].link_state = PORT_LINK_NORMAL;
-			cur_node->outport[i].link.node_type = CAM_NODE_TYPE_USER;
-		}
 		cur_node++;
 		cur_node->id = CAM_DUMP_NODE_ID_0;
+		cur_node++;
+		cur_node->id = ISP_NODE_MODE_CAP_ID;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
+		cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_USER;
 	}
-	cur_node++;
-	cur_node->id = ISP_NODE_MODE_CAP_ID;
-	cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
-	cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
-	cur_node->inport[PORT_ISP_OFFLINE_IN].link.node_id = DCAM_OFFLINE_NODE_ID;
-	cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = dcam_offline_port_id;
 	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
 	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;

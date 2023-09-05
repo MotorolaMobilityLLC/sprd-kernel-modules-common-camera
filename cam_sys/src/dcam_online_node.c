@@ -698,7 +698,7 @@ static void dcamonline_cap_sof(struct dcam_online_node *node, void *param,
 					hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_CTRL, &path_ctrl);
 				}
 				dcam_port->state_update = 0;
-				if (dcam_port->port_state == DCAM_PATH_PAUSE) {
+				if (dcam_port->port_state == DCAM_PORT_PAUSE) {
 					spin_unlock_irqrestore(&dcam_port->state_lock, flag);
 					continue;
 				}
@@ -1615,6 +1615,11 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 		return ret;
 	}
 
+	if (pause == DCAM_OVERFLOW_STOP) {
+		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
+		return ret;
+	}
+
 	atomic_set(&node->state, STATE_IDLE);
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
 		if (pause == DCAM_FORCE_STOP)
@@ -2178,7 +2183,7 @@ int dcam_online_node_share_buf(void *handle, void *param)
 			if (atomic_read(&port->is_work) < 1 || atomic_read(&port->is_shutoff) > 0)
 				break;
 			do {
-				if (cam_buf_manager_pool_cnt(&port->result_pool, node->buf_manager_handle) == 1 && port_state == DCAM_PORT_PAUSE)
+				if (cam_buf_manager_pool_cnt(&port->result_pool, node->buf_manager_handle) == 1 && port_state == DCAM_PATH_PAUSE)
 					break;
 				else {
 					port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
