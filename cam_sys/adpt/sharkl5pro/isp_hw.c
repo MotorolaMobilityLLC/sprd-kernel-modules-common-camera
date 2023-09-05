@@ -2687,49 +2687,89 @@ static int isphw_block_param_config(void *handle, void *arg)
 	p = (struct dcam_isp_k_block *)handle;
 	blkpm_ptr = (struct isp_pipeline_param_l5pro *)arg;
 
-	memcpy(&p->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
-	p->nlm_info_base.isupdate = 1;
-	memcpy(&p->imbalance_info_base, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance_v1));
-	p->imbalance_info_base.isupdate = 1;
-	memcpy(&p->edge_info, &blkpm_ptr->edge_param, sizeof(struct isp_dev_edge_info_v2));
-	p->edge_info.isupdate = 1;
-	memcpy(&p->post_cdn_info, &blkpm_ptr->postcdn_param, sizeof(struct isp_dev_post_cdn_info));
-	p->post_cdn_info.isupdate = 1;
-	memcpy(&p->pre_cdn_info, &blkpm_ptr->precdn_param, sizeof(struct isp_dev_pre_cdn_info));
-	p->pre_cdn_info.isupdate = 1;
-	memcpy(&p->cdn_info, &blkpm_ptr->cdn_param, sizeof(struct isp_dev_cdn_info));
-	p->cdn_info.isupdate = 1;
-	memcpy(&p->gamma_info, &blkpm_ptr->gamma_param, sizeof(struct isp_dev_gamma_info));
-	p->gamma_info.isupdate = 1;
-	memcpy(&p->cmc10_info, &blkpm_ptr->cmc10_param, sizeof(struct isp_dev_cmc10_info));
-	p->cmc10_info.isupdate = 1;
-	memcpy(&p->bchs_info, &blkpm_ptr->bchs_param, sizeof(struct isp_dev_bchs_info));
-	p->bchs_info.isupdate = 1;
-	memcpy(&p->hsv_info, &blkpm_ptr->hsv_param, sizeof(struct isp_dev_hsv_info_v2));
-	p->hsv_info.isupdate = 1;
-	memcpy(&p->iircnr_info, &blkpm_ptr->iircnr_param, sizeof(struct isp_dev_iircnr_info));
-	p->iircnr_info.isupdate = 1;
-	memcpy(&p->ygamma_info, &blkpm_ptr->ygamma_param, sizeof(struct isp_dev_ygamma_info));
-	p->ygamma_info.isupdate = 1;
-	memcpy(&p->cce_info, &blkpm_ptr->cce_param, sizeof(struct isp_dev_cce_info));
-	p->cce_info.isupdate = 1;
-	memcpy(&p->cfa_info, &blkpm_ptr->cfa_param, sizeof(struct isp_dev_cfa_info));
-	p->cfa_info.isupdate = 1;
-	memcpy(&p->ynr_info_v2_base, &blkpm_ptr->ynr_param, sizeof(struct isp_dev_ynr_info_v2));
-	p->ynr_info_v2_base.isupdate = 1;
-	memcpy(&p->yrandom_info, &blkpm_ptr->yrandom_param, sizeof(struct isp_dev_yrandom_info));
-	p->yrandom_info.isupdate = 1;
-	memcpy(&p->uvd_info_v2, &blkpm_ptr->uvd_param, sizeof(struct isp_dev_uvd_info_v2));
-	p->uvd_info_v2.isupdate = 1;
-	memcpy(&p->nr3_info_base, &blkpm_ptr->nr3_param, sizeof(struct isp_dev_3dnr_info));
-	p->nr3_info_base.blend.isupdate = ISP_3DNR_ISUPDATE_STAUE_WORK;
-	memcpy(&p->ltm_rgb_info, &blkpm_ptr->ltm_param, sizeof(struct isp_dev_rgb_ltm_info));
-	p->ltm_rgb_info.isupdate = 1;
-	memcpy(&p->nf_info, &blkpm_ptr->nf_param, sizeof(struct isp_dev_noise_filter_info));
-	p->nf_info.isupdate = 1;
+	if (blkpm_ptr->nlm_param.update_flag) {
+		memcpy(&p->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
+		p->nlm_info_base.isupdate = 1;
+		isp_k_save_vst_ivst(p);
+	}
+	if (blkpm_ptr->imbalance_param.update_flag) {
+		memcpy(&p->imbalance_info_base, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance_v1));
+		p->imbalance_info_base.isupdate = 1;
+	}
+	if (blkpm_ptr->edge_param.update_flag) {
+		memcpy(&p->edge_info, &blkpm_ptr->edge_param, sizeof(struct isp_dev_edge_info_v2));
+		p->edge_info.isupdate = 1;
+	}
+	if (blkpm_ptr->postcdn_param.update_flag) {
+		memcpy(&p->post_cdn_info, &blkpm_ptr->postcdn_param, sizeof(struct isp_dev_post_cdn_info));
+		p->post_cdn_info.isupdate = 1;
+	}
+	if (blkpm_ptr->precdn_param.update_flag) {
+		memcpy(&p->pre_cdn_info, &blkpm_ptr->precdn_param, sizeof(struct isp_dev_pre_cdn_info));
+		p->pre_cdn_info.isupdate = 1;
+	}
+	if (blkpm_ptr->cdn_param.update_flag) {
+		memcpy(&p->cdn_info, &blkpm_ptr->cdn_param, sizeof(struct isp_dev_cdn_info));
+		p->cdn_info.isupdate = 1;
+	}
+	if (blkpm_ptr->gamma_param.update_flag) {
+		memcpy(&p->gamma_info, &blkpm_ptr->gamma_param, sizeof(struct isp_dev_gamma_info));
+		p->gamma_info.isupdate = 1;
+	}
+	if (blkpm_ptr->cmc10_param.update_flag) {
+		memcpy(&p->cmc10_info, &blkpm_ptr->cmc10_param, sizeof(struct isp_dev_cmc10_info));
+		p->cmc10_info.isupdate = 1;
+	}
+	if (blkpm_ptr->bchs_param.update_flag) {
+		memcpy(&p->bchs_info, &blkpm_ptr->bchs_param, sizeof(struct isp_dev_bchs_info));
+		p->bchs_info.isupdate = 1;
+	}
+	if (blkpm_ptr->hsv_param.update_flag) {
+		memcpy(&p->hsv_info, &blkpm_ptr->hsv_param, sizeof(struct isp_dev_hsv_info_v2));
+		p->hsv_info.isupdate = 1;
+	}
+	if (blkpm_ptr->iircnr_param.update_flag) {
+		memcpy(&p->iircnr_info, &blkpm_ptr->iircnr_param, sizeof(struct isp_dev_iircnr_info));
+		p->iircnr_info.isupdate = 1;
+	}
+	if (blkpm_ptr->ygamma_param.update_flag) {
+		memcpy(&p->ygamma_info, &blkpm_ptr->ygamma_param, sizeof(struct isp_dev_ygamma_info));
+		p->ygamma_info.isupdate = 1;
+	}
+	if (blkpm_ptr->cce_param.update_flag) {
+		memcpy(&p->cce_info, &blkpm_ptr->cce_param, sizeof(struct isp_dev_cce_info));
+		p->cce_info.isupdate = 1;
+	}
+	if (blkpm_ptr->cfa_param.update_flag) {
+		memcpy(&p->cfa_info, &blkpm_ptr->cfa_param, sizeof(struct isp_dev_cfa_info));
+		p->cfa_info.isupdate = 1;
+	}
+	if (blkpm_ptr->ynr_param.update_flag) {
+		memcpy(&p->ynr_info_v2_base, &blkpm_ptr->ynr_param, sizeof(struct isp_dev_ynr_info_v2));
+		p->ynr_info_v2_base.isupdate = 1;
+	}
+	if (blkpm_ptr->yrandom_param.update_flag) {
+		memcpy(&p->yrandom_info, &blkpm_ptr->yrandom_param, sizeof(struct isp_dev_yrandom_info));
+		p->yrandom_info.isupdate = 1;
+	}
+	if (blkpm_ptr->uvd_param.update_flag) {
+		memcpy(&p->uvd_info_v2, &blkpm_ptr->uvd_param, sizeof(struct isp_dev_uvd_info_v2));
+		p->uvd_info_v2.isupdate = 1;
+	}
+	if (blkpm_ptr->nr3_param.update_flag) {
+		memcpy(&p->nr3_info_base, &blkpm_ptr->nr3_param, sizeof(struct isp_dev_3dnr_info));
+		p->nr3_info_base.blend.isupdate = ISP_3DNR_ISUPDATE_STAUE_WORK;
+	}
+	if (blkpm_ptr->ltm_param.update_flag) {
+		memcpy(&p->ltm_rgb_info, &blkpm_ptr->ltm_param, sizeof(struct isp_dev_rgb_ltm_info));
+		p->ltm_rgb_info.isupdate = 1;
+		isp_ltm_map_param_get(p);
+	}
+	if (blkpm_ptr->nf_param.update_flag) {
+		memcpy(&p->nf_info, &blkpm_ptr->nf_param, sizeof(struct isp_dev_noise_filter_info));
+		p->nf_info.isupdate = 1;
+	}
 
-	isp_ltm_map_param_get(p);
-	isp_k_save_vst_ivst(p);
 	return 0;
 }
 

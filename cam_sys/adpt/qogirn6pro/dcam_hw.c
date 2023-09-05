@@ -2878,23 +2878,51 @@ static int dcamhw_block_param_config(void *handle, void *arg)
 	pm_ctx = (struct dcam_isp_k_block *)arg;
 	blkpm_ptr = (struct isp_pipeline_param_n6pro *)handle;
 
-	memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_lsc_info));
-	memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
-	memcpy(&pm_ctx->blc.blc_info, &blkpm_ptr->blc_param, sizeof(struct dcam_dev_blc_info));
-	memcpy(&pm_ctx->bpc_n6pro.bpc_param_n6pro.bpc_info, &blkpm_ptr->bpc_param, sizeof(struct dcam_dev_bpc_info_v1));
-	memcpy(&pm_ctx->bpc.bpc_ppi_info, &blkpm_ptr->ppi_param, sizeof(struct dcam_bpc_ppi_info));
-	memcpy(&pm_ctx->rgb.gain_info, &blkpm_ptr->gain_param, sizeof(struct dcam_dev_rgb_gain_info));
-	memcpy(&pm_ctx->rgb_gtm.rgb_gtm_info, &blkpm_ptr->gtm_param, sizeof(struct dcam_dev_rgb_gtm_block_info));
-	memcpy(&pm_ctx->rgb.rgb_dither, &blkpm_ptr->dither_param, sizeof(struct dcam_dev_rgb_dither_info));
-	memcpy(&pm_ctx->cmc10_info, &blkpm_ptr->cmc10_param, sizeof(struct isp_dev_cmc10_info));
-	memcpy(&pm_ctx->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
-	memcpy(&pm_ctx->imbalance_info_base2, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance_v2));
-	memcpy(&pm_ctx->cce_info, &blkpm_ptr->cce_param, sizeof(struct isp_dev_cce_info));
-	memcpy(&pm_ctx->cfa_info_v1, &blkpm_ptr->cfa_param, sizeof(struct isp_dev_cfa_info_v1));
-	memcpy(&pm_ctx->gamma_info_v1.gamma_info, &blkpm_ptr->gamma_param, sizeof(struct isp_dev_gamma_info_v1));
+	if (blkpm_ptr->lsc_param.update_flag) {
+		memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_lsc_info));
+		dcam_k_lsc_block(pm_ctx);
+	}
+	if (blkpm_ptr->awbc_param.update_flag) {
+		memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
+	}
+	if (blkpm_ptr->blc_param.update_flag) {
+		memcpy(&pm_ctx->blc.blc_info, &blkpm_ptr->blc_param, sizeof(struct dcam_dev_blc_info));
+	}
+	if (blkpm_ptr->bpc_param.update_flag) {
+		memcpy(&pm_ctx->bpc_n6pro.bpc_param_n6pro.bpc_info, &blkpm_ptr->bpc_param, sizeof(struct dcam_dev_bpc_info_v1));
+	}
+	if (blkpm_ptr->ppi_param.update_flag) {
+		memcpy(&pm_ctx->bpc.bpc_ppi_info, &blkpm_ptr->ppi_param, sizeof(struct dcam_bpc_ppi_info));
+	}
+	if (blkpm_ptr->gain_param.update_flag) {
+		memcpy(&pm_ctx->rgb.gain_info, &blkpm_ptr->gain_param, sizeof(struct dcam_dev_rgb_gain_info));
+	}
+	if (blkpm_ptr->gtm_param.update_flag) {
+		memcpy(&pm_ctx->rgb_gtm.rgb_gtm_info, &blkpm_ptr->gtm_param, sizeof(struct dcam_dev_rgb_gtm_block_info));
+	}
+	if (blkpm_ptr->dither_param.update_flag) {
+		memcpy(&pm_ctx->rgb.rgb_dither, &blkpm_ptr->dither_param, sizeof(struct dcam_dev_rgb_dither_info));
+	}
+	if (blkpm_ptr->cmc10_param.update_flag) {
+		memcpy(&pm_ctx->cmc10_info, &blkpm_ptr->cmc10_param, sizeof(struct isp_dev_cmc10_info));
+	}
+	if (blkpm_ptr->nlm_param.update_flag) {
+		memcpy(&pm_ctx->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
+		dcam_k_save_vst_ivst(pm_ctx);
+	}
+	if (blkpm_ptr->imbalance_param.update_flag) {
+		memcpy(&pm_ctx->imbalance_info_base2, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance_v2));
+	}
+	if (blkpm_ptr->cce_param.update_flag) {
+		memcpy(&pm_ctx->cce_info, &blkpm_ptr->cce_param, sizeof(struct isp_dev_cce_info));
+	}
+	if (blkpm_ptr->cfa_param.update_flag) {
+		memcpy(&pm_ctx->cfa_info_v1, &blkpm_ptr->cfa_param, sizeof(struct isp_dev_cfa_info_v1));
+	}
+	if (blkpm_ptr->gamma_param.update_flag) {
+		memcpy(&pm_ctx->gamma_info_v1.gamma_info, &blkpm_ptr->gamma_param, sizeof(struct isp_dev_gamma_info_v1));
+	}
 
-	dcam_k_lsc_block(pm_ctx);
-	dcam_k_save_vst_ivst(pm_ctx);
 	return 0;
 }
 
