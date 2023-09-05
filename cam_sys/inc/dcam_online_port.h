@@ -53,7 +53,6 @@ struct dcam_online_port_desc {
 	uint32_t bayer_pattern;
 	uint32_t sn_if_fmt;
 	enum cam_format dcam_out_fmt;
-	uint32_t frm_skip;
 	enum cam_data_endian endian;
 	enum cam_format pyr_out_fmt;
 	enum cam_en_status compress_en;
@@ -76,8 +75,6 @@ struct dcam_online_port {
 
 	/* path base info */
 	uint32_t frm_deci_cnt;
-	uint32_t frm_skip;
-	uint32_t frm_cnt;
 	enum cam_data_endian endian;
 	uint32_t bayer_pattern;
 	uint32_t sn_if_fmt;
