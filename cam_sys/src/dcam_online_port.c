@@ -773,7 +773,8 @@ static inline struct cam_frame *dcamonline_port_slw_frame_cycle(struct dcam_onli
 		out_frame = dcamonline_port_frame_cycle(dcam_port, hw_ctx);
 		pr_debug("enqueue bin path buffer, no.%d, cnt %d\n", slw_idx, cam_buf_manager_pool_cnt(&dcam_port->result_pool, dcam_port->buf_manager_handle));
 		break;
-	default:
+	case PORT_FRGB_HIST_OUT:
+	case PORT_AFL_OUT:
 		out_frame = dcamonline_port_reserved_buf_get(dcam_port);
 		if (!out_frame) {
 			pr_err("fail to get port %s reserved buf\n", cam_port_name_get(dcam_port->port_id));
@@ -784,6 +785,8 @@ static inline struct cam_frame *dcamonline_port_slw_frame_cycle(struct dcam_onli
 			cam_queue_empty_frame_put(out_frame);
 			return ERR_PTR(-ENOMEM);
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -814,7 +817,6 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		port->resbuf_cb_data = param->resbuf_cb_data;
 	}
 
-	port->frm_skip = param->frm_skip;
 	port->endian = param->endian;
 	port->bayer_pattern = param->bayer_pattern;
 	port->sn_if_fmt = param->sn_if_fmt;

@@ -329,9 +329,6 @@ static int dcamonline_fmcu_slw_set(struct dcam_online_node *node)
 				continue;
 			if (atomic_read(&port->is_work) < 1 || atomic_read(&port->is_shutoff) > 0)
 				continue;
-			port->frm_cnt++;
-			if (port->frm_cnt <= port->frm_skip)
-				continue;
 
 			pr_debug("set slow buffer, no.%d frame, port %s\n", j, cam_port_name_get(port->port_id));
 			if (port->port_cfg_cb_func) {
@@ -668,10 +665,6 @@ static void dcamonline_cap_sof(struct dcam_online_node *node, void *param,
 			continue;
 		}
 
-		dcam_port->frm_cnt++;
-		if (dcam_port->frm_cnt <= dcam_port->frm_skip)
-			continue;
-
 		/* @frm_deci is the frame index of output frame */
 		path_id = dcamonline_portid_convert_to_pathid(dcam_port->port_id);
 		if (path_id >= DCAM_PATH_MAX) {
@@ -818,8 +811,9 @@ static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
 		if (atomic_read(&dcam_port->is_work) < 1 || atomic_read(&dcam_port->is_shutoff) > 0)
 			continue;
 
-		if (node->is_3dnr) {
-			if (dcam_port->port_id <= PORT_FULL_OUT) {
+		switch (dcam_port->port_id) {
+		case PORT_BIN_OUT:
+			if (node->is_3dnr) {
 				slw_mv_cnt = node->nr3_me.slw_mv_cnt;
 				if (slw_mv_cnt < node->slowmotion_count) {
 					node->nr3_me.bin_path_cnt++;
@@ -840,31 +834,42 @@ static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
 			} else {
 				if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
 					irq_proc->param = frame;
-					irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
-					irq_proc->dcam_port_id = dcam_port->port_id;
-					dcamonline_frame_dispatch(irq_proc, node);
-				}
-			}
-		} else {
-			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
-				if (dcam_port->port_id <= PORT_FULL_OUT) {
-					irq_proc->param = frame;
 					irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 					irq_proc->dcam_port_id = dcam_port->port_id;
 					dcamonline_frame_dispatch(irq_proc, node);
-				} else {
-					if (dcam_port->port_id == PORT_FRGB_HIST_OUT) {
-						p = &node->blk_pm.hist_roi.hist_roi_info;
-						frame->common.width = p->hist_roi.end_x & ~1;
-						frame->common.height = p->hist_roi.end_y & ~1;
-						pr_debug("w %d, h %d\n", frame->common.width, frame->common.height);
-					}
-					irq_proc->param = frame;
-					irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
-					irq_proc->dcam_port_id = dcam_port->port_id;
-					dcamonline_frame_dispatch(irq_proc, node);
 				}
 			}
+			break;
+		case PORT_FRGB_HIST_OUT:
+			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+				p = &node->blk_pm.hist_roi.hist_roi_info;
+				frame->common.width = p->hist_roi.end_x & ~1;
+				frame->common.height = p->hist_roi.end_y & ~1;
+				pr_debug("w %d, h %d\n", frame->common.width, frame->common.height);
+				irq_proc->param = frame;
+				irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
+				irq_proc->dcam_port_id = dcam_port->port_id;
+				dcamonline_frame_dispatch(irq_proc, node);
+			}
+			break;
+		case PORT_AFL_OUT:
+			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+				irq_proc->param = frame;
+				irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
+				irq_proc->dcam_port_id = dcam_port->port_id;
+				dcamonline_frame_dispatch(irq_proc, node);
+			}
+			break;
+		default:
+			if (irq_proc->slw_count != node->slowmotion_count)
+				break;
+			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+				irq_proc->param = frame;
+				irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
+				irq_proc->dcam_port_id = dcam_port->port_id;
+				dcamonline_frame_dispatch(irq_proc, node);
+			}
+			break;
 		}
 	}
 
@@ -1615,12 +1620,12 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 		return ret;
 	}
 
-	if (pause == DCAM_OVERFLOW_STOP) {
+	atomic_set(&node->state, STATE_IDLE);
+	if (pause == DCAM_HW_ERROR_STOP) {
 		hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
 		return ret;
 	}
 
-	atomic_set(&node->state, STATE_IDLE);
 	if (hw_ctx_id != DCAM_HW_CONTEXT_MAX && pause != DCAM_RECOVERY) {
 		if (pause == DCAM_FORCE_STOP)
 			hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);

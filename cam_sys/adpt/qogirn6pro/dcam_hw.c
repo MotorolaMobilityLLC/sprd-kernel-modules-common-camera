@@ -2407,7 +2407,7 @@ static int dcamhw_fmcu_start(void *handle, void *arg)
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 	DCAM_REG_WR(startarg->idx, DCAM_INT0_EN, DCAMINT_IRQ_LINE_EN0_NORMAL);
-	DCAM_REG_MWR(startarg->idx, DCAM_INT0_EN, 0x6cff0000, 0);
+	DCAM_REG_MWR(startarg->idx, DCAM_INT0_EN, 0x6cff0002, 0);
 	DCAM_REG_WR(startarg->idx, DCAM_INT1_EN, DCAMINT_IRQ_LINE_EN1_NORMAL);
 	DCAM_REG_MWR(startarg->idx, DCAM_INT1_EN, BIT_0 , 0);
 
