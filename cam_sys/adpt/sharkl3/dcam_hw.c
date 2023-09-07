@@ -1243,6 +1243,45 @@ static int dcamhw_disable_sn_eof(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_block_param_config(void *handle, void *arg)
+{
+	int ret = 0;
+	struct dcam_isp_k_block *pm_ctx = NULL;
+	struct isp_pipeline_param_l3 *blkpm_ptr = NULL;
+
+	if (!handle || !arg) {
+		pr_err("fail to get input arg :%px, %px.\n", handle, arg);
+		return -EFAULT;
+	}
+
+	pm_ctx = (struct dcam_isp_k_block *)arg;
+	blkpm_ptr = (struct isp_pipeline_param_l3 *)handle;
+
+	if (blkpm_ptr->lsc_param.update_flag) {
+		memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_lsc_info));
+		ret = dcam_k_lsc_block(pm_ctx);
+		if (ret)
+			pm_ctx->lsc.lens_info.bypass = 1;
+	}
+	if (blkpm_ptr->awbc_param.update_flag) {
+		memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
+	}
+	if (blkpm_ptr->blc_param.update_flag) {
+		memcpy(&pm_ctx->blc.blc_info, &blkpm_ptr->blc_param, sizeof(struct dcam_dev_blc_info));
+	}
+	if (blkpm_ptr->bpc_param.update_flag) {
+		memcpy(&pm_ctx->bpc.bpc_param.bpc_info_l3, &blkpm_ptr->bpc_param, sizeof(struct dcam_dev_bpc_info_l3));
+	}
+	if (blkpm_ptr->gain_param.update_flag) {
+		memcpy(&pm_ctx->rgb.gain_info, &blkpm_ptr->gain_param, sizeof(struct dcam_dev_rgb_gain_info));
+	}
+	if (blkpm_ptr->dither_param.update_flag) {
+		memcpy(&pm_ctx->rgb.rgb_dither, &blkpm_ptr->dither_param, sizeof(struct dcam_dev_rgb_dither_info));
+	}
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -1271,6 +1310,7 @@ static struct hw_io_ctrl_fun dcam_hw_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ALL_RESET,             dcamhw_axi_reset},
 	{DCAM_HW_CFG_DIS_SN_SOF,            dcamhw_disable_sn_sof},
 	{DCAM_HW_CFG_DIS_SN_EOF,            dcamhw_disable_sn_eof},
+	{DCAM_HW_CFG_NONZSL_BLOCK_PARAM,    dcamhw_block_param_config},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(

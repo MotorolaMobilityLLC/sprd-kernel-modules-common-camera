@@ -1475,6 +1475,7 @@ static int dcamhw_disable_sn_eof(void *handle, void *arg)
 
 static int dcamhw_block_param_config(void *handle, void *arg)
 {
+	int ret = 0;
 	struct dcam_isp_k_block *pm_ctx = NULL;
 	struct isp_pipeline_param_l5pro *blkpm_ptr = NULL;
 
@@ -1487,8 +1488,10 @@ static int dcamhw_block_param_config(void *handle, void *arg)
 	blkpm_ptr = (struct isp_pipeline_param_l5pro *)handle;
 
 	if (blkpm_ptr->lsc_param.update_flag) {
-		memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_awbc_info));
-		dcam_k_lsc_block(pm_ctx);
+		memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_lsc_info));
+		ret = dcam_k_lsc_block(pm_ctx);
+		if (ret)
+			pm_ctx->lsc.lens_info.bypass = 1;
 	}
 	if (blkpm_ptr->awbc_param.update_flag) {
 		memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
