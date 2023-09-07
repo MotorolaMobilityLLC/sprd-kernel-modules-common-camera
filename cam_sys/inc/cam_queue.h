@@ -262,6 +262,8 @@ struct cam_queue_frame_manager {
 	struct cam_frame *frame_array[CAM_EMP_ARRAY_LEN_MAX];
 	struct camera_queue empty_frame_q;
 	spinlock_t frame_lock;
+	struct camera_queue delay_put_q;
+	struct cam_thread_info delay_put_thread;
 };
 
 #define CAM_QUEUE_LIST_ADD_CHECK(head, _list) ({ \
