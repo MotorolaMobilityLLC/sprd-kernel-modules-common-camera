@@ -250,6 +250,7 @@ struct camera_module {
 	struct cam_flash_task_info *flash_core_handle;
 	uint32_t csi_controller_idx;
 
+	uint32_t binning_limit;/* binning limit: 1 - 1/2,  2 - 1/4 */
 	enum cam_zoom_type zoom_solution;/* for dynamic zoom type swicth. */
 	struct camera_uinfo cam_uinfo;
 

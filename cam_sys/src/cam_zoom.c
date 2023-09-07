@@ -86,6 +86,12 @@ static int camzoom_binning_swapsize_get(struct camera_module *module, struct img
 				(dst_p.w <= g_camctrl.isp_linebuf_len) &&
 				(dst_v.w <= g_camctrl.isp_linebuf_len))
 				shift = 1;
+
+			module->binning_limit = 0;
+			if (module->zoom_solution == ZOOM_BINNING4)
+				module->binning_limit = 1;
+			else if (shift == 1)
+				module->binning_limit = 1;
 		} else {
 			if ((max_bin->w >= (ch_prev->ch_uinfo.dst_size.w * 2)) &&
 				(max_bin->w >= (ch_vid->ch_uinfo.dst_size.w * 2)))
@@ -94,6 +100,10 @@ static int camzoom_binning_swapsize_get(struct camera_module *module, struct img
 				(dst_p.w <= g_camctrl.isp_linebuf_len) &&
 				(dst_v.w <= g_camctrl.isp_linebuf_len))
 				shift = 1;
+
+			module->binning_limit = 1;
+			if (module->zoom_solution == ZOOM_BINNING4)
+				module->binning_limit = 2;
 		}
 		break;
 	case IMG_QUALITY_PRI:
@@ -307,13 +317,16 @@ static int camzoom_binning_shift_calc(struct camera_module *module, struct img_t
 		pr_err("fail to get invalid output type %d\n", output_stg);
 		break;
 	}
-	if (((trim_pv.size_x >> shift) > ch_prev->swap_size.w) ||
-		((trim_pv.size_y >> shift) > ch_prev->swap_size.h))
-			shift++;
+	if (((trim_pv.size_x >> shift) > ch_prev->swap_size.w) || ((trim_pv.size_y >> shift) > ch_prev->swap_size.h))
+		shift++;
 	pr_debug("dcam binning zoom shift %d, type %d\n", shift, output_stg);
 	if (shift > 2) {
 		pr_info("dcam binning should limit to 1/4\n");
 		shift = 2;
+	}
+	if (shift > module->binning_limit && output_stg == IMG_POWER_CONSUM_PRI) {
+		pr_info("bin shift limit to %d\n", module->binning_limit);
+		shift = module->binning_limit;
 	}
 
 	return shift;
@@ -563,7 +576,7 @@ int cam_zoom_channels_size_init(struct camera_module *module)
 
 	camzoom_channel_swapsize_calc(module);
 
-	pr_info("zoom_solution %d\n", module->zoom_solution);
+	pr_info("zoom_solution %d, binning_limit %d\n", module->zoom_solution, module->binning_limit);
 
 	return 0;
 }
