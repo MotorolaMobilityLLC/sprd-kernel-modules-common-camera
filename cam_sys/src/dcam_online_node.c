@@ -782,24 +782,51 @@ static int dcamonline_slw_fmcu_process(struct dcam_online_node *node,
 						continue;
 					if (atomic_read(&dcam_port->is_work) < 1 || atomic_read(&dcam_port->is_shutoff) > 0)
 						continue;
-					if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
-						if (dcam_port->port_id <= PORT_FULL_OUT) {
+					switch (dcam_port->port_id) {
+					case PORT_BIN_OUT:
+						if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
 							dcamonline_nr3_mv_get(hw_ctx, frame);
 							irq_proc->param = frame;
 							irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 							irq_proc->dcam_port_id = dcam_port->port_id;
 							dcamonline_frame_dispatch(irq_proc, node);
-						} else {
+						}
+						break;
+					case PORT_AFL_OUT:
+						if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
 							irq_proc->param = frame;
 							irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
 							irq_proc->dcam_port_id = dcam_port->port_id;
 							dcamonline_frame_dispatch(irq_proc, node);
 						}
+						break;
+					case PORT_FRGB_HIST_OUT:
+						if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+							p = &node->blk_pm.hist_roi.hist_roi_info;
+							frame->common.width = p->hist_roi.end_x & ~1;
+							frame->common.height = p->hist_roi.end_y & ~1;
+							pr_debug("w %d, h %d\n", frame->common.width, frame->common.height);
+							irq_proc->param = frame;
+							irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
+							irq_proc->dcam_port_id = dcam_port->port_id;
+							dcamonline_frame_dispatch(irq_proc, node);
+						}
+						break;
+					default:
+						if (i != node->slowmotion_count - 1)
+							break;
+						if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
+							irq_proc->param = frame;
+							irq_proc->type = CAM_CB_DCAM_STATIS_DONE;
+							irq_proc->dcam_port_id = dcam_port->port_id;
+							dcamonline_frame_dispatch(irq_proc, node);
+						}
+						break;
 					}
 				}
-				node->nr3_me.bin_path_cnt = 0;
-				node->nr3_me.slw_mv_cnt = 0;
 			}
+			node->nr3_me.bin_path_cnt = 0;
+			node->nr3_me.slw_mv_cnt = 0;
 		}
 	}
 
