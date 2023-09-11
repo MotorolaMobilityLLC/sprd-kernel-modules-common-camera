@@ -466,7 +466,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->master_flag, &uparam->master_flag);
 	ret |= get_user(module->cam_uinfo.virtualsensor, &uparam->virtualsensor);
 	ret |= get_user(module->cam_uinfo.opt_buffer_num, &uparam->opt_buffer_num);
-	ret |= get_user(module->cam_uinfo.dual_buf_num, &uparam->dual_buf_num);
+	ret |= get_user(module->cam_uinfo.buf_num, &uparam->buf_num);
 	ret |= get_user(module->cam_uinfo.dual_cache_buf_num, &uparam->dual_cache_buf_num);
 	ret |= get_user(module->cam_uinfo.ipg_skip_first_frm, &uparam->ipg_skip_first_frm);
 	if (unlikely(ret)) {
@@ -498,7 +498,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->master_flag,
 		module->cam_uinfo.virtualsensor,
 		module->cam_uinfo.opt_buffer_num,
-		module->cam_uinfo.dual_buf_num, module->cam_uinfo.dual_cache_buf_num,
+		module->cam_uinfo.buf_num, module->cam_uinfo.dual_cache_buf_num,
 		module->cam_uinfo.ipg_skip_first_frm);
 exit:
 	return ret;

@@ -340,7 +340,7 @@ static void camscene_capture_pipeline_get(struct cam_pipeline_topology *param, v
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
-		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL_DEC;
+		param->buf_num = CAM_PIPELINE_BUFFER_NUM_DEC;
 		param->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
@@ -354,7 +354,7 @@ static void camscene_capture_pipeline_get(struct cam_pipeline_topology *param, v
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
-		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL;
+		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NORMAL;
 		param->pyr_layer_num = 0;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
@@ -2042,11 +2042,11 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	if (channel->ch_id == CAM_CH_CAP) {
 		channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
 		channel->zsl_buffer_num = module->cam_uinfo.zsl_num;
-		num += channel->zsl_buffer_num;
+		num = num + channel->zsl_buffer_num + module->cam_uinfo.buf_num;
 	}
 
 	if (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.is_dual)
-		num = module->cam_uinfo.dual_buf_num;
+		num = module->cam_uinfo.buf_num;
 
 	if (module->cam_uinfo.dcam_slice_mode
 		&& channel->ch_id == CAM_CH_CAP &&
