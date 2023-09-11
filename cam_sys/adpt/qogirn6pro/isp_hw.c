@@ -3185,6 +3185,7 @@ static int isphw_subblock_reconfig(void *handle, void *arg)
 
 static int isphw_block_param_config(void *handle, void *arg)
 {
+	int ret = 0;
 	struct dcam_isp_k_block *p = NULL;
 	struct isp_pipeline_param_n6pro *blkpm_ptr = NULL;
 
@@ -3255,7 +3256,9 @@ static int isphw_block_param_config(void *handle, void *arg)
 	if (blkpm_ptr->ltm_param.update_flag) {
 		memcpy(&p->ltm_rgb_info, &blkpm_ptr->ltm_param, sizeof(struct isp_dev_rgb_ltm_info));
 		p->ltm_rgb_info.isupdate = 1;
-		isp_ltm_map_param_get(p);
+		ret = isp_ltm_map_param_get(p);
+		if (ret)
+			p->ltm_rgb_info.ltm_map.bypass = 1;
 	}
 	if (blkpm_ptr->nf_param.update_flag) {
 		memcpy(&p->nf_info, &blkpm_ptr->nf_param, sizeof(struct isp_dev_noise_filter_info));

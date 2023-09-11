@@ -1337,6 +1337,7 @@ static int dcamhw_disable_sn_eof(void *handle, void *arg)
 
 static int dcamhw_block_param_config(void *handle, void *arg)
 {
+	int ret = 0;
 	struct dcam_isp_k_block *pm_ctx = NULL;
 	struct isp_pipeline_param_l5 *blkpm_ptr = NULL;
 
@@ -1348,19 +1349,30 @@ static int dcamhw_block_param_config(void *handle, void *arg)
 	pm_ctx = (struct dcam_isp_k_block *)arg;
 	blkpm_ptr = (struct isp_pipeline_param_l5 *)handle;
 
-	memcpy(&pm_ctx->aem, &blkpm_ptr->aem_info, sizeof(struct dcam_dev_aem_param));
-	memcpy(&pm_ctx->afm, &blkpm_ptr->afm_info, sizeof(struct dcam_dev_afm_param));
-	memcpy(&pm_ctx->afl, &blkpm_ptr->afl_param, sizeof(struct isp_dev_anti_flicker_new_info));
-	memcpy(&pm_ctx->hist.bayerHist_info, &blkpm_ptr->bhist_info, sizeof(struct dcam_dev_hist_info));
-	memcpy(&pm_ctx->pdaf, &blkpm_ptr->pdaf_info, sizeof(struct dcam_dev_pdaf_param));
-	memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
-	memcpy(&pm_ctx->blc.blc_info, &blkpm_ptr->blc_param, sizeof(struct dcam_dev_blc_info));
-	memcpy(&pm_ctx->bpc.bpc_param.bpc_info, &blkpm_ptr->bpc_param, sizeof(struct dcam_dev_bpc_info));
-	memcpy(&pm_ctx->bpc.bpc_ppi_info, &blkpm_ptr->ppi_param, sizeof(struct dcam_bpc_ppi_info));
-	memcpy(&pm_ctx->rgb.gain_info, &blkpm_ptr->gain_param, sizeof(struct dcam_dev_rgb_gain_info));
-	memcpy(&pm_ctx->rgb.rgb_dither, &blkpm_ptr->dither_param, sizeof(struct dcam_dev_rgb_dither_info));
-
-	dcam_k_lsc_block(pm_ctx);
+	if (blkpm_ptr->lsc_param.update_flag) {
+		memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_lsc_info));
+		ret = dcam_k_lsc_block(pm_ctx);
+		if (ret)
+			pm_ctx->lsc.lens_info.bypass = 1;
+	}
+	if (blkpm_ptr->awbc_param.update_flag) {
+		memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
+	}
+	if (blkpm_ptr->blc_param.update_flag) {
+		memcpy(&pm_ctx->blc.blc_info, &blkpm_ptr->blc_param, sizeof(struct dcam_dev_blc_info));
+	}
+	if (blkpm_ptr->bpc_param.update_flag) {
+		memcpy(&pm_ctx->bpc.bpc_param.bpc_info, &blkpm_ptr->bpc_param, sizeof(struct dcam_dev_bpc_info));
+	}
+	if (blkpm_ptr->ppi_param.update_flag) {
+		memcpy(&pm_ctx->bpc.bpc_ppi_info, &blkpm_ptr->ppi_param, sizeof(struct dcam_bpc_ppi_info));
+	}
+	if (blkpm_ptr->gain_param.update_flag) {
+		memcpy(&pm_ctx->rgb.gain_info, &blkpm_ptr->gain_param, sizeof(struct dcam_dev_rgb_gain_info));
+	}
+	if (blkpm_ptr->dither_param.update_flag) {
+		memcpy(&pm_ctx->rgb.rgb_dither, &blkpm_ptr->dither_param, sizeof(struct dcam_dev_rgb_dither_info));
+	}
 
 	return 0;
 }

@@ -2867,6 +2867,7 @@ static int dcamhw_slice_imblance_set(void *handle, void *arg)
 
 static int dcamhw_block_param_config(void *handle, void *arg)
 {
+	int ret = 0;
 	struct dcam_isp_k_block *pm_ctx = NULL;
 	struct isp_pipeline_param_n6pro *blkpm_ptr = NULL;
 
@@ -2880,7 +2881,9 @@ static int dcamhw_block_param_config(void *handle, void *arg)
 
 	if (blkpm_ptr->lsc_param.update_flag) {
 		memcpy(&pm_ctx->lsc.lens_info, &blkpm_ptr->lsc_param, sizeof(struct dcam_dev_lsc_info));
-		dcam_k_lsc_block(pm_ctx);
+		ret = dcam_k_lsc_block(pm_ctx);
+		if (ret)
+			pm_ctx->lsc.lens_info.bypass = 1;
 	}
 	if (blkpm_ptr->awbc_param.update_flag) {
 		memcpy(&pm_ctx->awbc.awbc_info, &blkpm_ptr->awbc_param, sizeof(struct dcam_dev_awbc_info));
@@ -2908,7 +2911,9 @@ static int dcamhw_block_param_config(void *handle, void *arg)
 	}
 	if (blkpm_ptr->nlm_param.update_flag) {
 		memcpy(&pm_ctx->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
-		dcam_k_save_vst_ivst(pm_ctx);
+		ret = dcam_k_save_vst_ivst(pm_ctx);
+		if (ret)
+			pm_ctx->nlm_info_base.bypass = 1;
 	}
 	if (blkpm_ptr->imbalance_param.update_flag) {
 		memcpy(&pm_ctx->imbalance_info_base2, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance_v2));

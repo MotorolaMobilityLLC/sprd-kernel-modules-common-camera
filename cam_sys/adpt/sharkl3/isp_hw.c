@@ -2358,6 +2358,111 @@ static int isphw_cfg_mmu_wbypass(void *handle, void *arg)
 	return 0;
 }
 
+static int isphw_block_param_config(void *handle, void *arg)
+{
+	int ret = 0;
+	struct dcam_isp_k_block *p = NULL;
+	struct isp_pipeline_param_l3  *blkpm_ptr = NULL;
+
+	if (!arg || !handle) {
+		pr_err("fail to get valid input arg%px, %px.\n", arg, handle);
+		return -EFAULT;
+	}
+
+	p = (struct dcam_isp_k_block *)handle;
+	blkpm_ptr = (struct isp_pipeline_param_l3 *)arg;
+
+	if (blkpm_ptr->cce_param.update_flag) {
+		memcpy(&p->cce_info, &blkpm_ptr->cce_param, sizeof(struct isp_dev_cce_info));
+		p->cce_info.isupdate = 1;
+	}
+	if (blkpm_ptr->cdn_param.update_flag) {
+		memcpy(&p->cdn_info, &blkpm_ptr->cdn_param, sizeof(struct isp_dev_cdn_info));
+		p->cdn_info.isupdate = 1;
+	}
+	if (blkpm_ptr->cfa_param.update_flag) {
+		memcpy(&p->cfa_info, &blkpm_ptr->cfa_param, sizeof(struct isp_dev_cfa_info));
+		p->cfa_info.isupdate = 1;
+	}
+	if (blkpm_ptr->cmc10_param.update_flag) {
+		memcpy(&p->cmc10_info, &blkpm_ptr->cmc10_param, sizeof(struct isp_dev_cmc10_info));
+		p->cmc10_info.isupdate = 1;
+	}
+	if (blkpm_ptr->edge_param.update_flag) {
+		memcpy(&p->edge_info, &blkpm_ptr->edge_param, sizeof(struct isp_dev_edge_info_v2));
+		p->edge_info.isupdate = 1;
+	}
+	if (blkpm_ptr->gamma_param.update_flag) {
+		memcpy(&p->gamma_info, &blkpm_ptr->gamma_param, sizeof(struct isp_dev_gamma_info));
+		p->gamma_info.isupdate = 1;
+	}
+	if (blkpm_ptr->hsv_param.update_flag) {
+		memcpy(&p->hsv_info, &blkpm_ptr->hsv_param, sizeof(struct isp_dev_hsv_info_v2));
+		p->hsv_info.isupdate = 1;
+	}
+	if (blkpm_ptr->iircnr_param.update_flag) {
+		memcpy(&p->iircnr_info, &blkpm_ptr->iircnr_param, sizeof(struct isp_dev_iircnr_info));
+		p->iircnr_info.isupdate = 1;
+	}
+	if (blkpm_ptr->nlm_param.update_flag) {
+		memcpy(&p->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
+		p->nlm_info_base.isupdate = 1;
+		ret = isp_k_save_vst_ivst(p);
+		if (ret)
+			p->nlm_info_base.bypass = 1;
+	}
+	if (blkpm_ptr->postcdn_param.update_flag) {
+		memcpy(&p->post_cdn_info, &blkpm_ptr->postcdn_param, sizeof(struct isp_dev_post_cdn_info));
+		p->post_cdn_info.isupdate = 1;
+	}
+	if (blkpm_ptr->precdn_param.update_flag) {
+		memcpy(&p->pre_cdn_info, &blkpm_ptr->precdn_param, sizeof(struct isp_dev_pre_cdn_info));
+		p->pre_cdn_info.isupdate = 1;
+	}
+	if (blkpm_ptr->yrandom_param.update_flag) {
+		memcpy(&p->yrandom_info, &blkpm_ptr->yrandom_param, sizeof(struct isp_dev_yrandom_info));
+		p->yrandom_info.isupdate = 1;
+	}
+	if (blkpm_ptr->uvd_param.update_flag) {
+		memcpy(&p->uvd_info, &blkpm_ptr->uvd_param, sizeof(struct isp_dev_uvd_info));
+		p->uvd_info.isupdate = 1;
+	}
+	if (blkpm_ptr->ynr_param.update_flag) {
+		memcpy(&p->ynr_info, &blkpm_ptr->ynr_param, sizeof(struct isp_dev_ynr_info));
+		p->ynr_info.isupdate = 1;
+	}
+	if (blkpm_ptr->ygamma_param.update_flag) {
+		memcpy(&p->ygamma_info, &blkpm_ptr->ygamma_param, sizeof(struct isp_dev_ygamma_info));
+		p->ygamma_info.isupdate = 1;
+	}
+	if (blkpm_ptr->nr3_param.update_flag) {
+		memcpy(&p->nr3_info_base, &blkpm_ptr->nr3_param, sizeof(struct isp_dev_3dnr_info));
+		p->nr3_info_base.blend.isupdate = ISP_3DNR_ISUPDATE_STAUE_WORK;
+	}
+	if (blkpm_ptr->nf_param.update_flag) {
+		memcpy(&p->nf_info, &blkpm_ptr->nf_param, sizeof(struct isp_dev_noise_filter_info));
+		p->nf_info.isupdate = 1;
+	}
+	if (blkpm_ptr->b_param.update_flag) {
+		memcpy(&p->brightness_info, &blkpm_ptr->b_param, sizeof(struct isp_dev_brightness_info));
+		p->brightness_info.isupdate = 1;
+	}
+	if (blkpm_ptr->c_param.update_flag) {
+		memcpy(&p->contrast_info, &blkpm_ptr->c_param, sizeof(struct isp_dev_contrast_info));
+		p->contrast_info.isupdate = 1;
+	}
+	if (blkpm_ptr->s_param.update_flag) {
+		memcpy(&p->csa_info, &blkpm_ptr->s_param, sizeof(struct isp_dev_csa_info));
+		p->csa_info.isupdate = 1;
+	}
+	if (blkpm_ptr->h_param.update_flag) {
+		memcpy(&p->hue_info, &blkpm_ptr->h_param, sizeof(struct isp_dev_hue_info_l3));
+		p->hue_info.isupdate = 1;
+	}
+
+	return 0;
+}
+
 static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_ENABLE_CLK,              isphw_clk_eb},
 	{ISP_HW_CFG_DISABLE_CLK,             isphw_clk_dis},
@@ -2408,6 +2513,7 @@ static struct hw_io_ctrl_fun isp_hw_ioctl_fun_tab[] = {
 	{ISP_HW_CFG_YUV_BLOCK_BYPASS,        isphw_yuv_block_bypass},
 	{ISP_HW_CFG_SUBBLOCK_RECFG,          isphw_subblock_reconfig},
 	{ISP_HW_CFG_MMU_FACEID_RECFG,        isphw_cfg_mmu_wbypass},
+	{ISP_HW_CFG_BLOCKPARAM_CFG,          isphw_block_param_config},
 };
 
 static hw_ioctl_fun isphw_ioctl_fun_get(enum isp_hw_cfg_cmd cmd)
