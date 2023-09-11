@@ -1197,6 +1197,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		ret |= get_user(pframe->common.buf.addr_vir[0], &uparam->frame_addr_vir_array[i].y);
 		ret |= get_user(pframe->common.buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
 		ret |= get_user(pframe->common.buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
+		ret |= get_user(pframe->common.is_3dnr_close, &uparam->reserved[1]);
 		ret |= get_user(dump_type[i], &uparam->vir_ch_info[0].fd_array[i]);
 		ret |= get_user(sec, &uparam->img_statis_info.sec);
 

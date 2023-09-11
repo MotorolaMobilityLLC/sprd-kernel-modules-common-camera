@@ -510,7 +510,10 @@ static int ispnode_3dnr_frame_process(struct isp_node *inode, struct isp_hw_fetc
 		pr_err("fail to get valid parameter pctx %p fetch %p pframe %p\n", inode, fetch, port_cfg);
 		return 0;
 	}
-
+	if (port_cfg->src_frame->common.is_3dnr_close == CAM_ENABLE) {
+		port_cfg->src_frame->common.nr3_me.mv_x = 0;
+		port_cfg->src_frame->common.nr3_me.mv_y = 0;
+	}
 	pr_debug("fid %d, valid %d, x %d, y %d, w %u, h %u\n",
 		port_cfg->src_frame->common.fid,port_cfg->src_frame->common.nr3_me.valid,
 		port_cfg->src_frame->common.nr3_me.mv_x, port_cfg->src_frame->common.nr3_me.mv_y,
