@@ -630,9 +630,6 @@ static int pyrdec_node_calc_base_info(struct pyr_dec_node *node, struct cam_fram
 		PYR_DEC_DEBUG("layer %d store addr %x %x\n", i,
 			node->store_addr[i].addr_ch0, node->store_addr[i].addr_ch1);
 	}
-	/* layer 0 fetch & store size is real size not include padding size */
-	node->dec_layer_size[0].w = node->src.w;
-	node->dec_layer_size[0].h = node->src.h;
 
 	return ret;
 }
@@ -1194,6 +1191,10 @@ static int pyrdec_node_start_proc(void *handle)
 		ret = -EINVAL;
 		goto calc_err;
 	}
+
+	/* layer 0 fetch & store size is real size not include padding size */
+	node->dec_layer_size[0].w = node->src.w;
+	node->dec_layer_size[0].h = node->src.h;
 
 	fmcu->ops->ctx_reset(fmcu);
 

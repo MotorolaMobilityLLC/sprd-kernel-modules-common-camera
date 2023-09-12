@@ -51,10 +51,6 @@
 const uint8_t YUV_DECI_MAP[] = {2,4,8,16};
 static uint8_t SCALER_YUV_DECI_MAP[] = {2,4,8,16};
 static uint8_t SCALER_YUV_DECI_OFFSET_MAP[] = {0,1,3,7};
-static uint32_t scaler1_coeff_buf[ISP_SC_COEFF_BUF_SIZE] = {0};
-static uint32_t scaler2_coeff_buf[ISP_SC_COEFF_BUF_SIZE] = {0};
-int scaler_path = -1;
-struct yuvscaler_param_t yuvscaler_param = {0};
 
 void core_drv_ppe_init_block(struct isp_block_drv_t *block_ptr)
 {
@@ -978,14 +974,21 @@ void ltm_rgb_stat_param_init(uint16_t frame_width, uint16_t frame_height,
 	param_stat->tile_size_stat = tile_width * tile_height;
 }
 
-void yuv_scaler_init_frame_info(struct yuvscaler_param_t *pYuvScaler)
+void yuv_scaler_init_frame_info(struct yuvscaler_param_t *pYuvScaler, void *slc_cfg_input, int scaler_path_id)
 {
 	struct scaler_info_t *pScalerInfo = NULL;
+	struct slice_cfg_input *slc_input = NULL;
 	uint16_t new_width = pYuvScaler->src_size_x;
 	uint16_t new_height = pYuvScaler->src_size_y;
 	int adj_hor = 1;
 	int adj_ver = 1;
 	uint8_t trim0_align;
+
+	if (!slc_cfg_input || scaler_path_id < 0) {
+		pr_err("fail to get input param %p %d\n", slc_cfg_input, scaler_path_id);
+		return;
+	}
+	slc_input = (struct slice_cfg_input *)slc_cfg_input;
 
 	if (!pYuvScaler->bypass) {
 		/* init deci info */
@@ -1087,12 +1090,12 @@ void yuv_scaler_init_frame_info(struct yuvscaler_param_t *pYuvScaler)
 				uint8_t y_ver_tap = 0;
 				uint8_t uv_ver_tap = 0;
 
-				if (scaler_path == SCALER_CAP_PRE)
-					tmp_buf = scaler1_coeff_buf;
-				else if (scaler_path == SCALER_VID)
-					tmp_buf = scaler2_coeff_buf;
+				if (scaler_path_id == SCALER_CAP_PRE)
+					tmp_buf = slc_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.coeff_buf;
+				else if (scaler_path_id == SCALER_VID)
+					tmp_buf = slc_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.coeff_buf;
 				else
-					pr_err("fail to get scaler path %d", scaler_path);
+					pr_err("fail to get scaler path %d", scaler_path_id);
 				h_coeff = tmp_buf;
 				h_chroma_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE / 4);
 				v_coeff = tmp_buf + (ISP_SC_COEFF_COEF_SIZE * 2 / 4);
@@ -1153,8 +1156,16 @@ void yuv_scaler_init_frame_info(struct yuvscaler_param_t *pYuvScaler)
 }
 
 static void scaler_init(struct yuvscaler_param_t *core_param, struct slice_drv_overlap_scaler_param *in_param_ptr,
-		struct pipe_overlap_context *context)
+		struct pipe_overlap_context *context, void *slc_cfg_input, int scaler_path_id)
 {
+	struct slice_cfg_input *slc_input = NULL;
+
+	if (!slc_cfg_input || scaler_path_id < 0) {
+		pr_err("fail to get input param %p %d\n", slc_cfg_input, scaler_path_id);
+		return;
+	}
+	slc_input = (struct slice_cfg_input *)slc_cfg_input;
+
 	core_param->bypass = in_param_ptr->bypass;
 	core_param->trim0_info.trim_en = in_param_ptr->trim_eb;
 	core_param->trim0_info.trim_start_x = in_param_ptr->trim_start_x;
@@ -1201,13 +1212,14 @@ static void scaler_init(struct yuvscaler_param_t *core_param, struct slice_drv_o
 
 	core_param->src_size_x = context->frameWidth;
 	core_param->src_size_y = context->frameHeight;
-	yuv_scaler_init_frame_info(core_param);
+	yuv_scaler_init_frame_info(core_param, slc_input, scaler_path_id);
 	core_param->scaler_info.input_pixfmt = core_param->input_pixfmt;
 	core_param->scaler_info.output_pixfmt = core_param->output_pixfmt;
 }
 
-void slice_drv_calculate_overlap(struct slice_drv_overlap_param_t *param_ptr)
+void slice_drv_calculate_overlap(struct slice_drv_overlap_param_t *param_ptr, void *slc_cfg_input)
 {
+	int scaler_path_id = -1;
 	int image_w = param_ptr->img_w;
 	int image_h = param_ptr->img_h;
 
@@ -1436,8 +1448,8 @@ void slice_drv_calculate_overlap(struct slice_drv_overlap_param_t *param_ptr)
 		}
 
 		if (!param_ptr->scaler1.bypass) {
-			scaler_path = SCALER_CAP_PRE;
-			scaler_init(scaler1_frame_p, &param_ptr->scaler1, &contextScaler);
+			scaler_path_id = SCALER_CAP_PRE;
+			scaler_init(scaler1_frame_p, &param_ptr->scaler1, &contextScaler, slc_cfg_input, scaler_path_id);
 
 			pr_debug("scaler_step1: bypass %d, input(pixfmt %d), output (pixfmt %d, align_hor %d, align_ver %d)\n",
 				scaler1_frame_p->bypass, scaler1_frame_p->input_pixfmt, scaler1_frame_p->output_pixfmt,
@@ -1483,8 +1495,8 @@ void slice_drv_calculate_overlap(struct slice_drv_overlap_param_t *param_ptr)
 		}
 
 		if (!param_ptr->scaler2.bypass) {
-			scaler_path = SCALER_VID;
-			scaler_init(scaler2_frame_p, &param_ptr->scaler2, &contextScaler);
+			scaler_path_id = SCALER_VID;
+			scaler_init(scaler2_frame_p, &param_ptr->scaler2, &contextScaler, slc_cfg_input, scaler_path_id);
 			scaler_calculate_region(&refRegion, &scaler2_slice_region_out, scaler2_frame_p, 0, &param_ptr->scaler2);
 		}
 
@@ -1733,40 +1745,40 @@ static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx
 		uint32_t slice_num = slice_ctx->slice_num;
 
 		if (0 == slc_input->calc_dyn_ov.path_scaler[id]->scaler.scaler_bypass) {
-			memset(&yuvscaler_param, 0, sizeof(struct yuvscaler_param_t));
+			memset(&slice_ctx->yuvscaler_param, 0, sizeof(struct yuvscaler_param_t));
 
-			yuvscaler_param.bypass = slc_input->calc_dyn_ov.path_scaler[id]->scaler.scaler_bypass;
+			slice_ctx->yuvscaler_param.bypass = slc_input->calc_dyn_ov.path_scaler[id]->scaler.scaler_bypass;
 
-			yuvscaler_param.trim0_info.trim_en = 1;
-			yuvscaler_param.trim0_info.trim_size_x = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.size_x;
-			yuvscaler_param.trim0_info.trim_size_y = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.size_y;
-			yuvscaler_param.trim0_info.trim_start_x = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.start_x;
-			yuvscaler_param.trim0_info.trim_start_y = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.start_y;
+			slice_ctx->yuvscaler_param.trim0_info.trim_en = 1;
+			slice_ctx->yuvscaler_param.trim0_info.trim_size_x = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.size_x;
+			slice_ctx->yuvscaler_param.trim0_info.trim_size_y = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.size_y;
+			slice_ctx->yuvscaler_param.trim0_info.trim_start_x = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.start_x;
+			slice_ctx->yuvscaler_param.trim0_info.trim_start_y = slc_input->calc_dyn_ov.path_scaler[id]->in_trim.start_y;
 
-			yuvscaler_param.deci_info.deci_x = YUV_DECI_MAP[slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_x];
-			yuvscaler_param.deci_info.deci_x_en = slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_x_eb;
-			yuvscaler_param.deci_info.deci_y = YUV_DECI_MAP[slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_y];
-			yuvscaler_param.deci_info.deci_y_en = slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_y_eb;
+			slice_ctx->yuvscaler_param.deci_info.deci_x = YUV_DECI_MAP[slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_x];
+			slice_ctx->yuvscaler_param.deci_info.deci_x_en = slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_x_eb;
+			slice_ctx->yuvscaler_param.deci_info.deci_y = YUV_DECI_MAP[slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_y];
+			slice_ctx->yuvscaler_param.deci_info.deci_y_en = slc_input->calc_dyn_ov.path_scaler[id]->deci.deci_y_eb;
 
-			if (yuvscaler_param.deci_info.deci_x_en)
-				yuvscaler_param.scaler_info.scaler_in_width = yuvscaler_param.trim0_info.trim_size_x / yuvscaler_param.deci_info.deci_x;
+			if (slice_ctx->yuvscaler_param.deci_info.deci_x_en)
+				slice_ctx->yuvscaler_param.scaler_info.scaler_in_width = slice_ctx->yuvscaler_param.trim0_info.trim_size_x / slice_ctx->yuvscaler_param.deci_info.deci_x;
 			else
-				yuvscaler_param.scaler_info.scaler_in_width = yuvscaler_param.trim0_info.trim_size_x;
-			if (yuvscaler_param.deci_info.deci_y_en)
-				yuvscaler_param.scaler_info.scaler_in_height = yuvscaler_param.trim0_info.trim_start_y / yuvscaler_param.deci_info.deci_y;
+				slice_ctx->yuvscaler_param.scaler_info.scaler_in_width = slice_ctx->yuvscaler_param.trim0_info.trim_size_x;
+			if (slice_ctx->yuvscaler_param.deci_info.deci_y_en)
+				slice_ctx->yuvscaler_param.scaler_info.scaler_in_height = slice_ctx->yuvscaler_param.trim0_info.trim_start_y / slice_ctx->yuvscaler_param.deci_info.deci_y;
 			else
-				yuvscaler_param.scaler_info.scaler_in_height = yuvscaler_param.trim0_info.trim_start_y;
+				slice_ctx->yuvscaler_param.scaler_info.scaler_in_height = slice_ctx->yuvscaler_param.trim0_info.trim_start_y;
 
-			yuvscaler_param.scaler_info.scaler_out_width = slc_input->calc_dyn_ov.path_scaler[id]->dst.w;
-			yuvscaler_param.scaler_info.scaler_out_height = slc_input->calc_dyn_ov.path_scaler[id]->dst.h;
-			if ((yuvscaler_param.scaler_info.scaler_in_height == yuvscaler_param.scaler_info.scaler_out_height)
-				&& (yuvscaler_param.scaler_info.scaler_in_width == yuvscaler_param.scaler_info.scaler_out_width))
-				yuvscaler_param.scaler_info.scaler_en = 0;
+			slice_ctx->yuvscaler_param.scaler_info.scaler_out_width = slc_input->calc_dyn_ov.path_scaler[id]->dst.w;
+			slice_ctx->yuvscaler_param.scaler_info.scaler_out_height = slc_input->calc_dyn_ov.path_scaler[id]->dst.h;
+			if ((slice_ctx->yuvscaler_param.scaler_info.scaler_in_height == slice_ctx->yuvscaler_param.scaler_info.scaler_out_height)
+				&& (slice_ctx->yuvscaler_param.scaler_info.scaler_in_width == slice_ctx->yuvscaler_param.scaler_info.scaler_out_width))
+				slice_ctx->yuvscaler_param.scaler_info.scaler_en = 0;
 			else
-				yuvscaler_param.scaler_info.scaler_en = 1;
+				slice_ctx->yuvscaler_param.scaler_info.scaler_en = 1;
 
-			yuvscaler_param.src_size_x = slc_input->calc_dyn_ov.path_scaler[id]->src.w;
-			yuvscaler_param.src_size_y = slc_input->calc_dyn_ov.path_scaler[id]->src.h;
+			slice_ctx->yuvscaler_param.src_size_x = slc_input->calc_dyn_ov.path_scaler[id]->src.w;
+			slice_ctx->yuvscaler_param.src_size_y = slc_input->calc_dyn_ov.path_scaler[id]->src.h;
 
 			if ((CAM_YUYV_1FRAME == yuvFormat)
 					|| (CAM_UYVY_1FRAME == yuvFormat)
@@ -1787,60 +1799,58 @@ static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx
 				config_output_align_hor = 8;
 			}
 
-			yuvscaler_param.output_pixfmt = YUV420;
-			if (yuvscaler_param.output_pixfmt == YUV422) {
-				yuvscaler_param.output_align_hor = config_output_align_hor;
-				yuvscaler_param.output_align_ver = 2;
+			slice_ctx->yuvscaler_param.output_pixfmt = YUV420;
+			if (slice_ctx->yuvscaler_param.output_pixfmt == YUV422) {
+				slice_ctx->yuvscaler_param.output_align_hor = config_output_align_hor;
+				slice_ctx->yuvscaler_param.output_align_ver = 2;
 			}
-			else if(yuvscaler_param.output_pixfmt == YUV420) {
-				yuvscaler_param.output_align_hor = config_output_align_hor;
-				yuvscaler_param.output_align_ver = 4;
+			else if(slice_ctx->yuvscaler_param.output_pixfmt == YUV420) {
+				slice_ctx->yuvscaler_param.output_align_hor = config_output_align_hor;
+				slice_ctx->yuvscaler_param.output_align_ver = 4;
 				if (FBC_enable) {
-					yuvscaler_param.output_align_hor = 2;/* FBC_PADDING_W_YUV420_scaler */
-					yuvscaler_param.output_align_ver = FBC_PADDING_H_YUV420_scaler;
+					slice_ctx->yuvscaler_param.output_align_hor = 2;/* FBC_PADDING_W_YUV420_scaler */
+					slice_ctx->yuvscaler_param.output_align_ver = FBC_PADDING_H_YUV420_scaler;
 				}
 			}
 
 			if (yuv422to420_bypass == 0) {
-				yuvscaler_param.input_pixfmt = YUV420;
-				yuvscaler_param.scaler_info.input_pixfmt = YUV420;
+				slice_ctx->yuvscaler_param.input_pixfmt = YUV420;
+				slice_ctx->yuvscaler_param.scaler_info.input_pixfmt = YUV420;
 			} else{
-				yuvscaler_param.input_pixfmt = YUV422;
-				yuvscaler_param.scaler_info.input_pixfmt = YUV422;
+				slice_ctx->yuvscaler_param.input_pixfmt = YUV422;
+				slice_ctx->yuvscaler_param.scaler_info.input_pixfmt = YUV422;
 			}
-			yuvscaler_param.scaler_info.output_pixfmt = yuvscaler_param.output_pixfmt;
+			slice_ctx->yuvscaler_param.scaler_info.output_pixfmt = slice_ctx->yuvscaler_param.output_pixfmt;
 			pr_debug("path %d, scaler frame:  : bypass %d, input_pixfmt %d, output_pixfmt %d, output_align_hor %d, output_align_ver %d\n",
-				id, yuvscaler_param.bypass, yuvscaler_param.input_pixfmt, yuvscaler_param.output_pixfmt,
-				yuvscaler_param.output_align_hor, yuvscaler_param.output_align_ver);
+				id, slice_ctx->yuvscaler_param.bypass, slice_ctx->yuvscaler_param.input_pixfmt, slice_ctx->yuvscaler_param.output_pixfmt,
+				slice_ctx->yuvscaler_param.output_align_hor, slice_ctx->yuvscaler_param.output_align_ver);
 			pr_debug("path %d, scaler frame:  : src_size_x %d, src_size_y %d, dst_start_x %d, dst_start_y %d, dst_size_x %d, dst_size_y %d\n",
-				id, yuvscaler_param.src_size_x, yuvscaler_param.src_size_y,
-				yuvscaler_param.dst_start_x, yuvscaler_param.dst_start_y,
-				yuvscaler_param.dst_size_x, yuvscaler_param.dst_size_y);
+				id, slice_ctx->yuvscaler_param.src_size_x, slice_ctx->yuvscaler_param.src_size_y,
+				slice_ctx->yuvscaler_param.dst_start_x, slice_ctx->yuvscaler_param.dst_start_y,
+				slice_ctx->yuvscaler_param.dst_size_x, slice_ctx->yuvscaler_param.dst_size_y);
 			pr_debug("path %d, scaler frame:  : trim0_info: en %d, start_x %d, start_y %d, size_x %d, size_y %d\n",
-				id, yuvscaler_param.trim0_info.trim_en,
-				yuvscaler_param.trim0_info.trim_start_x, yuvscaler_param.trim0_info.trim_start_y,
-				yuvscaler_param.trim0_info.trim_size_x, yuvscaler_param.trim0_info.trim_size_y);
+				id, slice_ctx->yuvscaler_param.trim0_info.trim_en,
+				slice_ctx->yuvscaler_param.trim0_info.trim_start_x, slice_ctx->yuvscaler_param.trim0_info.trim_start_y,
+				slice_ctx->yuvscaler_param.trim0_info.trim_size_x, slice_ctx->yuvscaler_param.trim0_info.trim_size_y);
 			pr_debug("path %d, scaler frame:  : deci_info: x_en %d, y_en %d, deci_x %d, deci_y %d, Phase_X %d, Phase_Y %d, cut_first_y %d, option %d\n",
-				id, yuvscaler_param.deci_info.deci_x_en, yuvscaler_param.deci_info.deci_y_en,
-				yuvscaler_param.deci_info.deci_x, yuvscaler_param.deci_info.deci_y,
-				yuvscaler_param.deci_info.deciPhase_X, yuvscaler_param.deci_info.deciPhase_Y,
-				yuvscaler_param.deci_info.deci_cut_first_y, yuvscaler_param.deci_info.deci_option);
+				id, slice_ctx->yuvscaler_param.deci_info.deci_x_en, slice_ctx->yuvscaler_param.deci_info.deci_y_en,
+				slice_ctx->yuvscaler_param.deci_info.deci_x, slice_ctx->yuvscaler_param.deci_info.deci_y,
+				slice_ctx->yuvscaler_param.deci_info.deciPhase_X, slice_ctx->yuvscaler_param.deci_info.deciPhase_Y,
+				slice_ctx->yuvscaler_param.deci_info.deci_cut_first_y, slice_ctx->yuvscaler_param.deci_info.deci_option);
 			pr_debug("path %d, scaler frame:  : scaler_info: en %d, input_pixfmt %d, output_pixfmt %d, in_width %d, in_height %d, out_width %d, out_height %d\n",
-				id, yuvscaler_param.scaler_info.scaler_en,
-				yuvscaler_param.scaler_info.input_pixfmt, yuvscaler_param.scaler_info.output_pixfmt,
-				yuvscaler_param.scaler_info.scaler_in_width, yuvscaler_param.scaler_info.scaler_in_height,
-				yuvscaler_param.scaler_info.scaler_out_width, yuvscaler_param.scaler_info.scaler_out_height);
+				id, slice_ctx->yuvscaler_param.scaler_info.scaler_en,
+				slice_ctx->yuvscaler_param.scaler_info.input_pixfmt, slice_ctx->yuvscaler_param.scaler_info.output_pixfmt,
+				slice_ctx->yuvscaler_param.scaler_info.scaler_in_width, slice_ctx->yuvscaler_param.scaler_info.scaler_in_height,
+				slice_ctx->yuvscaler_param.scaler_info.scaler_out_width, slice_ctx->yuvscaler_param.scaler_info.scaler_out_height);
 			pr_debug("path %d, scaler frame:  : scaler_factor_info: in_hor %d, out_hor %d, in_ver %d, out_ver %d\n",
-				id, yuvscaler_param.scaler_info.scaler_factor_in_hor, yuvscaler_param.scaler_info.scaler_factor_out_hor,
-				yuvscaler_param.scaler_info.scaler_factor_in_ver, yuvscaler_param.scaler_info.scaler_factor_out_ver);
+				id, slice_ctx->yuvscaler_param.scaler_info.scaler_factor_in_hor, slice_ctx->yuvscaler_param.scaler_info.scaler_factor_out_hor,
+				slice_ctx->yuvscaler_param.scaler_info.scaler_factor_in_ver, slice_ctx->yuvscaler_param.scaler_info.scaler_factor_out_ver);
 			pr_debug("path %d, scaler frame:  : scaler_init_phase: hor %d, ver %d; scaler_tap_info: y_hor_tap %d, y_ver_tap %d, uv_hor_tap %d, uv_ver_tap %d\n",
-				id, yuvscaler_param.scaler_info.scaler_init_phase_hor, yuvscaler_param.scaler_info.scaler_init_phase_ver,
-				yuvscaler_param.scaler_info.scaler_y_hor_tap, yuvscaler_param.scaler_info.scaler_y_ver_tap,
-				yuvscaler_param.scaler_info.scaler_uv_hor_tap, yuvscaler_param.scaler_info.scaler_uv_ver_tap);
+				id, slice_ctx->yuvscaler_param.scaler_info.scaler_init_phase_hor, slice_ctx->yuvscaler_param.scaler_info.scaler_init_phase_ver,
+				slice_ctx->yuvscaler_param.scaler_info.scaler_y_hor_tap, slice_ctx->yuvscaler_param.scaler_info.scaler_y_ver_tap,
+				slice_ctx->yuvscaler_param.scaler_info.scaler_uv_hor_tap, slice_ctx->yuvscaler_param.scaler_info.scaler_uv_ver_tap);
 
-			scaler_path = id;
-
-			yuv_scaler_init_frame_info(&yuvscaler_param);
+			yuv_scaler_init_frame_info(&slice_ctx->yuvscaler_param, slc_cfg_input, id);
 
 			for (r = 0; r < slice_array_height; r++) {
 				for (c = 0; c < slice_array_width; c++) {
@@ -1902,7 +1912,7 @@ static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx
 					output_slice_info.start_row = wndOutputOrg->sy;
 					output_slice_info.end_row = wndOutputOrg->ey;
 
-					yuv_scaler_init_slice_info_v3(&yuvscaler_param, &slice_ctx->yuvscaler_slice_param,
+					yuv_scaler_init_slice_info_v3(&slice_ctx->yuvscaler_param, &slice_ctx->yuvscaler_slice_param,
 						&scaler_slice, &input_slice_info, &output_slice_info);
 
 					slice_param[id][slice_id].trim0_size_x = slice_ctx->yuvscaler_slice_param.trim0_info.trim_size_x;
@@ -1921,10 +1931,10 @@ static int isp_init_param_for_yuvscaler_slice(void *slc_cfg_input, void *slc_ctx
 					slice_param[id][slice_id].scaler_ip_rmd_ver = slice_ctx->yuvscaler_slice_param.scaler_info.init_phase_info.scaler_init_phase_rmd[1][0];
 					slice_param[id][slice_id].scaler_cip_int_ver = slice_ctx->yuvscaler_slice_param.scaler_info.init_phase_info.scaler_init_phase_int[1][1];
 					slice_param[id][slice_id].scaler_cip_rmd_ver = slice_ctx->yuvscaler_slice_param.scaler_info.init_phase_info.scaler_init_phase_rmd[1][1];
-					slice_param[id][slice_id].scaler_factor_in = yuvscaler_param.scaler_info.scaler_factor_in_hor;
-					slice_param[id][slice_id].scaler_factor_out = yuvscaler_param.scaler_info.scaler_factor_out_hor;
-					slice_param[id][slice_id].scaler_factor_in_ver = yuvscaler_param.scaler_info.scaler_factor_in_ver;
-					slice_param[id][slice_id].scaler_factor_out_ver = yuvscaler_param.scaler_info.scaler_factor_out_ver;
+					slice_param[id][slice_id].scaler_factor_in = slice_ctx->yuvscaler_param.scaler_info.scaler_factor_in_hor;
+					slice_param[id][slice_id].scaler_factor_out = slice_ctx->yuvscaler_param.scaler_info.scaler_factor_out_hor;
+					slice_param[id][slice_id].scaler_factor_in_ver = slice_ctx->yuvscaler_param.scaler_info.scaler_factor_in_ver;
+					slice_param[id][slice_id].scaler_factor_out_ver = slice_ctx->yuvscaler_param.scaler_info.scaler_factor_out_ver;
 					slice_param[id][slice_id].src_size_x = slice_ctx->yuvscaler_slice_param.src_size_x;
 					slice_param[id][slice_id].src_size_y = slice_ctx->yuvscaler_slice_param.src_size_y;
 					slice_param[id][slice_id].dst_size_x = slice_ctx->yuvscaler_slice_param.dst_size_x;
@@ -1993,7 +2003,6 @@ static int isp_init_param_for_overlap_v1(
 
 	slc_ctx = slice_ctx;
 	overlapParam = &slice_ctx->overlapParam;
-	scaler_path = -1;
 	slice_drv_calculate_overlap_init(overlapParam);
 
 	/************************************************************************/
@@ -2133,8 +2142,6 @@ static int isp_init_param_for_overlap_v1(
 		config_output_align_hor = 8;
 	}
 	overlapParam->scaler1.output_align_hor = config_output_align_hor;
-	memcpy(scaler1_coeff_buf,
-		slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_CP]->scaler.coeff_buf, sizeof(uint32_t) *ISP_SC_COEFF_BUF_SIZE);
 
 	/* scaler2 */
 	overlapParam->scaler2.bypass = slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.scaler_bypass;
@@ -2191,8 +2198,6 @@ static int isp_init_param_for_overlap_v1(
 		config_output_align_hor = 8;
 	}
 	overlapParam->scaler2.output_align_hor = config_output_align_hor;
-	memcpy(scaler2_coeff_buf,
-		slice_input->calc_dyn_ov.path_scaler[ISP_SPATH_VID]->scaler.coeff_buf, sizeof(uint32_t) *ISP_SC_COEFF_BUF_SIZE);
 
 	pr_debug("raw : nlm %d, imbalance %d, gtm stat %d, gtm map %d, cfa %d\n",
 			overlapParam->nlm_bypass, overlapParam->imbalance_bypass,
@@ -2244,7 +2249,7 @@ static int isp_init_param_for_overlap_v1(
 		overlapParam->scaler2.des_size_x, overlapParam->scaler2.des_size_y);
 
 	/* calc overlap */
-	slice_drv_calculate_overlap(overlapParam);
+	slice_drv_calculate_overlap(overlapParam, slice_input);
 
 	for (i = 0 ; i < slc_ctx->slice_num; i++) {
 		pr_debug("get calc result: slice id %d, region (%d, %d, %d, %d)\n",
@@ -2282,7 +2287,6 @@ int isp_init_param_for_overlap_v2(
 
 	slc_ctx = slice_ctx;
 	slice_overlap = &slice_ctx->slice_overlap;
-	scaler_path = -1;
 	memset(slice_overlap,0,sizeof(struct alg_slice_drv_overlap));
 	slice_overlap->scaler1.frameParam = &slice_overlap->scaler1.frameParamObj;
 	slice_overlap->scaler2.frameParam = &slice_overlap->scaler2.frameParamObj;

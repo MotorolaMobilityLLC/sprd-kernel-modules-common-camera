@@ -480,6 +480,7 @@ struct isp_slice_context {
 	struct slice_drv_overlap_param_t overlapParam;
 	struct yuvscaler_param_t yuvscaler_slice_param;
 	struct alg_slice_drv_overlap slice_overlap;
+	struct yuvscaler_param_t yuvscaler_param;
 	uint32_t slice_row_num;
 	uint32_t slice_col_num;
 	uint32_t slice_num;
