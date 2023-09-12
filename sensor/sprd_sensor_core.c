@@ -786,9 +786,7 @@ static int sprd_sensor_file_release(struct inode *node, struct file *file)
 			     p_file->sensor_id);
 	if (p_file->mipi_state == SPRD_SENSOR_MIPI_STATE_ON_E) {
 		pr_info("sensor %d mipi close\n", p_file->sensor_id);
-		#ifndef MCLK_NEW_PROCESS1
 			ret = sprd_sensor_mipi_if_close(p_file);
-		#endif
 	}
 	for (i = 0; i < 3; i++) {
 		ret = sprd_sensor_set_voltage_by_gpio(p_file->sensor_id,

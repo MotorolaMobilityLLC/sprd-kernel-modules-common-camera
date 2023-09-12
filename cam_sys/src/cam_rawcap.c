@@ -78,8 +78,10 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	cam_valid_fmt_get(&ch->ch_uinfo.dcam_raw_fmt, hw->ip_dcam[0]->dcampath_abt[raw2yuv_path_id]->format[0]);
 	dcam_offline_desc->port_desc.dcam_out_fmt = ch->ch_uinfo.dcam_raw_fmt;
 	if (hw->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id == DCAM_PATH_VCH2 &&
-		proc_info->src_size.height > ISP_SLCIE_HEIGHT_MAX)
+		proc_info->src_size.height > ISP_SLCIE_HEIGHT_MAX) {
 		dcam_offline_desc->fetch_fmt = CAM_RAW_PACK_10;
+		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
+	}
 	if (module->cam_uinfo.dcam_slice_mode && hw->ip_dcam[0]->dcamhw_abt->save_band_for_bigsize)
 		dcam_offline_desc->port_desc.dcam_out_fmt = CAM_RAW_PACK_10;
 	if (hw->ip_isp->isphw_abt->fetch_raw_support == 0)

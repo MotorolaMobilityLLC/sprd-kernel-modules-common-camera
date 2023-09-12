@@ -938,7 +938,7 @@ static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
 
 static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
-	int ret = 0, reset_flag = 0, i = 0;
+	int ret = 0, reset_flag = 0, i = 0, j = 0;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
 	struct cam_pipeline_cfg_param pipe_param = {0};
@@ -949,6 +949,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	struct dcam_online_node *dcam_online_node_dev = NULL;
 	struct cam_hw_reg_trace trace = {0};
 	struct cam_buf_pool_id recycle_pool = {CAM_BUF_POOL_ABNORAM_RECYCLE, 0};
+	enum dcam_stop_cmd stop_cmd = DCAM_NORMAL_STOP;
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -970,17 +971,19 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		return 0;
 	}
 
-	pframe = (struct cam_frame *)param;
-	channel = &module->channel[pframe->common.channel_id];
-
 	if (unlikely(type == CAM_CB_ISP_DEV_ERR)) {
 		for (i = 0; i < DCAM_HW_CONTEXT_MAX; ++i) {
 			if (module->dcam_dev_handle->hw_ctx[i].dcam_irq_cb_func) {
 				if (module->dcam_dev_handle->hw_ctx[i].is_offline_proc == CAM_DISABLE) {
-					enum dcam_stop_cmd stop_cmd = DCAM_OVERFLOW_STOP;
-					pipe_param.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-					pipe_param.node_param.param = &stop_cmd;
-					ret = channel->pipeline_handle->ops.streamoff(channel->pipeline_handle, &pipe_param);
+					for (j = 0; j < CAM_CH_MAX; j++) {
+						channel = &module->channel[j];
+						if (channel->enable && channel->pipeline_handle) {
+							stop_cmd = DCAM_HW_ERROR_STOP;
+							pipe_param.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+							pipe_param.node_param.param = &stop_cmd;
+							ret = channel->pipeline_handle->ops.streamoff(channel->pipeline_handle, &pipe_param);
+						}
+					}
 				}
 				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_IRQ_DISABLE, &i);
 				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_STOP, &module->dcam_dev_handle->hw_ctx[i]);
@@ -1003,6 +1006,8 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		return 0;
 	}
 
+	pframe = (struct cam_frame *)param;
+	channel = &module->channel[pframe->common.channel_id];
 	atomic_set(&module->timeout_flag, 0);
 
 	switch (type) {
