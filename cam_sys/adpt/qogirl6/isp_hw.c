@@ -1225,64 +1225,64 @@ static int isphw_path_thumbscaler(void *handle, void *arg)
 		((scalerInfo->uv_deci.deci_y_eb & 0x1) << 31);
 	ISP_REG_MWR(idx, ISP_THMB_CFG, 0xBBBB003C, val);
 
-	val = ((scalerInfo->y_factor_in.w & 0x1FFF) << 16) |
-		(scalerInfo->y_factor_out.w & 0x3FF);
+	val = ((scalerInfo->y_factor_in.w & 0x3FFF) << 16) |
+		(scalerInfo->y_factor_out.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_FACTOR_HOR, val);
 
-	val = ((scalerInfo->y_factor_in.h & 0x1FFF) << 16) |
-		(scalerInfo->y_factor_out.h & 0x3FF);
+	val = ((scalerInfo->y_factor_in.h & 0x3FFF) << 16) |
+		(scalerInfo->y_factor_out.h & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_FACTOR_VER, val);
 
-	val = ((scalerInfo->uv_factor_in.w & 0x1FFF) << 16) |
-		(scalerInfo->uv_factor_out.w & 0x3FF);
+	val = ((scalerInfo->uv_factor_in.w & 0x3FFF) << 16) |
+		(scalerInfo->uv_factor_out.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_FACTOR_HOR, val);
 
-	val = ((scalerInfo->uv_factor_in.h & 0x1FFF) << 16) |
-		(scalerInfo->uv_factor_out.h & 0x3FF);
+	val = ((scalerInfo->uv_factor_in.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_factor_out.h & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_FACTOR_VER, val);
 
-	val = ((scalerInfo->src0.h & 0x1FFF) << 16) |
-		(scalerInfo->src0.w & 0x1FFF);
+	val = ((scalerInfo->src0.h & 0x3FFF) << 16) |
+		(scalerInfo->src0.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_BEFORE_TRIM_SIZE, val);
 
-	val = ((scalerInfo->y_src_after_deci.h & 0x1FFF) << 16) |
-		(scalerInfo->y_src_after_deci.w & 0x1FFF);
+	val = ((scalerInfo->y_src_after_deci.h & 0x3FFF) << 16) |
+		(scalerInfo->y_src_after_deci.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_SLICE_SRC_SIZE, val);
 
-	val = ((scalerInfo->y_dst_after_scaler.h & 0x3FF) << 16) |
-		(scalerInfo->y_dst_after_scaler.w & 0x3FF);
+	val = ((scalerInfo->y_dst_after_scaler.h & 0x3FFF) << 16) |
+		(scalerInfo->y_dst_after_scaler.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_DES_SIZE, val);
 
-	val = ((scalerInfo->y_trim.start_y & 0x1FFF) << 16) |
-		(scalerInfo->y_trim.start_x & 0x1FFF);
+	val = ((scalerInfo->y_trim.start_y & 0x3FFF) << 16) |
+		(scalerInfo->y_trim.start_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_TRIM0_START, val);
 
-	val = ((scalerInfo->y_trim.size_y & 0x1FFF) << 16) |
-		(scalerInfo->y_trim.size_x & 0x1FFF);
+	val = ((scalerInfo->y_trim.size_y & 0x3FFF) << 16) |
+		(scalerInfo->y_trim.size_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_TRIM0_SIZE, val);
 
-	val = ((scalerInfo->y_init_phase.h & 0x3FF) << 16) |
-		(scalerInfo->y_init_phase.w & 0x3FF);
+	val = ((scalerInfo->y_init_phase.h & 0x3FFF) << 16) |
+		(scalerInfo->y_init_phase.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_INIT_PHASE, val);
 
-	val = ((scalerInfo->uv_src_after_deci.h & 0x1FFF) << 16) |
-		(scalerInfo->uv_src_after_deci.w & 0x1FFF);
+	val = ((scalerInfo->uv_src_after_deci.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_src_after_deci.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_SLICE_SRC_SIZE, val);
 
-	val = ((scalerInfo->uv_dst_after_scaler.h & 0x3FF) << 16) |
-		(scalerInfo->uv_dst_after_scaler.w & 0x3FF);
+	val = ((scalerInfo->uv_dst_after_scaler.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_dst_after_scaler.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_DES_SIZE, val);
 
-	val = ((scalerInfo->uv_trim.start_y & 0x1FFF) << 16) |
-		(scalerInfo->uv_trim.start_x & 0x1FFF);
+	val = ((scalerInfo->uv_trim.start_y & 0x3FFF) << 16) |
+		(scalerInfo->uv_trim.start_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_TRIM0_START, val);
 
-	val = ((scalerInfo->uv_trim.size_y & 0x1FFF) << 16) |
-		(scalerInfo->uv_trim.size_x & 0x1FFF);
+	val = ((scalerInfo->uv_trim.size_y & 0x3FFF) << 16) |
+		(scalerInfo->uv_trim.size_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_TRIM0_SIZE, val);
 
-	val = ((scalerInfo->uv_init_phase.h & 0x3FF) << 16) |
-		(scalerInfo->uv_init_phase.w & 0x3FF);
+	val = ((scalerInfo->uv_init_phase.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_init_phase.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_INIT_PHASE, val);
 
 	/* bypass regular. */
@@ -2355,59 +2355,59 @@ static int isphw_slice_spath_thumbscaler(void *handle, void *arg)
 		return 0;
 
 	addr = ISP_GET_REG(ISP_THMB_BEFORE_TRIM_SIZE);
-	cmd = ((spath->slc_scaler->src0.h & 0x1FFF) << 16) |
-		(spath->slc_scaler->src0.w & 0x1FFF);
+	cmd = ((spath->slc_scaler->src0.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->src0.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_SLICE_SRC_SIZE);
-	cmd = ((spath->slc_scaler->y_src_after_deci.h & 0x1FFF) << 16) |
-		(spath->slc_scaler->y_src_after_deci.w & 0x1FFF);
+	cmd = ((spath->slc_scaler->y_src_after_deci.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_src_after_deci.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_DES_SIZE);
-	cmd = ((spath->slc_scaler->y_dst_after_scaler.h & 0x3FF) << 16) |
-		(spath->slc_scaler->y_dst_after_scaler.w & 0x3FF);
+	cmd = ((spath->slc_scaler->y_dst_after_scaler.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_dst_after_scaler.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_TRIM0_START);
-	cmd = ((spath->slc_scaler->y_trim.start_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->y_trim.start_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->y_trim.start_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_trim.start_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_TRIM0_SIZE);
-	cmd = ((spath->slc_scaler->y_trim.size_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->y_trim.size_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->y_trim.size_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_trim.size_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_INIT_PHASE);
-	cmd = ((spath->slc_scaler->y_init_phase.h & 0x3FF) << 16) |
-		(spath->slc_scaler->y_init_phase.w & 0x3FF);
+	cmd = ((spath->slc_scaler->y_init_phase.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_init_phase.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 
 	addr = ISP_GET_REG(ISP_THMB_UV_SLICE_SRC_SIZE);
-	cmd = ((spath->slc_scaler->uv_src_after_deci.h & 0x1FFF) << 16) |
-		(spath->slc_scaler->uv_src_after_deci.w & 0x1FFF);
+	cmd = ((spath->slc_scaler->uv_src_after_deci.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_src_after_deci.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_DES_SIZE);
-	cmd = ((spath->slc_scaler->uv_dst_after_scaler.h & 0x3FF) << 16) |
-		(spath->slc_scaler->uv_dst_after_scaler.w & 0x3FF);
+	cmd = ((spath->slc_scaler->uv_dst_after_scaler.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_dst_after_scaler.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_TRIM0_START);
-	cmd = ((spath->slc_scaler->uv_trim.start_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->uv_trim.start_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->uv_trim.start_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_trim.start_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_TRIM0_SIZE);
-	cmd = ((spath->slc_scaler->uv_trim.size_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->uv_trim.size_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->uv_trim.size_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_trim.size_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_INIT_PHASE);
-	cmd = ((spath->slc_scaler->uv_init_phase.h & 0x3FF) << 16) |
-		(spath->slc_scaler->uv_init_phase.w & 0x3FF);
+	cmd = ((spath->slc_scaler->uv_init_phase.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_init_phase.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	return 0;
