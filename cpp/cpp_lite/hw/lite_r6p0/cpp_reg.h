@@ -42,7 +42,7 @@ extern unsigned long g_cpp_base;
 
 #define CPP_MMU_ERROR_INT \
 		((MMU_INV_RD_INT_BIT | MMU_INV_WR_INT_BIT) | \
-		(MMU_UNS_RD_INT_BIT | MMU_UNS_RD_INT_BIT) | \
+		(MMU_UNS_RD_INT_BIT | MMU_UNS_WR_INT_BIT) | \
 		(MMU_PAOR_RD_INT_BIT | MMU_PAOR_WR_INT_BIT))
 
 #define CPP_BASE                                0x00
