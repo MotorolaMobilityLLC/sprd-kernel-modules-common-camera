@@ -72,7 +72,6 @@ static inline uint32_t dcam_if_cal_pyramid_size(uint32_t w, uint32_t h,
 enum dcam_stop_cmd {
 	DCAM_NORMAL_STOP,
 	DCAM_FORCE_STOP,
-	DCAM_HW_ERROR_STOP,
 	DCAM_RECOVERY,
 };
 
