@@ -225,7 +225,7 @@ int isp_hwctx_slice_ctx_init(struct isp_hw_context *pctx_hw, struct isp_pipe_inf
 		}
 	}
 
-	slc_cfg_in.nofilter_ctx = pctx_hw->isp_k_param;
+	slc_cfg_in.isp_k_param = pctx_hw->isp_k_param;
 	slc_cfg_in.calc_dyn_ov.verison = pctx_hw->hw->ip_isp->isphw_abt->dyn_overlap_version;
 
 	if (slc_cfg_in.calc_dyn_ov.verison != ALG_ISP_DYN_OVERLAP_NONE)
@@ -262,7 +262,7 @@ int isp_hwctx_slice_fmcu(struct isp_hw_context *pctx_hw, struct slice_cfg_input 
 	slc_cfg->frame_fbd_yuv = &pctx_hw->pipe_info.fetch_fbd_yuv;
 	slc_cfg->frame_in_size.w = pctx_hw->pipe_info.fetch.in_trim.size_x;
 	slc_cfg->frame_in_size.h = pctx_hw->pipe_info.fetch.in_trim.size_y;
-	slc_cfg->nofilter_ctx = pctx_hw->isp_using_param;
+	slc_cfg->isp_k_param = pctx_hw->isp_using_param;
 	slc_cfg->calc_dyn_ov.verison = pctx_hw->hw->ip_isp->isphw_abt->dyn_overlap_version;
 	isp_slice_info_cfg(slc_cfg, pctx_hw->slice_ctx);
 

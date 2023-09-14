@@ -190,6 +190,7 @@ struct camera_frame {
 	enum cam_postproc_mode proc_mode;
 	enum cam_reserved_buf_type is_reserved;
 	enum cam_en_status is_compressed;
+	enum cam_en_status is_3dnr_close;
 	enum cam_en_status pyr_status;
 	/*use for isp ltm ctrl*/
 	struct isp_xtm_conflict_info xtm_conflict;

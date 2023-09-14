@@ -466,7 +466,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	ret |= get_user(module->master_flag, &uparam->master_flag);
 	ret |= get_user(module->cam_uinfo.virtualsensor, &uparam->virtualsensor);
 	ret |= get_user(module->cam_uinfo.opt_buffer_num, &uparam->opt_buffer_num);
-	ret |= get_user(module->cam_uinfo.dual_buf_num, &uparam->dual_buf_num);
+	ret |= get_user(module->cam_uinfo.buf_num, &uparam->buf_num);
 	ret |= get_user(module->cam_uinfo.dual_cache_buf_num, &uparam->dual_cache_buf_num);
 	ret |= get_user(module->cam_uinfo.ipg_skip_first_frm, &uparam->ipg_skip_first_frm);
 	if (unlikely(ret)) {
@@ -498,7 +498,7 @@ static int camioctl_function_mode_set(struct camera_module *module,
 		module->master_flag,
 		module->cam_uinfo.virtualsensor,
 		module->cam_uinfo.opt_buffer_num,
-		module->cam_uinfo.dual_buf_num, module->cam_uinfo.dual_cache_buf_num,
+		module->cam_uinfo.buf_num, module->cam_uinfo.dual_cache_buf_num,
 		module->cam_uinfo.ipg_skip_first_frm);
 exit:
 	return ret;
@@ -1197,6 +1197,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		ret |= get_user(pframe->common.buf.addr_vir[0], &uparam->frame_addr_vir_array[i].y);
 		ret |= get_user(pframe->common.buf.addr_vir[1], &uparam->frame_addr_vir_array[i].u);
 		ret |= get_user(pframe->common.buf.addr_vir[2], &uparam->frame_addr_vir_array[i].v);
+		ret |= get_user(pframe->common.is_3dnr_close, &uparam->reserved[1]);
 		ret |= get_user(dump_type[i], &uparam->vir_ch_info[0].fd_array[i]);
 		ret |= get_user(sec, &uparam->img_statis_info.sec);
 

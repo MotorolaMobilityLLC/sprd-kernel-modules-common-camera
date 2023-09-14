@@ -2684,7 +2684,7 @@ static int ispslice_noisefilter_info_cfg(void *cfg_in, struct isp_slice_context 
 	int ret = 0, rtn = 0;
 	struct isp_slice_desc *cur_slc;
 	struct slice_cfg_input *in_ptr = (struct slice_cfg_input *)cfg_in;
-	struct dcam_isp_k_block  *isp_k_param = in_ptr->nofilter_ctx;
+	struct dcam_isp_k_block  *isp_k_param = in_ptr->isp_k_param;
 
 	if (!slc_ctx) {
 		pr_err("fail to get input ptr, null.\n");
@@ -3149,7 +3149,7 @@ int isp_slice_info_cfg(void *cfg_in, struct isp_slice_context *slc_ctx)
 	isp_slice_store_info_cfg(cfg_in, slc_ctx);
 	ispslice_3dnr_info_cfg(cfg_in, slc_ctx);
 	if (in_ptr->ltm_rgb_eb)
-		ispslice_ltm_info_cfg(in_ptr->rgb_ltm, slc_ctx, &in_ptr->nofilter_ctx->ltm_rgb_info);
+		ispslice_ltm_info_cfg(in_ptr->rgb_ltm, slc_ctx, &in_ptr->isp_k_param->ltm_rgb_info);
 	if (in_ptr->gtm_rgb_eb)
 		ispslice_gtm_info_cfg(in_ptr->rgb_gtm, slc_ctx);
 	ispslice_noisefilter_info_cfg(cfg_in, slc_ctx);

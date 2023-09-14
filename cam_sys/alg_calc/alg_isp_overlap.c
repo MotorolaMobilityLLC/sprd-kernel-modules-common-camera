@@ -2048,26 +2048,26 @@ static int isp_init_param_for_overlap_v1(
 	overlapParam->offlineCfgOverlap_down = 0;
 
 	/* bayer */
-	overlapParam->nlm_bypass = slice_input->nofilter_ctx->nlm_info_base.bypass;
-	overlapParam->imbalance_bypass = slice_input->nofilter_ctx->imbalance_info_base2.nlm_imblance_bypass;
-	overlapParam->raw_gtm_stat_bypass = slice_input->nofilter_ctx->gtm_rgb_info.bypass_info.gtm_hist_stat_bypass;
-	overlapParam->raw_gtm_map_bypass = slice_input->nofilter_ctx->gtm_rgb_info.bypass_info.gtm_map_bypass;
-	overlapParam->cfa_bypass = slice_input->nofilter_ctx->cfa_info.bypass;
+	overlapParam->nlm_bypass = slice_input->isp_k_param->nlm_info_base.bypass;
+	overlapParam->imbalance_bypass = slice_input->isp_k_param->imbalance_info_base2.nlm_imblance_bypass;
+	overlapParam->raw_gtm_stat_bypass = slice_input->isp_k_param->gtm_rgb_info.bypass_info.gtm_hist_stat_bypass;
+	overlapParam->raw_gtm_map_bypass = slice_input->isp_k_param->gtm_rgb_info.bypass_info.gtm_map_bypass;
+	overlapParam->cfa_bypass = slice_input->isp_k_param->cfa_info.bypass;
 
 	/* rgb */
-	overlapParam->ltmsta_rgb_bypass = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass;
-	if (0 == slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass) {
+	overlapParam->ltmsta_rgb_bypass = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.bypass;
+	if (0 == slice_input->isp_k_param->ltm_rgb_info.ltm_stat.bypass) {
 		uint32_t frame_width = slc_ctx->img_width;
 		uint32_t frame_height = slc_ctx->img_height;
 		struct ltm_rgb_stat_param_t *param_stat = &ltm_param;
 
-		param_stat->strength = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.strength;
-		param_stat->region_est_en = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.region_est_en;
-		param_stat->text_point_thres = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.text_point_thres;
-		param_stat->text_proportion = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.ltm_text.textture_proporion;
-		param_stat->tile_num_auto = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num_auto;
-		param_stat->tile_num_col = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
-		param_stat->tile_num_row = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
+		param_stat->strength = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.strength;
+		param_stat->region_est_en = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.region_est_en;
+		param_stat->text_point_thres = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.text_point_thres;
+		param_stat->text_proportion = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.ltm_text.textture_proporion;
+		param_stat->tile_num_auto = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.tile_num_auto;
+		param_stat->tile_num_col = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
+		param_stat->tile_num_row = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
 
 		ltm_rgb_stat_param_init(frame_width, frame_height, param_stat);
 		overlapParam->ltmsta_rgb_binning_en = param_stat->binning_en;
@@ -2077,14 +2077,14 @@ static int isp_init_param_for_overlap_v1(
 
 	/* yuv */
 	overlapParam->yuv420to422_bypass = 1;
-	overlapParam->nr3d_bd_bypass = slice_input->nofilter_ctx->nr3d_info.blend.bypass;
+	overlapParam->nr3d_bd_bypass = slice_input->isp_k_param->nr3d_info.blend.bypass;
 	overlapParam->nr3d_bd_FBC_en = 0;
-	overlapParam->ee_bypass = slice_input->nofilter_ctx->edge_info.bypass;
-	overlapParam->ynr_bypass = slice_input->nofilter_ctx->ynr_info_v2.bypass;
-	overlapParam->pre_cnr_bypass = slice_input->nofilter_ctx->pre_cdn_info.bypass;
-	overlapParam->cnr_new_bypass = slice_input->nofilter_ctx->cdn_info.bypass;
-	overlapParam->post_cnr_bypass = slice_input->nofilter_ctx->post_cdn_info.bypass;
-	overlapParam->iir_cnr_bypass = slice_input->nofilter_ctx->iircnr_info.bypass;
+	overlapParam->ee_bypass = slice_input->isp_k_param->edge_info.bypass;
+	overlapParam->ynr_bypass = slice_input->isp_k_param->ynr_info_v2.bypass;
+	overlapParam->pre_cnr_bypass = slice_input->isp_k_param->pre_cdn_info.bypass;
+	overlapParam->cnr_new_bypass = slice_input->isp_k_param->cdn_info.bypass;
+	overlapParam->post_cnr_bypass = slice_input->isp_k_param->post_cdn_info.bypass;
+	overlapParam->iir_cnr_bypass = slice_input->isp_k_param->iircnr_info.bypass;
 
 	/* scaler submod */
 	overlapParam->scaler_input_format = 4; /* 3:422 4:420 */
@@ -2356,24 +2356,24 @@ int isp_init_param_for_overlap_v2(
 	slice_overlap->nr3d_bd_bypass = 1;
 	slice_overlap->nr3d_bd_FBC_en = 0;
 	slice_overlap->yuv420_to_rgb10_bypass = 0;
-	slice_overlap->ltm_sat.bypass = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.bypass;
-	slice_overlap->ynr_bypass = slice_input->nofilter_ctx->ynr_info_v3.bypass;
-	slice_overlap->ee_bypass = slice_input->nofilter_ctx->edge_info_v3.bypass;
-	slice_overlap->cnr_new_bypass = slice_input->nofilter_ctx->cdn_info.bypass;
-	slice_overlap->post_cnr_bypass = slice_input->nofilter_ctx->post_cnr_h_info.bypass;
-	slice_overlap->cnr_bypass = slice_input->nofilter_ctx->cnr_info.bypass;
+	slice_overlap->ltm_sat.bypass = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.bypass;
+	slice_overlap->ynr_bypass = slice_input->isp_k_param->ynr_info_v3.bypass;
+	slice_overlap->ee_bypass = slice_input->isp_k_param->edge_info_v3.bypass;
+	slice_overlap->cnr_new_bypass = slice_input->isp_k_param->cdn_info.bypass;
+	slice_overlap->post_cnr_bypass = slice_input->isp_k_param->post_cnr_h_info.bypass;
+	slice_overlap->cnr_bypass = slice_input->isp_k_param->cnr_info.bypass;
 
 	if (0 == slice_overlap->ltm_sat.bypass) {
 		uint32_t frame_width = slc_ctx->img_width;
 		uint32_t frame_height = slc_ctx->img_height;
 
-		slice_overlap->ltm_sat.strength = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.strength;
-		slice_overlap->ltm_sat.region_est_en = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.region_est_en;
-		slice_overlap->ltm_sat.text_point_thres = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.text_point_thres;
-		slice_overlap->ltm_sat.text_proportion = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.ltm_text.textture_proporion;
-		slice_overlap->ltm_sat.tile_num_auto = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num_auto;
-		slice_overlap->ltm_sat.tile_num_col = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
-		slice_overlap->ltm_sat.tile_num_row = slice_input->nofilter_ctx->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
+		slice_overlap->ltm_sat.strength = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.strength;
+		slice_overlap->ltm_sat.region_est_en = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.region_est_en;
+		slice_overlap->ltm_sat.text_point_thres = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.text_point_thres;
+		slice_overlap->ltm_sat.text_proportion = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.ltm_text.textture_proporion;
+		slice_overlap->ltm_sat.tile_num_auto = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.tile_num_auto;
+		slice_overlap->ltm_sat.tile_num_col = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.tile_num.tile_num_x;
+		slice_overlap->ltm_sat.tile_num_row = slice_input->isp_k_param->ltm_rgb_info.ltm_stat.tile_num.tile_num_y;
 		ISP_OVERLAP_DEBUG("tile_num_col %d, tile_num_row %d", slice_overlap->ltm_sat.tile_num_col, slice_overlap->ltm_sat.tile_num_row);
 
 		ltm_rgb_stat_param_init(frame_width, frame_height, &slice_overlap->ltm_sat);
