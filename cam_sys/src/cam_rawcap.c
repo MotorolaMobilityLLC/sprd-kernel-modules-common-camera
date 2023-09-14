@@ -380,6 +380,8 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 		bin_width = cal_sprd_pitch(proc_info->src_size.width / ratio, ch->ch_uinfo.dcam_raw_fmt);
 		bin_height = proc_info->src_size.height / ratio;
 		bin_size = bin_width * bin_height;
+		if (!hw->ip_isp->isphw_abt->fetch_raw_support)
+			bin_size = bin_size * 3 / 2;
 		bin_size = ALIGN(bin_size, CAM_BUF_ALIGN_SIZE);
 		bin_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
 		bin_frame->common.channel_id = CAM_CH_PRE;
@@ -415,7 +417,8 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 		res_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
 		res_frame->common.channel_id = CAM_CH_PRE;
 		res_frame->common.buf.type = CAM_BUF_KERNEL;
-		bin_size = bin_size * 3 / 2;
+		if (hw->ip_isp->isphw_abt->fetch_raw_support)
+			bin_size = bin_size * 3 / 2;
 		bin_size = ALIGN(bin_size, CAM_BUF_ALIGN_SIZE);
 		ret = cam_buf_alloc(&res_frame->common.buf, bin_size, module->iommu_enable);
 		if (ret) {
