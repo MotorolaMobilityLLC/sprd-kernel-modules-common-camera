@@ -586,6 +586,7 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 	uint32_t shift = 0, align_size = 0;
 	uint32_t ratio_p_w = 0, ratio_p_h = 0, ratio_v_w = 0, ratio_v_h = 0;
 	uint32_t ratio_min_w = 0, ratio_min_h = 0, ratio_min = 0;
+	uint32_t isp_scaler_crop_need = 0, ltm_hist_en = 0;
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_cap = NULL;
@@ -732,6 +733,9 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 			}
 		}
 
+		/* applied latest rect for aem */
+		ch_prev->trim_dcam = trim_pv;
+
 		if (dcam_out.w > DCAM_SCALER_MAX_WIDTH) {
 			dcam_out.h = dcam_out.h * DCAM_SCALER_MAX_WIDTH / dcam_out.w;
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
@@ -740,15 +744,32 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 			ratio_min_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dcam_out.h;
 		}
 
+		/*limit dcam minimum output size to keep isp ltm hist working*/
+		CAM_PIPEINE_ISP_NODE_CFG(ch_prev, CAM_PIPELINE_CFG_XTM_EN, ISP_NODE_MODE_PRE_ID, &ltm_hist_en);
+		if ((dcam_out.w < LTM_MIN_TILE_WIDTH * 8)
+			&& (atomic_read(&module->state) == CAM_RUNNING)
+			&& (ltm_hist_en && module->zoom_solution == ZOOM_SCALER)
+			&& (ch_prev->swap_size.w * ch_prev->swap_size.h > LTM_MIN_TILE_WIDTH * 8 * dcam_out.h)) {
+			isp_scaler_crop_need = 1;
+			dcam_out.h = dcam_out.h * LTM_MIN_TILE_WIDTH * 8 / dcam_out.w;
+			dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
+			dcam_out.w = LTM_MIN_TILE_WIDTH * 8;
+			ratio_min_w = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
+			ratio_min_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dcam_out.h;
+			ch_prev->trim_dcam.size_x = MAX(trim_pv.size_x, dcam_out.w);
+			ch_prev->trim_dcam.size_y = MAX(trim_pv.size_y, dcam_out.h);
+			ch_prev->trim_dcam.size_x = ALIGN(ch_prev->trim_dcam.size_x, 4);
+			ch_prev->trim_dcam.size_y = ALIGN(ch_prev->trim_dcam.size_y, 2);
+			ch_prev->trim_dcam.start_x = ((ch_prev->ch_uinfo.src_size.w - ch_prev->trim_dcam.size_x) >> 1) & ~1;
+			ch_prev->trim_dcam.start_y = ((ch_prev->ch_uinfo.src_size.h - ch_prev->trim_dcam.size_y) >> 1) & ~1;
+		}
+
 		if (ch_prev->compress_en)
 			dcam_out.h = ALIGN_DOWN(dcam_out.h, DCAM_FBC_TILE_HEIGHT);
 
-		pr_info("shift %d, dst_p %u %u, dst_v %u %u, dcam_out %u %u swap w:%d h:%d\n",
-			shift, dst_p.w, dst_p.h, dst_v.w, dst_v.h, dcam_out.w, dcam_out.h,
+		pr_info("shift %d, isp_scaler_crop %d, dst_p %u %u, dst_v %u %u, dcam_out %u %u swap w:%d h:%d\n",
+			shift, isp_scaler_crop_need, dst_p.w, dst_p.h, dst_v.w, dst_v.h, dcam_out.w, dcam_out.h,
 			ch_prev->swap_size.w, ch_prev->swap_size.h);
-
-		/* applied latest rect for aem */
-		ch_prev->trim_dcam = trim_pv;
 
 		total_crop_dst = *total_crop_p;
 		total_trim_pv.size_x = total_crop_dst.w;
@@ -772,6 +793,15 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 		isp_trim->size_y = min(isp_trim->size_y, dcam_out.h);
 		isp_trim->start_x = ((dcam_out.w - isp_trim->size_x) >> 1) & ~1;
 		isp_trim->start_y = ((dcam_out.h - isp_trim->size_y) >> 1) & ~1;
+
+		if (isp_scaler_crop_need && ch_prev->ch_uinfo.src_crop.w < dcam_out.w) {
+			isp_trim->size_x = ch_prev->ch_uinfo.src_crop.w;
+			isp_trim->size_y = ch_prev->ch_uinfo.src_crop.h;
+			isp_trim->size_x = ALIGN(isp_trim->size_x, 4);
+			isp_trim->size_y = ALIGN(isp_trim->size_y, 2);
+			isp_trim->start_x = ((dcam_out.w - isp_trim->size_x) >> 1) & ~1;
+			isp_trim->start_y = ((dcam_out.h - isp_trim->size_y) >> 1) & ~1;
+		}
 		pr_info("trim isp, prev %u %u %u %u\n",
 			isp_trim->start_x, isp_trim->start_y,
 			isp_trim->size_x, isp_trim->size_y);

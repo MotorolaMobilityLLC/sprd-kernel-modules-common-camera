@@ -261,7 +261,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		is_reset = VOID_PTR_TO(param, enum cam_en_status);
 		if (*is_reset) {
 			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
-				port->data_cb_func(CAM_CB_ISP_DEV_ERR, &ret, port->data_cb_handle);
+				port->data_cb_func(CAM_CB_ISP_RESET_ERR, &ret, port->data_cb_handle);
 				break;
 			}
 		}
