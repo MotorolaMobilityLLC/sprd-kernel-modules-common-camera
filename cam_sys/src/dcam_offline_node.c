@@ -44,9 +44,7 @@ static int dcamoffline_node_size_update(struct dcam_offline_node *node,
 	int ret = 0;
 	struct cam_zoom_base zoom_base = {0};
 	struct cam_zoom_index zoom_index = {0};
-	struct dcam_offline_slice_info *slice = NULL;
 
-	slice = &node->hw_ctx->slice_info;
 	memset(&pframe->common.zoom_data, 0 , sizeof(struct cam_zoom_frame));
 	ret = port->zoom_cb_func(port->zoom_cb_handle, &pframe->common.zoom_data);
 	if (!ret) {
@@ -776,7 +774,7 @@ static int dcamoffline_node_frame_start(void *param)
 		node->dev->dcam_pipe_ops->dummy_cfg(node->hw_ctx, &dummy_param);
 	}
 
-	ret = dcam_slice_num_valid_cal(node, lbuf_width);
+	ret = dcam_slice_num_valid_cal(node, lbuf_width, pframe);
 	if (ret == -EFAULT)
 		goto return_buf;
 	ret = dcamoffline_slice_proc(node, pm);

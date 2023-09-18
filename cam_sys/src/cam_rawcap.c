@@ -19,7 +19,7 @@ static int camrawcap_raw_buf_cfg(struct camera_module *module,
 		struct isp_raw_proc_info *proc_info, struct cam_pipeline_desc *param)
 {
 	int ret = 0;
-	uint32_t ratio = 4, bin_width = 0, bin_height = 0, bin_size = 0;
+	uint32_t ratio = 0, bin_width = 0, bin_height = 0, bin_size = 0;
 	uint32_t size = 0, i = 0;
 	struct cam_frame *dcam_offline_bin_frame = NULL;
 	struct cam_frame *isp_pre_frame = NULL;
@@ -37,10 +37,11 @@ static int camrawcap_raw_buf_cfg(struct camera_module *module,
 	isp_node = module->nodes_dev.isp_node_dev[ISP_NODE_MODE_CAP_ID];
 	ch = &module->channel[CAM_CH_CAP];
 	hw = module->grp->hw_info;
+	ratio = ch->ch_uinfo.nonzsl_pre_ratio;
 
 	/* dcam offline bin buf cfg*/
-	bin_width = proc_info->src_size.width / ratio;
-	bin_height = proc_info->src_size.height / ratio;
+	bin_width = ch->dst_dcam.w / ratio;
+	bin_height = ch->dst_dcam.h / ratio;
 	bin_size = cal_sprd_size(bin_width, bin_height, param->dcam_offline_desc.port_desc.dcam_out_fmt);
 	bin_size = ALIGN(bin_size, CAM_BUF_ALIGN_SIZE);
 

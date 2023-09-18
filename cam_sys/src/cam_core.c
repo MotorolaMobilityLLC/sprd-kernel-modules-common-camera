@@ -392,11 +392,12 @@ static int camcore_buffers_alloc(void *param)
 		atomic_inc(&channel->err_status);
 	}
 	if (channel->nonzsl_pre_pipeline) {
-		uint32_t ratio = 4;
+		uint32_t ratio = 0;
 
+		ratio  = channel->ch_uinfo.nonzsl_pre_ratio;
 		alloc_param.ch_id = 1;
-		alloc_param.width = alloc_param.width / ratio;
-		alloc_param.height = alloc_param.height / ratio;
+		alloc_param.width = channel->ch_uinfo.src_crop.w / ratio;
+		alloc_param.height = channel->ch_uinfo.src_crop.h / ratio;
 		if (!module->cam_uinfo.virtualsensor) {
 			alloc_param.dcamonline_buf_alloc_num = 0;
 			alloc_param.dcamoffline_buf_alloc_num = 1;
