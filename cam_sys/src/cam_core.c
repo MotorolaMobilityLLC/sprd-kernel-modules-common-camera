@@ -1196,21 +1196,30 @@ static int camcore_icap_buffer_set(struct camera_module *module, struct channel_
 	int ret = 0, aux_dcam_path = 0, dcam_raw_path = 0;
 	struct cam_frame *pframe = NULL;
 	struct channel_context *ch_cap = NULL;
+	struct channel_context *ch_vch = NULL;
 
 	pframe = (struct cam_frame *)param;
 	ch_cap = &module->channel[CAM_CH_CAP];
+	ch_vch = &module->channel[CAM_CH_DCAM_VCH];
+
 	if (channel->ch_id == CAM_CH_RAW) {
 		aux_dcam_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
 		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(aux_dcam_path),
 				CAM_PIPELINE_CFG_BUF, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
 	} else if (channel->ch_id == CAM_CH_DCAM_VCH) {
-		if (module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX) {
-			pframe->common.width = ch_cap->ch_uinfo.src_size.w;
-			pframe->common.height = ch_cap->ch_uinfo.src_size.h;
+		/* 4in1 normal sensor raw only adopt full path, icap scene sensor raw one in two out, full & vch path */
+		if (module->cam_uinfo.is_4in1) {
 			dcam_raw_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id;
-		} else
-			dcam_raw_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
-		ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch_cap, dcamonline_pathid_convert_to_portid(dcam_raw_path), CAM_PIPELINE_CFG_BUF, pframe);
+			ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch_vch, dcamonline_pathid_convert_to_portid(dcam_raw_path), CAM_PIPELINE_CFG_BUF, pframe);
+		} else {
+			if (module->cam_uinfo.sn_rect.w >= DCAM_HW_WIDTH_MAX) {
+				pframe->common.width = ch_cap->ch_uinfo.src_size.w;
+				pframe->common.height = ch_cap->ch_uinfo.src_size.h;
+				dcam_raw_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->sensor_raw_path_id;
+			} else
+				dcam_raw_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id;
+			ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch_cap, dcamonline_pathid_convert_to_portid(dcam_raw_path), CAM_PIPELINE_CFG_BUF, pframe);
+		}
 	} else {
 		pr_err("fail to set output buffer for ch%d.\n", channel->ch_id);
 		ret = -EFAULT;
@@ -1233,8 +1242,14 @@ static int camcore_link_change(struct camera_module *module, enum camera_raw_sce
 
 	if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE)
 		pipeline_graph = &module->static_topology->pipeline_list[CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV];
-	else
+	else {
 		pipeline_graph = &module->static_topology->pipeline_list[CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV];
+		if (module->cam_uinfo.is_4in1) {
+			pipeline_graph = &module->static_topology->pipeline_list[CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV];
+			if (type == CAM_SENSOR_RAW)
+				return ret;
+		}
+	}
 
 	switch (type) {
 	case CAM_DCAM_RAW:
@@ -1487,6 +1502,8 @@ static void camcore_cap_pipeline_info_get(struct camera_module *module, struct c
 		else
 			*dcam_port_id = dcamonline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 		module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
+		if (module->channel[CAM_CH_DCAM_VCH].enable)
+			module->offline_icap_scene = CAM_ENABLE;
 	}
 
 	if (module->cam_uinfo.is_raw_alg) {
