@@ -49,9 +49,9 @@
 #define LTM_MIN_TILE_WIDTH              160
 #define LTM_MIN_TILE_HEIGHT             20
 
- /* isp limit hw: 30ms, && 2200us(2.2ms)/M, node:5ms*/
+ /* isp limit hw: 30ms, && 2200us(2.2ms)/M, node:7ms*/
 #define ISP_HW_TIME_RATIO               2200
 #define ISP_HW_TIME                     30000
-#define ISP_NODE_TIME                   5000
+#define ISP_NODE_TIME                   7000
 
 #endif

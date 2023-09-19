@@ -1643,7 +1643,7 @@ static int dcamonline_dev_stop(struct dcam_online_node *node, enum dcam_stop_cmd
 
 	if ((unlikely(state == STATE_INIT) || unlikely(state == STATE_IDLE)) &&
 			((node->csi_connect_stat == DCAM_CSI_RESUME) || (hw->csi_connect_type == DCAM_BIND_FIXED))) {
-		pr_warn("warning: DCAM%d not started yet\n", node->hw_ctx_id);
+		pr_debug("DCAM%d not started yet\n", node->hw_ctx_id);
 		return ret;
 	}
 
