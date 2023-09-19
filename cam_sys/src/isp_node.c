@@ -261,7 +261,7 @@ static int ispnode_postproc_irq(void *handle, uint32_t hw_idx, enum isp_postproc
 		is_reset = VOID_PTR_TO(param, enum cam_en_status);
 		if (*is_reset) {
 			CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
-				port->data_cb_func(CAM_CB_ISP_DEV_ERR, &ret, port->data_cb_handle);
+				port->data_cb_func(CAM_CB_ISP_RESET_ERR, &ret, port->data_cb_handle);
 				break;
 			}
 		}
@@ -510,7 +510,10 @@ static int ispnode_3dnr_frame_process(struct isp_node *inode, struct isp_hw_fetc
 		pr_err("fail to get valid parameter pctx %p fetch %p pframe %p\n", inode, fetch, port_cfg);
 		return 0;
 	}
-
+	if (port_cfg->src_frame->common.is_3dnr_close == CAM_ENABLE) {
+		port_cfg->src_frame->common.nr3_me.mv_x = 0;
+		port_cfg->src_frame->common.nr3_me.mv_y = 0;
+	}
 	pr_debug("fid %d, valid %d, x %d, y %d, w %u, h %u\n",
 		port_cfg->src_frame->common.fid,port_cfg->src_frame->common.nr3_me.valid,
 		port_cfg->src_frame->common.nr3_me.mv_x, port_cfg->src_frame->common.nr3_me.mv_y,
@@ -1457,6 +1460,7 @@ int isp_node_buffers_alloc(void *handle, struct cam_buf_alloc_desc *param)
 uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 {
 	int ret = 0;
+	unsigned long blkpm_addr = 0;
 	struct isp_port_cfg port_cfg = {0};
 	struct cam_hw_gtm_ltm_eb eb = {0};
 	struct cam_hw_gtm_ltm_dis dis = {0};
@@ -1517,23 +1521,24 @@ uint32_t isp_node_config(void *node, enum isp_node_cfg_cmd cmd, void *param)
 		break;
 	case ISP_NODE_CFG_POSTPROC_PARAM:
 		postproc_param = (struct cam_postproc_param *)param;
+		blkpm_addr = (unsigned long)postproc_param->blkpm_ptr;
 		param_frame = cam_queue_empty_blk_param_get(&inode->param_share_queue);
 		if (param_frame) {
 			param_frame->isp_blk.fid = postproc_param->fid;
 			/* Temp get param from mw by do offset on base addr, need to discuss
 				param & image buf share set way in offline proc scene. */
 			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->post_cnr_h_info,
-				postproc_param->blk_property, sizeof(struct isp_dev_post_cnr_h_info));
+				(void __user *)blkpm_addr, sizeof(struct isp_dev_post_cnr_h_info));
 			param_frame->isp_blk.param_block->post_cnr_h_info.isupdate = 1;
 
-			postproc_param->blk_property += sizeof(struct isp_dev_post_cnr_h_info);
+			blkpm_addr += sizeof(struct isp_dev_post_cnr_h_info);
 			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->ynr_info_v3,
-				postproc_param->blk_property, sizeof(struct isp_dev_ynr_info_v3));
+				(void __user *)blkpm_addr, sizeof(struct isp_dev_ynr_info_v3));
 			param_frame->isp_blk.param_block->ynr_info_v3.isupdate = 1;
 
-			postproc_param->blk_property += sizeof(struct isp_dev_ynr_info_v3);
+			blkpm_addr += sizeof(struct isp_dev_ynr_info_v3);
 			ret |= copy_from_user((void *)&param_frame->isp_blk.param_block->cnr_info,
-				postproc_param->blk_property, sizeof(struct isp_dev_cnr_h_info));
+				(void __user *)blkpm_addr, sizeof(struct isp_dev_cnr_h_info));
 			param_frame->isp_blk.param_block->cnr_info.isupdate = 1;
 			param_frame->isp_blk.update = 1;
 			if (ret)

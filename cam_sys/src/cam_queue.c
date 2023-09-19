@@ -21,7 +21,6 @@
 #define pr_fmt(fmt) "CAM_QUEUE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
 static struct cam_queue_frame_manager *g_frame_manager = NULL;
-
 static int camqueue_frame_state_clear(struct cam_frame *pframe)
 {
 	if (pframe == NULL) {
@@ -276,12 +275,32 @@ void cam_queue_empty_frame_put(void *frame)
 		return;
 	}
 	pframe = (struct cam_frame *)frame;
-	camqueue_frame_state_clear(pframe);
-	ret = CAM_QUEUE_ENQUEUE(&g_frame_manager->empty_frame_q, &pframe->list);
-	if (ret)
-		pr_warn("warning:frame in another queue or check fail\n");
+	if (g_frame_manager->delay_put_thread.thread_task) {
+		CAM_QUEUE_ENQUEUE(&g_frame_manager->delay_put_q, &pframe->list);
+		complete(&g_frame_manager->delay_put_thread.thread_com);
+	} else {
+		camqueue_frame_state_clear(pframe);
+		ret = CAM_QUEUE_ENQUEUE(&g_frame_manager->empty_frame_q, &pframe->list);
+		if (ret)
+			pr_warn("warning:frame in another queue or check fail\n");
+	}
 
 	return;
+}
+
+int cam_queue_frame_put_thread(void *param)
+{
+	int ret = 0;
+	struct cam_frame *pframe = NULL;
+	struct cam_queue_frame_manager *frame_manager = NULL;
+
+	frame_manager = (struct cam_queue_frame_manager *)param;
+	pframe = CAM_QUEUE_DEQUEUE(&frame_manager->delay_put_q, struct cam_frame, list);
+	camqueue_frame_state_clear(pframe);
+	ret = CAM_QUEUE_ENQUEUE(&frame_manager->empty_frame_q, &pframe->list);
+	if (ret)
+		pr_warn("warning:frame in another queue or check fail\n");
+	return ret;
 }
 
 int cam_queue_empty_frame_init()
@@ -299,6 +318,10 @@ int cam_queue_empty_frame_init()
 		}
 		frame_manager->array_num = 0;
 		CAM_QUEUE_INIT(&frame_manager->empty_frame_q, CAM_EMP_ARRAY_LEN_MAX * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), NULL);
+		CAM_QUEUE_INIT(&frame_manager->delay_put_q, CAM_EMP_ARRAY_LEN_MAX * CAM_EMP_ARRAT_LEN_PER(struct cam_frame), NULL);
+
+		sprintf(frame_manager->delay_put_thread.thread_name, "delay_put_thread");
+		camthread_create(frame_manager, &frame_manager->delay_put_thread, cam_queue_frame_put_thread);
 		spin_lock_init(&frame_manager->frame_lock);
 		g_frame_manager = frame_manager;
 	}
@@ -328,7 +351,13 @@ int cam_queue_empty_frame_deinit()
 {
 	struct cam_queue_frame_manager *frame_manager = g_frame_manager;
 	int32_t i = 0;
+	uint32_t timeout = 1000;
 
+	while (CAM_QUEUE_CNT_GET(&frame_manager->delay_put_q) != 0 && timeout != 0) {
+		os_adapt_time_udelay(500);
+		timeout--;
+	}
+	camthread_stop(&frame_manager->delay_put_thread);
 	spin_lock(&frame_manager->frame_lock);
 	cam_queue_frame_array_check(CAM_FRAME_CHECK_ALL);
 	CAM_QUEUE_CLEAN(&frame_manager->empty_frame_q, struct cam_frame, list);

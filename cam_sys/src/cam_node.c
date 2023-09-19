@@ -1224,7 +1224,7 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 		return -EFAULT;
 	}
 	node = (struct cam_node *)priv_data;
-	if (type == CAM_CB_DCAM_DEV_ERR || type == CAM_CB_ISP_DEV_ERR) {
+	if (type == CAM_CB_DCAM_DEV_ERR || type == CAM_CB_ISP_DEV_ERR || type == CAM_CB_ISP_RESET_ERR) {
 		pr_err("fail to fatal err accured\n");
 		goto exit;
 	}

@@ -532,6 +532,7 @@ static int ispport_store_frameproc(struct isp_port *port, struct cam_frame *out_
 	if (!port->need_post_proc) {
 		do {
 			if (!out_frame->common.is_reserved) {
+				port_cfg->src_frame->common.is_3dnr_close = out_frame->common.is_3dnr_close;
 				if (out_frame->common.buf.mfd == port->reserved_buf_fd)
 					buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_SINGLE_PAGE_IOVA;
 				else

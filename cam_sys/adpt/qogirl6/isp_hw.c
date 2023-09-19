@@ -1225,64 +1225,64 @@ static int isphw_path_thumbscaler(void *handle, void *arg)
 		((scalerInfo->uv_deci.deci_y_eb & 0x1) << 31);
 	ISP_REG_MWR(idx, ISP_THMB_CFG, 0xBBBB003C, val);
 
-	val = ((scalerInfo->y_factor_in.w & 0x1FFF) << 16) |
-		(scalerInfo->y_factor_out.w & 0x3FF);
+	val = ((scalerInfo->y_factor_in.w & 0x3FFF) << 16) |
+		(scalerInfo->y_factor_out.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_FACTOR_HOR, val);
 
-	val = ((scalerInfo->y_factor_in.h & 0x1FFF) << 16) |
-		(scalerInfo->y_factor_out.h & 0x3FF);
+	val = ((scalerInfo->y_factor_in.h & 0x3FFF) << 16) |
+		(scalerInfo->y_factor_out.h & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_FACTOR_VER, val);
 
-	val = ((scalerInfo->uv_factor_in.w & 0x1FFF) << 16) |
-		(scalerInfo->uv_factor_out.w & 0x3FF);
+	val = ((scalerInfo->uv_factor_in.w & 0x3FFF) << 16) |
+		(scalerInfo->uv_factor_out.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_FACTOR_HOR, val);
 
-	val = ((scalerInfo->uv_factor_in.h & 0x1FFF) << 16) |
-		(scalerInfo->uv_factor_out.h & 0x3FF);
+	val = ((scalerInfo->uv_factor_in.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_factor_out.h & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_FACTOR_VER, val);
 
-	val = ((scalerInfo->src0.h & 0x1FFF) << 16) |
-		(scalerInfo->src0.w & 0x1FFF);
+	val = ((scalerInfo->src0.h & 0x3FFF) << 16) |
+		(scalerInfo->src0.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_BEFORE_TRIM_SIZE, val);
 
-	val = ((scalerInfo->y_src_after_deci.h & 0x1FFF) << 16) |
-		(scalerInfo->y_src_after_deci.w & 0x1FFF);
+	val = ((scalerInfo->y_src_after_deci.h & 0x3FFF) << 16) |
+		(scalerInfo->y_src_after_deci.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_SLICE_SRC_SIZE, val);
 
-	val = ((scalerInfo->y_dst_after_scaler.h & 0x3FF) << 16) |
-		(scalerInfo->y_dst_after_scaler.w & 0x3FF);
+	val = ((scalerInfo->y_dst_after_scaler.h & 0x3FFF) << 16) |
+		(scalerInfo->y_dst_after_scaler.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_DES_SIZE, val);
 
-	val = ((scalerInfo->y_trim.start_y & 0x1FFF) << 16) |
-		(scalerInfo->y_trim.start_x & 0x1FFF);
+	val = ((scalerInfo->y_trim.start_y & 0x3FFF) << 16) |
+		(scalerInfo->y_trim.start_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_TRIM0_START, val);
 
-	val = ((scalerInfo->y_trim.size_y & 0x1FFF) << 16) |
-		(scalerInfo->y_trim.size_x & 0x1FFF);
+	val = ((scalerInfo->y_trim.size_y & 0x3FFF) << 16) |
+		(scalerInfo->y_trim.size_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_TRIM0_SIZE, val);
 
-	val = ((scalerInfo->y_init_phase.h & 0x3FF) << 16) |
-		(scalerInfo->y_init_phase.w & 0x3FF);
+	val = ((scalerInfo->y_init_phase.h & 0x3FFF) << 16) |
+		(scalerInfo->y_init_phase.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_Y_INIT_PHASE, val);
 
-	val = ((scalerInfo->uv_src_after_deci.h & 0x1FFF) << 16) |
-		(scalerInfo->uv_src_after_deci.w & 0x1FFF);
+	val = ((scalerInfo->uv_src_after_deci.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_src_after_deci.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_SLICE_SRC_SIZE, val);
 
-	val = ((scalerInfo->uv_dst_after_scaler.h & 0x3FF) << 16) |
-		(scalerInfo->uv_dst_after_scaler.w & 0x3FF);
+	val = ((scalerInfo->uv_dst_after_scaler.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_dst_after_scaler.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_DES_SIZE, val);
 
-	val = ((scalerInfo->uv_trim.start_y & 0x1FFF) << 16) |
-		(scalerInfo->uv_trim.start_x & 0x1FFF);
+	val = ((scalerInfo->uv_trim.start_y & 0x3FFF) << 16) |
+		(scalerInfo->uv_trim.start_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_TRIM0_START, val);
 
-	val = ((scalerInfo->uv_trim.size_y & 0x1FFF) << 16) |
-		(scalerInfo->uv_trim.size_x & 0x1FFF);
+	val = ((scalerInfo->uv_trim.size_y & 0x3FFF) << 16) |
+		(scalerInfo->uv_trim.size_x & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_TRIM0_SIZE, val);
 
-	val = ((scalerInfo->uv_init_phase.h & 0x3FF) << 16) |
-		(scalerInfo->uv_init_phase.w & 0x3FF);
+	val = ((scalerInfo->uv_init_phase.h & 0x3FFF) << 16) |
+		(scalerInfo->uv_init_phase.w & 0x3FFF);
 	ISP_REG_WR(idx, ISP_THMB_UV_INIT_PHASE, val);
 
 	/* bypass regular. */
@@ -2355,59 +2355,59 @@ static int isphw_slice_spath_thumbscaler(void *handle, void *arg)
 		return 0;
 
 	addr = ISP_GET_REG(ISP_THMB_BEFORE_TRIM_SIZE);
-	cmd = ((spath->slc_scaler->src0.h & 0x1FFF) << 16) |
-		(spath->slc_scaler->src0.w & 0x1FFF);
+	cmd = ((spath->slc_scaler->src0.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->src0.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_SLICE_SRC_SIZE);
-	cmd = ((spath->slc_scaler->y_src_after_deci.h & 0x1FFF) << 16) |
-		(spath->slc_scaler->y_src_after_deci.w & 0x1FFF);
+	cmd = ((spath->slc_scaler->y_src_after_deci.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_src_after_deci.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_DES_SIZE);
-	cmd = ((spath->slc_scaler->y_dst_after_scaler.h & 0x3FF) << 16) |
-		(spath->slc_scaler->y_dst_after_scaler.w & 0x3FF);
+	cmd = ((spath->slc_scaler->y_dst_after_scaler.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_dst_after_scaler.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_TRIM0_START);
-	cmd = ((spath->slc_scaler->y_trim.start_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->y_trim.start_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->y_trim.start_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_trim.start_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_TRIM0_SIZE);
-	cmd = ((spath->slc_scaler->y_trim.size_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->y_trim.size_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->y_trim.size_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_trim.size_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_Y_INIT_PHASE);
-	cmd = ((spath->slc_scaler->y_init_phase.h & 0x3FF) << 16) |
-		(spath->slc_scaler->y_init_phase.w & 0x3FF);
+	cmd = ((spath->slc_scaler->y_init_phase.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->y_init_phase.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 
 	addr = ISP_GET_REG(ISP_THMB_UV_SLICE_SRC_SIZE);
-	cmd = ((spath->slc_scaler->uv_src_after_deci.h & 0x1FFF) << 16) |
-		(spath->slc_scaler->uv_src_after_deci.w & 0x1FFF);
+	cmd = ((spath->slc_scaler->uv_src_after_deci.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_src_after_deci.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_DES_SIZE);
-	cmd = ((spath->slc_scaler->uv_dst_after_scaler.h & 0x3FF) << 16) |
-		(spath->slc_scaler->uv_dst_after_scaler.w & 0x3FF);
+	cmd = ((spath->slc_scaler->uv_dst_after_scaler.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_dst_after_scaler.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_TRIM0_START);
-	cmd = ((spath->slc_scaler->uv_trim.start_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->uv_trim.start_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->uv_trim.start_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_trim.start_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_TRIM0_SIZE);
-	cmd = ((spath->slc_scaler->uv_trim.size_y & 0x1FFF) << 16) |
-		(spath->slc_scaler->uv_trim.size_x & 0x1FFF);
+	cmd = ((spath->slc_scaler->uv_trim.size_y & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_trim.size_x & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	addr = ISP_GET_REG(ISP_THMB_UV_INIT_PHASE);
-	cmd = ((spath->slc_scaler->uv_init_phase.h & 0x3FF) << 16) |
-		(spath->slc_scaler->uv_init_phase.w & 0x3FF);
+	cmd = ((spath->slc_scaler->uv_init_phase.h & 0x3FFF) << 16) |
+		(spath->slc_scaler->uv_init_phase.w & 0x3FFF);
 	FMCU_PUSH(spath->fmcu, addr, cmd);
 
 	return 0;
@@ -3001,6 +3001,7 @@ static int isphw_cfg_mmu_wbypass(void *handle, void *arg)
 
 static int isphw_block_param_config(void *handle, void *arg)
 {
+	int ret = 0;
 	struct dcam_isp_k_block *p = NULL;
 	struct isp_pipeline_param_l6 *blkpm_ptr = NULL;
 
@@ -3015,7 +3016,9 @@ static int isphw_block_param_config(void *handle, void *arg)
 	if (blkpm_ptr->nlm_param.update_flag) {
 		memcpy(&p->nlm_info_base, &blkpm_ptr->nlm_param, sizeof(struct isp_dev_nlm_info_v2));
 		p->nlm_info_base.isupdate = 1;
-		isp_k_save_vst_ivst(p);
+		ret = isp_k_save_vst_ivst(p);
+		if (ret)
+			p->nlm_info_base.bypass = 1;
 	}
 	if (blkpm_ptr->imbalance_param.update_flag) {
 		memcpy(&p->imbalance_info_base2, &blkpm_ptr->imbalance_param, sizeof(struct isp_dev_nlm_imblance_v2));
@@ -3092,7 +3095,9 @@ static int isphw_block_param_config(void *handle, void *arg)
 	if (blkpm_ptr->ltm_param.update_flag) {
 		memcpy(&p->ltm_rgb_info, &blkpm_ptr->ltm_param, sizeof(struct isp_dev_rgb_ltm_info));
 		p->ltm_rgb_info.isupdate = 1;
-		isp_ltm_map_param_get(p);
+		ret = isp_ltm_map_param_get(p);
+		if (ret)
+			p->ltm_rgb_info.ltm_map.bypass = 1;
 	}
 	if (blkpm_ptr->nf_param.update_flag) {
 		memcpy(&p->nf_info, &blkpm_ptr->nf_param, sizeof(struct isp_dev_noise_filter_info));

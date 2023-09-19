@@ -631,7 +631,7 @@ struct sprd_img_postproc_param {
 	struct sprd_img_size src_size;
 	struct sprd_img_size dst_size;
 	uint32_t fd_array[SPRD_IMG_POSTPROC_BUF_CNT];
-	void __user *blk_param;
+	uint64_t blkpm_ptr;
 	uint32_t src_imgfmt;
 	uint32_t dst_imgfmt;
 	struct sprd_img_frm_addr frame_addr_vir_array[SPRD_IMG_POSTPROC_BUF_CNT];
@@ -653,7 +653,7 @@ struct sprd_img_function_mode {
 	uint32_t param_frame_sync;
 	uint32_t virtualsensor;/* 1: virtual sensor 0: normal */
 	uint32_t master_flag;/* master cam capture flag */
-	uint32_t dual_buf_num;
+	uint32_t buf_num;
 	uint32_t dual_cache_buf_num;
 	uint32_t opt_buffer_num;/* pre raw malloc and cache buffer num */
 	uint32_t rawdata_src;

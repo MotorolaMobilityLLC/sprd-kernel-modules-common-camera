@@ -190,6 +190,7 @@ struct camera_frame {
 	enum cam_postproc_mode proc_mode;
 	enum cam_reserved_buf_type is_reserved;
 	enum cam_en_status is_compressed;
+	enum cam_en_status is_3dnr_close;
 	enum cam_en_status pyr_status;
 	/*use for isp ltm ctrl*/
 	struct isp_xtm_conflict_info xtm_conflict;
@@ -262,6 +263,8 @@ struct cam_queue_frame_manager {
 	struct cam_frame *frame_array[CAM_EMP_ARRAY_LEN_MAX];
 	struct camera_queue empty_frame_q;
 	spinlock_t frame_lock;
+	struct camera_queue delay_put_q;
+	struct cam_thread_info delay_put_thread;
 };
 
 #define CAM_QUEUE_LIST_ADD_CHECK(head, _list) ({ \

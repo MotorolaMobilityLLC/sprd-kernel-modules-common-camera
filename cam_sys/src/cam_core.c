@@ -939,10 +939,9 @@ static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
 
 static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
-	int ret = 0, reset_flag = 0, i = 0, j = 0;
+	int ret = 0, reset_flag = 0, i = 0;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
-	struct cam_pipeline_cfg_param pipe_param = {0};
 	struct cam_hw_info *hw = NULL;
 	struct cam_frame *pframe = NULL;
 	struct camera_module *module = NULL;
@@ -950,7 +949,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 	struct dcam_online_node *dcam_online_node_dev = NULL;
 	struct cam_hw_reg_trace trace = {0};
 	struct cam_buf_pool_id recycle_pool = {CAM_BUF_POOL_ABNORAM_RECYCLE, 0};
-	enum dcam_stop_cmd stop_cmd = DCAM_NORMAL_STOP;
+	struct dcam_switch_param csi_switch = {0};
 
 	if (!param || !priv_data) {
 		pr_err("fail to get valid param %p %p\n", param, priv_data);
@@ -972,30 +971,27 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		return 0;
 	}
 
-	if (unlikely(type == CAM_CB_ISP_DEV_ERR)) {
+	if (unlikely(type == CAM_CB_ISP_DEV_ERR) || unlikely(type == CAM_CB_ISP_RESET_ERR)) {
+		dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
 		for (i = 0; i < DCAM_HW_CONTEXT_MAX; ++i) {
 			if (module->dcam_dev_handle->hw_ctx[i].dcam_irq_cb_func) {
-				if (module->dcam_dev_handle->hw_ctx[i].is_offline_proc == CAM_DISABLE) {
-					for (j = 0; j < CAM_CH_MAX; j++) {
-						channel = &module->channel[j];
-						if (channel->enable && channel->pipeline_handle) {
-							stop_cmd = DCAM_HW_ERROR_STOP;
-							pipe_param.node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-							pipe_param.node_param.param = &stop_cmd;
-							ret = channel->pipeline_handle->ops.streamoff(channel->pipeline_handle, &pipe_param);
-						}
+				if (unlikely(type == CAM_CB_ISP_RESET_ERR)) {
+					if (module->dcam_dev_handle->hw_ctx[i].is_offline_proc == CAM_DISABLE && dcam_online_node_dev
+						&& dcam_online_node_dev->hw_ctx_id == i) {
+						csi_switch.csi_id = dcam_online_node_dev->csi_controller_idx;
+						csi_switch.dcam_id = dcam_online_node_dev->hw_ctx_id;
+						hw->dcam_ioctl(hw, dcam_online_node_dev->hw_ctx_id, DCAM_HW_CFG_DISCONECT_CSI, &csi_switch);
 					}
+					hw->dcam_ioctl(hw, i, DCAM_HW_CFG_IRQ_DISABLE, &i);
+					hw->dcam_ioctl(hw, i, DCAM_HW_CFG_STOP, &module->dcam_dev_handle->hw_ctx[i]);
+					hw->dcam_ioctl(hw, i, DCAM_HW_CFG_RESET, &i);
 				}
-				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_IRQ_DISABLE, &i);
-				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_STOP, &module->dcam_dev_handle->hw_ctx[i]);
-				hw->dcam_ioctl(hw, i, DCAM_HW_CFG_RESET, &i);
 			}
 		}
 
 		pr_err("fail to fatal err may not do anything\n");
-		if (module->nodes_dev.dcam_online_node_dev) {
+		if (dcam_online_node_dev) {
 			trace.type = ABNORMAL_REG_TRACE;
-			dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
 			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 				trace.idx = dcam_online_node_dev->hw_ctx_id;
 				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
@@ -2261,7 +2257,7 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD ||
 		module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
 		postproc_param->ch = &module->channel[CAM_CH_PRE];
-		ret |= get_user(postproc_param->blk_property, &uparam->blk_param);
+		ret |= get_user(postproc_param->blkpm_ptr, &uparam->blkpm_ptr);
 		if (ret) {
 			pr_err("fail to get postproc blk param addr\n");
 			return -EFAULT;

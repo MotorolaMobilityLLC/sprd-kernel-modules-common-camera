@@ -80,7 +80,7 @@ struct slice_cfg_input {
 	struct isp_3dnr_ctx_desc *nr3_ctx;
 	struct isp_ltm_ctx_desc *rgb_ltm;
 	struct isp_gtm_ctx_desc *rgb_gtm;
-	struct dcam_isp_k_block *nofilter_ctx;
+	struct dcam_isp_k_block *isp_k_param;
 	struct slice_dyn_calc_param calc_dyn_ov;
 };
 
@@ -480,6 +480,7 @@ struct isp_slice_context {
 	struct slice_drv_overlap_param_t overlapParam;
 	struct yuvscaler_param_t yuvscaler_slice_param;
 	struct alg_slice_drv_overlap slice_overlap;
+	struct yuvscaler_param_t yuvscaler_param;
 	uint32_t slice_row_num;
 	uint32_t slice_col_num;
 	uint32_t slice_num;

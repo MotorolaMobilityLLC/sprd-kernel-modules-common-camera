@@ -775,9 +775,6 @@ static int ispscaler_node_start_proc(void *node)
 	if (pctx_hw->fmcu_handle || slice_need) {
 		ret = ispscaler_node_slice_ctx_init(inode, &pctx_hw->pipe_info);
 		isp_hwctx_fmcu_reset(pctx_hw);
-	}
-
-	if (pctx_hw->fmcu_handle || slice_need) {
 		ret = ispscaler_node_slice_fmcu(inode, pctx_hw, &slc_cfg);
 		if (!ret)
 			kick_fmcu = 1;

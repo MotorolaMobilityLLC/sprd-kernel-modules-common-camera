@@ -630,9 +630,6 @@ static int pyrdec_node_calc_base_info(struct pyr_dec_node *node, struct cam_fram
 		PYR_DEC_DEBUG("layer %d store addr %x %x\n", i,
 			node->store_addr[i].addr_ch0, node->store_addr[i].addr_ch1);
 	}
-	/* layer 0 fetch & store size is real size not include padding size */
-	node->dec_layer_size[0].w = node->src.w;
-	node->dec_layer_size[0].h = node->src.h;
 
 	return ret;
 }
@@ -1195,6 +1192,10 @@ static int pyrdec_node_start_proc(void *handle)
 		goto calc_err;
 	}
 
+	/* layer 0 fetch & store size is real size not include padding size */
+	node->dec_layer_size[0].w = node->src.w;
+	node->dec_layer_size[0].h = node->src.h;
+
 	fmcu->ops->ctx_reset(fmcu);
 
 	ret = pyrdec_node_calc_slice_info(node);
@@ -1518,6 +1519,7 @@ int pyr_dec_node_param_buf_cfg(void *handle, void *param)
 int pyr_dec_node_postproc_param_cfg(void *handle, void *param)
 {
 	int ret = 0;
+	unsigned long blkpm_addr = 0;
 	struct pyr_dec_node *node = NULL;
 	struct cam_frame *decblk_frame = NULL;
 	struct cam_postproc_param *postproc_param = NULL;
@@ -1529,13 +1531,14 @@ int pyr_dec_node_postproc_param_cfg(void *handle, void *param)
 
 	node = (struct pyr_dec_node *)handle;
 	postproc_param = (struct cam_postproc_param *)param;
+	blkpm_addr = (unsigned long)postproc_param->blkpm_ptr;
 	decblk_frame = cam_queue_empty_blk_param_get(&node->param_share_queue);
 	if (decblk_frame) {
 		/* Temp get param from mw by do offset on base addr, need to discuss
 			param & image buf share set way in offline proc scene. */
-		postproc_param->blk_property += sizeof(struct isp_dev_cnr_h_info);
+		blkpm_addr += sizeof(struct isp_dev_cnr_h_info);
 		ret = copy_from_user((void *)&decblk_frame->dec_blk.decblk_pm->dct_info,
-			postproc_param->blk_property, sizeof(struct isp_dev_dct_info));
+			(void __user *)blkpm_addr, sizeof(struct isp_dev_dct_info));
 		if (ret)
 			pr_warn("Warning:not get the dec dct info.\n");
 		decblk_frame->dec_blk.fid = postproc_param->fid;
