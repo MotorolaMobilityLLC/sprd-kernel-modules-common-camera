@@ -968,7 +968,8 @@ void *isp_yuv_scaler_node_get (uint32_t node_id, struct isp_yuv_scaler_node_desc
 	sprintf(thrd->thread_name, "isp scaler node %d_offline", node->node_id);
 	ret = camthread_create(node, thrd, ispscaler_node_start_proc);
 	if (ret) {
-		pr_err("fail to get isp node nterruption_proc thread.\n");
+		pr_err("fail to get isp scaler node proc thread.\n");
+		cam_buf_kernel_sys_vfree(node);
 		return NULL;
 	}
 
@@ -983,6 +984,7 @@ exit:
 void isp_yuv_scaler_node_put (struct isp_yuv_scaler_node *node)
 {
 	int ret = 0;
+
 	if (!node) {
 		pr_err("fail to get invalid node ptr\n");
 		return;
