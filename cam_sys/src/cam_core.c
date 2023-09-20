@@ -1008,7 +1008,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 				trace.idx = dcam_online_node_dev->hw_ctx_id;
 				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-				hw->isp_ioctl(hw, ISP_HW_CFG_ABNORMAL_UEVENT, module->grp->pdev);
 			}
 		}
 		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
@@ -2798,6 +2797,7 @@ rewait:
 					if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 						trace.idx = dcam_online_node_dev->hw_ctx_id;
 						hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+						hw->isp_ioctl(hw, ISP_HW_CFG_ABNORMAL_UEVENT, module->grp->pdev);
 					}
 				}
 				read_op.evt = pframe->common.evt;
