@@ -973,7 +973,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	pr_debug("dcam %d offline %d en0 %d en1 %d\n", camarg->idx, camarg->offline_flag,
 		dcam0_mipi_en, dcam1_mipi_en);
 	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
-		pr_warn("warning: dcam 0/1 already in working\n");
+		pr_debug("dcam 0/1 already in working\n");
 		return 0;
 	}
 

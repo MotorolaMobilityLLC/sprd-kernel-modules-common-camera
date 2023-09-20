@@ -53,9 +53,9 @@
 #define GTM_HIST_ITEM_NUM               128
 #define GTM_HIST_XPTS_CNT               256
 
- /* isp limit hw: 30ms, && 2500us(2.5ms)/M, node:5ms*/
+ /* isp limit hw: 40ms, && 2500us(2.5ms)/M, node:7ms*/
 #define ISP_HW_TIME_RATIO               2500
-#define ISP_HW_TIME                     30000
-#define ISP_NODE_TIME                   5000
+#define ISP_HW_TIME                     40000
+#define ISP_NODE_TIME                   7000
 
 #endif
