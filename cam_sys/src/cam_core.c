@@ -964,6 +964,20 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			csi_api_reg_trace();
 		if (*(uint32_t *)param) {
 			pr_info("cam %d start recovery\n", module->idx);
+			if (atomic_read(&module->grp->recovery_state) == CAM_RECOVERY_DONE) {
+				pframe = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+				pframe->common.evt = IMG_TX_ERR;
+				pframe->common.irq_type = CAMERA_IRQ_MAX;
+				pframe->common.irq_property = IRQ_MAX_DONE;
+				ret = CAM_QUEUE_ENQUEUE(&module->img_queue, &pframe->list);
+				if (ret) {
+					pr_err("fail to enqueue frm queue cnt:%d, state:%d.\n",
+						module->img_queue.cnt, module->img_queue.state);
+					cam_queue_empty_frame_put(pframe);
+				} else
+					complete(&module->img_com);
+				return 0;
+			}
 			if (atomic_cmpxchg(&module->grp->recovery_state, CAM_RECOVERY_NONE, CAM_RECOVERY_RUNNING) == CAM_RECOVERY_NONE)
 				complete(&module->grp->recovery_thrd.thread_com);
 		}
@@ -994,7 +1008,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 				trace.idx = dcam_online_node_dev->hw_ctx_id;
 				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-				hw->isp_ioctl(hw, ISP_HW_CFG_ABNORMAL_UEVENT, module->grp->pdev);
 			}
 		}
 		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
@@ -1950,8 +1963,8 @@ static void camcore_timer_callback(unsigned long data)
 
 	if (atomic_read(&module->timeout_flag) == 1) {
 		pr_err("fail to get frame data, CAM%d timeout.\n", module->idx);
-		frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
 		if (module->timeout_num) {
+			frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
 			if (module->capture_type == CAM_CAPTURE_RAWPROC) {
 				module->capture_type = CAM_CAPTURE_RAWPROC_DONE;
 				frame->common.evt = IMG_TX_DONE;
@@ -1959,14 +1972,15 @@ static void camcore_timer_callback(unsigned long data)
 				frame->common.irq_property = IRQ_RAW_PROC_TIMEOUT;
 			} else {
 				frame->common.evt = IMG_TIMEOUT;
-				frame->common.irq_type = CAMERA_IRQ_IMG;
+				frame->common.irq_type = CAMERA_IRQ_MAX;
 				frame->common.irq_property = IRQ_MAX_DONE;
 			}
 			ret = CAM_QUEUE_ENQUEUE(&module->img_queue, &frame->list);
-			if (ret)
+			if (ret) {
 				pr_err("fail to enqueue frm queue cnt:%d, state:%d.\n",
 					module->img_queue.cnt, module->img_queue.state);
-			else
+				cam_queue_empty_frame_put(frame);
+			} else
 				complete(&module->img_com);
 		} else {
 			module->timeout_num++;
@@ -2599,7 +2613,7 @@ static int camcore_recovery_proc(void *param)
 			camcore_timer_start(&module->cam_timer, timer);
 		}
 	}
-	atomic_set(&grp->recovery_state, CAM_RECOVERY_NONE);
+	atomic_set(&grp->recovery_state, CAM_RECOVERY_DONE);
 	up_write(&grp->switch_recovery_lock);
 	pr_info("cam recovery is finish\n");
 
@@ -2724,6 +2738,7 @@ rewait:
 					|| (pframe->common.irq_type == CAMERA_IRQ_IMG)
 					|| (pframe->common.irq_type == CAMERA_IRQ_RAW_IMG)
 					|| (pframe->common.irq_type == CAMERA_IRQ_RAW_BPC_IMG)) {
+					atomic_set(&module->grp->recovery_state, CAM_RECOVERY_NONE);
 					cam_buf_manager_buf_status_cfg(&pframe->common.buf, CAM_BUF_STATUS_MOVE_TO_ALLOC, CAM_BUF_IOMMUDEV_MAX);
 					pchannel = &module->channel[pframe->common.channel_id];
 					if (pframe->common.buf.mfd == module->reserved_buf_fd) {
@@ -2782,6 +2797,7 @@ rewait:
 					if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
 						trace.idx = dcam_online_node_dev->hw_ctx_id;
 						hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+						hw->isp_ioctl(hw, ISP_HW_CFG_ABNORMAL_UEVENT, module->grp->pdev);
 					}
 				}
 				read_op.evt = pframe->common.evt;
