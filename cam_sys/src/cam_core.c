@@ -3158,9 +3158,9 @@ static int camcore_release(struct inode *node, struct file *file)
 		return -EFAULT;
 	}
 
+	down_read(&group->switch_recovery_lock);
 	if (atomic_read(&module->state) == CAM_RUNNING)
 		atomic_set(&module->state, CAM_FORCE_CLOSE);
-	down_read(&group->switch_recovery_lock);
 	ret = camioctl_stream_off(module, 0L);
 	up_read(&group->switch_recovery_lock);
 
