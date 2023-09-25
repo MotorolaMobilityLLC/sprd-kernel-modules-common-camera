@@ -1732,6 +1732,7 @@ void cam_node_close(struct cam_node *node)
 void cam_node_destory(struct cam_node *node)
 {
 	int i = 0;
+
 	if (!node) {
 		pr_err("fail to get valid node\n");
 		return;
