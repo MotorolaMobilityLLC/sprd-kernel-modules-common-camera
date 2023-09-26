@@ -99,6 +99,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
+	unsigned long flag = 0;
 
 	if (!handle || !arg) {
 		pr_err("fail to get valid arg\n");
@@ -109,7 +110,6 @@ static int dcamhw_axi_init(void *handle, void *arg)
 	idx = *(uint32_t *)arg;
 	ip = hw->ip_dcam[idx];
 	soc = hw->soc_dcam;
-	write_lock(&soc->cam_ahb_lock);
 	/* firstly, stop AXI writing. */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x3 << 23));
 
@@ -119,7 +119,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 			break;
 		os_adapt_time_udelay(1000);
 	}
-
+	write_lock_irqsave(&soc->cam_ahb_lock, flag);
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
 		pr_info("dcam axim timeout status 0x%x\n",
 			DCAM_AXIM_RD(AXIM_DBG_STS));
@@ -131,7 +131,7 @@ static int dcamhw_axi_init(void *handle, void *arg)
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			ip->syscon.all_rst_mask, ~(ip->syscon.all_rst_mask));
 	}
-	write_unlock(&soc->cam_ahb_lock);
+	write_unlock_irqrestore(&soc->cam_ahb_lock, flag);
 	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
@@ -162,6 +162,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_soc_info *soc = NULL;
 	struct cam_hw_ip_info *ip = NULL;
+	unsigned long lock_flag = 0;
 
 	if (!handle || !arg) {
 		pr_err("fail to get valid arg\n");
@@ -171,7 +172,6 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 	hw = (struct cam_hw_info *)handle;
 	idx = *(uint32_t *)arg;
 	soc = hw->soc_dcam;
-	write_lock(&soc->cam_ahb_lock);
 	/* firstly, stop AXI writing. */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x3 << 23));
 
@@ -181,7 +181,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 			break;
 		os_adapt_time_udelay(1000);
 	}
-
+	write_lock_irqsave(&soc->cam_ahb_lock, lock_flag);
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
 		pr_info("fail to dcam axim timeout status 0x%x\n",
 			DCAM_AXIM_RD(AXIM_DBG_STS));
@@ -197,7 +197,7 @@ static int dcamhw_axi_reset(void *handle, void *arg)
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst,
 			flag, ~flag);
 	}
-	write_unlock(&soc->cam_ahb_lock);
+	write_unlock_irqrestore(&soc->cam_ahb_lock, lock_flag);
 	hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_SET_QOS, NULL);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(AXIM_CTRL, BIT_24 | BIT_23, (0x0 << 23));
@@ -978,7 +978,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	pr_debug("dcam %d offline %d en0 %d en1 %d\n", camarg->idx, camarg->offline_flag,
 		dcam0_mipi_en, dcam1_mipi_en);
 	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
-		pr_warn("warning: dcam 0/1 already in working\n");
+		pr_debug("dcam 0/1 already in working\n");
 		return 0;
 	}
 

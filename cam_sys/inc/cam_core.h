@@ -64,6 +64,7 @@ enum camera_module_state {
 enum camera_recovery_state {
 	CAM_RECOVERY_NONE = 0,
 	CAM_RECOVERY_RUNNING,
+	CAM_RECOVERY_DONE,
 	CAM_RECOVERY_MAX,
 };
 

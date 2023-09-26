@@ -266,9 +266,9 @@ static void dcamhw_axi_common_init(struct cam_hw_info *hw, struct cam_hw_soc_inf
 	unsigned long __flags;
 	struct cam_hw_ip_info *ip = NULL;
 	uint32_t time_out = 0, flag = 0;
+	unsigned long lock_flag = 0;
 
 	ip = hw->ip_dcam[hw_idx];
-	write_lock(&soc->cam_ahb_lock);
 	/* firstly, stop AXI writing. */
 	DCAM_AXIM_MWR(hw_idx, ctrl_reg, BIT_24 | BIT_23, (0x3 << 23));
 
@@ -278,7 +278,7 @@ static void dcamhw_axi_common_init(struct cam_hw_info *hw, struct cam_hw_soc_inf
 			break;
 		os_adapt_time_udelay(1000);
 	}
-
+	write_lock_irqsave(&soc->cam_ahb_lock, lock_flag);
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
 		pr_info("dcam axim timeout status 0x%x\n", DCAM_AXIM_RD(hw_idx, dbg_reg));
 	} else {
@@ -291,7 +291,7 @@ static void dcamhw_axi_common_init(struct cam_hw_info *hw, struct cam_hw_soc_inf
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst, flag, ~flag);
 		spin_unlock_irqrestore(&g_reg_wr_lock, __flags);
 	}
-	write_unlock(&soc->cam_ahb_lock);
+	write_unlock_irqrestore(&soc->cam_ahb_lock, lock_flag);
 
 	hw->dcam_ioctl(hw, hw_idx, DCAM_HW_CFG_SET_QOS, &hw_idx);
 
@@ -760,9 +760,9 @@ static void dcamhw_axi_common_reset(struct cam_hw_info *hw, struct cam_hw_soc_in
 {
 	uint32_t time_out = 0;
 	struct cam_hw_ip_info *ip = NULL;
+	unsigned long lock_flag = 0;
 
 	ip = hw->ip_dcam[hw_idx];
-	write_lock(&soc->cam_ahb_lock);
 	DCAM_AXIM_MWR(DCAM_ID_0, ctrl_reg, BIT_24 | BIT_23, (0x3 << 23));
 
 	/* then wait for AHB busy cleared */
@@ -773,7 +773,7 @@ static void dcamhw_axi_common_reset(struct cam_hw_info *hw, struct cam_hw_soc_in
 			break;
 		os_adapt_time_udelay(1000);
 	}
-
+	write_lock_irqsave(&soc->cam_ahb_lock, lock_flag);
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
 		pr_err("fail to dcam axim timeout dbg_status 0x%x, dcam0/1 path_busy 0x%x, 0x%x\n",
 			DCAM_AXIM_RD(DCAM_ID_0, dbg_reg), DCAM_REG_RD(DCAM_ID_0, DCAM_PATH_BUSY), DCAM_REG_RD(DCAM_ID_1, DCAM_PATH_BUSY));
@@ -784,7 +784,7 @@ static void dcamhw_axi_common_reset(struct cam_hw_info *hw, struct cam_hw_soc_in
 		regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.all_rst, flag, ~flag);
 	}
 
-	write_unlock(&soc->cam_ahb_lock);
+	write_unlock_irqrestore(&soc->cam_ahb_lock, lock_flag);
 	hw->dcam_ioctl(hw, hw_idx, DCAM_HW_CFG_SET_QOS, &hw_idx);
 	/* the end, enable AXI writing */
 	DCAM_AXIM_MWR(hw_idx, ctrl_reg, BIT_24 | BIT_23, (0x0 << 23));
@@ -1651,7 +1651,7 @@ static int dcamhw_lbuf_share_set(void *handle, void *arg)
 	if (camarg->pdaf_share_flag && camarg->idx == 1)
 		DCAM_AXIM_MWR(camarg->idx, DCAM_LBUF_SHARE_MODE, BIT_12 | BIT_13, 2 << 12);
 	if (!camarg->offline_flag && (dcam0_mipi_en || dcam1_mipi_en)) {
-		pr_warn("warning: dcam 0/1 already in working\n");
+		pr_debug("dcam 0/1 already in working\n");
 		return 0;
 	}
 	switch (camarg->idx) {

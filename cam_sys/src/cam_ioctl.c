@@ -1252,7 +1252,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
 						CAM_PIPELINE_CFG_BUF, pframe);
 			} else if (module->offline_icap_scene) {
-				/* for sharkl3 icap scene and bigsize icap scene*/
+				/* for sharkl3 icap scene and bigsize icap scene and 4in1 icap scene*/
 				ret = camcore_icap_buffer_set(module, ch, pframe);
 			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable  && module->cam_uinfo.need_dcam_raw &&
 				(module->grp->hw_info->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR))){

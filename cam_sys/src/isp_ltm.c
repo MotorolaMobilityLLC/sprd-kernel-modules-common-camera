@@ -454,7 +454,7 @@ static int ispltm_map_config_gen(struct isp_ltm_ctx_desc *ctx,
 		pr_debug("fid %d delta %d prv size [%d %d] cap size [%d %d]\n",
 				ctx->fid, ratio_delta, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
 	} else {
-		pr_warn("warning:fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
+		pr_debug("fid %d pre size [%d %d] match cap size [%d %d] with cap size\n", ctx->fid, frame_width_stat, frame_height_stat, ctx->frame_width, ctx->frame_height);
 		map->bypass = 1;
 		return 0;
 	}

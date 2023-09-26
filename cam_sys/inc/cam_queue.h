@@ -302,18 +302,13 @@ struct cam_queue_frame_manager {
 #define CAM_QUEUE_LIST_ADD(_list, head, is_tail) ({ \
 	struct cam_q_head *__list = (_list); \
 	enum cam_en_status __is_tail = (is_tail); \
-	uint32_t is_check = 0; \
 	uint32_t ret = -1; \
 	if (atomic_cmpxchg(&__list->status, CAM_Q_FREE, CAM_Q_USED) == CAM_Q_FREE) { \
-		is_check = CAM_QUEUE_LIST_ADD_CHECK(head, __list); \
-		if (!is_check) { \
-			if (__is_tail) \
-				list_add_tail(&__list->list, head); \
-			else \
-				list_add(&__list->list, head); \
-			ret = 0; \
-		} else \
-			pr_err("fail to list add valid, addr: %p\n", __list); \
+		if (__is_tail) \
+			list_add_tail(&__list->list, head); \
+		else \
+			list_add(&__list->list, head); \
+		ret = 0; \
 	} else \
 		pr_err("fail to get list status:%d, cb:%pS\n", __list->status, __builtin_return_address(0));\
 	ret; \
