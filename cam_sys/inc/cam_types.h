@@ -272,7 +272,7 @@ struct cam_postproc_param {
 	uint32_t need_cfg_zoom;
 	uint32_t need_update_zoom;
 	struct channel_context *ch;
-	uint64_t blkpm_ptr;
+	void __user *blk_property;
 	struct cam_frame *src_frm;
 	struct cam_frame *mid_frm;
 	struct cam_frame *dst_frm;
