@@ -587,7 +587,7 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 	uint32_t ratio_p_w = 0, ratio_p_h = 0, ratio_v_w = 0, ratio_v_h = 0;
 	uint32_t ratio_min_w = 0, ratio_min_h = 0, ratio_min = 0;
 	uint32_t isp_scaler_crop_need = 0, ltm_hist_en = 0;
-	uint32_t trim_pv_size = 0, swap_size = 0;
+	uint32_t trim_pv_size = 0, swap_size = 0, xtm_need_size = 0;
 	struct channel_context *ch_prev = NULL;
 	struct channel_context *ch_vid = NULL;
 	struct channel_context *ch_cap = NULL;
@@ -747,9 +747,13 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 
 		/*limit dcam minimum output size to keep isp ltm hist working*/
 		CAM_PIPEINE_ISP_NODE_CFG(ch_prev, CAM_PIPELINE_CFG_XTM_EN, ISP_NODE_MODE_PRE_ID, &ltm_hist_en);
+		if (module->zoom_solution == ZOOM_SCALER || shift == 0)
+			xtm_need_size = (dcam_out.h * LTM_MIN_TILE_WIDTH * 8 / dcam_out.w) * LTM_MIN_TILE_WIDTH * 8;
+		else
+			xtm_need_size = trim_pv.size_x * trim_pv.size_y;
 		if ((dcam_out.w < LTM_MIN_TILE_WIDTH * 8)
 			&& (atomic_read(&module->state) == CAM_RUNNING) && ltm_hist_en
-			&& (ch_prev->swap_size.w * ch_prev->swap_size.h > LTM_MIN_TILE_WIDTH * 8 * dcam_out.h)) {
+			&& (ch_prev->swap_size.w * ch_prev->swap_size.h > xtm_need_size)) {
 			isp_scaler_crop_need = 1;
 			if (module->zoom_solution == ZOOM_SCALER) {
 				dcam_out.h = dcam_out.h * LTM_MIN_TILE_WIDTH * 8 / dcam_out.w;
@@ -766,7 +770,7 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 			} else {
 				swap_size = ch_prev->swap_size.w * ch_prev->swap_size.h;
 				trim_pv_size = trim_pv.size_x * trim_pv.size_y;
-				/*dist binning or not*/
+				/*decide binning or not*/
 				if (shift && swap_size > trim_pv_size) {
 					dcam_out.w = trim_pv.size_x;
 					dcam_out.h = trim_pv.size_y;
@@ -817,7 +821,7 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 		isp_trim->start_y = ((dcam_out.h - isp_trim->size_y) >> 1) & ~1;
 
 		if (isp_scaler_crop_need) {
-			if (module->zoom_solution == ZOOM_SCALER && ch_vid->ch_uinfo.src_crop.w < dcam_out.w) {
+			if (module->zoom_solution == ZOOM_SCALER && ch_prev->ch_uinfo.src_crop.w < dcam_out.w) {
 				isp_trim->size_x = ch_prev->ch_uinfo.src_crop.w;
 				isp_trim->size_y = ch_prev->ch_uinfo.src_crop.h;
 				isp_trim->size_x = ALIGN(isp_trim->size_x, 4);
