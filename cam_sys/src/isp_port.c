@@ -1360,7 +1360,8 @@ static int ispport_pipeinfo_get(struct isp_port *port, void *param)
 		if (port_cfg->src_frame->common.is_compressed) {
 			port->fetch_path_sel = ISP_FETCH_PATH_FBD;
 			ispport_fbdfetch_yuv_get(port, &port_cfg->pipe_info->fetch_fbd_yuv, port_cfg->src_frame);
-		}
+		} else
+			port->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
 		ret = ispport_fetch_pipeinfo_get(port, port_cfg);
 		port_cfg->in_fmt = port->fmt;
 	}
