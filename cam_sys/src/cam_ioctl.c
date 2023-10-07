@@ -1541,6 +1541,8 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		}
 	}
 	module->dual_frame = NULL;
+	if (module->cam_uinfo.is_dual == 0 && module->grp->hw_info->ip_dcam[0]->dcamhw_abt->lsc_need_axi_reset)
+		dcam_core_axi_reset(module->grp->hw_info, module->dcam_dev_handle);
 
 	/* dcam online node stream on */
 	for (i = 0; i < CAM_CH_MAX; i++) {
