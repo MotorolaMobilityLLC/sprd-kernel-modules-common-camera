@@ -986,6 +986,15 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 
 	if (unlikely(type == CAM_CB_ISP_DEV_ERR) || unlikely(type == CAM_CB_ISP_RESET_ERR)) {
 		dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
+		pr_err("fail to fatal err may not do anything\n");
+		read_lock(&hw->soc_dcam->cam_ahb_lock);
+		if (dcam_online_node_dev) {
+			trace.type = ABNORMAL_REG_TRACE;
+			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+				trace.idx = dcam_online_node_dev->hw_ctx_id;
+				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+			}
+		}
 		for (i = 0; i < DCAM_HW_CONTEXT_MAX; ++i) {
 			if (module->dcam_dev_handle->hw_ctx[i].dcam_irq_cb_func) {
 				if (unlikely(type == CAM_CB_ISP_RESET_ERR)) {
@@ -1001,15 +1010,8 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				}
 			}
 		}
+		read_unlock(&hw->soc_dcam->cam_ahb_lock);
 
-		pr_err("fail to fatal err may not do anything\n");
-		if (dcam_online_node_dev) {
-			trace.type = ABNORMAL_REG_TRACE;
-			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
-				trace.idx = dcam_online_node_dev->hw_ctx_id;
-				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-			}
-		}
 		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
 		hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 		return 0;
@@ -2281,7 +2283,7 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD ||
 		module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
 		postproc_param->ch = &module->channel[CAM_CH_PRE];
-		ret |= get_user(postproc_param->blkpm_ptr, &uparam->blkpm_ptr);
+		ret |= get_user(postproc_param->blk_property, &uparam->blk_param);
 		if (ret) {
 			pr_err("fail to get postproc blk param addr\n");
 			return -EFAULT;
