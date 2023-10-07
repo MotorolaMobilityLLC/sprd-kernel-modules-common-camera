@@ -780,6 +780,8 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 					ch_prev->trim_dcam.size_y = ALIGN(ch_prev->trim_dcam.size_y, 2);
 					ch_prev->trim_dcam.start_x = ((ch_prev->ch_uinfo.src_size.w - ch_prev->trim_dcam.size_x) >> 1) & ~1;
 					ch_prev->trim_dcam.start_y = ((ch_prev->ch_uinfo.src_size.h - ch_prev->trim_dcam.size_y) >> 1) & ~1;
+				} else {
+					isp_scaler_crop_need = 0;
 				}
 			}
 		}
