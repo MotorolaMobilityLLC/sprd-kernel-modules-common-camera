@@ -938,7 +938,7 @@ static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
 
 static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
-	int ret = 0, reset_flag = 0, i = 0;
+	int ret = 0, i = 0;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
 	struct cam_hw_info *hw = NULL;
@@ -1011,9 +1011,6 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 			}
 		}
 		read_unlock(&hw->soc_dcam->cam_ahb_lock);
-
-		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
-		hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
 		return 0;
 	}
 
