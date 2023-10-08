@@ -633,8 +633,8 @@ static int ispnode_rec_frame_process(struct isp_node *inode, struct isp_hw_conte
 	cfg_in.pyr_ynr = &inode->isp_using_param->ynr_info_v3;
 	cfg_in.out_addr = pipe_info->store[ISP_SPATH_CP].store.addr;
 
+	rec_ctx->fetch_path_sel = (uint32_t)port_cfg->src_frame->common.is_compressed;
 	if (port_cfg->src_frame->common.is_compressed == 1) {
-		rec_ctx->fetch_path_sel = (uint32_t)port_cfg->src_frame->common.is_compressed;
 		rec_ctx->fetch_fbd = pipe_info->fetch_fbd_yuv;
 		rec_ctx->fbcd_buffer_size = pipe_info->fetch_fbd_yuv.buffer_size;
 	}
