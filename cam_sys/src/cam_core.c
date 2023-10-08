@@ -2280,7 +2280,7 @@ static int camcore_postproc_param_get(struct camera_module *module, struct cam_p
 	if (postproc_param->scene_mode == CAM_POSTPROC_VID_NOISE_RD ||
 		module->cam_uinfo.alg_type == ALG_TYPE_VID_NR) {
 		postproc_param->ch = &module->channel[CAM_CH_PRE];
-		ret |= get_user(postproc_param->blk_property, &uparam->blk_param);
+		ret |= get_user(postproc_param->blkpm_ptr, &uparam->blkpm_ptr);
 		if (ret) {
 			pr_err("fail to get postproc blk param addr\n");
 			return -EFAULT;
