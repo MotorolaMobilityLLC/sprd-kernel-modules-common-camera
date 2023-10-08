@@ -1690,6 +1690,10 @@ void *cam_node_creat(struct cam_node_desc *param)
 			continue;
 		}
 		port_desc.dcam_online->dev = param->dcam_online_desc->dev;
+		if ((param->type == CAM_PIPELINE_PREVIEW) && (i == PORT_FULL_OUT)) {
+			pr_warn("Waning:preview pipeline not get full port\n");
+			continue;
+		}
 		node->outport_list[i] = cam_port_creat(&port_desc, node->node_graph->id);
 		if (!node->outport_list[i]) {
 			pr_err("fail to creat outport %d\n", i);

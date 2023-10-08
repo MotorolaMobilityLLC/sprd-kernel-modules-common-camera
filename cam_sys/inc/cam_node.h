@@ -149,6 +149,7 @@ struct cam_node_desc {
 	cam_data_cb data_cb_func;
 	void *data_cb_handle;
 	void *buf_manager_handle;
+	enum cam_pipeline_type type;
 	struct dcam_online_node_desc *dcam_online_desc;
 	struct dcam_offline_node_desc *dcam_offline_desc;
 	struct dcam_offline_node_desc *dcam_offline_bpcraw_desc;
