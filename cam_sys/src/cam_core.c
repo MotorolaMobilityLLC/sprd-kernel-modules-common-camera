@@ -2792,9 +2792,9 @@ rewait:
 				read_op.parm.frame.zoom_ratio = pframe->common.zoom_ratio;
 				read_op.parm.frame.total_zoom = pframe->common.total_zoom;
 
-				pr_debug("Send usr buf %d ch %d, evt %d, fid %d, buf_fd %d, time %06d.%06d\n",
-					pframe->common.irq_type, read_op.parm.frame.channel_id, read_op.evt,
-					read_op.parm.frame.real_index, read_op.parm.frame.mfd,
+				pr_debug("Send usr buf %d ch %d ltm ch %d, evt %d, fid %d, buf_fd %d, time %06d.%06d\n",
+					pframe->common.irq_type, read_op.parm.frame.channel_id, pframe->common.ltm_info.channel_id,
+					read_op.evt, read_op.parm.frame.real_index, read_op.parm.frame.mfd,
 					read_op.parm.frame.sec, read_op.parm.frame.usec);
 			} else {
 				pr_err("fail to get correct event %d\n", pframe->common.evt);
