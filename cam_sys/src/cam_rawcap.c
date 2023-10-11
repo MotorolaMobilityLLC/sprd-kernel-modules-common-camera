@@ -302,6 +302,7 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	if (ch->dcam_port_id >= PORT_DCAM_OFFLINE_OUT_MAX) {
 		pr_err("fail to get port id\n");
 		cam_pipeline_destory(ch->pipeline_handle);
+		memset(pipeline_desc->nodes_dev, 0, sizeof(struct cam_nodes_dev));
 		ch->pipeline_handle = NULL;
 		ret = -ENOMEM;
 		goto fail;

@@ -940,7 +940,7 @@ static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
 
 static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *priv_data)
 {
-	int ret = 0, reset_flag = 0, i = 0;
+	int ret = 0, i = 0;
 	struct cam_buf_pool_id pool_id = {0};
 	struct camera_buf_get_desc buf_desc = {0};
 	struct cam_hw_info *hw = NULL;
@@ -988,6 +988,15 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 
 	if (unlikely(type == CAM_CB_ISP_DEV_ERR) || unlikely(type == CAM_CB_ISP_RESET_ERR)) {
 		dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
+		pr_err("fail to fatal err may not do anything\n");
+		read_lock(&hw->soc_dcam->cam_ahb_lock);
+		if (dcam_online_node_dev) {
+			trace.type = ABNORMAL_REG_TRACE;
+			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+				trace.idx = dcam_online_node_dev->hw_ctx_id;
+				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
+			}
+		}
 		for (i = 0; i < DCAM_HW_CONTEXT_MAX; ++i) {
 			if (module->dcam_dev_handle->hw_ctx[i].dcam_irq_cb_func) {
 				if (unlikely(type == CAM_CB_ISP_RESET_ERR)) {
@@ -1003,17 +1012,7 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				}
 			}
 		}
-
-		pr_err("fail to fatal err may not do anything\n");
-		if (dcam_online_node_dev) {
-			trace.type = ABNORMAL_REG_TRACE;
-			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
-				trace.idx = dcam_online_node_dev->hw_ctx_id;
-				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
-			}
-		}
-		reset_flag = ISP_RESET_BEFORE_POWER_OFF;
-		hw->isp_ioctl(hw, ISP_HW_CFG_RESET, &reset_flag);
+		read_unlock(&hw->soc_dcam->cam_ahb_lock);
 		return 0;
 	}
 

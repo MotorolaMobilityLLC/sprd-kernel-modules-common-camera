@@ -115,9 +115,10 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 				pframe->common.link_to = cap_ori_link;
 		} else {
 			if ((cap_param->fid && pframe->common.fid >= cap_param->fid)
-				|| (((!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp) || cap_param->cap_opt_frame_scene)
+				|| ((!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp)
 				&& atomic_read(&cap_param->cap_cnt) > 0 && camnode_capture_skip_condition(pframe, cap_param))
-				|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene)) {
+				|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene)
+				|| cap_param->cap_opt_frame_scene) {
 				pframe->common.link_to = cap_new_link;
 				atomic_dec(&cap_param->cap_cnt);
 			} else
@@ -1732,6 +1733,7 @@ void cam_node_close(struct cam_node *node)
 void cam_node_destory(struct cam_node *node)
 {
 	int i = 0;
+
 	if (!node) {
 		pr_err("fail to get valid node\n");
 		return;
