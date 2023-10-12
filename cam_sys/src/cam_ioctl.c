@@ -1452,6 +1452,8 @@ static int camioctl_stream_off(struct camera_module *module,
 	if (running && atomic_dec_return(&module->grp->runner_nr) == 0) {
 		module->isp_dev_handle->isp_ops->reset(module->isp_dev_handle, hw);
 	}
+	if (module->cam_uinfo.is_dual == 0 && module->grp->hw_info->ip_dcam[0]->dcamhw_abt->lsc_need_axi_reset)
+		dcam_core_axi_reset(module->grp->hw_info, module->dcam_dev_handle);
 	atomic_set(&module->state, CAM_IDLE);
 
 	ret = cam_buf_mdbg_check();
@@ -1541,8 +1543,6 @@ static int camioctl_stream_on(struct camera_module *module, unsigned long arg)
 		}
 	}
 	module->dual_frame = NULL;
-	if (module->cam_uinfo.is_dual == 0 && module->grp->hw_info->ip_dcam[0]->dcamhw_abt->lsc_need_axi_reset)
-		dcam_core_axi_reset(module->grp->hw_info, module->dcam_dev_handle);
 
 	/* dcam online node stream on */
 	for (i = 0; i < CAM_CH_MAX; i++) {
