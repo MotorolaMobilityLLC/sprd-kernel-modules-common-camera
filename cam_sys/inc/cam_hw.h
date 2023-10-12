@@ -1308,6 +1308,7 @@ struct dcam_hw_abt {
 	uint32_t store_3dnr_fmt[CAM_FORMAT_MAX];
 	uint32_t dcam_zoom_mode;
 	uint32_t save_band_for_bigsize;
+	enum cam_en_status lsc_need_axi_reset;
 	enum dcam_output_strategy output_strategy;
 	uint32_t dcam_block[ISP_BLOCK_TOTAL];
 };

@@ -440,6 +440,16 @@ void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx,
 	}
 }
 
+void dcam_core_axi_reset(struct cam_hw_info *hw, struct dcam_pipe_dev *dev)
+{
+	uint32_t reset_id = 0;
+
+	mutex_lock(&s_dcam_dev_mutex);
+	if (atomic_read(&dev->user_cnt) == 1)
+		hw->dcam_ioctl(hw, reset_id, DCAM_HW_CFG_INIT_AXI, &reset_id);
+	mutex_unlock(&s_dcam_dev_mutex);
+}
+
 void *dcam_core_pipe_dev_get(struct cam_hw_info *hw, void *s_dcam_dev)
 {
 	struct dcam_pipe_dev *dev = NULL;

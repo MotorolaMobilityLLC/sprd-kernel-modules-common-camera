@@ -28,7 +28,7 @@
 #endif
 
 #define PYR_DEC_LAYER_NUM           ISP_PYR_DEC_LAYER_NUM
-#define PYR_DEC_BUF_Q_LEN           8
+#define PYR_DEC_BUF_Q_LEN           31
 #define PYR_DEC_ADDR_NUM            PYR_DEC_LAYER_NUM + 1
 #define PYR_DEC_NODE_NUM_MAX        4
 #define PYR_DEC_INT_PROC_FRM_NUM    256

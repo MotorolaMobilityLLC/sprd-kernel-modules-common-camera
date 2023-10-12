@@ -1536,7 +1536,8 @@ int pyr_dec_node_postproc_param_cfg(void *handle, void *param)
 	if (decblk_frame) {
 		/* Temp get param from mw by do offset on base addr, need to discuss
 			param & image buf share set way in offline proc scene. */
-		blkpm_addr += sizeof(struct isp_dev_cnr_h_info);
+		blkpm_addr = blkpm_addr + sizeof(struct isp_dev_post_cnr_h_info) +
+					sizeof(struct isp_dev_ynr_info_v3) + sizeof(struct isp_dev_cnr_h_info);
 		ret = copy_from_user((void *)&decblk_frame->dec_blk.decblk_pm->dct_info,
 			(void __user *)blkpm_addr, sizeof(struct isp_dev_dct_info));
 		if (ret)

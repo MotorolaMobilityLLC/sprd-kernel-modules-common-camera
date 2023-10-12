@@ -341,6 +341,7 @@ struct dcam_dummy_param {
 };
 
 inline void dcam_core_offline_reset(struct dcam_hw_context *hw_ctx);
+void dcam_core_axi_reset(struct cam_hw_info *hw, struct dcam_pipe_dev *dev);
 void dcam_core_offline_irq_proc(struct dcam_hw_context *dcam_hw_ctx, struct dcam_irq_info *irq_info);
 void *dcam_core_pipe_dev_get(struct cam_hw_info *hw, void *s_dcam_dev);
 int dcam_core_pipe_dev_put(void *dcam_handle, void *s_dcam_dev);
