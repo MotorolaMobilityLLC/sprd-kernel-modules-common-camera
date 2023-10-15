@@ -1062,42 +1062,37 @@ static int ispslice_slice_scaler_info_cfg_ex(
 				slice_ctx->slices[i].path_en[j] = 1;
 				cur_slc = &slice_ctx->slices[i];
 				if (slc_cfg_input->calc_dyn_ov.path_scaler[j]->scaler.scaler_bypass) {
-					if (slc_cfg_input->sw_slice_num) {
-						frm_trim0 = slc_cfg_input->frame_trim0[j];
-						start_col = cur_slc->slice_pos.start_col;
-						end_col = cur_slc->slice_pos.end_col;
-						start_row = cur_slc->slice_pos.start_row;
-						end_row = cur_slc->slice_pos.end_row;
-						cur_slc->slice_scaler[j].trim0_start_x = 0;
-						cur_slc->slice_scaler[j].trim0_start_y = 0;
-						cur_slc->slice_scaler[j].trim0_size_x = end_col - start_col + 1;
-						cur_slc->slice_scaler[j].trim0_size_y = end_row - start_row + 1;
-						if (cur_slc->x == 0) {
-							cur_slc->slice_scaler[j].trim0_start_x = frm_trim0->start_x;
-							cur_slc->slice_scaler[j].trim0_size_x = end_col - frm_trim0->start_x + 1;
-							start_col += frm_trim0->start_x;
-						}
-						if (cur_slc->y == 0) {
-							cur_slc->slice_scaler[j].trim0_start_y = frm_trim0->start_y;
-							cur_slc->slice_scaler[j].trim0_size_y = end_row + 1 - frm_trim0->start_y;
-							start_row += frm_trim0->start_y;
-						}
-						if (cur_slc->x == (slice_ctx->slice_col_num - 1))
-							cur_slc->slice_scaler[j].trim0_size_x = frm_trim0->start_x + frm_trim0->size_x - start_col;
-						if (cur_slc->y == (slice_ctx->slice_row_num - 1))
-							cur_slc->slice_scaler[j].trim0_size_y = frm_trim0->start_y + frm_trim0->size_y - start_row;
-						cur_slc->slice_scaler[j].trim1_start_x = 0;
-						cur_slc->slice_scaler[j].trim1_start_y = 0;
-						cur_slc->slice_scaler[j].trim1_size_x = cur_slc->slice_scaler[j].trim0_size_x;
-						cur_slc->slice_scaler[j].trim1_size_y = cur_slc->slice_scaler[j].trim0_size_y;
-						cur_slc->slice_scaler[j].src_size_x = end_col - start_col + 1;
-						cur_slc->slice_scaler[j].src_size_y = end_row - start_row + 1;
-						cur_slc->slice_scaler[j].dst_size_x = cur_slc->slice_scaler[j].trim0_size_x;
-						cur_slc->slice_scaler[j].dst_size_y = cur_slc->slice_scaler[j].trim0_size_y;
-					} else {
-						cur_slc->slice_scaler[j].trim1_size_x = slice_param[j][i].trim1_size_x;
-						cur_slc->slice_scaler[j].trim1_size_y = slice_param[j][i].trim1_size_y;
+					frm_trim0 = slc_cfg_input->frame_trim0[j];
+					start_col = cur_slc->slice_pos.start_col;
+					end_col = cur_slc->slice_pos.end_col;
+					start_row = cur_slc->slice_pos.start_row;
+					end_row = cur_slc->slice_pos.end_row;
+					cur_slc->slice_scaler[j].trim0_start_x = 0;
+					cur_slc->slice_scaler[j].trim0_start_y = 0;
+					cur_slc->slice_scaler[j].trim0_size_x = end_col - start_col + 1;
+					cur_slc->slice_scaler[j].trim0_size_y = end_row - start_row + 1;
+					if (cur_slc->x == 0) {
+						cur_slc->slice_scaler[j].trim0_start_x = frm_trim0->start_x;
+						cur_slc->slice_scaler[j].trim0_size_x = end_col - frm_trim0->start_x + 1;
+						start_col += frm_trim0->start_x;
 					}
+					if (cur_slc->y == 0) {
+						cur_slc->slice_scaler[j].trim0_start_y = frm_trim0->start_y;
+						cur_slc->slice_scaler[j].trim0_size_y = end_row + 1 - frm_trim0->start_y;
+						start_row += frm_trim0->start_y;
+					}
+					if (cur_slc->x == (slice_ctx->slice_col_num - 1))
+						cur_slc->slice_scaler[j].trim0_size_x = frm_trim0->start_x + frm_trim0->size_x - start_col;
+					if (cur_slc->y == (slice_ctx->slice_row_num - 1))
+						cur_slc->slice_scaler[j].trim0_size_y = frm_trim0->start_y + frm_trim0->size_y - start_row;
+					cur_slc->slice_scaler[j].trim1_start_x = 0;
+					cur_slc->slice_scaler[j].trim1_start_y = 0;
+					cur_slc->slice_scaler[j].trim1_size_x = cur_slc->slice_scaler[j].trim0_size_x;
+					cur_slc->slice_scaler[j].trim1_size_y = cur_slc->slice_scaler[j].trim0_size_y;
+					cur_slc->slice_scaler[j].src_size_x = end_col - start_col + 1;
+					cur_slc->slice_scaler[j].src_size_y = end_row - start_row + 1;
+					cur_slc->slice_scaler[j].dst_size_x = cur_slc->slice_scaler[j].trim0_size_x;
+					cur_slc->slice_scaler[j].dst_size_y = cur_slc->slice_scaler[j].trim0_size_y;
 					pr_debug("start %d %d end %d %d, frm trim0 %d %d %d %d\n", start_col, start_row,
 						end_col, end_row, frm_trim0->start_x, frm_trim0->start_y, frm_trim0->size_x,
 						frm_trim0->size_y);
