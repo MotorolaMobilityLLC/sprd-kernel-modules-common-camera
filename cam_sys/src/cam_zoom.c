@@ -297,7 +297,7 @@ static int camzoom_binning_shift_calc(struct camera_module *module, struct img_t
 			(trim_pv.size_x >= (ch_vid->ch_uinfo.dst_size.w * 2 * factor / 10)) &&
 			(trim_pv.size_y >= (ch_prev->ch_uinfo.dst_size.h * 2 * factor / 10)) &&
 			(trim_pv.size_y >= (ch_vid->ch_uinfo.dst_size.h * 2 * factor / 10)))
-				shift = 1;
+			shift = 1;
 		break;
 	case IMG_QUALITY_PRI:
 		max_dst_pv.w = MAX(ch_prev->ch_uinfo.dst_size.w, ch_vid->ch_uinfo.dst_size.w);
@@ -874,6 +874,17 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 	}
 
 	if (ch_cap->enable) {
+		if (isp_scaler_crop_need && (trim_c.size_x < dcam_out.w || trim_c.size_y < dcam_out.h)) {
+			trim_c.size_x = dcam_out.w;
+			trim_c.size_y = dcam_out.h;
+			trim_c.start_x = ((ch_cap->ch_uinfo.src_size.w - trim_c.size_x) >> 1) & ~1;
+			trim_c.start_y = ((ch_cap->ch_uinfo.src_size.h - trim_c.size_y) >> 1) & ~1;
+			pr_info("trim_c new: %u %u %u %u\n", trim_c.start_x, trim_c.start_y, trim_c.size_x, trim_c.size_y);
+			ch_cap->latest_user_crop.x = trim_c.start_x;
+			ch_cap->latest_user_crop.y = trim_c.start_y;
+			ch_cap->latest_user_crop.w = trim_c.size_x;
+			ch_cap->latest_user_crop.h = trim_c.size_y;
+		}
 		ch_cap->trim_dcam = trim_c;
 		ch_cap->dst_dcam.w = ch_cap->trim_dcam.size_x;
 		ch_cap->dst_dcam.h = ch_cap->trim_dcam.size_y;

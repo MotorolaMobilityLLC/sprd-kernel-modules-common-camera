@@ -1288,15 +1288,9 @@ static int ispport_store_pipeinfo_get(struct isp_port *port, struct isp_port_cfg
 	pipe_in->scaler[path_id].spath_id = path_id;
 	pipe_in->scaler[path_id].src.w = port_cfg->src_crop.size_x;
 	pipe_in->scaler[path_id].src.h = port_cfg->src_crop.size_y;
-	if (port->hw->ip_isp->isphw_abt->pyr_dec_support &&
-		(port_cfg->src_frame->common.channel_id == CAM_CH_CAP)) {
-		pipe_in->scaler[path_id].in_trim.start_x = 0;
-		pipe_in->scaler[path_id].in_trim.start_y = 0;
-		pipe_in->scaler[path_id].in_trim.size_x = port_cfg->src_crop.size_x;
-		pipe_in->scaler[path_id].in_trim.size_y = port_cfg->src_crop.size_y;
-	} else {
-		pipe_in->scaler[path_id].in_trim = port->trim;
-	}
+	pipe_in->scaler[path_id].in_trim = port->trim;
+	pr_debug("scaler in_trim %d %d %d %d\n",
+		port->trim.start_x, port->trim.start_y, port->trim.size_x, port->trim.size_y);
 
 	if (port_cfg->src_frame->common.slice_info.slice_num) {
 		pipe_in->scaler[path_id].in_trim = port_cfg->src_frame->common.slice_info.out_trim;
