@@ -606,6 +606,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	pipeline->ops.streamoff = campipeline_stream_off;
 	pipeline->ops.cfg_shutoff = campipeline_cfg_shutoff;
 
+	node_desc.type = pipeline->pipeline_graph->type;
 	node_desc.nodes_dev = param->nodes_dev;
 	node_desc.zoom_cb_func = campipeline_zoom_callback;
 	node_desc.data_cb_func = campipeline_callback;

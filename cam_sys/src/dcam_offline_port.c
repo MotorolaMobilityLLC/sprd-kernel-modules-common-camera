@@ -434,8 +434,10 @@ int dcam_offline_port_param_cfg(void *handle, uint32_t cmd, void *param)
 	case PORT_CFG_BUFFER_SET:
 		pframe = (struct cam_frame *)param;
 		buf_desc.buf_ops_cmd = CAM_BUF_STATUS_GET_IOVA;
-		if (pframe->common.buf.type== CAM_BUF_USER)
+		if (pframe->common.buf.type== CAM_BUF_USER) {
 			buf_desc.buf_ops_cmd = CAM_BUF_STATUS_MOVE_TO_ION;
+			CAM_QUEUE_FRAME_FLAG_RESET(&pframe->common);
+		}
 		buf_desc.mmu_type = CAM_BUF_IOMMUDEV_DCAM;
 		pframe->common.priv_data = dcam_port;
 		ret = cam_buf_manager_buf_enqueue(&dcam_port->unprocess_pool, pframe, &buf_desc, dcam_port->buf_manager_handle);
