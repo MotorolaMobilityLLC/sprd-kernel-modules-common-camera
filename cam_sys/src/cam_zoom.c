@@ -759,14 +759,14 @@ int cam_zoom_channel_size_calc(struct camera_module *module)
 				dcam_out.h = dcam_out.h * LTM_MIN_TILE_WIDTH * 8 / dcam_out.w;
 				dcam_out.h = ALIGN_DOWN(dcam_out.h, 2);
 				dcam_out.w = LTM_MIN_TILE_WIDTH * 8;
-				ratio_min_w = (1 << RATIO_SHIFT) * trim_pv.size_x / dcam_out.w;
-				ratio_min_h = (1 << RATIO_SHIFT) * trim_pv.size_y / dcam_out.h;
 				ch_prev->trim_dcam.size_x = MAX(trim_pv.size_x, dcam_out.w);
 				ch_prev->trim_dcam.size_y = MAX(trim_pv.size_y, dcam_out.h);
 				ch_prev->trim_dcam.size_x = ALIGN(ch_prev->trim_dcam.size_x, 4);
 				ch_prev->trim_dcam.size_y = ALIGN(ch_prev->trim_dcam.size_y, 2);
 				ch_prev->trim_dcam.start_x = ((ch_prev->ch_uinfo.src_size.w - ch_prev->trim_dcam.size_x) >> 1) & ~1;
 				ch_prev->trim_dcam.start_y = ((ch_prev->ch_uinfo.src_size.h - ch_prev->trim_dcam.size_y) >> 1) & ~1;
+				ratio_min_w = (1 << RATIO_SHIFT) * ch_prev->trim_dcam.size_x / dcam_out.w;
+				ratio_min_h = (1 << RATIO_SHIFT) * ch_prev->trim_dcam.size_y / dcam_out.h;
 			} else {
 				swap_size = ch_prev->swap_size.w * ch_prev->swap_size.h;
 				trim_pv_size = trim_pv.size_x * trim_pv.size_y;
