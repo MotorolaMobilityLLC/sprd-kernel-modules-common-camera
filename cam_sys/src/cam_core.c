@@ -18,6 +18,8 @@
 #include "csi_api.h"
 #include "flash_interface.h"
 #include "isp_drv.h"
+#include "isp_hw_adpt.h"
+#include "isp_ltm.h"
 #include "isp_pyr_rec.h"
 #include "sprd_camsys_domain.h"
 #include "sprd_sensor_drv.h"
@@ -390,12 +392,12 @@ static int camcore_buffers_alloc(void *param)
 		atomic_inc(&channel->err_status);
 	}
 	if (channel->nonzsl_pre_pipeline) {
-		uint32_t ratio = 1;
+		uint32_t ratio = 0;
 
-		ratio = channel->ch_uinfo.nonzsl_pre_ratio;
+		ratio  = channel->ch_uinfo.nonzsl_pre_ratio;
 		alloc_param.ch_id = 1;
-		alloc_param.width = alloc_param.width / ratio;
-		alloc_param.height = alloc_param.height / ratio;
+		alloc_param.width = channel->ch_uinfo.src_crop.w / ratio;
+		alloc_param.height = channel->ch_uinfo.src_crop.h / ratio;
 		if (!module->cam_uinfo.virtualsensor) {
 			alloc_param.dcamonline_buf_alloc_num = 0;
 			alloc_param.dcamoffline_buf_alloc_num = 1;
@@ -1787,10 +1789,13 @@ static int camcore_pipeline_init(struct camera_module *module,
 			isp_node_description->mode_ltm = MODE_LTM_PRE;
 		isp_node_description->port_desc.output_size.w = channel->ch_uinfo.dst_size.w / 4;
 		isp_node_description->port_desc.output_size.h = channel->ch_uinfo.dst_size.h / 4;
-		if ((channel->ch_uinfo.src_size.w / 2) > g_camctrl.isp_linebuf_len)
-			channel->ch_uinfo.nonzsl_pre_ratio = 4;
-		else
+
+		channel->ch_uinfo.nonzsl_pre_ratio = 4;
+		if ((channel->ch_uinfo.src_crop.w / 4) < LTM_MIN_TILE_WIDTH * TILE_NUM_MIN)
 			channel->ch_uinfo.nonzsl_pre_ratio = 2;
+		if ((channel->ch_uinfo.src_crop.w / 2) < LTM_MIN_TILE_WIDTH * TILE_NUM_MIN)
+			channel->ch_uinfo.nonzsl_pre_ratio = 1;
+
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[statis_pipe_type];
 		channel->nonzsl_pre_pipeline = cam_pipeline_creat(pipeline_desc);
 		if (!channel->nonzsl_pre_pipeline) {
@@ -1824,10 +1829,13 @@ static int camcore_pipeline_init(struct camera_module *module,
 			isp_node_description->mode_ltm = MODE_LTM_PRE;
 		isp_node_description->port_desc.output_size.w = channel->ch_uinfo.dst_size.w / 4;
 		isp_node_description->port_desc.output_size.h = channel->ch_uinfo.dst_size.h / 4;
-		if ((channel->ch_uinfo.src_size.w / 2) > g_camctrl.isp_linebuf_len)
-			channel->ch_uinfo.nonzsl_pre_ratio = 4;
-		else
+
+		channel->ch_uinfo.nonzsl_pre_ratio = 4;
+		if ((channel->ch_uinfo.src_crop.w / 4) < LTM_MIN_TILE_WIDTH * TILE_NUM_MIN)
 			channel->ch_uinfo.nonzsl_pre_ratio = 2;
+		if ((channel->ch_uinfo.src_crop.w / 2) < LTM_MIN_TILE_WIDTH * TILE_NUM_MIN)
+			channel->ch_uinfo.nonzsl_pre_ratio = 1;
+
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[statis_pipe_type];
 		channel->nonzsl_pre_pipeline = cam_pipeline_creat(pipeline_desc);
 		if (!channel->nonzsl_pre_pipeline) {
@@ -2783,9 +2791,9 @@ rewait:
 				read_op.parm.frame.zoom_ratio = pframe->common.zoom_ratio;
 				read_op.parm.frame.total_zoom = pframe->common.total_zoom;
 
-				pr_debug("Send usr buf %d ch %d, evt %d, fid %d, buf_fd %d, time %06d.%06d\n",
-					pframe->common.irq_type, read_op.parm.frame.channel_id, read_op.evt,
-					read_op.parm.frame.real_index, read_op.parm.frame.mfd,
+				pr_debug("Send usr buf %d ch %d ltm ch %d, evt %d, fid %d, buf_fd %d, time %06d.%06d\n",
+					pframe->common.irq_type, read_op.parm.frame.channel_id, pframe->common.ltm_info.channel_id,
+					read_op.evt, read_op.parm.frame.real_index, read_op.parm.frame.mfd,
 					read_op.parm.frame.sec, read_op.parm.frame.usec);
 			} else {
 				pr_err("fail to get correct event %d\n", pframe->common.evt);

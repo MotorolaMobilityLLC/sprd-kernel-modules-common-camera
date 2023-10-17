@@ -23,6 +23,51 @@
 
 #define ISP_SLICE_OVERLAP_W_MAX         64
 
+int dcam_slice_num_valid_cal(struct dcam_offline_node *node, uint32_t slice_wmax, struct cam_frame *pframe)
+{
+	struct dcam_hw_context *hw_ctx = NULL;
+	struct dcam_offline_slice_info *slice = NULL;
+	struct img_trim in_trim = {0};
+	int i = 0, j = 0, ret = 0;
+	uint32_t start_x = 0, end_x = 0, l_val = 0, r_val = 0, h_slice_num = 0;
+
+	hw_ctx = node->hw_ctx;
+	slice = &hw_ctx->slice_info;
+	in_trim = hw_ctx->hw_path[DCAM_PATH_FULL].hw_size.in_trim;
+	start_x = in_trim.start_x;
+	end_x = in_trim.start_x + in_trim.size_x;
+	atomic_set(&slice->slice_valid_cnt, 0);
+	for (i = 0; i < DCAM_OFFLINE_SLC_MAX; i++)
+		slice->slice_valid_num[i] = CAM_DISABLE;
+
+	if (slice->slice_num == 1) {
+		atomic_set(&slice->slice_valid_cnt, 1);
+		slice->slice_valid_num[0] = CAM_ENABLE;
+	} else {
+		h_slice_num = pframe->common.height / DCAM_SW_SLICE_HEIGHT_MAX + 1;
+		for (i = 0; i < h_slice_num; i++) {
+			for (j = 0; j < slice->w_slice_num; j++) {
+				l_val = MAX(start_x , slice_wmax * j);
+				r_val = MIN(end_x , slice_wmax * (1 + j));
+				/*
+				 * Contains crop area start_x point slice is enable
+				 * crop area end_x point slice is enable
+				 * enable slice between start_x and end_x points of the crop area
+				*/
+				if (l_val < r_val) {
+					atomic_inc(&slice->slice_valid_cnt);
+					slice->slice_valid_num[j + slice->w_slice_num * i] = CAM_ENABLE;
+					pr_debug("cur slice id %d cur slice status %d\n", j + slice->w_slice_num * i, slice->slice_valid_num[j + slice->w_slice_num * i]);
+				}
+			}
+		}
+	}
+	slice->slice_valid_num_static = atomic_read(&slice->slice_valid_cnt);
+	pr_debug("valid num %d h_slice_num %d w_slice_num %d\n", atomic_read(&slice->slice_valid_cnt), h_slice_num, slice->w_slice_num);
+
+	return ret;
+}
+
 uint32_t dcam_slice_needed_info_get(struct dcam_hw_context *hw_ctx, uint32_t *dev_lbuf, uint32_t in_width)
 {
 	uint32_t out_width = 0;

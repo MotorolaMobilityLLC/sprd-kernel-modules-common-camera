@@ -306,20 +306,21 @@ static int dcamoffline_irq_proc(void *param, void *handle)
 			|| (!node->offline_pre_en)){
 			slice_info->slice_count--;
 			complete(&node->slice_done);
+			slice_info->slice_valid_num_static--;
 		}
 		wait_time_flag = WAIT_IN_INTERRUPT_SCENE;
 		hw->dcam_ioctl(&wait_time_flag, node->hw_ctx_id, DCAM_HW_CFG_FETCH_STATUS_GET, &node->hw_ctx_id);
-		if (path_done[DCAM_PATH_FULL] != slice_info->slice_num
-			&& path_done[DCAM_PATH_BIN] != slice_info->slice_num
-			&& path_done[DCAM_PATH_RAW] != slice_info->slice_num)
-				return 0;
+		if (path_done[DCAM_PATH_FULL] != atomic_read(&slice_info->slice_valid_cnt)
+			&& path_done[DCAM_PATH_BIN] != atomic_read(&slice_info->slice_valid_cnt)
+			&& path_done[DCAM_PATH_RAW] != atomic_read(&slice_info->slice_valid_cnt))
+			return 0;
 	}
 
 	ret = dcamoffline_data_callback(node, irq_desc->dcam_cb_type, port_id);
 	if (ret)
 		pr_err("fail to data cb, slice_num %d, port %s\n", slice_info->slice_num, cam_port_dcam_offline_out_id_name_get(port_id));
 
-	if (is_frm_port && slice_info->slice_count == 0) {
+	if (is_frm_port && slice_info->slice_valid_num_static == 0) {
 		frame = cam_buf_manager_buf_dequeue(&node->proc_pool, NULL, node->buf_manager_handle);
 		if (frame) {
 			cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
@@ -543,6 +544,8 @@ static int dcamoffline_slice_proc(struct dcam_offline_node *node, struct dcam_is
 	slice = &hw_ctx->slice_info;
 	wait_time_flag = WAIT_IN_NORMAL_SCENE;
 	for (i = 0; i < slice->slice_num; i++) {
+		if (slice->slice_valid_num[i] == CAM_DISABLE)
+			continue;
 		ret = wait_for_completion_interruptible_timeout(&node->slice_done, DCAM_OFFLINE_TIMEOUT);
 		if (ret <= 0) {
 			pr_err("fail to wait as dcam%d offline timeout. ret: %d\n", hw_ctx->hw_ctx_id, ret);
@@ -771,6 +774,9 @@ static int dcamoffline_node_frame_start(void *param)
 		node->dev->dcam_pipe_ops->dummy_cfg(node->hw_ctx, &dummy_param);
 	}
 
+	ret = dcam_slice_num_valid_cal(node, lbuf_width, pframe);
+	if (ret == -EFAULT)
+		goto return_buf;
 	ret = dcamoffline_slice_proc(node, pm);
 	if (ret == -EFAULT)
 		goto return_buf;
