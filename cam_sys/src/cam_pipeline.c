@@ -231,6 +231,9 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_CFG_BUF:
 		node_cmd = CAM_NODE_CFG_BUF;
 		break;
+	case CAM_PIPELINE_CFG_FETCH_BUF:
+		node_cmd = CAM_NODE_CFG_FETCH_BUF;
+		break;
 	case CAM_PIPELINE_CFG_BUF_CLR:
 		node_cmd = CAM_NODE_CFG_BUF_CLR;
 		break;
