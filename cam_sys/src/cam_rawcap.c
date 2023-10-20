@@ -10,163 +10,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include "isp_hw_adpt.h"
-#include "isp_ltm.h"
 
 #ifdef CAM_RAWCAP
-
-static int camrawcap_raw_buf_cfg(struct camera_module *module,
-		struct isp_raw_proc_info *proc_info, struct cam_pipeline_desc *param)
-{
-	int ret = 0;
-	uint32_t ratio = 0, bin_width = 0, bin_height = 0, bin_size = 0;
-	uint32_t size = 0, i = 0;
-	struct cam_frame *dcam_offline_bin_frame = NULL;
-	struct cam_frame *isp_pre_frame = NULL;
-	struct cam_pipeline_cfg_param param_cfg = {0};
-	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
-	struct isp_rec_ctx_desc *rec_ctx = NULL;
-	struct pyr_dec_node *pyrdec_node = NULL;
-	struct isp_node *isp_node = NULL;
-	struct cam_buf_alloc_desc alloc_param = {0};
-	struct cam_node_cfg_param node_param = {0};
-	struct cam_hw_info *hw = NULL;
-	struct channel_context *ch = NULL;
-
-	pr_debug("src size:%d, %d.\n", proc_info->src_size.width, proc_info->src_size.height);
-	isp_node = module->nodes_dev.isp_node_dev[ISP_NODE_MODE_CAP_ID];
-	ch = &module->channel[CAM_CH_CAP];
-	hw = module->grp->hw_info;
-	ratio = ch->ch_uinfo.nonzsl_pre_ratio;
-
-	/* dcam offline bin buf cfg*/
-	bin_width = ch->dst_dcam.w / ratio;
-	bin_height = ch->dst_dcam.h / ratio;
-	bin_size = cal_sprd_size(bin_width, bin_height, param->dcam_offline_desc.port_desc.dcam_out_fmt);
-	bin_size = ALIGN(bin_size, CAM_BUF_ALIGN_SIZE);
-
-	dcam_offline_bin_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-	dcam_offline_bin_frame->common.channel_id = CAM_CH_PRE;
-	dcam_offline_bin_frame->common.buf.status = CAM_BUF_ALLOC;
-	dcam_offline_bin_frame->common.buf.type = CAM_BUF_KERNEL;
-	dcam_offline_bin_frame->common.nonzsl_xtm.hist_eb = CAM_ENABLE;
-	dcam_offline_bin_frame->common.nonzsl_xtm.full_size.w = proc_info->src_size.width;
-	dcam_offline_bin_frame->common.nonzsl_xtm.full_size.h = proc_info->src_size.height;
-	dcam_offline_bin_frame->common.width = proc_info->src_size.width / ratio;
-	dcam_offline_bin_frame->common.height = proc_info->src_size.height / ratio;
-	ret = cam_buf_alloc(&dcam_offline_bin_frame->common.buf, (size_t)bin_size, module->iommu_enable);
-	if (ret) {
-		pr_err("fail to alloc bin buf\n");
-		goto dcam_offline_buf_cfg_fail;
-	}
-	CAM_QUEUE_FRAME_FLAG_RESET(&dcam_offline_bin_frame->common);
-	param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
-	param_cfg.node_param.param = dcam_offline_bin_frame;
-	param_cfg.node_param.port_type = PORT_TRANSFER_OUT;
-	param_cfg.node_param.port_id = PORT_OFFLINE_BIN_OUT;
-	param_cfg.node_id = DCAM_OFFLINE_NODE_ID;
-	cam_buf_manager_buf_status_cfg(&dcam_offline_bin_frame->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
-	cam_buf_manager_buf_status_cfg(&dcam_offline_bin_frame->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
-	dcam_offline_bin_frame->common.buf.bypass_iova_ops = CAM_ENABLE;
-	ret = ch->pipeline_handle->ops.cfg_param(ch->nonzsl_pre_pipeline, CAM_PIPELINE_CFG_BUF, &param_cfg);
-	if (ret) {
-		pr_err("fail to cfg dcam out buffer.\n");
-		goto dcam_offline_buf_cfg_fail;
-	}
-
-	/* isp pre buf cfg */
-	isp_pre_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
-	isp_pre_frame->common.channel_id = CAM_CH_PRE;
-	isp_pre_frame->common.buf.type = CAM_BUF_KERNEL;
-
-	bin_size = cal_sprd_size(bin_width, bin_height, param->isp_node_description.port_desc.out_fmt);
-	bin_size = ALIGN(bin_size, CAM_BUF_ALIGN_SIZE);
-
-	ret = cam_buf_alloc(&isp_pre_frame->common.buf, bin_size, module->iommu_enable);
-	if (ret) {
-		pr_err("fail to alloc bin isp buf\n");
-		goto isp_buf_cfg_fail;
-	}
-	param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
-	param_cfg.node_param.param = isp_pre_frame;
-	param_cfg.node_param.port_type = PORT_TRANSFER_OUT;
-	param_cfg.node_param.port_id = PORT_PRE_OUT;
-	param_cfg.node_id = ISP_NODE_MODE_PRE_ID;
-	ret = ch->pipeline_handle->ops.cfg_param(ch->nonzsl_pre_pipeline, CAM_PIPELINE_CFG_BUF, &param_cfg);
-	if (ret) {
-		pr_err("fail to set yuv buf to isp\n");
-		goto isp_buf_cfg_fail;
-	}
-
-	/* ltm buf cfg */
-	if (isp_node->uinfo.mode_ltm != MODE_LTM_OFF) {
-		/* todo: ltm buffer size needs to be refined.*/
-		/* size = ((width + 1) & (~1)) * height * 3 / 2; */
-		/*
-		 * sizeof histo from 1 tile: 128 * 16 bit
-		 * MAX tile num: 8 * 8
-		 */
-		size = 64 * 128 * 2;
-		size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
-
-		if (isp_node->uinfo.ltm_rgb) {
-			rgb_ltm = (struct isp_ltm_ctx_desc *)isp_node->rgb_ltm_handle;
-			if (!rgb_ltm) {
-				pr_err("fail to get rgb ltm.\n");
-				return -1;
-			}
-			for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
-				ret = cam_buf_alloc(&rgb_ltm->ltm_frame[i].buf, size, module->iommu_enable);
-				if (ret) {
-					pr_err("fail to alloc ltm buf: %d ch %d\n", i, isp_node->ch_id);
-					return -1;
-				}
-
-				ret = cam_buf_manager_buf_status_cfg(&rgb_ltm->ltm_frame[i].buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
-				if (ret) {
-					pr_err("fail to map isp ltm iommu buf.\n");
-					cam_buf_free(&rgb_ltm->ltm_frame[i].buf);
-					return -1;
-				}
-				rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = CAM_ENABLE;
-				pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", rgb_ltm->ctx_id, i, rgb_ltm->ltm_frame[i], rgb_ltm->ltm_frame[i].buf.iova);
-			}
-		}
-	}
-
-	/* dec buf cfg*/
-	if (module->cam_uinfo.is_pyr_dec && ch->nonzsl_pre_pipeline) {
-		pyrdec_node = module->nodes_dev.pyr_dec_node_dev[PYR_DEC_NODE_ID];
-		rec_ctx = (struct isp_rec_ctx_desc *)isp_node->rec_handle;
-
-		alloc_param.ch_id = ch->ch_id;
-		alloc_param.width = proc_info->src_size.width;
-		alloc_param.height = proc_info->src_size.height;
-		alloc_param.iommu_enable = module->iommu_enable;
-		alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
-		alloc_param.pyr_out_fmt = hw->ip_dcam[0]->dcampath_abt[DCAM_BIN_OUT_PATH]->format[0];
-		alloc_param.pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
-
-		node_param.port_id = PORT_DEC_OUT;
-		node_param.param = &alloc_param;
-		pyrdec_node->port_cfg_cb_func(&node_param, PORT_CFG_BUFFER_ALLOC, pyrdec_node->port_cfg_cb_handle);
-		ret = isp_pyr_rec_buffer_alloc(rec_ctx, &alloc_param, isp_node->buf_manager_handle);
-		if (ret) {
-			pr_err("fail to alloc rec buffer.\n");
-			goto isp_buf_cfg_fail;
-		}
-	}
-
-	return ret;
-
-isp_buf_cfg_fail:
-		cam_queue_empty_frame_put(isp_pre_frame);
-dcam_offline_buf_cfg_fail:
-		cam_queue_empty_frame_put(dcam_offline_bin_frame);
-
-	pr_err("fail to raw buf cfg\n");
-	return ret;
-}
 
 int camrawcap_raw_pre_proc(struct camera_module *module,
 		struct isp_raw_proc_info *proc_info)
@@ -182,12 +27,9 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	struct pyr_dec_node_desc *pyr_dec_desc = NULL;
 	struct isp_node_desc *isp_node_description = NULL;
 	struct dcam_offline_node_desc *dcam_offline_desc = NULL;
-	struct sprd_img_rect crop = {0};
 
 	pr_debug("cam%d in. module:%px, fd:%x, endian:%d\n", module->idx, module, proc_info->fd_pm, proc_info->src_y_endian);
-	pr_debug("src:%d, %d, dst:%d, %d, trim: [%d %d %d %d] pm offset:%d. partten:%d\n",
-		proc_info->src_size.width, proc_info->src_size.height, proc_info->dst_size.width, proc_info->dst_size.height,
-		proc_info->crop.x, proc_info->crop.y, proc_info->crop.w, proc_info->crop.h, proc_info->pm_offset, proc_info->src_pattern);
+	pr_debug("size:%d, %d, partten:%d.\n", proc_info->src_size.width, proc_info->src_size.height, proc_info->src_pattern);
 	hw = module->grp->hw_info;
 	module->capture_type = CAM_CAPTURE_RAWPROC;
 	module->cam_uinfo.dcam_slice_mode = proc_info->src_size.width > DCAM_24M_WIDTH ? CAM_OFFLINE_SLICE_HW : 0;
@@ -315,28 +157,17 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	if (pipeline_desc->pipeline_graph->need_pyr_dec && pyrdec_support)
 		camcore_pyrdec_ctxid_cfg(ch, isp_node_description->isp_node);
 
-	module->cam_uinfo.sn_rect.w = proc_info->src_size.width;
-	module->cam_uinfo.sn_rect.h = proc_info->src_size.height;
-	crop.x = proc_info->crop.x;
-	crop.y = proc_info->crop.y;
-	crop.w = proc_info->crop.w;
-	crop.h = proc_info->crop.h;
-	cam_zoom_crop_size_align(module, &crop, ch->ch_id);
-
 	{
 		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
-
-		ch->ch_uinfo.nonzsl_pre_ratio = 4;
-		if ((crop.w / 4) < LTM_MIN_TILE_WIDTH * TILE_NUM_MIN)
+		if ((ch->ch_uinfo.src_size.w / 2) > g_camctrl.isp_linebuf_len)
+			ch->ch_uinfo.nonzsl_pre_ratio = 4;
+		else
 			ch->ch_uinfo.nonzsl_pre_ratio = 2;
-		if ((crop.w / 2) < LTM_MIN_TILE_WIDTH * TILE_NUM_MIN)
-			ch->ch_uinfo.nonzsl_pre_ratio = 1;
-
 		dcam_offline_desc->offline_pre_en = CAM_ENABLE;
 		isp_node_description->ch_id = CAM_CH_PRE;
 		isp_node_description->mode_ltm = MODE_LTM_PRE;
-		isp_node_description->port_desc.output_size.w = crop.w / ch->ch_uinfo.nonzsl_pre_ratio;
-		isp_node_description->port_desc.output_size.h = crop.h / ch->ch_uinfo.nonzsl_pre_ratio;
+		isp_node_description->port_desc.output_size.w = ch->ch_uinfo.dst_size.w / ch->ch_uinfo.nonzsl_pre_ratio;
+		isp_node_description->port_desc.output_size.h = ch->ch_uinfo.dst_size.h / ch->ch_uinfo.nonzsl_pre_ratio;
 		pipeline_desc->pipeline_graph = &module->static_topology->pipeline_list[statis_pipe_type];
 		ch->nonzsl_pre_pipeline = cam_pipeline_creat(pipeline_desc);
 		ch->nonzsl_statis_pipeline_type = statis_pipe_type;
@@ -345,14 +176,15 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 			goto fail;
 		}
 	}
-	ch->trim_dcam.start_x = crop.x;
-	ch->trim_dcam.start_y = crop.y;
-	ch->trim_dcam.size_x = crop.w;
-	ch->trim_dcam.size_y = crop.h;
+
+	pr_debug("size:%d, %d, dst:%d, %d, pm offset:%d.\n", proc_info->src_size.width, proc_info->src_size.height,
+		proc_info->dst_size.width, proc_info->dst_size.height, proc_info->pm_offset);
+	ch->trim_dcam.size_x = proc_info->src_size.width;
+	ch->trim_dcam.size_y = proc_info->src_size.height;
 	ch->dst_dcam.w = ch->trim_dcam.size_x;
 	ch->dst_dcam.h = ch->trim_dcam.size_y;
-	ch->trim_isp.size_x = ch->dst_dcam.w;
-	ch->trim_isp.size_y = ch->dst_dcam.h;
+	ch->trim_isp.size_x = ch->trim_dcam.size_x;
+	ch->trim_isp.size_y = proc_info->src_size.height;
 	ch->ch_uinfo.dst_size.w = proc_info->dst_size.width;
 	ch->ch_uinfo.dst_size.h = proc_info->dst_size.height;
 	ret = cam_zoom_channel_size_config(module, ch);
@@ -379,12 +211,6 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_PRE_ID, &cfg_param);
 	cam_queue_empty_frame_put(param_frame);
 
-	ret = camrawcap_raw_buf_cfg(module, proc_info, pipeline_desc);
-	if (ret) {
-		pr_err("fail to config buf.\n");
-		goto fail;
-	}
-
 	atomic_set(&module->state, CAM_CFG_CH);
 fail:
 	cam_buf_kernel_sys_vfree(pipeline_desc);
@@ -398,7 +224,8 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	int ret = 0;
 	timespec cur_ts = {0};
 	uint32_t width = 0, height = 0;
-	uint32_t format = 0, size = 0;
+	uint32_t format = 0, size = 0, i = 0;
+	uint32_t ratio = 4, bin_width = 0, bin_height = 0, bin_size = 0;
 	enum cam_node_type node_type = CAM_NODE_TYPE_MAX;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *ch = NULL;
@@ -406,11 +233,20 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	struct dcam_pipe_dev *dev = NULL;
 	struct cam_frame *src_frame = NULL;
 	struct cam_frame *dst_frame = NULL;
+	struct cam_frame *bin_frame = NULL;
+	struct cam_frame *res_frame = NULL;
 	struct cam_frame *mid_frame = NULL;
 	struct cam_frame *param_frame = NULL;
+	struct isp_rec_ctx_desc *rec_ctx = NULL;
+	struct isp_ltm_ctx_desc *rgb_ltm = NULL;
+	struct pyr_dec_node *pyrdec_node = NULL;
 	struct cfg_param_status cfg_param = {0};
+	struct cam_buf_alloc_desc alloc_param = {0};
+	struct cam_node_cfg_param node_param = {0};
+	struct cam_pipeline_cfg_param param_cfg = {0};
 
 	pr_info("start\n");
+	atomic_set(&module->state, CAM_RUNNING);
 	hw = module->grp->hw_info;
 	memset(&cur_ts, 0, sizeof(timespec));
 	dev = (struct dcam_pipe_dev *)module->dcam_dev_handle;
@@ -421,11 +257,11 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 	}
 
 	isp_node = module->nodes_dev.isp_node_dev[ISP_NODE_MODE_CAP_ID];
-	pr_debug("postproc scene:%d, src 0x%x 0x%x, dst 0x%x, 0x%x, param 0x%x, 0x%x\n",
+	pr_debug("postproc scene:%d, src %d 0x%x, mid %d, 0x%x, dst %d, 0x%x\n",
 		proc_info->scene, proc_info->fd_src, proc_info->src_offset,
 		proc_info->fd_dst, proc_info->dst_offset,
 		proc_info->fd_pm, proc_info->pm_offset);
-	pr_debug("src size:%d, %d.\n", proc_info->src_size.width, proc_info->src_size.height);
+	pr_debug("size:%d, %d.\n", proc_info->src_size.width, proc_info->src_size.height);
 	src_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
 	src_frame->common.buf.type = CAM_BUF_USER;
 	src_frame->common.link_from.node_type = CAM_NODE_TYPE_USER;
@@ -541,13 +377,126 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 		}
 	}
 
+	if (ch->nonzsl_pre_pipeline && proc_info->scene != CAMRAW_POSTPROC_PIPELINE_ISP_PROCESS) {
+		bin_width = cal_sprd_pitch(proc_info->src_size.width / ratio, ch->ch_uinfo.dcam_raw_fmt);
+		bin_height = proc_info->src_size.height / ratio;
+		bin_size = bin_width * bin_height;
+		if (!hw->ip_isp->isphw_abt->fetch_raw_support)
+			bin_size = bin_size * 3 / 2;
+		bin_size = ALIGN(bin_size, CAM_BUF_ALIGN_SIZE);
+		bin_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		bin_frame->common.channel_id = CAM_CH_PRE;
+		bin_frame->common.buf.status = CAM_BUF_ALLOC;
+		bin_frame->common.buf.type = CAM_BUF_KERNEL;
+		bin_frame->common.nonzsl_xtm.hist_eb = CAM_ENABLE;
+		bin_frame->common.nonzsl_xtm.full_size.w = proc_info->src_size.width;
+		bin_frame->common.nonzsl_xtm.full_size.h = proc_info->src_size.height;
+		bin_frame->common.sensor_time = src_frame->common.sensor_time;
+		bin_frame->common.boot_sensor_time = src_frame->common.boot_sensor_time;
+		bin_frame->common.width = proc_info->src_size.width / ratio;
+		bin_frame->common.height = proc_info->src_size.height / ratio;
+		ret = cam_buf_alloc(&bin_frame->common.buf, (size_t)bin_size, module->iommu_enable);
+		if (ret) {
+			pr_err("fail to alloc bin buf\n");
+			goto binbuf_cfg_fail;
+		}
+		CAM_QUEUE_FRAME_FLAG_RESET(&bin_frame->common);
+		param_cfg.node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+		param_cfg.node_param.param = bin_frame;
+		param_cfg.node_param.port_type = PORT_TRANSFER_OUT;
+		param_cfg.node_param.port_id = PORT_OFFLINE_BIN_OUT;
+		param_cfg.node_id = DCAM_OFFLINE_NODE_ID;
+		cam_buf_manager_buf_status_cfg(&bin_frame->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_DCAM);
+		cam_buf_manager_buf_status_cfg(&bin_frame->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
+		bin_frame->common.buf.bypass_iova_ops = CAM_ENABLE;
+		ret = ch->pipeline_handle->ops.cfg_param(ch->nonzsl_pre_pipeline, CAM_PIPELINE_CFG_BUF, &param_cfg);
+		if (ret) {
+			pr_err("fail to cfg dcam out buffer.\n");
+			goto binbuf_cfg_fail;
+		}
+
+		res_frame = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
+		res_frame->common.channel_id = CAM_CH_PRE;
+		res_frame->common.buf.type = CAM_BUF_KERNEL;
+		if (hw->ip_isp->isphw_abt->fetch_raw_support)
+			bin_size = bin_size * 3 / 2;
+		bin_size = ALIGN(bin_size, CAM_BUF_ALIGN_SIZE);
+		ret = cam_buf_alloc(&res_frame->common.buf, bin_size, module->iommu_enable);
+		if (ret) {
+			pr_err("fail to alloc bin isp buf\n");
+			cam_queue_empty_frame_put(res_frame);
+			goto resbuf_cfg_fail;
+		}
+		param_cfg.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+		param_cfg.node_param.param = res_frame;
+		param_cfg.node_param.port_type = PORT_TRANSFER_OUT;
+		param_cfg.node_param.port_id = PORT_PRE_OUT;
+		param_cfg.node_id = ISP_NODE_MODE_PRE_ID;
+		ret = ch->pipeline_handle->ops.cfg_param(ch->nonzsl_pre_pipeline, CAM_PIPELINE_CFG_BUF, &param_cfg);
+		if (ret) {
+			pr_err("fail to set yuv buf to isp\n");
+			goto resbuf_cfg_fail;
+		}
+		if (isp_node->uinfo.mode_ltm != MODE_LTM_OFF) {
+			/* todo: ltm buffer size needs to be refined.*/
+			/* size = ((width + 1) & (~1)) * height * 3 / 2; */
+			/*
+			 * sizeof histo from 1 tile: 128 * 16 bit
+			 * MAX tile num: 8 * 8
+			 */
+			size = 64 * 128 * 2;
+			size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
+
+			if (isp_node->uinfo.ltm_rgb) {
+				rgb_ltm = (struct isp_ltm_ctx_desc *)isp_node->rgb_ltm_handle;
+				if (!rgb_ltm) {
+					pr_err("fail to get rgb ltm.\n");
+					return -1;
+				}
+				for (i = 0; i < ISP_LTM_BUF_NUM; i++) {
+					ret = cam_buf_alloc(&rgb_ltm->ltm_frame[i].buf, size, module->iommu_enable);
+					if (ret) {
+						pr_err("fail to alloc ltm buf: %d ch %d\n", i, isp_node->ch_id);
+						return -1;
+					}
+
+					ret = cam_buf_manager_buf_status_cfg(&rgb_ltm->ltm_frame[i].buf, CAM_BUF_STATUS_GET_IOVA_K_ADDR, CAM_BUF_IOMMUDEV_ISP);
+					if (ret) {
+						pr_err("fail to map isp ltm iommu buf.\n");
+						cam_buf_free(&rgb_ltm->ltm_frame[i].buf);
+						return -1;
+					}
+					rgb_ltm->ltm_frame[i].buf.bypass_iova_ops = CAM_ENABLE;
+					pr_debug("ctx id %d, LTM CFGB[%d][0x%p] = 0x%lx\n", rgb_ltm->ctx_id, i, rgb_ltm->ltm_frame[i], rgb_ltm->ltm_frame[i].buf.iova);
+				}
+			}
+		}
+	}
+
 	atomic_set(&module->state, CAM_RUNNING);
+
+	if (module->cam_uinfo.is_pyr_dec && ch->nonzsl_pre_pipeline && proc_info->scene != CAMRAW_POSTPROC_PIPELINE_ISP_PROCESS) {
+		pyrdec_node = module->nodes_dev.pyr_dec_node_dev[PYR_DEC_NODE_ID];
+		rec_ctx = (struct isp_rec_ctx_desc *)isp_node->rec_handle;
+
+		alloc_param.ch_id = ch->ch_id;
+		alloc_param.width = proc_info->src_size.width;
+		alloc_param.height = proc_info->src_size.height;
+		alloc_param.iommu_enable = module->iommu_enable;
+		alloc_param.is_pyr_dec = module->cam_uinfo.is_pyr_dec;
+		alloc_param.pyr_out_fmt = hw->ip_dcam[0]->dcampath_abt[DCAM_BIN_OUT_PATH]->format[0];
+		alloc_param.pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
+
+		node_param.port_id = PORT_DEC_OUT;
+		node_param.param = &alloc_param;
+		pyrdec_node->port_cfg_cb_func(&node_param, PORT_CFG_BUFFER_ALLOC, pyrdec_node->port_cfg_cb_handle);
+		isp_pyr_rec_buffer_alloc(rec_ctx, &alloc_param, isp_node->buf_manager_handle);
+	}
 
 	ret = camcore_frame_start_proc(src_frame, node_type, ch);
 	if (ret) {
 		pr_err("fail to start dcam/isp for raw proc\n");
-		goto dstbuf_cfg_fail;
-
+		goto resbuf_cfg_fail;
 	}
 
 	atomic_set(&module->timeout_flag, 1);
@@ -555,6 +504,12 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 
 	return ret;
 
+resbuf_cfg_fail:
+	if (ch->nonzsl_pre_pipeline && proc_info->scene != CAMRAW_POSTPROC_PIPELINE_ISP_PROCESS)
+		cam_queue_empty_frame_put(res_frame);
+binbuf_cfg_fail:
+	if (ch->nonzsl_pre_pipeline && proc_info->scene != CAMRAW_POSTPROC_PIPELINE_ISP_PROCESS)
+		cam_queue_empty_frame_put(bin_frame);
 midbuf_cfg_fail:
 	if (proc_info->scene == CAMRAW_POSTPROC_PIPELINE_PROCESS)
 		cam_queue_empty_frame_put(mid_frame);

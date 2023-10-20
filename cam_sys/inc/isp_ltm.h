@@ -26,21 +26,6 @@ extern "C" {
 #define LTM_MAX_ROI_Y                   180
 #define LTM_ID_MAX                      3
 
-/*
- * 1. The static of preview frame N can be applied to another preview frame N+1
- * 2. The static of preview frame N can be applied to capture frame N
- *
- * 3. histogram statics support 128 bins (size 16 bits), Max statics is 65535
- * 4. ROI crop, max support is 240 x 180
- * 5. Horizen (8, 6, 4, 2) for L5/L5P/L6, Horizen (8, 6, 4) for N6P/N6L, no limitation in vertical
- * 6. Min tile is 128 x 20 for L5/L5P/L6, Min tile is 160 x 20 for N6P/N6L
- * 7. Max tile is 65536 (tile_height x tile_width)
- */
-#define BIN_NUM_BIT                      7
-#define TILE_NUM_MIN                     4
-#define TILE_NUM_MAX                     8
-#define TILE_MAX_SIZE                    (1 << 16)
-
 typedef struct isp_ltm_hist_param {
 	enum cam_en_status update;
 	/* match ltm stat info */

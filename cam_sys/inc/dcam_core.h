@@ -88,9 +88,6 @@ struct dcam_offline_slice_info {
 	struct img_trim slice_trim[DCAM_OFFLINE_SLC_MAX];
 	timespec slice_start_ts[DCAM_FRAME_TIMESTAMP_COUNT];
 	timespec slice_end_ts[DCAM_FRAME_TIMESTAMP_COUNT];
-	uint32_t slice_valid_num[DCAM_OFFLINE_SLC_MAX];
-	atomic_t slice_valid_cnt;
-	uint32_t slice_valid_num_static;
 };
 
 struct dcam_online_start_param {

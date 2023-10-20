@@ -2622,7 +2622,6 @@ struct isp_raw_proc_info {
 	enum raw_proc_cmd cmd;
 	struct isp_img_size src_size;
 	struct isp_img_size dst_size;
-	struct isp_img_rect crop;
 	uint32_t src_y_endian;
 	uint32_t src_uv_endian;
 	uint32_t dst_y_endian;

@@ -19,5 +19,4 @@
 uint32_t dcam_slice_needed_info_get(struct dcam_hw_context *pctx, uint32_t *dev_lbuf, uint32_t in_width);
 int dcam_slice_hw_info_set(struct dcam_offline_slice_info *slice, struct cam_frame *pframe,
 	uint32_t slice_wmax, struct dcam_isp_k_block *pm);
-int dcam_slice_num_valid_cal(struct dcam_offline_node *node, uint32_t slice_wmax, struct cam_frame *pframe);
 #endif

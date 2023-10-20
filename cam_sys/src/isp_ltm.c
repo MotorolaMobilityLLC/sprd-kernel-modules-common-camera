@@ -21,6 +21,22 @@
 #define ISP_LTM_TIMEOUT         msecs_to_jiffies(100)
 
 /*
+ * 1. The static of preview frame N can be applied to another preview frame N+1
+ * 2. The static of preview frame N can be applied to capture frame N
+ *
+ * 3. histogram statics support 128 bins (size 16 bits), Max statics is 65535 ?
+ * 4. ROI crop, max support is 240 x 180
+ * 5. Horizen (8, 6, 4, 2), no limitation in vertical
+ * 6. Min tile is 128 x 20
+ * 7. Max tile is 65536 (tile_height x tile_width)
+ */
+#define BIN_NUM_BIT             7
+#define TILE_NUM_MIN            4
+#define TILE_NUM_MAX            8
+#define TILE_MAX_SIZE           (1 << 16)
+#define TILE_WIDTH_MIN          160
+
+/*
  * row : 2, 4, 8
  * col : 2, 4, 8
  */
@@ -207,7 +223,7 @@ static int ispltm_histo_param_calc(struct isp_ltm_ctx_desc *ctx, ltm_param_t *pa
 			int v_ceil = 0;
 			int tmp = 0;
 
-			max_tile_col = MAX(MIN(frame_width / (LTM_MIN_TILE_WIDTH * 2) * 2,
+			max_tile_col = MAX(MIN(frame_width / (TILE_WIDTH_MIN * 2) * 2,
 					TILE_NUM_MAX), TILE_NUM_MIN);
 			min_tile_width = frame_width / (max_tile_col * alignment) * alignment;
 			max_tile_height = TILE_MAX_SIZE / (min_tile_width * 2) * 2;
