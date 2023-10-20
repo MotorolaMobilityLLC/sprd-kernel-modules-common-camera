@@ -20,7 +20,7 @@
 #include "cam_hw.h"
 #include "dcam_interface.h"
 
-#define DCAM_FETCH_IN_Q_LEN             12
+#define DCAM_FETCH_IN_Q_LEN             20
 #define DCAM_FETCH_PROC_Q_LEN           12
 #define DCAM_FETCH_TIMEOUT              msecs_to_jiffies(2000)
 
