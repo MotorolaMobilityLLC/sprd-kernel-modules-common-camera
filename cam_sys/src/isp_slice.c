@@ -479,6 +479,34 @@ static void ispslice_spath_trim1_info_cfg(
 	}
 }
 
+static int ispslice_slice_num_check(struct slice_cfg_input *in_ptr,
+	uint32_t input_w, uint32_t slice_w, uint32_t scaler_ratio, uint32_t slice_num)
+{
+	uint32_t num = 0, new_slice_w = 0, max_slice_out_w = 0, slice_align_w = 0;
+
+	if (in_ptr->calc_dyn_ov.verison == ALG_ISP_OVERLAP_VER_2 &&
+		scaler_ratio > 1 && (input_w == LTM_MIN_TILE_WIDTH * 8) && slice_num > 2) {
+		slice_align_w = ALIGN_UP(slice_w, 16);
+		max_slice_out_w = slice_align_w * scaler_ratio;
+		num = 1;
+		if (max_slice_out_w >= g_camctrl.isp_linebuf_len) {
+			do {
+				num++;
+				new_slice_w = (max_slice_out_w + num - 1) / num;
+			} while (new_slice_w >= g_camctrl.isp_linebuf_len);
+		}
+		slice_num = slice_num + num - 1;
+		new_slice_w = (input_w + slice_num - 1) / slice_num;
+		new_slice_w = ALIGN_UP(new_slice_w, ISP_SLICE_ALIGN_SIZE);
+	} else
+		new_slice_w = slice_w;
+
+	pr_debug("input_w %d, slice_w %d, new slice_w %d, scaler_ratio %d, slice_num %d\n",
+		input_w, slice_w, new_slice_w, scaler_ratio, slice_num);
+
+	return new_slice_w;
+}
+
 static void ispslice_slice_size_info_get(
 			struct slice_cfg_input *in_ptr,
 			uint32_t *w, uint32_t *h)
@@ -486,7 +514,7 @@ static void ispslice_slice_size_info_get(
 	uint32_t j = 0;
 	uint32_t slice_num = 0, slice_w = 0, slice_w_out = 0;
 	uint32_t slice_max_w = 0, max_w = 0, slice_tmp_w = 0;
-	uint32_t linebuf_len = 0;
+	uint32_t linebuf_len = 0, scaler_ratio = 0;
 	struct img_size *input = &in_ptr->frame_in_size;
 	struct img_size *output = NULL;
 
@@ -511,8 +539,11 @@ static void ispslice_slice_size_info_get(
 	slice_max_w = linebuf_len;
 	for (j = 0; j < ISP_SPATH_NUM; j++) {
 		output = in_ptr->frame_out_size[j];
-		if (output && (output->w > max_w))
+		if (output && (output->w > max_w)) {
 			max_w = output->w;
+			scaler_ratio = in_ptr->frame_scaler[j]->scaler_factor_out / in_ptr->frame_scaler[j]->scaler_factor_in;
+			pr_debug("scaler ratio %d\n", scaler_ratio);
+		}
 	}
 	if (max_w > 0) {
 		if (max_w > linebuf_len) {
@@ -532,13 +563,14 @@ static void ispslice_slice_size_info_get(
 	*h = input->h / SLICE_H_NUM_MAX;
 
 	slice_tmp_w = (*w + RAW_OVERLAP_RIGHT) * max_w / input->w;
-	if (slice_tmp_w > linebuf_len) {
+	if (in_ptr->calc_dyn_ov.verison == ALG_ISP_DYN_OVERLAP_NONE && slice_tmp_w > linebuf_len) {
 		slice_num = slice_num + 1;
 		*w = (input->w + slice_num - 1) / slice_num;
 		pr_debug("slice_num %d, slice_w %d\n", slice_num, *w);
 	}
 
 	*w = ALIGN_UP(*w, ISP_SLICE_ALIGN_SIZE);
+	*w = ispslice_slice_num_check(in_ptr, input->w, *w, scaler_ratio, slice_num);
 	*h = ALIGN_UP(*h, ISP_SLICE_ALIGN_SIZE);
 }
 
