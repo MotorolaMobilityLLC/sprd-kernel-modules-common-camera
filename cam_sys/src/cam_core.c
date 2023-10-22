@@ -2044,7 +2044,7 @@ static int camcore_virtual_sensor_proc(struct camera_module *module,
 	if (ret)
 		goto virtualsensor_src_fail;
 
-	ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_BUF, src_frame);
+	ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_FETCH_BUF, src_frame);
 	if (ret)
 		goto virtualsensor_src_fail;
 

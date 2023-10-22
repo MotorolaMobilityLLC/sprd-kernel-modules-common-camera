@@ -652,6 +652,9 @@ static int camnode_cfg_node_param_dcam_fetch(void *handle, enum cam_node_cfg_cmd
 			node->cap_param.cap_timestamp, node->cap_param.fid);
 		break;
 	case CAM_NODE_CFG_BUF:
+		ret = node->ops.cfg_port_param(node, PORT_CFG_BUFFER_SET, param);
+		break;
+	case CAM_NODE_CFG_FETCH_BUF:
 	case CAM_NODE_CFG_RECT_GET:
 	case CAM_NODE_CFG_STATIS:
 		ret = dcam_fetch_node_cfg_param(node->handle, cmd, in_param->param);

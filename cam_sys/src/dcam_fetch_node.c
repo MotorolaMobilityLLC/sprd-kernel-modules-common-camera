@@ -728,7 +728,7 @@ int dcam_fetch_node_cfg_param(void *handle, uint32_t cmd, void *param)
 	node = (struct dcam_fetch_node *)handle;
 
 	switch (cmd) {
-	case CAM_NODE_CFG_BUF:
+	case CAM_NODE_CFG_FETCH_BUF:
 		ret = dcamfetch_frm_set(node, param);
 		break;
 	case CAM_NODE_CFG_STATIS:
