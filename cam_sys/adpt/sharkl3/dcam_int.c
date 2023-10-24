@@ -59,6 +59,7 @@ static void dcamint_irq_cap_sof(void *param)
 		return;
 	}
 
+	DCAM_MMU_MWR(MMU_UPDATE, BIT_0, 0x1);
 	irq_proc.of = CAP_START_OF_FRAME;
 	irq_proc.frm_cnt = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_CAP_FRM_CLR) & 0x3F;
 	irq_proc.bin_addr_value = DCAM_REG_RD(dcam_hw_ctx->hw_ctx_id, DCAM_BIN_BASE_WADDR0);
