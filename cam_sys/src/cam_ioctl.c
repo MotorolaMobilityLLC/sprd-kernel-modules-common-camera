@@ -981,7 +981,7 @@ static int camioctl_crop_set(struct camera_module *module,
 
 	ch = &module->channel[channel_id];
 	ch_vid = &module->channel[CAM_CH_VID];
-	if (!ch->enable) {
+	if (!ch->enable || (ch->ch_id == CAM_CH_RAW) || (ch->ch_id == CAM_CH_VIRTUAL) || (ch->ch_id == CAM_CH_DCAM_VCH)) {
 		pr_err("fail to set crop, ret %d, ch %d\n", ret, channel_id);
 		ret = -EINVAL;
 		goto exit;
@@ -1023,13 +1023,20 @@ static int camioctl_crop_set(struct camera_module *module,
 		zoom_param->user_zoom.total_zoom_crop = total_crop;
 		ch->latest_user_crop = crop;
 		if (CAM_QUEUE_ENQUEUE(&ch->zoom_user_crop_q, &zoom_param->list)) {
+			if (ch->zoom_user_crop_q.max == 0) {
+				pr_err("fail to zoom user q not init or clear, ch id:%d,state:%d, max:%d\n", channel_id, ch->zoom_user_crop_q.state, ch->zoom_user_crop_q.max);
+				cam_queue_empty_frame_put(zoom_param);
+				goto exit;
+			}
 			/* if zoom queue overflow, discard first one node in queue*/
 			pr_warn("warning: ch %d zoom q overflow cnt:%d, state:%d, max:%d\n", channel_id, ch->zoom_user_crop_q.cnt,
 				ch->zoom_user_crop_q.state, ch->zoom_user_crop_q.max);
 			first_param = CAM_QUEUE_DEQUEUE(&ch->zoom_user_crop_q, struct cam_frame, list);
 			cam_queue_empty_frame_put(first_param);
-			if (CAM_QUEUE_ENQUEUE(&ch->zoom_user_crop_q, &zoom_param->list))
+			if (CAM_QUEUE_ENQUEUE(&ch->zoom_user_crop_q, &zoom_param->list)) {
+				cam_queue_empty_frame_put(zoom_param);
 				goto exit;
+			}
 		}
 		if (ch_vid->enable && channel_id == CAM_CH_PRE) {
 			pr_debug("ch_vid->enable %d channel_id %d\n", ch_vid->enable, channel_id);
