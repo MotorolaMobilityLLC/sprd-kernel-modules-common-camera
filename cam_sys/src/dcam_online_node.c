@@ -1316,6 +1316,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 {
 	int ret = 0, loop = 0, is_csi_connect = 0;
 	unsigned long flag = 0;
+	struct cam_frame *frame = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_reg_trace trace = {0};
@@ -1533,6 +1534,9 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 			}
 
 			if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AI_SFNR && !node->param_frame_sync) {
+				port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
+				if (frame)
+					cam_queue_empty_frame_put(frame);
 				CAM_NODE_SHUTOFF_PARAM_INIT(node_shutoff);
 				node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
 				node_shutoff.outport_shutoff[port->port_id].shutoff_type = SHUTOFF_PAUSE;
@@ -1613,6 +1617,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 err:
 	if (node->nr3_frm)
 		cam_queue_empty_frame_put(node->nr3_frm);
+
 	return ret;
 }
 
