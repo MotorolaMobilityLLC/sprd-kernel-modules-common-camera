@@ -222,13 +222,13 @@ int cam_queue_frame_array_check(uint32_t mode)
 			switch (mode) {
 			case CAM_FRAME_CHECK_QUEUE_OUT:
 				if (atomic_read(&pframe->list.status) == CAM_Q_FREE) {
-					pr_warn("frame:%px leak, frame type:%d status:%d\n", pframe, pframe->common.buf.type, pframe->common.buf.status);
+					pr_warn("warning: frame:%px leak, frame type:%d status:%d\n", pframe, pframe->common.buf.type, pframe->common.buf.status);
 					cam_queue_empty_frame_put(pframe);
 				}
 				break;
 			case CAM_FRAME_CHECK_ALL:
 				if (pframe->common.buf.status != CAM_BUF_EMPTY) {
-					pr_warn("frame:%px leak, frame type:%d status:%d list status:%d\n", pframe, pframe->common.buf.type, pframe->common.buf.status, pframe->list.status);
+					pr_warn("warning: frame:%px leak, frame type:%d status:%d list status:%d\n", pframe, pframe->common.buf.type, pframe->common.buf.status, pframe->list.status);
 					camqueue_frame_state_clear(pframe);
 				}
 				break;
@@ -261,7 +261,7 @@ struct cam_frame *cam_queue_empty_frame_get(enum camera_frame_type type)
 
 	if (pframe)
 		pframe->type = type;
-	pr_debug("Done. get frame %px\n", pframe);
+	pr_debug("Done. get frame %px, type %d, cb: %pS\n", pframe, type, __builtin_return_address(0));
 	return pframe;
 }
 

@@ -246,6 +246,7 @@ struct img_trim {
 
 struct img_slice_info {
 	uint32_t slice_num;
+	uint32_t slice_num_w;
 	uint32_t slice_no;
 	uint32_t slice_cnt;
 	struct img_trim in_trim;

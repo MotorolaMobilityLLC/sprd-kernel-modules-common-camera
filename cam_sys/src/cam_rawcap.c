@@ -353,6 +353,7 @@ int camrawcap_raw_post_proc(struct camera_module *module,
 		CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_CAP_ID, &cfg_param);
 		CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_CAP_ID, &cfg_param);
 		CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_CAP_ID, &cfg_param);
+		cam_queue_empty_frame_put(param_frame);
 		node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		ret = cam_buf_manager_buf_status_cfg(&src_frame->common.buf, CAM_BUF_STATUS_GET_IOVA, CAM_BUF_IOMMUDEV_ISP);
 		if (ret) {

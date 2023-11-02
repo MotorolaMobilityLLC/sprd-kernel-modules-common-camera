@@ -903,14 +903,15 @@ static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
 		slice_num_w = ISP_OVERSIZE_SLICENUM_W;
 	}
 	slice_num = slice_num_w * slice_num_h;
-	for (j = 0; j  < slice_num_h; j++) {
+	pr_debug("ltm eb %d slicenum w %d h %d\n", ltm_eb, slice_num_w, slice_num_h);
+	for (j = 0; j < slice_num_h; j++) {
 		for (i = 0; i < slice_num_w; i++) {
-			in_trim[i + 2 * j].start_x = pframe->common.width /slice_num_w * i ;
-			in_trim[i + 2 * j].start_y = pframe->common.height / slice_num_h * j;
-			in_trim[i + 2 * j].size_x = pframe->common.width / slice_num_w;
-			in_trim[i + 2 * j].size_y = pframe->common.height / slice_num_h;
+			in_trim[i + slice_num_w * j].start_x = pframe->common.width / slice_num_w * i;
+			in_trim[i + slice_num_w * j].start_y = pframe->common.height / slice_num_h * j;
+			in_trim[i + slice_num_w * j].size_x = pframe->common.width / slice_num_w;
+			in_trim[i + slice_num_w * j].size_y = pframe->common.height / slice_num_h;
 
-			if ((i + 2 * j) == slice_num - 1)
+			if ((i + slice_num_w * j) == slice_num - 1)
 				pframe1 = pframe;
 			else {
 				pframe1 = cam_queue_empty_frame_get(CAM_FRAME_GENERAL);
@@ -918,11 +919,12 @@ static int camcore_nonzsl_frame_slice(void *param, void *priv_data)
 				pframe1->common.buf.type = CAM_BUF_NONE;
 			}
 			pframe1->common.slice_info.slice_num = slice_num_h * slice_num_w;
-			pframe1->common.slice_info.slice_no = i + 2 * j;
-			pframe1->common.slice_info.in_trim = in_trim[i + 2 * j];
+			pframe1->common.slice_info.slice_num_w = slice_num_w;
+			pframe1->common.slice_info.slice_no = i + slice_num_w * j;
+			pframe1->common.slice_info.in_trim = in_trim[i + slice_num_w * j];
 
 			if (ltm_eb)
-				camcore_oversize_img_sliceproc(module, pframe1, i + 2 * j);
+				camcore_oversize_img_sliceproc(module, pframe1, i + slice_num_w * j);
 			cfg_param.node_type = pframe1->common.link_to.node_type;
 			cfg_param.node_param.param = pframe1;
 			cfg_param.node_param.port_id = pframe1->common.link_to.port_id;

@@ -51,7 +51,7 @@ static int ispport_slice_fetch_prepare(struct isp_port *port, void *param)
 static int ispport_slice_store_prepare(struct isp_port *port, void *param)
 {
 	uint32_t ret = 0, width = 0, height = 0, path_id = 0;
-	uint32_t store_start_x = 0, store_start_y = 0;
+	uint32_t store_start_x = 0, store_start_y = 0, slice_num_w = 0;
 	struct isp_port_cfg *port_cfg = NULL;
 	struct isp_store_info *store = NULL;
 	struct isp_hw_path_scaler *path = NULL;
@@ -78,15 +78,10 @@ static int ispport_slice_store_prepare(struct isp_port *port, void *param)
 	path->in_trim= slice->out_trim;
 	path->dst = port->size;
 	path->out_trim = slice->out_trim;
-	if (slice->slice_no % 2 == 0){
-		store_start_x = 0;
-	} else {
-		store_start_x = slice->out_trim.size_x;
-	}
-	if (slice->slice_no < 2)
-		store_start_y = 0;
-	else
-		store_start_y = slice->out_trim.size_y;
+
+	slice_num_w = slice->slice_num_w;
+	store_start_x = (slice->slice_no % slice_num_w) * slice->out_trim.size_x;
+	store_start_y = (slice->slice_no / slice_num_w) * slice->out_trim.size_y;
 	store->pitch.pitch_ch0 = path->dst.w;
 	store->pitch.pitch_ch1 = path->dst.w;
 	store->size.w = ALIGN(path->out_trim.size_x, 2);
@@ -101,11 +96,11 @@ static int ispport_slice_store_prepare(struct isp_port *port, void *param)
 		store->slice_offset.addr_ch1 = store_start_x + store_start_y * store->pitch.pitch_ch0 / 2;
 		store->slice_offset.addr_ch2 = 0;
 	}
-	pr_info("scaler src %d, %d, in_trim(%d, %d, %d, %d), dst %d, %d, out_trim(%d, %d, %d, %d), store %d, %d\n",
+	pr_debug("scaler src %d, %d, in_trim(%d, %d, %d, %d), dst %d, %d, out_trim(%d, %d, %d, %d), store %d, %d, %d, %d\n",
 		path->src.w, path->src.h, path->in_trim.start_x, path->in_trim.start_y,
 		path->in_trim.size_x, path->in_trim.size_y, path->dst.w, path->dst.h,
 		path->out_trim.start_x, path->out_trim.start_y, path->out_trim.size_x, path->out_trim.size_y,
-		store->size.w, store->size.h);
+		store_start_x, store_start_y, store->size.w, store->size.h);
 
 	return ret;
 }
