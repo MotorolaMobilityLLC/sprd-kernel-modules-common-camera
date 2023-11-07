@@ -1176,6 +1176,34 @@ int cam_zoom_param_set(struct cam_zoom_desc *in_ptr)
 	return ret;
 }
 
+int cam_zoom_port_param_update(struct cam_zoom_frame *zoom_data,
+	struct cam_zoom_index *zoom_index, struct cam_zoom_base *zoom_param)
+{
+	int i = 0, j = 0;
+	struct cam_zoom_port *zoom_port = NULL;
+	struct cam_zoom_node *zoom_node = NULL;
+
+	if (!zoom_data || !zoom_index || !zoom_param) {
+		pr_err("fail to get valid param %px %px %px\n", zoom_data, zoom_index, zoom_param);
+		return -EFAULT;
+	}
+
+	for (i = 0; i < NODE_ZOOM_CNT_MAX; i++) {
+		zoom_node = &zoom_data->zoom_node[i];
+		if (zoom_index->node_type == zoom_node->node_type
+			&& zoom_index->node_id == zoom_node->node_id) {
+			for (j = 0; j < PORT_ZOOM_CNT_MAX; j++) {
+				zoom_port = &zoom_node->zoom_port[j];
+				if (zoom_index->port_id == zoom_port->port_id
+					&& zoom_index->port_type == zoom_port->port_type)
+					zoom_port->zoom_base = *zoom_param;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_index *zoom_index)
 {
 	int ret = 0, i = NODE_ZOOM_CNT_MAX, j = PORT_ZOOM_CNT_MAX;

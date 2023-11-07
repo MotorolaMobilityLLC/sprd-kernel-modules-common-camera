@@ -658,9 +658,7 @@ static int camcore_zoom_param_get_callback(uint32_t pipeline_type, void *priv_da
 static int camcore_postproc_zoom_param_get(struct camera_module *module, enum cam_pipeline_type pipeline_type,
 	struct cam_zoom_base *zoom_param, struct cam_zoom_frame *zoom_data, struct cam_zoom_index *zoom_index)
 {
-	uint32_t i = 0, j = 0, ret = 0;
-	struct cam_zoom_port *zoom_port = NULL;
-	struct cam_zoom_node *zoom_node = NULL;
+	uint32_t ret = 0;
 
 	if (!module || !zoom_param || !zoom_data || !zoom_index) {
 		pr_err("fail to get input handle module:%px, channel:%px, zoom_data:%px, zoom_index:%px, zoom_param:%px.\n",
@@ -672,18 +670,7 @@ static int camcore_postproc_zoom_param_get(struct camera_module *module, enum ca
 	if (ret)
 		pr_warn("Warning: Not get postproc zoom data info.\n");
 
-	for (i = 0; i < NODE_ZOOM_CNT_MAX; i++) {
-		zoom_node = &zoom_data->zoom_node[i];
-		if (zoom_index->node_type == zoom_node->node_type
-			&& zoom_index->node_id == zoom_node->node_id) {
-			for (j = 0; j < PORT_ZOOM_CNT_MAX; j++) {
-				zoom_port = &zoom_node->zoom_port[j];
-				if (zoom_index->port_id == zoom_port->port_id
-					&& zoom_index->port_type == zoom_port->port_type)
-					zoom_port->zoom_base = *zoom_param;
-			}
-		}
-	}
+	ret = cam_zoom_port_param_update(zoom_data, zoom_index, zoom_param);
 
 	return ret;
 }

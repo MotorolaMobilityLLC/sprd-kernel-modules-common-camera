@@ -64,5 +64,6 @@ int cam_zoom_channel_size_config(struct camera_module *module, struct channel_co
 int cam_zoom_start_proc(void *param);
 int cam_zoom_param_set(struct cam_zoom_desc *zoom_info);
 int cam_zoom_frame_base_get(struct cam_zoom_base *zoom_base, struct cam_zoom_index *zoom_index);
+int cam_zoom_port_param_update(struct cam_zoom_frame *zoom_data, struct cam_zoom_index *zoom_index, struct cam_zoom_base *zoom_param);
 
 #endif

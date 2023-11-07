@@ -2064,11 +2064,11 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 {
 	int ret = 0;
 	uint32_t mode_3dnr = 0, in_fmt = 0;
+	struct channel_context *ch = NULL;
 	struct cam_zoom_index zoom_index = {0};
 	struct cam_zoom_base zoom_param = {0};
 	struct cam_pipeline_cfg_param param = {0};
 	struct cam_postproc_param postproc_param = {0};
-	struct channel_context *ch = NULL;
 
 	if (atomic_read(&module->state) != CAM_RUNNING) {
 		pr_warn("warning: only for state RUNNING\n");
@@ -2094,6 +2094,9 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 		zoom_param.crop.size_x= ch->ch_uinfo.dst_size.w;
 		zoom_param.crop.size_y= ch->ch_uinfo.dst_size.h;
 		ret = camcore_postproc_zoom_param_get(module, ch->pipeline_type, &zoom_param, &postproc_param.src_frm->common.zoom_data, &zoom_index);
+		zoom_index.port_type = PORT_TRANSFER_OUT;
+		zoom_index.port_id = PORT_VID_OUT;
+		ret = cam_zoom_port_param_update(&postproc_param.src_frm->common.zoom_data, &zoom_index, &zoom_param);
 	}
 	if (postproc_param.need_cfg_blkpm) {
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, ISP_NODE_MODE_CAP_ID, &postproc_param);
