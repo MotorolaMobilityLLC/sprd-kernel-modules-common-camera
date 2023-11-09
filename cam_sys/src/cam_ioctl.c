@@ -981,7 +981,7 @@ static int camioctl_crop_set(struct camera_module *module,
 
 	ch = &module->channel[channel_id];
 	ch_vid = &module->channel[CAM_CH_VID];
-	if (!ch->enable || (ch->ch_id == CAM_CH_RAW) || (ch->ch_id == CAM_CH_VIRTUAL) || (ch->ch_id == CAM_CH_DCAM_VCH)) {
+	if (!ch->enable) {
 		pr_err("fail to set crop, ret %d, ch %d\n", ret, channel_id);
 		ret = -EINVAL;
 		goto exit;
@@ -1024,7 +1024,7 @@ static int camioctl_crop_set(struct camera_module *module,
 		ch->latest_user_crop = crop;
 		if (CAM_QUEUE_ENQUEUE(&ch->zoom_user_crop_q, &zoom_param->list)) {
 			if (ch->zoom_user_crop_q.max == 0) {
-				pr_err("fail to zoom user q not init or clear, ch id:%d,state:%d, max:%d\n", channel_id, ch->zoom_user_crop_q.state, ch->zoom_user_crop_q.max);
+				pr_warn("warning: zoom user q not init or clear, ch id:%d,state:%d, max:%d\n", channel_id, ch->zoom_user_crop_q.state, ch->zoom_user_crop_q.max);
 				cam_queue_empty_frame_put(zoom_param);
 				goto exit;
 			}
