@@ -1605,7 +1605,6 @@ static int ispport_irq_fast_stop(struct isp_port *port, void *param)
 
 	port_cfg = VOID_PTR_TO(param, struct isp_port_cfg);
 	if (port->type == PORT_TRANSFER_IN) {
-		out_buf_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_unprocess_pool, port->buf_manager_handle);
 		result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, port->buf_manager_handle);
 		if (result_queue_cnt) {
 			buf_desc.q_ops_cmd = port_cfg->result_queue_ops;
@@ -1622,6 +1621,7 @@ static int ispport_irq_fast_stop(struct isp_port *port, void *param)
 				port->data_cb_func(CAM_CB_ISP_RET_SRC_BUF, pframe, port->data_cb_handle);
 				pframe = cam_buf_manager_buf_dequeue(&port->fetch_result_pool, &buf_desc, port->buf_manager_handle);
 			}
+			out_buf_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_unprocess_pool, port->buf_manager_handle);
 			result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, port->buf_manager_handle);
 			if (out_buf_queue_cnt == 0 && result_queue_cnt == 0) {
 				*(port_cfg->faststop) = 0;
