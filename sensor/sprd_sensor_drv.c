@@ -51,6 +51,7 @@ static const char *const sprd_sensor_supply_names[] = {
 	"vddcama",
 	"vddcamd",
 	"vddcammot",
+	"vddcamois",
 };
 
 static const char *const sprd_sensor_gpio_names[] = {
@@ -65,6 +66,7 @@ static const char *const sprd_sensor_gpio_names[] = {
 	"avdd-gpios",
 	"dvdd-gpios",
 	"mot-gpios",
+	"ois-gpios",
 };
 
 static const struct sensor_mclk_tag c_sensor_mclk_tab[] = {

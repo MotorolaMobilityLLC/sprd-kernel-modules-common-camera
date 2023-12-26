@@ -199,6 +199,8 @@ struct sensor_muti_aec_i2c_tag {
 	_IOW(SENSOR_IOC_MAGIC,  25, uint32_t)
 #define SENSOR_IO_PRI_KEY	\
 	_IOW(SENSOR_IOC_MAGIC, 26, uint32_t)
+#define SENSOR_IO_SET_OISVDD            \
+	_IOW(SENSOR_IOC_MAGIC,  28, uint32_t)
 #define SENSOR_IO_READ_OTPDATA	\
 	_IOWR(SENSOR_IOC_MAGIC, 254, struct _sensor_otp_param_tag)
 #define SENSOR_IO_SET_I2CBURST	\

@@ -198,6 +198,26 @@ static int sprd_sensor_io_set_cammot(struct sprd_sensor_file_tag *p_file,
 	return ret & ret1;
 }
 
+static int sprd_sensor_io_set_camoisvdd(struct sprd_sensor_file_tag *p_file,
+				     unsigned long arg)
+{
+	int ret = 0, ret1 = 0;
+	unsigned int vdd_val;
+
+	ret = copy_from_user(&vdd_val, (unsigned int *)arg,
+			     sizeof(unsigned int));
+	if (ret == 0) {
+		vdd_val = sprd_sensor_get_voltage_value(vdd_val);
+		ret = sprd_sensor_set_voltage_by_gpio(p_file->sensor_id,
+			vdd_val, SPRD_SENSOR_OISVDD_GPIO_TAG_E);
+		//if (ret)
+			ret1 = sprd_sensor_set_voltage(p_file->sensor_id,
+					      vdd_val, SENSOR_REGULATOR_CAMOISVDD_ID_E);
+	}
+
+	return ret & ret1;
+}
+
 static int sprd_sensor_io_set_avdd(struct sprd_sensor_file_tag *p_file,
 				   unsigned long arg)
 {
@@ -618,6 +638,9 @@ static long sprd_sensor_file_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case SENSOR_IO_SET_CAMMOT:
 		ret = sprd_sensor_io_set_cammot(p_file, arg);
+		break;
+	case SENSOR_IO_SET_OISVDD:
+		ret = sprd_sensor_io_set_camoisvdd(p_file, arg);
 		break;
 	case SENSOR_IO_SET_AVDD:
 		ret = sprd_sensor_io_set_avdd(p_file, arg);
