@@ -314,7 +314,7 @@ static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 
 		printk("%s:%d led:%d level = %d\n", __func__, __LINE__, idx, element->index);
 
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x03,((element->index * 31 / 9)<0x1f)?((element->index * 31 / 9)|0x80):0x9f);
+		flash_ic_driver_reg_write(drv_data->i2c_info, 0x03,((element->index * 38 / 9)<0x26)?((element->index * 38 / 9)|0x80):0xa6); //(38*15.63+15.63)*2=1219.14mA
 
 		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x04,((element->index * 30 / 15)<0x1f)?(element->index * 30 / 15):0x1f);
 	}
