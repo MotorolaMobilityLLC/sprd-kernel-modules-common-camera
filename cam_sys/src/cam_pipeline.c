@@ -215,7 +215,7 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		cur_node = pipeline->node_list[i];
 		if (cur_node && cur_node->node_graph->type == in_ptr->node_type
 			&& cur_node->node_graph->id == in_ptr->node_id) {
-			pr_debug("node: %s\n", cam_node_name_get(in_ptr->node_type));
+			pr_debug("node: %s node_id %d\n", cam_node_name_get(in_ptr->node_type), in_ptr->node_id);
 			is_valid_node = 1;
 			break;
 		}
@@ -453,7 +453,7 @@ static int campipeline_cfg_shutoff(void *handle, enum cam_node_type node_type,vo
 		return -EFAULT;
 	}
 
-	pr_debug("node %s set shutoff\n", cam_node_name_get(node_type));
+	pr_info("node %s set shutoff\n", cam_node_name_get(node_type));
 
 	cmd = CAM_NODE_SHUTOFF_CONFIG;
 	ret = cur_node->ops.cfg_shutoff(cur_node, cmd, node_shutoff);
@@ -549,7 +549,7 @@ int cam_pipeline_have_node_id(struct cam_pipeline *pipe, uint32_t node_type, uin
 	if (!pipe)
 		return 0;
 
-	for (i = 0; i < CAM_PIPELINE_NODE_NUM; i++) {
+	for (i = 0; i < pipe->pipeline_graph->node_cnt; i++) {
 		if (!pipe->node_list[i])
 			continue;
 		if (pipe->node_list[i]->node_graph->type == node_type &&
@@ -608,6 +608,7 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	pipeline->ops.streamon = campipeline_stream_on;
 	pipeline->ops.streamoff = campipeline_stream_off;
 	pipeline->ops.cfg_shutoff = campipeline_cfg_shutoff;
+	pipeline->debug_log_switch = CAM_ENABLE;
 
 	node_desc.type = pipeline->pipeline_graph->type;
 	node_desc.nodes_dev = param->nodes_dev;

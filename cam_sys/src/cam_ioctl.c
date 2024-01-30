@@ -23,7 +23,7 @@ extern g_dbg_raw2frgb_switch;
 	uint32_t __s = scene;          \
 	(__s == CAPTURE_FDR            \
 	|| __s == CAPTURE_HW3DNR       \
-	|| __s == CAPTURE_AI_SFNR);    \
+	|| __s == CAPTURE_AINR);       \
 })
 
 /* Static Variables Declaration */
@@ -394,6 +394,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 			}
 			goto exit;
 		}
+
 		if (((for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
 			|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
@@ -406,6 +407,9 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 				ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 			} else
 				ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+		} else if (param.scene_id == PM_SCENE_OFFLINE_CAP &&
+			module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR && module->cam_uinfo.virtualsensor) {
+			ret = CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 		} else {
 			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 			/* only for L3 icap scene config, due to L3 hw limit so need take two walk dcam offline */
@@ -437,7 +441,11 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		if (channel->enable) {
 			if (param.scene_id == PM_SCENE_PRE || module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)
 				goto exit;
-			ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
+			node_id = PYR_DEC_NODE_ID;
+			if (param.scene_id == PM_SCENE_OFFLINE_CAP &&
+				cam_pipeline_have_node_id(channel->pipeline_handle, CAM_NODE_TYPE_PYR_DEC, PYR_DEC_NODE_ID_1))
+				node_id = PYR_DEC_NODE_ID_1;
+			ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, node_id, &param);
 		}
 		break;
 	default:
@@ -1148,7 +1156,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	int ret = 0;
 	uint32_t i = 0, sec = 0;
 	uint32_t channel_id = 0, buffer_count = 0;
-	uint32_t is_reserved_buf = 0, pixel_fmt = 0, node_id = 0;
+	uint32_t is_reserved_buf = 0, pixel_fmt = 0, node_id = 0, raw_port_id = 0;
 	uint32_t dump_type[IMG_PATH_BUFFER_COUNT] = {0};
 	struct cam_hw_info *hw = NULL;
 	struct cam_frame *pframe = NULL;
@@ -1248,6 +1256,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		} else {
 			if ((ch->ch_id == CAM_CH_CAP) && pixel_fmt == IMG_PIX_FMT_GREY)
 				pframe->common.img_fmt = pixel_fmt;
+			pr_info("yunhong: ch %d config dcam out buffer\n", channel_id);
 			if ((module->cam_uinfo.is_raw_alg && channel_id != CAM_CH_DCAM_VCH) ||
 				(module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)) {
 				pframe->common.irq_property = CAM_FRAME_ORIGINAL_RAW;
@@ -1255,13 +1264,19 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					pframe->common.irq_property = CAM_FRAME_PROCESS_RAW;
 					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, ch->dcam_port_id,
 						CAM_PIPELINE_CFG_BUF, pframe);
-				} else
-					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(DCAM_PATH_RAW),
+				} else {
+					raw_port_id = DCAM_PATH_RAW;
+					/* TBD: test L6 online raw */
+					if (hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id == DCAM_PATH_FULL &&
+						module->cam_uinfo.alg_type == ALG_TYPE_CAP_AINR)
+						raw_port_id = DCAM_PATH_VCH2;
+					ret = CAM_PIPEINE_DCAM_ONLINE_OUT_PORT_CFG(ch, dcamonline_pathid_convert_to_portid(raw_port_id),
 						CAM_PIPELINE_CFG_BUF, pframe);
+				}
 			} else if (module->offline_icap_scene) {
 				/* for sharkl3 icap scene and bigsize icap scene and 4in1 icap scene*/
 				ret = camcore_icap_buffer_set(module, ch, pframe);
-			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable  && module->cam_uinfo.need_dcam_raw &&
+			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable && module->cam_uinfo.need_dcam_raw &&
 				(module->grp->hw_info->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR))){
 				if (ch->ch_uinfo.dst_size.w == ch_cap->ch_uinfo.dst_size.w) {
 					pr_debug("cap path copy\n");
@@ -1789,7 +1804,7 @@ static int camioctl_pre_raw_flag_set(struct camera_module *module, unsigned long
 		return -EFAULT;
 	}
 	if (module->cam_uinfo.zsl_num) {
-		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_PRE_RAW_FLAG, &param);
+		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_PRE_RAW_FLAG, FRAME_CACHE_CAP_NODE_ID, &param);
 		if (ret) {
 			pr_err("fail to notify cache node pre status\n");
 			return -EFAULT;
@@ -1800,10 +1815,10 @@ static int camioctl_pre_raw_flag_set(struct camera_module *module, unsigned long
 	return ret;
 }
 
-static int camioctl_capture_start(struct camera_module *module,
-		unsigned long arg)
+static int camioctl_capture_start(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0, need_cfg_shutoff = 0;
+	uint32_t node_id = 0;
 	struct sprd_img_capture_param param = {0};
 	ktime_t start_time = 0;
 	struct cam_hw_info *hw = NULL;
@@ -1834,7 +1849,7 @@ static int camioctl_capture_start(struct camera_module *module,
 		goto exit;
 	if (module->opt_frame_fid && module->cam_uinfo.zsl_num) {
 		cap_param.cap_opt_frame_scene = 1;
-		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME, &module->opt_frame_fid);
+		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME, FRAME_CACHE_CAP_NODE_ID, &module->opt_frame_fid);
 	}
 	if(ch) {
 		mutex_lock(&module->buf_lock[ch->ch_id]);
@@ -1856,17 +1871,21 @@ static int camioctl_capture_start(struct camera_module *module,
 
 	atomic_set(&module->cap_skip_frames, -1);
 
+	/* for L6 auto XDR */
+	if (hw->ip_isp->isphw_abt->fetch_raw_support
+		&& module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR
+		&& module->cap_scene != CAPTURE_RAWALG)
+		cap_param.cap_need_update_link = CAM_ENABLE;
 	/* recognize the capture scene */
 	switch (param.type) {
 	case DCAM_CAPTURE_START_FROM_NEXT_SOF:
 		module->capture_type = CAM_CAPTURE_START_FROM_NEXT_SOF;
-
 		atomic_set(&module->capture_frames_dcam, param.cap_cnt);
 		atomic_set(&module->cap_total_frames, param.cap_cnt);
 		if ((module->cap_scene == CAPTURE_SW3DNR ||
 			module->cap_scene == CAPTURE_FDR ||
 			module->cap_scene == CAPTURE_RAWALG ||
-			module->cap_scene == CAPTURE_AI_SFNR ||
+			module->cap_scene == CAPTURE_AINR ||
 			module->cap_scene == CAPTURE_HDR) &&
 			(param.timestamp != 0))
 			module->capture_times = param.timestamp;
@@ -1886,8 +1905,9 @@ static int camioctl_capture_start(struct camera_module *module,
 		module->capture_type = CAM_CAPTURE_START;
 		module->capture_times = param.timestamp;
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
-		if (ch->need_framecache && cap_param.cap_opt_frame_scene == 0)
-			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF, NULL);
+		if (ch->need_framecache && cap_param.cap_opt_frame_scene == 0 &&
+			param.frm_sel_mode != CAM_NODE_FRAME_NO_SEL)
+			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF, FRAME_CACHE_CAP_NODE_ID, NULL);
 		break;
 	case DCAM_CAPTURE_START_3DNR:
 		module->capture_type = CAM_CAPTURE_START_3DNR;
@@ -1918,10 +1938,19 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (module->cam_uinfo.is_4in1 || module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_longexp)
 		cap_param.no_need_skip_frame_scene = 1;
 	if ((!module->cam_uinfo.dcam_slice_mode && module->cam_uinfo.zsl_num != 0
-		&& !module->cam_uinfo.is_4in1 && (module->cap_scene != CAPTURE_AI_SFNR)) || module->cam_uinfo.is_dual)
-		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
-	else
+		&& !module->cam_uinfo.is_4in1 && (module->cap_scene != CAPTURE_AINR)) ||
+		module->cam_uinfo.is_dual || cap_param.cap_need_update_link) {
+		node_id = FRAME_CACHE_CAP_NODE_ID;
+		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, node_id, &cap_param);
+	} else
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
+
+	if (module->cap_scene == CAPTURE_RAWALG && module->cam_uinfo.raw_zsl_num != 0) {
+		node_id = FRAME_CACHE_CAP_NODE_ID;
+		if (cam_pipeline_have_node_id(ch->pipeline_handle, CAM_NODE_TYPE_FRAME_CACHE, FRAME_CACHE_OFFLINE_CAP_NODE_ID))
+			node_id = FRAME_CACHE_OFFLINE_CAP_NODE_ID;
+		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, node_id, &cap_param);
+	}
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)
@@ -1935,9 +1964,10 @@ static int camioctl_capture_start(struct camera_module *module,
 	if (ch->isp_port_id == PORT_VID_OUT)
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);
 
-	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d, sof_id %d\n",
+	pr_info("cam %d start capture U_type %d, scene %d, cnt %d, time %lld, capture num:%d, opt_frame_fid %d, sof_id %d, zsl %d\n",
 		module->idx, param.type, module->cap_scene, param.cap_cnt,
-		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid, param.sof_id);
+		module->capture_times, module->capture_frames_dcam, param.opt_frame_fid, param.sof_id,
+		param.zsl_num);
 
 exit:
 	return ret;
@@ -1977,16 +2007,28 @@ static int camioctl_capture_stop(struct camera_module *module,
 	if (module->cam_uinfo.zsl_num && module->opt_frame_fid) {
 		cap_param.cap_opt_frame_scene = 0;
 		module->opt_frame_fid = 0;
-		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME, &module->opt_frame_fid);
+		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME,
+			FRAME_CACHE_CAP_NODE_ID, &module->opt_frame_fid);
 	}
 
 	cap_param.cap_type = module->capture_type;
 	cap_param.cap_scene = module->cap_scene;
 	if ((!module->cam_uinfo.dcam_slice_mode && module->cam_uinfo.zsl_num != 0
 		&& !module->cam_uinfo.is_4in1) || module->cam_uinfo.is_dual)
-		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
+		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM,
+			FRAME_CACHE_CAP_NODE_ID, &cap_param);
 	else
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
+
+	if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR && module->cam_uinfo.raw_zsl_num != 0) {
+		if (cam_pipeline_have_node_id(ch->pipeline_handle,
+			CAM_NODE_TYPE_FRAME_CACHE, FRAME_CACHE_OFFLINE_CAP_NODE_ID))
+			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM,
+				FRAME_CACHE_OFFLINE_CAP_NODE_ID, &cap_param);
+		else
+			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM,
+				FRAME_CACHE_CAP_NODE_ID, &cap_param);
+	}
 
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)
@@ -2001,7 +2043,7 @@ static int camioctl_capture_stop(struct camera_module *module,
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);
 
 	if (hw->ip_isp->isphw_abt->pyr_dec_support) {
-		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_FAST_STOP, &ch->fast_stop);
+		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_FAST_STOP, PYR_DEC_NODE_ID, &ch->fast_stop);
 		ret = wait_for_completion_interruptible_timeout(&ch->fast_stop, FAST_STOP_TIME_OUT);
 		if (ret <= 0)
 			pr_err("fail to fast stop pyrdec ret:%d\n", ret);
@@ -2104,7 +2146,7 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 			pr_err("fail to cfg isp postproc param.\n");
 			goto blkpm_cfg_err;
 		}
-		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, &postproc_param);
+		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_POSTPROC_PARAM, PYR_DEC_NODE_ID, &postproc_param);
 		if (ret) {
 			pr_err("fail to cfg dec postproc param.\n");
 			goto blkpm_cfg_err;
@@ -2118,7 +2160,7 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 	}
 	if (postproc_param.need_cfg_dec) {
 		in_fmt = CAM_YVU420_2FRAME;
-		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_BASE, &in_fmt);
+		ret = CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_BASE, PYR_DEC_NODE_ID, &in_fmt);
 		if (ret) {
 			pr_err("fail to cfg dec in fmt.\n");
 			goto blkpm_cfg_err;
@@ -2134,6 +2176,7 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 		}
 		ch->ch_uinfo.dst_size.w = postproc_param.dst_frm->common.width;
 		ch->ch_uinfo.dst_size.h = postproc_param.dst_frm->common.height;
+		pr_info("yunhong: dst size %d %d\n", ch->ch_uinfo.dst_size.w, ch->ch_uinfo.dst_size.h);
 		ret = cam_zoom_channel_size_config(module, ch);
 	}
 	if (postproc_param.need_cfg_dcam) {
@@ -2166,7 +2209,7 @@ static int camioctl_cam_post_proc(struct camera_module *module, unsigned long ar
 		if (ret <= 0) {
 			pr_err("fail to wait isp offline node done\n");
 			ret = -EFAULT;
-		        goto start_proc_err;
+			goto start_proc_err;
 		}
 	}
 
@@ -2179,7 +2222,7 @@ start_proc_err:
 		CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, postproc_param.isp_port_id, CAM_PIPELINE_CFG_BUF_CLR, postproc_param.isp_node_id, &param);
 	}
 	if (postproc_param.need_cfg_dec && postproc_param.postproc_mode == CAM_POSTPROC_SERIAL)
-		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_BUF_CLR, &param);
+		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_BUF_CLR, PYR_DEC_NODE_ID, &param);
 	if (postproc_param.need_cfg_dcam && postproc_param.postproc_mode == CAM_POSTPROC_SERIAL)
 		CAM_PIPEINE_DCAM_OFFLINE_IN_PORT_CFG(ch, postproc_param.dcam_port_id, CAM_PIPELINE_CFG_BUF_CLR, &param, postproc_param.node_type);
 ispbuf_cfg_err:
@@ -2589,7 +2632,7 @@ static int camioctl_path_pause(struct camera_module *module,
 			}
 
 			if (module->cam_uinfo.zsl_num != 0 || module->cam_uinfo.is_dual)
-				ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF, NULL);
+				ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF, FRAME_CACHE_CAP_NODE_ID, NULL);
 		}
 	}
 
@@ -2688,12 +2731,15 @@ static int camioctl_cap_zsl_info_set(struct camera_module *module,
 		goto exit;
 	}
 
-	pr_debug("cam %d, zsl num %d zsl skip num %d is share buf %d\n", module->idx, param.zsl_num,
-		param.zsk_skip_num, param.need_share_buf);
-
 	module->cam_uinfo.zsl_num = param.zsl_num;
 	module->cam_uinfo.zsk_skip_num = param.zsk_skip_num;
+	module->cam_uinfo.raw_zsl_num = param.raw_zsl_num;
+	module->cam_uinfo.raw_zsl_skip_num = param.raw_zsl_skip_num;
 	module->cam_uinfo.need_share_buf = param.need_share_buf;
+
+	pr_info("cam %d, zsl num %d %d zsl skip num %d %d is share buf %d\n",
+		module->idx, param.zsl_num, module->cam_uinfo.raw_zsl_num,
+		param.zsk_skip_num, param.raw_zsl_skip_num, param.need_share_buf);
 
 exit:
 	return ret;
@@ -2819,7 +2865,7 @@ static int camioctl_960fps_param_set(struct camera_module *module, unsigned long
 static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
-	uint32_t for_capture = 0;
+	uint32_t for_capture = 0, node_id = 0;
 	struct sprd_cfg_param_status param = {0};
 	struct channel_context *channel = NULL;
 	struct cam_pipeline_cfg_param pipe_param = {0};
@@ -2884,7 +2930,11 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 					return 0;
 				if (module->cam_uinfo.dcam_slice_mode)
 					CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(channel, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_PRE_ID, &cfg_param);
-				CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_CAP_ID, &cfg_param);
+				node_id = ISP_NODE_MODE_CAP_ID;
+				if (param.scene_id == PM_SCENE_OFFLINE_CAP &&
+					cam_pipeline_have_node_id(channel->pipeline_handle, CAM_NODE_TYPE_ISP_OFFLINE, ISP_NODE_MODE_OFFLINE_CAP_ID))
+					node_id = ISP_NODE_MODE_OFFLINE_CAP_ID;
+				CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_PARAM_SWITCH, node_id, &cfg_param);
 			}
 		}
 		if (module->isp_dev_handle->pyr_dec_handle) {
@@ -2892,7 +2942,11 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 				channel = &module->channel[CAM_CH_CAP];
 				if (channel->enable == 0)
 					return 0;
-				CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, CAM_PIPELINE_CFG_PARAM_SWITCH, &cfg_param);
+				node_id = PYR_DEC_NODE_ID;
+				if (param.scene_id == PM_SCENE_OFFLINE_CAP &&
+					cam_pipeline_have_node_id(channel->pipeline_handle, CAM_NODE_TYPE_PYR_DEC, PYR_DEC_NODE_ID_1))
+					node_id = PYR_DEC_NODE_ID_1;
+				CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, CAM_PIPELINE_CFG_PARAM_SWITCH, node_id, &cfg_param);
 			}
 		}
 		if (param.scene_id == PM_SCENE_OFFLINE_CAP) {

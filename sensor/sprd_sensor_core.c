@@ -927,6 +927,46 @@ static ssize_t sprd_vga_sensor_write_bv(struct device *dev,
 static DEVICE_ATTR(vga_sensor_bv_value, 0644, sprd_vga_sensor_read_bv,
 		   sprd_vga_sensor_write_bv);
 
+static ssize_t sprd_cam_vcm_softlanding_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	ssize_t len = 0;
+	mutex_lock(&vga_sensor_mutex);
+	pr_info("sprd_sensor: sprd_cam_vcm_softlanding_show");
+	len = scnprintf(buf, PAGE_SIZE, "%s\n",  "sprd_cam_vcm_softlanding");
+	mutex_unlock(&vga_sensor_mutex);
+	return len;
+}
+
+static ssize_t sprd_cam_vcm_softlanding_store(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t size)
+{
+	int enable = 0;
+	mutex_lock(&vga_sensor_mutex);
+	if (strlen(buf) >= 255) {
+		mutex_unlock(&vga_sensor_mutex);
+		pr_err("out of the maxnum 255.\n");
+		return -EINVAL;
+	}
+
+	memcpy(&enable, buf, strlen(buf));
+	if (enable == 1) {
+		sprd_sensor_vcm_softlanding(1);
+	} else {
+		sprd_sensor_vcm_softlanding(0);
+	}
+	mutex_unlock(&vga_sensor_mutex);
+	return size;
+
+}
+
+static DEVICE_ATTR(sprd_cam_vcm_softlanding, 0644, sprd_cam_vcm_softlanding_show,
+		   sprd_cam_vcm_softlanding_store);
+
+
 static int sprd_sensor_core_module_init(void)
 {
 	struct sprd_sensor_core_module_tag *p_data = NULL;
@@ -958,7 +998,10 @@ static int sprd_sensor_core_module_init(void)
 				 &dev_attr_vga_sensor_bv_value);
 	if (ret < 0)
 		pr_err("fail to create _vga_sensor_bv_value file");
-
+	ret = device_create_file(sensor_dev.this_device,
+				 &dev_attr_sprd_cam_vcm_softlanding);
+	if (ret < 0)
+		pr_err("fail to create sprd_cam_vcm_softlanding file");
 	return 0;
 }
 
@@ -972,6 +1015,8 @@ static void sprd_sensor_core_module_exit(void)
 			   &dev_attr_camera_sensor_name);
 	device_remove_file(sensor_dev.this_device,
 		   &dev_attr_vga_sensor_bv_value);
+	device_remove_file(sensor_dev.this_device,
+		   &dev_attr_sprd_cam_vcm_softlanding);
 	sprd_sensor_unregister_driver();
 	if (p_data) {
 		mutex_destroy(&p_data->sensor_id_lock);

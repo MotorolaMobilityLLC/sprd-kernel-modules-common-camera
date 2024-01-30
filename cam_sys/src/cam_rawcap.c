@@ -207,7 +207,7 @@ int camrawcap_raw_pre_proc(struct camera_module *module,
 	if (cfg_param.blkpm_ptr)
 		CAM_PIPEINE_DCAM_OFFLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, &cfg_param);
 	if (pyrdec_support)
-		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, &cfg_param);
+		CAM_PIPEINE_PYR_DEC_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, PYR_DEC_NODE_ID, &cfg_param);
 	CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(ch, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_PRE_ID, &cfg_param);
 	cam_queue_empty_frame_put(param_frame);
 

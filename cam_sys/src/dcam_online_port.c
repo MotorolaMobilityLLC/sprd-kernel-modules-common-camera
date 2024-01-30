@@ -845,6 +845,7 @@ static int dcamonline_port_base_cfg(struct dcam_online_port *port, struct dcam_o
 		port->raw_src = param->is_raw ? 1 : 0;
 		if (param->is_raw)
 			atomic_set(&port->is_work, 1);
+		pr_info("vch2 raw_src %d, out fmt %s\n", port->raw_src, camport_fmt_name_get(port->dcamout_fmt));
 		break;
 	default:
 		pr_debug("get known path %s\n", cam_port_name_get(port->port_id));
@@ -1038,7 +1039,7 @@ static int dcamonline_port_store_set(void *handle, void *param)
 
 	atomic_inc(&dcam_port->set_frm_cnt);
 
-	pr_debug("dcam%u, fid %u, count %d, port out_size %d %d, is_reserver %d, channel_id %d, addr %08x, fbc %u\n",
+	pr_info("dcam%u, fid %u, count %d, port out_size %d %d, is_reserver %d, channel_id %d, addr %08x, fbc %u\n",
 		idx, frame->common.fid, atomic_read(&dcam_port->set_frm_cnt), dcam_port->out_size.w, dcam_port->out_size.h,
 		frame->common.is_reserved, frame->common.channel_id, (uint32_t)frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM], frame->common.is_compressed);
 
@@ -1228,8 +1229,10 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 			port->pyr_out_fmt, 1, DCAM_PYR_DEC_LAYER_NUM);
 	size = ALIGN(size, CAM_BUF_ALIGN_SIZE);
 
-	/* TBD: need to add buf_desc*/
 	total = param->dcamonline_buf_alloc_num;
+
+	if (param->alg_type == ALG_TYPE_CAP_XDR && port->port_id == PORT_RAW_OUT)
+		total = 0;
 
 	pr_info("port:%s, cam%d, ch_id %d, buffer size: %u (%u x %u), fmt %s, pyr fmt %s, num %d\n",
 		cam_port_name_get(port->port_id), param->cam_idx, ch_id, size, width, height,

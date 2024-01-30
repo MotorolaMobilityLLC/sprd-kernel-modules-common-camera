@@ -263,7 +263,7 @@ enum capture_scene {
 	CAPTURE_HDR,
 	CAPTURE_FDR,
 	CAPTURE_RAWALG,
-	CAPTURE_AI_SFNR,
+	CAPTURE_AINR,
 	CAPTURE_SW3DNR,
 	CAPTURE_HW3DNR,
 	CAPTURE_FLASH,
@@ -290,7 +290,7 @@ enum alg_types {
 	ALG_TYPE_DEFAULT,
 	ALG_TYPE_CAP_FDR_V1,
 	ALG_TYPE_CAP_FDR_V2,
-	ALG_TYPE_CAP_AI_SFNR,
+	ALG_TYPE_CAP_AINR,
 	ALG_TYPE_CAP_MFNR,
 	ALG_TYPE_VID_DR,
 	ALG_TYPE_CAP_XDR,
@@ -945,6 +945,8 @@ struct sprd_img_3dnr_param {
 struct sprd_cap_zsl_param {
 	unsigned int zsl_num;
 	unsigned int zsk_skip_num;
+	unsigned int raw_zsl_num;
+	unsigned int raw_zsl_skip_num;
 	unsigned int need_share_buf;
 };
 

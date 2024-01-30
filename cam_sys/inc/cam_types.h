@@ -370,6 +370,7 @@ struct cam_capture_param {
 	uint32_t zsl_num;
 	enum cam_node_frmsel_mode frm_sel_mode;
 	uint32_t fid;
+	uint32_t cap_need_update_link;
 };
 
 struct cam_buf_alloc_desc {
@@ -403,6 +404,7 @@ struct cam_buf_alloc_desc {
 	uint32_t ltm_rgb_enable;
 	uint32_t is_static_map;
 	uint32_t not_to_isp;
+	uint32_t alg_type;
 };
 
 struct slowmotion_960fps_info {

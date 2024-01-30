@@ -230,7 +230,7 @@ static struct cam_frame *dcamonline_frame_prepare(struct dcam_online_node *node,
 	else
 		frame->common.frame_interval_time = frame->common.boot_sensor_time - node->frame_ts_boot[tsid(dev_fid - 1)];
 
-	pr_debug("DCAM%u %s: TX DONE, fid %u, %lld\n", hw_ctx->hw_ctx_id,
+	pr_info("DCAM%u %s: TX DONE, fid %u, %lld\n", hw_ctx->hw_ctx_id,
 		cam_port_name_get(dcam_port->port_id), frame->common.fid, frame->common.frame_interval_time);
 
 	if (!frame->common.boot_sensor_time) {
@@ -1110,6 +1110,7 @@ static int dcamonline_done_proc(void *param, void *handle, struct dcam_hw_contex
 			}
 			break;
 		case PORT_RAW_OUT:
+			pr_info("yunhong: raw path done\n");
 			if ((frame = dcamonline_frame_prepare(node, dcam_port, hw_ctx))) {
 				irq_proc->param = frame;
 				irq_proc->type = CAM_CB_DCAM_DATA_DONE;
@@ -1316,7 +1317,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 {
 	int ret = 0, loop = 0, is_csi_connect = 0;
 	unsigned long flag = 0;
-	struct cam_frame *frame = NULL;
+	//struct cam_frame *frame = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_reg_trace trace = {0};
@@ -1333,7 +1334,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct dcam_online_port *port = NULL;
 	struct dcam_switch_param csi_switch = {0};
-	struct cam_node_shutoff_ctrl node_shutoff = {0};
+	//struct cam_node_shutoff_ctrl node_shutoff = {0};
 	struct dcam_dummy_param dummy_param = {0};
 
 	if (!node) {
@@ -1464,7 +1465,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0) {
-			if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AI_SFNR && !node->param_frame_sync)
+			if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR && !node->param_frame_sync)
 				atomic_set(&port->is_shutoff, 0);
 
 			patharg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
@@ -1482,7 +1483,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 			patharg.in_trim = port->in_trim;
 			patharg.endian = port->endian;
 			patharg.out_fmt = port->dcamout_fmt;
-			pr_debug("path %d, fmt %s, src_sel %d\n", patharg.path_id, camport_fmt_name_get(patharg.out_fmt), patharg.src_sel);
+			pr_info("path %d, fmt %s, src_sel %d\n", patharg.path_id, camport_fmt_name_get(patharg.out_fmt), patharg.src_sel);
 			atomic_set(&port->set_frm_cnt, 0);
 
 			if (atomic_read(&port->is_work) < 1)
@@ -1533,7 +1534,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				}
 			}
 
-			if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AI_SFNR && !node->param_frame_sync) {
+			/*if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR && !node->param_frame_sync) {
 				port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
 				if (frame)
 					cam_queue_empty_frame_put(frame);
@@ -1542,7 +1543,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 				node_shutoff.outport_shutoff[port->port_id].shutoff_type = SHUTOFF_PAUSE;
 				dcam_online_node_set_shutoff(node, &node_shutoff, port->port_id);
 				node->shutoff_cfg_cb_func(node->shutoff_cfg_cb_handle, CAM_NODE_SHUTOFF_CONFIG, &node_shutoff);
-			}
+			}*/
 		}
 	}
 
@@ -1802,7 +1803,7 @@ int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id)
 			if (dcam_port->port_id == port_id)
 				atomic_set(&dcam_port->is_shutoff, shutoff);
 		}
-		pr_debug("SHUTOFF_PAUSE, %s\n", cam_port_name_get(port_id));
+		pr_info("SHUTOFF_PAUSE, %s\n", cam_port_name_get(port_id));
 		break;
 	case SHUTOFF_RESUME:
 		shutoff = 0;
@@ -1818,7 +1819,7 @@ int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id)
 			if (dcam_port->port_id == port_id)
 				atomic_set(&dcam_port->is_shutoff, shutoff);
 		}
-		pr_debug("SHUTOFF_RESUME, %s\n", cam_port_name_get(port_id));
+		pr_info("SHUTOFF_RESUME, %s\n", cam_port_name_get(port_id));
 		break;
 	default:
 		pr_err("fail to support cmd %d", cmd);

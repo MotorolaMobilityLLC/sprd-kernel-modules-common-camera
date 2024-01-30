@@ -977,7 +977,8 @@ int cam_zoom_channel_size_config(
 
 	if (need_raw_port && (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id) || channel->dcam_port_id == PORT_VCH2_OUT)) {
 		node_type = CAM_NODE_TYPE_DCAM_ONLINE;
-		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR) {
+		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR ||
+			module->cam_uinfo.alg_type == ALG_TYPE_CAP_AINR) {
 			zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
 			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
 			node_type = CAM_NODE_TYPE_DCAM_OFFLINE_BPC_RAW;
@@ -990,6 +991,15 @@ int cam_zoom_channel_size_config(
 			zoom_info.dcam_crop[node_type][raw_port_id] = raw_zoom_base.crop;
 			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
 		}
+
+		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR
+			|| module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR
+			|| module->cam_uinfo.alg_type == ALG_TYPE_CAP_AINR) {
+			node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+			zoom_info.dcam_crop[node_type][PORT_FULL_OUT] = channel->trim_dcam;
+			zoom_info.dcam_dst[node_type][PORT_FULL_OUT] = channel->dst_dcam;
+		}
+
 		if (channel->ch_id != CAM_CH_RAW && IS_VALID_DCAM_IMG_PORT(raw2yuv_port_id)) {
 			node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
 			zoom_info.dcam_crop[node_type][raw2yuv_port_id] = channel->trim_dcam;

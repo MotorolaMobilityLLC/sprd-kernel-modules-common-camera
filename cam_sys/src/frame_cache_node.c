@@ -48,16 +48,16 @@ static void framecache_capzslframe_deal(struct frame_cache_node *node)
 {
 	struct cam_frame *pframe = NULL;
 
-	pr_debug("q status:%d, cnt:%d.\n", node->cache_buf_queue.state, node->cache_buf_queue.cnt);
+	pr_info("q status:%d, cnt:%d.\n", node->cache_buf_queue.state, node->cache_buf_queue.cnt);
 	do {
 		pframe = CAM_QUEUE_DEQUEUE_TAIL(&node->cache_buf_queue, struct cam_frame, list);
 		if (!pframe)
 			return;
-
 		if (node->cap_param.zsl_num) {
 			node->link_info = pframe->common.link_from;
 			pframe->common.link_from.node_type = CAM_NODE_TYPE_FRAME_CACHE;
 			pframe->common.link_from.port_id = PORT_FRAME_CACHE_OUT;
+			pr_info("yunhong: zsl num %d fid %d done proc\n", node->cap_param.zsl_num, pframe->common.fid);
 			node->data_cb_func(CAM_CB_FRAME_CACHE_DATA_DONE, pframe, node->data_cb_handle);
 			node->cap_param.zsl_num--;
 		} else
@@ -71,15 +71,19 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 	struct cam_frame *pftmp = NULL;
 
 	pftmp = pframe;
+	pr_info("yunhong: %d %d %d %lld %lld\n", node->cap_param.fid, pftmp->common.fid,
+		node->cap_param.frm_sel_mode, pftmp->common.boot_sensor_time, node->cap_param.cap_timestamp);
 	if ((node->cap_param.fid && pftmp->common.fid >= node->cap_param.fid)
 		|| (!node->cap_param.fid && node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL
 		&& pftmp->common.boot_sensor_time >= node->cap_param.cap_timestamp))
 		framecache_capzslframe_deal(node);
 
 	pframe->common.priv_data = node;
+	pr_info("yunhong: fid %d enq cache\n", pframe->common.fid);
 	CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
 	if (node->cache_buf_queue.cnt > node->cache_real_num && node->cache_real_num) {
 		pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
+		pr_info("yunhong: fid %d deq cache\n", pframe->common.fid);
 		node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 
@@ -92,6 +96,8 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 		pftmp = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		if (!pftmp)
 			return NULL;
+		pr_info("yunhong: %d %d %d %lld %lld\n", node->cap_param.fid, pftmp->common.fid,
+			node->cap_param.frm_sel_mode, pftmp->common.boot_sensor_time, node->cap_param.cap_timestamp);
 		if ((node->cap_param.fid && pftmp->common.fid < node->cap_param.fid)
 			|| (!node->cap_param.fid && pftmp->common.boot_sensor_time < node->cap_param.cap_timestamp))
 			node->data_cb_func(CAM_CB_FRAME_CACHE_RET_SRC_BUF, pftmp, node->data_cb_handle);
@@ -127,7 +133,7 @@ static int framecache_optframe_get(struct frame_cache_node *node,
 		pftmp = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
 		if (!pftmp)
 			return ret;
-		pr_debug("statge pframe->common.fid %d and node->opt_frame_fid %d\n", pftmp->common.fid, node->opt_frame_fid);
+		pr_info("statge pframe->common.fid %d and node->opt_frame_fid %d\n", pftmp->common.fid, node->opt_frame_fid);
 		if (node->opt_frame_fid != pftmp->common.fid) {
 			if (pftmp->common.fid > node->opt_frame_fid) {
 				if (atomic_read(&node->cap_param.cap_cnt) > 0) {
@@ -168,8 +174,8 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 {
 	int ret = 0;
 
-	pr_debug("frame id %d cache_skip_num %d cache_num %d buf cnt %d\n", pframe->common.fid,
-			node->cache_skip_num, node->cache_real_num, node->cache_buf_queue.cnt);
+	pr_info("frame id %d cache_skip_num %d cache_num %d buf cnt %d, cap type %d\n", pframe->common.fid,
+			node->cache_skip_num, node->cache_real_num, node->cache_buf_queue.cnt, node->cap_param.cap_type);
 	if (node->cap_param.cap_type == DCAM_CAPTURE_STOP) {
 		if (node->pre_raw_flag == PRE_RAW_DEAL) {
 			if (node->pre_frame_status == CAM_DISABLE) {
@@ -189,10 +195,13 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 			else
 				node->cur_cache_skip_num = node->cache_skip_num;
 			pframe->common.priv_data = node;
+			pr_info("yunhong: fid %d enq cache\n", pframe->common.fid);
 			ret = CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
-			if (node->cache_buf_queue.cnt > node->cache_real_num)
+			if (node->cache_buf_queue.cnt > node->cache_real_num) {
 				pframe = CAM_QUEUE_DEQUEUE(&node->cache_buf_queue, struct cam_frame, list);
-			else
+				if (pframe)
+					pr_info("yunhong: fid %d deq cache\n", pframe->common.fid);
+			} else
 				return ret;
 		} else {
 			if (node->cur_cache_skip_num)
@@ -210,6 +219,7 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 		node->link_info = pframe->common.link_from;
 		pframe->common.link_from.node_type = CAM_NODE_TYPE_FRAME_CACHE;
 		pframe->common.link_from.port_id = PORT_FRAME_CACHE_OUT;
+		pr_info("yunhong: cache data done\n");
 		node->data_cb_func(CAM_CB_FRAME_CACHE_DATA_DONE, pframe, node->data_cb_handle);
 	}
 
@@ -439,7 +449,12 @@ void *frame_cache_node_get(uint32_t node_id, struct frame_cache_node_desc *param
 	node->node_type = param->node_type;
 	node->cache_real_num = param->cache_real_num;
 	node->cache_skip_num = param->cache_skip_num;
-	node->cur_cache_skip_num = param->cache_skip_num;
+	if (node_id == FRAME_CACHE_OFFLINE_CAP_NODE_ID || param->cache_dcam_raw) {
+		node->cache_real_num = param->raw_cache_real_num;
+		node->cache_skip_num = param->raw_cache_skip_num;
+		pr_info("yunhong: raw_zsl %d %d\n", node->cache_real_num, node->cache_skip_num);
+	}
+	node->cur_cache_skip_num = node->cache_skip_num;
 	node->is_share_buf = param->is_share_buf;
 	node->need_dual_sync = param->need_dual_sync;
 	node->buf_manager_handle = param->buf_manager_handle;

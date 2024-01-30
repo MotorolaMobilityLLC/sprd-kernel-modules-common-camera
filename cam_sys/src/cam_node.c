@@ -66,8 +66,37 @@ static enum cam_en_status camnode_capture_skip_condition(struct cam_frame *pfram
 	if (cap_param->skip_first_num && pframe->common.fid < 1)
 		return CAM_DISABLE;
 
-	return CAM_ENABLE;
+	if ((cap_param->cap_scene == CAPTURE_AINR || cap_param->cap_scene == CAPTURE_RAWALG) &&
+		pframe->common.buf.mfd == 0) {
+		pr_info("cam scene %d, mfd:0x%x.\n", cap_param->cap_scene, pframe->common.buf.mfd);
+		return CAM_DISABLE;
+	}
 
+	return CAM_ENABLE;
+}
+
+static enum cam_en_status camnode_rawalg_scene_skip(struct cam_frame *pframe, struct cam_capture_param *cap_param)
+{
+	if ((cap_param->cap_scene == CAPTURE_AINR || cap_param->cap_scene == CAPTURE_RAWALG) &&
+		pframe->common.buf.mfd == 0) {
+		pr_info("cam scene %d, mfd:0x%x.\n", cap_param->cap_scene, pframe->common.buf.mfd);
+		return CAM_DISABLE;
+	}
+
+	return CAM_ENABLE;
+}
+
+static int camnode_capture_switch_link_update(struct cam_frame *pframe,
+	struct cam_port_linkage *switch_link, struct cam_capture_param *cap_param)
+{
+	if (cap_param->cap_scene != CAPTURE_RAWALG && cap_param->cap_need_update_link) {
+		switch_link->node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+		switch_link->node_id = ISP_NODE_MODE_CAP_ID;
+		switch_link->port_id = PORT_ISP_OFFLINE_IN;
+		pr_info("yunhong: cur node switch link to node %d\n", switch_link->node_id);
+	}
+
+	return 0;
 }
 
 static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *pframe)
@@ -90,7 +119,7 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 	cap_param = &node->cap_param;
 	frame_cache_node = (struct frame_cache_node *)node->handle;
 
-	pr_debug("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld fid %d frame_id %d cur_port_id %d w %d h %d\n",
+	pr_info("node type %s id %d cap type %d, cnt %d, time %lld frame time %lld fid %d frame_id %d cur_port_id %d w %d h %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp, pframe->common.boot_sensor_time,
 			node->cap_param.fid, pframe->common.fid, cur_port_id, pframe->common.width, pframe->common.height);
@@ -98,19 +127,28 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 	case CAM_CAPTURE_START:
 	case CAM_CAPTURE_START_3DNR:
 		if ((cap_param->fid && pframe->common.fid >= cap_param->fid)
-			|| (!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp &&
-			camnode_capture_skip_condition(pframe, cap_param))
-			|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene) || cap_param->cap_opt_frame_scene)
-			pframe->common.link_to = cap_new_link;
-		else
+			|| (!cap_param->fid && pframe->common.boot_sensor_time >= cap_param->cap_timestamp
+			&& camnode_capture_skip_condition(pframe, cap_param))
+			|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene)
+			|| cap_param->cap_opt_frame_scene) {
+			if (camnode_rawalg_scene_skip(pframe, cap_param) == CAM_ENABLE) {
+				camnode_capture_switch_link_update(pframe, &cap_new_link, cap_param);
+				pframe->common.link_to = cap_new_link;
+			} else
+				pframe->common.link_to = cap_ori_link;
+		} else
 			pframe->common.link_to = cap_ori_link;
 		break;
 	case CAM_CAPTURE_START_FROM_NEXT_SOF:
 		if (node_type == CAM_NODE_TYPE_FRAME_CACHE &&
 			frame_cache_node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL) {
 			if (atomic_read(&cap_param->cap_cnt) > 0 && camnode_capture_skip_condition(pframe, cap_param)) {
-				pframe->common.link_to = cap_new_link;
-				atomic_dec(&cap_param->cap_cnt);
+				if (camnode_rawalg_scene_skip(pframe, cap_param) == CAM_ENABLE) {
+					camnode_capture_switch_link_update(pframe, &cap_new_link, cap_param);
+					pframe->common.link_to = cap_new_link;
+					atomic_dec(&cap_param->cap_cnt);
+				} else
+					pframe->common.link_to = cap_ori_link;
 			} else
 				pframe->common.link_to = cap_ori_link;
 		} else {
@@ -119,8 +157,11 @@ static int camnode_dynamic_link_update(struct cam_node *node, struct cam_frame *
 				&& atomic_read(&cap_param->cap_cnt) > 0 && camnode_capture_skip_condition(pframe, cap_param))
 				|| (node_type == CAM_NODE_TYPE_DATA_COPY && node->cap_param.offline_icap_scene)
 				|| cap_param->cap_opt_frame_scene) {
-				pframe->common.link_to = cap_new_link;
-				atomic_dec(&cap_param->cap_cnt);
+				if (camnode_rawalg_scene_skip(pframe, cap_param) == CAM_ENABLE) {
+					pframe->common.link_to = cap_new_link;
+					atomic_dec(&cap_param->cap_cnt);
+				} else
+					pframe->common.link_to = cap_ori_link;
 			} else
 				pframe->common.link_to = cap_ori_link;
 		}
@@ -143,7 +184,7 @@ static void camnode_frame_flag_update(struct cam_node *node, struct cam_frame *p
 	if (node->cap_param.cap_scene == CAPTURE_FDR ||
 		node->cap_param.cap_scene == CAPTURE_HW3DNR ||
 		node->cap_param.cap_scene == CAPTURE_FLASH ||
-		node->cap_param.cap_scene == CAPTURE_AI_SFNR) {
+		node->cap_param.cap_scene == CAPTURE_AINR) {
 		pframe->common.xtm_conflict.need_ltm_map = 0;
 		pframe->common.xtm_conflict.need_ltm_hist = 0;
 		pframe->common.xtm_conflict.need_gtm_map = 0;
@@ -270,7 +311,7 @@ static int camnode_cfg_shutoff_config(void *handle, void *param)
 			node->node_shutoff.inport_shutoff[i].port_id = node_shutoff->inport_shutoff[i].port_id;
 			node->node_shutoff.inport_shutoff[i].shutoff_scene = node_shutoff->inport_shutoff[i].shutoff_scene;
 			node->node_shutoff.inport_shutoff[i].shutoff_type = node_shutoff->inport_shutoff[i].shutoff_type;
-			pr_debug("i %d, cap_cnt %d, port_id %d, shutoff_type %d, shutoff_scene %d\n",
+			pr_info("i %d, cap_cnt %d, port_id %d, shutoff_type %d, shutoff_scene %d\n",
 				i, node_shutoff->inport_shutoff[i].cap_cnt, node_shutoff->inport_shutoff[i].port_id,
 				node_shutoff->inport_shutoff[i].shutoff_type, node_shutoff->inport_shutoff[i].shutoff_scene);
 		}
@@ -281,7 +322,7 @@ static int camnode_cfg_shutoff_config(void *handle, void *param)
 			node->node_shutoff.outport_shutoff[i].port_id = node_shutoff->outport_shutoff[i].port_id;
 			node->node_shutoff.outport_shutoff[i].shutoff_scene = node_shutoff->outport_shutoff[i].shutoff_scene;
 			node->node_shutoff.outport_shutoff[i].shutoff_type = node_shutoff->outport_shutoff[i].shutoff_type;
-			pr_debug("i %d, cap_cnt %d, port_id %d, shutoff_type %d, shutoff_scene %d\n",
+			pr_info("i %d, cap_cnt %d, port_id %d, shutoff_type %d, shutoff_scene %d\n",
 				i, node_shutoff->outport_shutoff[i].cap_cnt, node_shutoff->outport_shutoff[i].port_id,
 				node_shutoff->outport_shutoff[i].shutoff_type, node_shutoff->outport_shutoff[i].shutoff_scene);
 		}
@@ -376,6 +417,7 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
 		node->cap_param.fid = cap_param->fid;
+		node->cap_param.cap_need_update_link = cap_param->cap_need_update_link;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, fid %d, opt_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
@@ -821,6 +863,7 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
 		node->cap_param.fid = cap_param->fid;
+		node->cap_param.cap_need_update_link = cap_param->cap_need_update_link;
 		pr_info("node type %s id %d cap type %d, scene %d, cnt %d, time %lld opt_frame %d, fid %d\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
 			node->cap_param.cap_timestamp, node->cap_param.cap_opt_frame_scene, node->cap_param.fid);

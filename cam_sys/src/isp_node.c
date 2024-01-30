@@ -1287,7 +1287,7 @@ capture_param:
 		mutex_lock(&inode->blkpm_q_lock);
 		param_pframe = CAM_QUEUE_DEQUEUE_PEEK(&inode->param_buf_queue, struct cam_frame, list);
 		if (param_pframe) {
-			pr_debug("cap cam %d cfg_id %d, param_pframe.id %d pframe.id %d\n",
+			pr_info("cap cam %d cfg_id %d, param_pframe.id %d pframe.id %d\n",
 				inode->attach_cam_id, inode->cfg_id, param_pframe->isp_blk.fid, target_fid);
 			if (param_pframe->isp_blk.fid <= target_fid) {
 				CAM_QUEUE_DEQUEUE(&inode->param_buf_queue, struct cam_frame, list);
@@ -1313,8 +1313,8 @@ capture_param:
 				break;
 			}
 		} else {
-			pr_warn("warning:no capture param in param q:state:%d, cnt:%d.\n", inode->param_buf_queue.state,
-				inode->param_buf_queue.cnt);
+			pr_warn("warning:no %d capture param in param q:state:%d, cnt:%d.\n",
+				target_fid, inode->param_buf_queue.state, inode->param_buf_queue.cnt);
 			mutex_unlock(&inode->blkpm_q_lock);
 		}
 	} while (loop++ < inode->param_buf_queue.max);

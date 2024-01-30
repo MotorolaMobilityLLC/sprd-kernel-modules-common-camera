@@ -88,7 +88,7 @@ static int dcamhw_clk_eb(void *handle, void *arg)
 
 	pr_debug("enter\n");
 	if (atomic_inc_return(&clk_users) != 1) {
-		pr_info("clk has enabled, users: %d\n",
+		pr_debug("clk has enabled, users: %d\n",
 			atomic_read(&clk_users));
 		return 0;
 	}
@@ -223,7 +223,7 @@ static int dcamhw_clk_dis(void *handle, void *arg)
 
 	pr_debug("enter\n");
 	if (atomic_dec_return(&clk_users) != 0) {
-		pr_info("Other using, users: %d\n",
+		pr_debug("Other using, users: %d\n",
 			atomic_read(&clk_users));
 		return 0;
 	}
@@ -280,7 +280,7 @@ static void dcamhw_axi_common_init(struct cam_hw_info *hw, struct cam_hw_soc_inf
 	}
 	write_lock_irqsave(&soc->cam_ahb_lock, lock_flag);
 	if (time_out >= DCAM_AXI_STOP_TIMEOUT) {
-		pr_info("dcam axim timeout status 0x%x\n", DCAM_AXIM_RD(hw_idx, dbg_reg));
+		pr_debug("dcam axim timeout status 0x%x\n", DCAM_AXIM_RD(hw_idx, dbg_reg));
 	} else {
 		flag = ip->syscon.all_rst_mask
 			|ip->syscon.axi_rst_mask;
@@ -351,7 +351,7 @@ static int dcamhw_fmcu_reset(void *handle, void *arg)
 	os_adapt_time_udelay(10);
 	regmap_update_bits(soc->cam_ahb_gpr, ip->syscon.rst, flag, ~flag);
 
-	pr_info("DCAM%d: fmcu end\n", idx);
+	pr_debug("DCAM%d: fmcu end\n", idx);
 	#else
 	ret = hw->dcam_ioctl(hw, idx, DCAM_HW_CFG_INIT_AXI, &idx);
 	#endif
@@ -542,7 +542,7 @@ static int dcamhw_stop(void *handle, void *arg)
 	DCAM_REG_WR(idx, DCAM_INT1_EN, 0);
 	DCAM_REG_WR(idx, DCAM_INT1_CLR, 0xFFFFFFFF);
 
-	pr_info("dcam%d stop\n", idx);
+	pr_debug("dcam%d stop\n", idx);
 	return ret;
 }
 
@@ -874,7 +874,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	soc = hw->soc_dcam;
 	ip = hw->ip_dcam[idx];
 
-	pr_info("DCAM%d: reset.\n", idx);
+	pr_debug("DCAM%d: reset.\n", idx);
 	/* then wait for AXIM cleared */
 	while (++time_out < DCAM_AXI_STOP_TIMEOUT) {
 		if (0 == (DCAM_AXIM_RD(idx, AXIM_DBG_STS) & (sts_bit[idx]))
@@ -907,7 +907,7 @@ static int dcamhw_reset(void *handle, void *arg)
 	dcamhw_bypass_all(idx, hw);
 	sprd_iommu_restore(&hw->soc_dcam->pdev->dev);
 
-	pr_info("DCAM%d: reset end\n", idx);
+	pr_debug("DCAM%d: reset end\n", idx);
 	return 0;
 }
 
@@ -933,7 +933,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 	else
 		bwu_shift = 0;
 
-	pr_info("size [%d %d], start %d, pitch %d, 0x%x fmt %s\n",
+	pr_debug("size [%d %d], start %d, pitch %d, 0x%x fmt %s\n",
 		fetch->fetch_info->trim.size_x, fetch->fetch_info->trim.size_y,
 		fetch->fetch_info->trim.start_x, fetch_pitch, fetch->fetch_info->addr.addr_ch0, camport_fmt_name_get(fetch->fetch_info->fmt));
 	/* (bitfile)unit 32b,(spec)64b */
@@ -987,7 +987,7 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		DCAM_REG_MWR(fetch->idx, DCAM_GTM_GLB_CTRL, BIT_0, 1);
 	}
 
-	pr_info("done.\n");
+	pr_debug("done.\n");
 	return 0;
 }
 
@@ -1451,7 +1451,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	idx = sizearg->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
-	pr_debug("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
+	pr_info("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
 		sizearg->in_size.w, sizearg->in_size.h, sizearg->out_size.w, sizearg->out_size.h,
 		sizearg->in_trim.start_x, sizearg->in_trim.start_y, sizearg->in_trim.size_x, sizearg->in_trim.size_y);
 
@@ -2115,7 +2115,7 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_cfa_block(p);
 	dcam_k_gamma_block(p);
 
-	pr_info("dcam%d set all\n", idx);
+	pr_debug("dcam%d set all\n", idx);
 
 	return 0;
 }
@@ -2155,7 +2155,7 @@ static int dcamhw_blocks_setstatis(void *handle, void *arg)
 
 	dcam_k_pdaf(p);
 	dcam_k_3dnr_me(p);
-	pr_info("dcam%d set statis done\n", idx);
+	pr_debug("dcam%d set statis done\n", idx);
 	return 0;
 }
 
@@ -2200,10 +2200,12 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 		if ((param->frame_addr[1] == 0) && (param->out_fmt & CAM_YUV_BASE))
 			param->frame_addr[1] = param->frame_addr[0] + param->out_pitch * param->out_size.h;
 		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_U_ADDR, param->frame_addr[1]);
+		pr_info("yunhong: store addr %08x, %08x\n", param->frame_addr[0], param->frame_addr[1]);
 		break;
 	case DCAM_PATH_RAW:
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_4, 0);
 		DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, param->frame_addr[0]);
+		pr_info("yunhong: store addr %08x\n", param->frame_addr[0]);
 		break;
 	case DCAM_PATH_AEM:
 		DCAM_REG_WR(idx, DCAM_AEM_BASE_WADDR, param->frame_addr[0]);

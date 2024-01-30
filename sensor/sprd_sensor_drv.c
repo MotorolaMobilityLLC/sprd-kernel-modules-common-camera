@@ -2057,3 +2057,92 @@ int sprd_sensor_find_dcam_id(int sensor_id)
 	return -1;
 }
 EXPORT_SYMBOL(sprd_sensor_find_dcam_id);
+
+int sprd_sensor_vcm_set_pos(uint64_t code)
+{
+	int ret = 0;
+	uint8_t cmd_val[3] = {0x00};
+	struct sensor_i2c_tag i2c_tab;
+
+	cmd_val[0] = 0x03;
+	cmd_val[1] = (code & 0x300) >> 8;
+	cmd_val[2] = (code & 0xff);
+
+	i2c_tab.slave_addr = 0x18;
+	i2c_tab.i2c_data = (uint64_t)cmd_val;
+	i2c_tab.i2c_count = 3;
+
+	ret = sprd_sensor_write_i2c(&i2c_tab, 0, 0);
+	ret = sprd_sensor_read_i2c(&i2c_tab, 0);
+
+	pr_info("vcm read 0x03 = 0x%x!\n", ret);
+	return ret;
+}
+
+int sprd_sensor_vcm_write_reg(uint8_t add, uint8_t val)
+{
+	int ret = 0;
+	uint8_t cmd_val[2] = {0x00};
+	struct sensor_i2c_tag i2c_tab;
+
+	cmd_val[0] = add;
+	cmd_val[1] = (val & 0xff);
+
+	i2c_tab.slave_addr = 0x18;
+	i2c_tab.i2c_data = (uint64_t)cmd_val;
+	i2c_tab.i2c_count = 2;
+
+	ret = sprd_sensor_write_i2c(&i2c_tab, 0, 0);
+	ret = sprd_sensor_read_i2c(&i2c_tab, 0);
+
+	pr_info("vcm read 0x%x = 0x%x!\n", add, ret);
+	return ret;
+}
+
+int sprd_sensor_vcm_softlanding(int enable)
+{
+	int i = 0;
+	int ret = 0;
+	int ret1 = 0;
+	int sensor_id = 0;
+	int32_t sl_step[5] = {200, 150, 90, 40, 0};
+	int8_t init_set[5][2] = {{0x02, 0x01}, {0x02, 0x00}, {0x02, 0x02}, {0x06, 0x40}, {0x07, 0x79},};
+
+	if (enable) {
+		ret = sprd_sensor_set_voltage_by_gpio(sensor_id,
+						SPRD_SENSOR_VDD_2800MV_VAL,
+						SPRD_SENSOR_MOT_GPIO_TAG_E);
+
+		ret1 = sprd_sensor_set_voltage(sensor_id,
+						SPRD_SENSOR_VDD_2800MV_VAL,
+						SENSOR_REGULATOR_CAMMOT_ID_E);
+		if ((ret != 0) && (ret1 != 0)) {
+			pr_info("vcm power up fail!\n");
+			return -1;
+		}
+		mdelay(6);
+
+		for(i = 0; i < 5; i++ ) {
+			ret = sprd_sensor_vcm_write_reg(init_set[i][0], init_set[i][1]);
+		}
+
+		for(i = 0; i < 5; i++ ) {
+			ret = sprd_sensor_vcm_set_pos(sl_step[i]);
+		}
+		return ret;
+	} else {
+		ret = sprd_sensor_set_voltage_by_gpio(sensor_id,
+						0,
+						SPRD_SENSOR_MOT_GPIO_TAG_E);
+
+		ret1 = sprd_sensor_set_voltage(sensor_id,
+						0,
+						SENSOR_REGULATOR_CAMMOT_ID_E);
+		if ((ret != 0) && (ret1 != 0)) {
+			pr_info("vcm power up fail!\n");
+			return -1;
+		}
+		return ret;
+	}
+}
+EXPORT_SYMBOL(sprd_sensor_vcm_softlanding);

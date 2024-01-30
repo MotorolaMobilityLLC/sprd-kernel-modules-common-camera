@@ -145,6 +145,8 @@ struct camera_uinfo {
 	uint32_t slice_count;
 	uint32_t zsl_num;
 	uint32_t zsk_skip_num;
+	uint32_t raw_zsl_num;
+	uint32_t raw_zsl_skip_num;
 	enum cam_en_status need_share_buf;
 	uint32_t zoom_conflict_with_ltm;
 	/* for raw alg*/

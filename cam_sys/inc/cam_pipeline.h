@@ -359,12 +359,12 @@ struct cam_pipeline {
 	ret; \
 })
 
-#define CAM_PIPEINE_FRAME_CACHE_NODE_CFG(channel, cmd, par)  ({ \
+#define CAM_PIPEINE_FRAME_CACHE_NODE_CFG(channel, cmd, nodeid, par)  ({ \
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
 	param_cfg.node_type = CAM_NODE_TYPE_FRAME_CACHE; \
 	param_cfg.node_param.param = (par); \
-	param_cfg.node_id = FRAME_CACHE_CAP_NODE_ID; \
+	param_cfg.node_id = (nodeid); \
 	if ((channel)->pipeline_handle) \
 		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
 	else { \
@@ -374,12 +374,12 @@ struct cam_pipeline {
 	ret; \
 })
 
-#define CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, cmd, par)  ({ \
+#define CAM_PIPEINE_PYR_DEC_NODE_CFG(channel, cmd, nodeid, par)  ({ \
 	struct cam_pipeline_cfg_param param_cfg = {0}; \
 	int ret = 0; \
 	param_cfg.node_type = CAM_NODE_TYPE_PYR_DEC; \
 	param_cfg.node_param.param = (par); \
-	param_cfg.node_id = PYR_DEC_NODE_ID; \
+	param_cfg.node_id = (nodeid); \
 	if ((channel)->pipeline_handle) \
 		ret = (channel)->pipeline_handle->ops.cfg_param((channel)->pipeline_handle, (cmd), &param_cfg); \
 	else { \
