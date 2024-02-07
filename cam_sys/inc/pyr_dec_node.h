@@ -40,7 +40,7 @@
 
 enum pyr_dec_node_id {
 	PYR_DEC_NODE_ID,
-	PYR_DEC_NODE_ID_1,
+	PYR_DEC_OFFLINE_CAP_NODE_ID,
 	PYR_DEC_MAX_NODE_ID,
 };
 

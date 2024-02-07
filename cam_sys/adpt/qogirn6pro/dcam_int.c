@@ -153,7 +153,7 @@ static void dcamint_raw_port_done(void *param)
 		return;
 	}
 
-	pr_info("dcamint_raw_path_done\n");
+	pr_debug("dcamint_raw_path_done\n");
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_RAW_OUT;
 	if (!dcam_int_common_dummy_callback(dcam_hw_ctx, &irq_proc))

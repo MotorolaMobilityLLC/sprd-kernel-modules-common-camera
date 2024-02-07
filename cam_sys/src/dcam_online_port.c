@@ -212,9 +212,9 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 		}
 		dcam_port->out_pitch = cal_sprd_pitch(dcam_port->out_size.w, dcam_port->dcamout_fmt);
 
-		CAM_ZOOM_DEBUG("cfg %s path done. size %d %d %d %d\n",
+		CAM_ZOOM_DEBUG("cfg %s path done. size %d %d %d %d, pitch %d\n",
 			dcam_port->port_id == PORT_RAW_OUT ? "raw" : "full", dcam_port->in_size.w, dcam_port->in_size.h,
-			dcam_port->out_size.w, dcam_port->out_size.h);
+			dcam_port->out_size.w, dcam_port->out_size.h, dcam_port->out_pitch);
 		CAM_ZOOM_DEBUG("sel %d. trim %d %d %d %d\n", dcam_port->raw_src,
 			dcam_port->in_trim.start_x, dcam_port->in_trim.start_y,
 			dcam_port->in_trim.size_x, dcam_port->in_trim.size_y);
@@ -297,9 +297,9 @@ int dcamonline_port_zoom_cfg(struct dcam_online_port *dcam_port, struct cam_zoom
 				break;
 		}
 
-		CAM_ZOOM_DEBUG("cfg bin path done. size %d %d  dst %d %d\n",
+		CAM_ZOOM_DEBUG("cfg bin path done. size %d %d  dst %d %d, pitch %d\n",
 			dcam_port->in_size.w, dcam_port->in_size.h,
-			dcam_port->out_size.w, dcam_port->out_size.h);
+			dcam_port->out_size.w, dcam_port->out_size.h, dcam_port->out_pitch);
 		CAM_ZOOM_DEBUG("scaler %d. trim %d %d %d %d\n", dcam_port->scaler_sel,
 			dcam_port->in_trim.start_x, dcam_port->in_trim.start_y,
 			dcam_port->in_trim.size_x, dcam_port->in_trim.size_y);
@@ -1231,6 +1231,7 @@ int dcam_online_port_buf_alloc(void *handle, struct cam_buf_alloc_desc *param)
 
 	total = param->dcamonline_buf_alloc_num;
 
+	/* N6 auto XDR no need alloc raw buffer, but full path need */
 	if (param->alg_type == ALG_TYPE_CAP_XDR && port->port_id == PORT_RAW_OUT)
 		total = 0;
 

@@ -992,9 +992,7 @@ int cam_zoom_channel_size_config(
 			zoom_info.dcam_dst[node_type][raw_port_id] = raw_zoom_base.dst;
 		}
 
-		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR
-			|| module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR
-			|| module->cam_uinfo.alg_type == ALG_TYPE_CAP_AINR) {
+		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR) {
 			node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 			zoom_info.dcam_crop[node_type][PORT_FULL_OUT] = channel->trim_dcam;
 			zoom_info.dcam_dst[node_type][PORT_FULL_OUT] = channel->dst_dcam;

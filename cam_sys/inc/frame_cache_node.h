@@ -29,7 +29,7 @@ struct frame_cache_node_desc {
 	uint32_t cache_skip_num;
 	uint32_t raw_cache_real_num;
 	uint32_t raw_cache_skip_num;
-	uint32_t cache_dcam_raw;
+	uint32_t need_cache_dcam_raw;
 	enum cam_en_status is_share_buf;
 	enum cam_en_status need_dual_sync;
 	void *data_cb_handle;

@@ -1052,7 +1052,6 @@ static int pyrdec_node_irq_proc(void *handle)
 			out_frame->common.link_from.node_type = CAM_NODE_TYPE_PYR_DEC;
 			out_frame->common.link_from.node_id = node->node_id;
 			out_frame->common.link_from.port_id = PORT_DEC_OUT;
-			pr_info("yunhong: dec done proc\n");
 			if (node->data_cb_func)
 				node->data_cb_func(CAM_CB_ISP_RET_PYR_DEC_BUF, out_frame, node->data_cb_handle);
 			else

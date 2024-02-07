@@ -216,7 +216,6 @@ void dcam_hwctx_binning_4in1_set(struct dcam_hw_context *hw_ctx)
 void dcam_hwctx_block_set(struct dcam_hw_context *hw_ctx)
 {
 	struct cam_hw_info *hw = NULL;
-
 	hw = hw_ctx->hw;
 	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_BLOCKS_SETSTATIS, hw_ctx->blk_pm);
 	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_BLOCKS_SETALL, hw_ctx->blk_pm);

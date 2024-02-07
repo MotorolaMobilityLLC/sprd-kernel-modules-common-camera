@@ -64,7 +64,7 @@ static struct cam_node *campipeline_linked_node_get(
 		cur_node = pipeline->node_list[i];
 		if (cur_node && cur_node->node_graph->type == link.node_type
 				&& cur_node->node_graph->id == link.node_id) {
-			pr_debug("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type, cam_node_name_get(link.node_type),
+			pr_info("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type, cam_node_name_get(link.node_type),
 				link.node_id);
 			return pipeline->node_list[i];
 		}
@@ -330,6 +330,9 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 	case CAM_PIPELINE_CFG_FLASH_SKIP_FID:
 		node_cmd = CAM_NODE_CFG_FLASH_SKIP_FID;
 		break;
+	case CAM_PIPELINE_CFG_REG_MIPICAP_RESET:
+		node_cmd = CAM_NODE_CFG_REG_MIPICAP_RESET;
+		break;
 	default:
 		pr_err("fail to support cfg cmd %d\n", cmd);
 		ret = -EFAULT;
@@ -453,7 +456,7 @@ static int campipeline_cfg_shutoff(void *handle, enum cam_node_type node_type,vo
 		return -EFAULT;
 	}
 
-	pr_info("node %s set shutoff\n", cam_node_name_get(node_type));
+	pr_debug("node %s set shutoff\n", cam_node_name_get(node_type));
 
 	cmd = CAM_NODE_SHUTOFF_CONFIG;
 	ret = cur_node->ops.cfg_shutoff(cur_node, cmd, node_shutoff);

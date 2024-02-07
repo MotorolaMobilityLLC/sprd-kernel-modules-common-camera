@@ -408,7 +408,7 @@ static struct cam_frame *dcamoffline_cycle_frame(struct dcam_offline_node *node)
 		return NULL;
 	}
 
-	pr_info("frame %p, dcam%d ch_id %d, buf_fd %d, size %d %d\n", pframe, node->hw_ctx_id,
+	pr_info("frame %p, dcam%d ch_id %d, buf_fd 0x%x, size %d %d\n", pframe, node->hw_ctx_id,
 		pframe->common.channel_id, pframe->common.buf.mfd, pframe->common.width, pframe->common.height);
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		cnt = atomic_read(&port->is_work);
@@ -518,7 +518,6 @@ static int dcamoffline_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 	dcam_hwctx_binning_4in1_set(hw_ctx);
 
 	/* bypass all blks and then set all blks to current pm */
-
 	dcam_hwctx_block_set(hw_ctx);
 
 	hw_ctx->fid++;

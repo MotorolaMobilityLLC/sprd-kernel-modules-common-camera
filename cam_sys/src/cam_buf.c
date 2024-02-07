@@ -558,7 +558,7 @@ int cam_buf_iommu_map(struct camera_buf *buf_info, enum cam_buf_iommudev_type ty
 
 		buf_info->iova[type] = iommu_data.iova_addr;
 		buf_info->iova[type] += buf_info->offset[0];
-		pr_debug("buf_info %p, mfd %d, dmap %px, addr_k %px, iova: 0x%08x, off 0x%lx, size 0x%x\n",
+		pr_debug("buf_info %p, mfd 0x%x, dmap %px, addr_k %px, iova: 0x%08x, off 0x%lx, size 0x%x\n",
 			buf_info, buf_info->mfd, (void *)buf_info->dmabuf_p, (void *)buf_info->addr_k,
 			(uint32_t)buf_info->iova[type], (uint32_t)buf_info->offset[0], (uint32_t)buf_info->size);
 
@@ -637,8 +637,8 @@ int cam_buf_iommu_unmap(struct camera_buf *buf_info, enum cam_buf_iommudev_type 
 		unmap_data.ch_type = SPRD_IOMMU_FM_CH_RW;
 		unmap_data.table = NULL;
 		unmap_data.buf = NULL;
-		pr_debug("upmap buf %p addr: %lx, iova 0x%lx, iommu type:%d, size 0x%lx\n",
-			buf_info->ionbuf, unmap_data.iova_addr, buf_info->iova[type], type, buf_info->size);
+		pr_debug("upmap buf %p, mfd 0x%x, addr: %lx, iova 0x%lx, iommu type:%d, size 0x%lx\n",
+			buf_info->ionbuf, buf_info->mfd, unmap_data.iova_addr, buf_info->iova[type], type, buf_info->size);
 		ret = sprd_iommu_unmap(dev_info->dev, &unmap_data);
 		if (ret) {
 			pr_err("fail to free iommu\n");

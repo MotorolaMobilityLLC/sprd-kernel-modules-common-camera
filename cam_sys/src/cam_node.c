@@ -66,12 +66,6 @@ static enum cam_en_status camnode_capture_skip_condition(struct cam_frame *pfram
 	if (cap_param->skip_first_num && pframe->common.fid < 1)
 		return CAM_DISABLE;
 
-	if ((cap_param->cap_scene == CAPTURE_AINR || cap_param->cap_scene == CAPTURE_RAWALG) &&
-		pframe->common.buf.mfd == 0) {
-		pr_info("cam scene %d, mfd:0x%x.\n", cap_param->cap_scene, pframe->common.buf.mfd);
-		return CAM_DISABLE;
-	}
-
 	return CAM_ENABLE;
 }
 
@@ -89,11 +83,11 @@ static enum cam_en_status camnode_rawalg_scene_skip(struct cam_frame *pframe, st
 static int camnode_capture_switch_link_update(struct cam_frame *pframe,
 	struct cam_port_linkage *switch_link, struct cam_capture_param *cap_param)
 {
-	if (cap_param->cap_scene != CAPTURE_RAWALG && cap_param->cap_need_update_link) {
+	if (cap_param->cap_scene != CAPTURE_RAWALG && cap_param->rawalg_update_dcamraw_link) {
 		switch_link->node_type = CAM_NODE_TYPE_ISP_OFFLINE;
 		switch_link->node_id = ISP_NODE_MODE_CAP_ID;
 		switch_link->port_id = PORT_ISP_OFFLINE_IN;
-		pr_info("yunhong: cur node switch link to node %d\n", switch_link->node_id);
+		pr_info("cur node switch link to node %d\n", switch_link->node_id);
 	}
 
 	return 0;
@@ -417,7 +411,7 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		node->cap_param.skip_first_num = cap_param->skip_first_num;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
 		node->cap_param.fid = cap_param->fid;
-		node->cap_param.cap_need_update_link = cap_param->cap_need_update_link;
+		node->cap_param.rawalg_update_dcamraw_link = cap_param->rawalg_update_dcamraw_link;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, skip first_frame %d time %lld, fid %d, opt_scene %d\n",
 			cam_node_name_get(node->node_graph->type), node->node_graph->id, node->cap_param.cap_type,
 			node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
@@ -699,6 +693,7 @@ static int camnode_cfg_node_param_dcam_fetch(void *handle, enum cam_node_cfg_cmd
 	case CAM_NODE_CFG_FETCH_BUF:
 	case CAM_NODE_CFG_RECT_GET:
 	case CAM_NODE_CFG_STATIS:
+	case CAM_NODE_CFG_REG_MIPICAP_RESET:
 		ret = dcam_fetch_node_cfg_param(node->handle, cmd, in_param->param);
 		break;
 	case CAM_NODE_CFG_BLK_PARAM:
@@ -863,7 +858,7 @@ static int camnode_cfg_node_param_frame_cache(void *handle, enum cam_node_cfg_cm
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
 		node->cap_param.cap_opt_frame_scene = cap_param->cap_opt_frame_scene;
 		node->cap_param.fid = cap_param->fid;
-		node->cap_param.cap_need_update_link = cap_param->cap_need_update_link;
+		node->cap_param.rawalg_update_dcamraw_link = cap_param->rawalg_update_dcamraw_link;
 		pr_info("node type %s id %d cap type %d, scene %d, cnt %d, time %lld opt_frame %d, fid %d\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
 			node->cap_param.cap_timestamp, node->cap_param.cap_opt_frame_scene, node->cap_param.fid);

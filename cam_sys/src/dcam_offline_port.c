@@ -355,9 +355,9 @@ int dcam_offline_port_size_cfg(void *handle, void *param)
 	switch (port->port_id) {
 	case PORT_OFFLINE_RAW_OUT:
 	case PORT_OFFLINE_FULL_OUT:
-		pr_info("port %s path done. in size %d %d out size %d %d\n", cam_port_dcam_offline_out_id_name_get(port->port_id),
+		pr_info("port %s path done. in size %d %d out size %d %d fmt %d, pitch %d\n", cam_port_dcam_offline_out_id_name_get(port->port_id),
 			port->in_size.w, port->in_size.h,
-			port->out_size.w, port->out_size.h);
+			port->out_size.w, port->out_size.h, port->out_fmt, port->out_pitch);
 		pr_info("trim %d %d %d %d\n", port->in_trim.start_x, port->in_trim.start_y,
 			port->in_trim.size_x, port->in_trim.size_y);
 		break;

@@ -20,6 +20,15 @@
 #endif
 #define pr_fmt(fmt) "DCAM_FETCH_NODE: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
+static void dcamfetch_cfg_mipi_reset(struct dcam_hw_context *hw_ctx)
+{
+	hw_ctx->hw->dcam_ioctl(hw_ctx->hw, hw_ctx->hw_ctx_id,
+		DCAM_HW_CFG_MIPI_CAP_FETCH_RESET, &hw_ctx->hw_ctx_id);
+	dcam_hwctx_slice_force_copy(hw_ctx, 1);
+
+	pr_info("mipi fetch reset done\n");
+}
+
 static void dcamfetch_nr3_mv_get(struct dcam_hw_context *hw_ctx, struct cam_frame *frame)
 {
 	int i = 0;
@@ -298,6 +307,7 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 	struct dcam_irq_proc *irq_proc = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct dcam_offline_slice_info *slice_info = NULL;
+
 	if (!handle || !param) {
 		pr_err("fail to get valid param %px %px\n", handle, param);
 		return -EFAULT;
@@ -577,7 +587,7 @@ static int dcamfetch_node_frame_start(void *param)
 		return -EFAULT;
 	}
 
-	pr_debug("dcam fetch frame start %px\n", param);
+	pr_info("dcam fetch frame start %px\n", param);
 	ret = wait_for_completion_interruptible_timeout(&node->frm_done, DCAM_OFFLINE_TIMEOUT);
 	if (ret <= 0) {
 		pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
@@ -734,6 +744,9 @@ int dcam_fetch_node_cfg_param(void *handle, uint32_t cmd, void *param)
 	case CAM_NODE_CFG_STATIS:
 	case CAM_NODE_CFG_RECT_GET:
 		ret = dcam_online_node_cfg_param(&node->online_node, cmd, param);
+		break;
+	case CAM_NODE_CFG_REG_MIPICAP_RESET:
+		dcamfetch_cfg_mipi_reset(node->hw_ctx);
 		break;
 	default:
 		pr_err("fail to support vaild cmd %d\n", cmd);

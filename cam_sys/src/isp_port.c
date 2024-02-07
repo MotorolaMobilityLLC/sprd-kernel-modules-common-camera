@@ -346,7 +346,7 @@ static struct cam_frame *ispport_reserved_buf_get(reserved_buf_get_cb resbuf_get
 
 	if (resbuf_get_cb)
 		resbuf_get_cb((void *)&frame, cb_data);
-	pr_info("isp use reserved buffer for port %d\n", port->port_id);
+	pr_debug("isp use reserved buffer for port %d\n", port->port_id);
 	return frame;
 }
 

@@ -20,7 +20,7 @@
 #ifdef CAM_ZOOM_DEBUG_ON
 #define CAM_ZOOM_DEBUG pr_info
 #else
-#define CAM_ZOOM_DEBUG pr_info
+#define CAM_ZOOM_DEBUG pr_debug
 #endif
 
 #define CAM_SCALER_DECI_FAC_MAX    4
