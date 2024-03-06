@@ -200,9 +200,13 @@ static int camcopy_node_frame_start(void *param)
 			pr_debug("current condition cap_type %d and icap_cap_num %d\n", node->cap_param.cap_type, atomic_read(&node->icap_cap_num));
 			pframe = CAM_QUEUE_DEQUEUE(&node->in_queue, struct cam_frame, list);
 			if (pframe) {
-				pframe->common.link_to = pframe->common.link_from;
 				pframe->common.copy_en = 0;
-				ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+				if (node->raw_deal_switch)
+					node->copy_cb_func(CAM_CB_ICAP_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+				else {
+					pframe->common.link_to = pframe->common.link_from;
+					ret = node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, pframe, node->copy_cb_handle);
+				}
 				return ret;
 			} else {
 				pr_err("fail to dequeue frame for node %d\n", node->node_id);
@@ -381,6 +385,23 @@ int cam_copy_node_set_icap_scene(void *handle, void *param)
 	return ret;
 }
 
+int cam_copy_node_set_raw_report_condition(void *handle, void *param)
+{
+	int ret = 0;
+	struct cam_copy_node *node = NULL;
+	uint32_t raw_deal_switch = 0;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid inptr %p, %p\n", handle, param);
+		return -EFAULT;
+	}
+
+	raw_deal_switch = *(uint32_t *)param;
+	node = (struct cam_copy_node *)handle;
+	node->raw_deal_switch = raw_deal_switch;
+
+	return ret;
+}
 
 int cam_copy_node_set_pre_raw_flag(void *handle, void *param)
 {
@@ -499,6 +520,7 @@ void *cam_copy_node_get(uint32_t node_id, struct cam_copy_node_desc *param)
 	atomic_set(&node->icap_cap_num, 0);
 	node->pre_frame_status = param->pre_frame_status;
 	node->private_cb_data = param->private_cb_data;
+	node->raw_deal_switch = 0;
 
 	thrd = &node->thread;
 	sprintf(thrd->thread_name, "cam_copy_node%d", node->node_id);

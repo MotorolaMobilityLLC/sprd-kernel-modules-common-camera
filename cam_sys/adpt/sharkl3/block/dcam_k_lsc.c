@@ -64,8 +64,11 @@ int dcam_init_lsc(void *in, uint32_t online)
 
 	info = &param->lens_info;
 
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
 	/* debugfs bypass, not return, need force copy */
-	if (idx == DCAM_HW_CONTEXT_MAX || g_dcam_bypass[idx] & (1 << _E_LSC))
+	if (g_dcam_bypass[idx] & (1 << _E_LSC))
 		info->bypass = 1;
 	if (info->bypass) {
 		pr_debug("bypass\n");
@@ -194,8 +197,12 @@ int dcam_update_lsc(void *in)
 
 	idx = hw_ctx->hw_ctx_id;
 	info = &param->lens_info;
-	if (idx == DCAM_HW_CONTEXT_MAX || g_dcam_bypass[idx] & (1 << _E_LSC))
+
+	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
+
+	if (g_dcam_bypass[idx] & (1 << _E_LSC))
+		info->bypass = 1;
 	if (info->bypass) {
 		pr_debug("bypass\n");
 		DCAM_REG_MWR(idx, DCAM_LENS_LOAD_ENABLE, BIT_0, 1);

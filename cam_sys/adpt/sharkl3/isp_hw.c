@@ -51,15 +51,16 @@ static const struct bypass_tag sharkl3_dcam_bypass_tab[] = {
 	[_E_PDAF] = {"pdaf", DCAM_PDAF_BYPASS_CTRL,       3},/* 0x008.b3 */
 	[_E_LSC]  = {"lsc",  DCAM_LENS_LOAD_ENABLE,       0},/* 0x138.b0 */
 	[_E_AEM]  = {"aem",  DCAM_AEM_FRM_CTRL0,          0},/* 0x150.b0 */
+	[_E_HIST] = {NULL,   0x0,                         0},/*reserved*/
 	[_E_AFL]  = {"afl",  ISP_AFL_FRM_CTRL,            0},/* 0x170.b0 */
 	[_E_AFM]  = {"afm",  ISP_AFM_FRM_CTRL,            0},/* 0x1A0.b0 */
 	[_E_BPC]  = {"bpc",  ISP_BPC_PARAM,               0},/* 0x200.b0 */
+	[_E_GRGB] = {"grgb", DCAM_GRGB_CTRL,              0},/* 0x120.b1 */
 	[_E_BLC]  = {"blc",  DCAM_BLC_BYPASS_CTRL,        18},/* 0x100.b18 */
 	[_E_RGB]  = {"rgb",  ISP_RGBG_PARAM,              0},/* 0x22c.b0 rgb gain */
 	[_E_RAND] = {"rand", ISP_RGBG_YRANDOM_PARAMETER0, 0},/* 0x238.b0 */
-	[_E_AWBC] = {"awbc", ISP_AWBC_GAIN0,              31},/* 0x380.b31 */
-	[_E_NR3]  = {"nr3",  NR3_FAST_ME_PARAM,           0},/* 0x3F0.b0 */
-	[_E_GRGB] = {"grgb", DCAM_GRGB_CTRL,              0},/* 0x120.b1 */
+	[_E_PPI]  = {NULL,   0x0,                         0},/*reserved*/
+	[_E_AWBC] = {"awbc", ISP_AWBC_PARAM,              0},/* 0x380.b31 */
 };
 
 static const struct bypass_tag isp_bypass_tab[] = {

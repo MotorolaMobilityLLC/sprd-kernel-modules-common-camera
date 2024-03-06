@@ -718,6 +718,7 @@ struct dcam_hw_path_start {
 
 struct dcam_hw_fetch_set {
 	uint32_t idx;
+	uint32_t simu_mode;
 	uint32_t virtualsensor_pre_sof;
 	struct dcam_fetch_info *fetch_info;
 };

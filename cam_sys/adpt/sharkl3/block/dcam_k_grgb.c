@@ -22,7 +22,7 @@
 #endif
 #define pr_fmt(fmt) "GRGB: %d %d %s : " fmt, current->pid, __LINE__, __func__
 
-static int dcam_k_grgb_block(struct dcam_isp_k_block *param)
+int dcam_k_grgb_block(struct dcam_isp_k_block *param)
 {
 	int ret = 0;
 	uint32_t idx = param->idx;

@@ -199,12 +199,14 @@ static void dcamint_dec_done(void *param)
 	pr_debug("dcamint_dec_done\n");
 	dcam_hw_ctx->dec_all_done = 1;
 	if (dcam_hw_ctx->dec_layer0_done) {
+		dcam_hw_ctx->virtualsensor_dec_int_done = 1;
 		irq_proc.of = CAP_DATA_DONE;
 		irq_proc.dcam_port_id = PORT_BIN_OUT;
 		if (!dcam_int_common_dummy_callback(dcam_hw_ctx, &irq_proc))
 			dcam_hw_ctx->dcam_irq_cb_func(&irq_proc, dcam_hw_ctx->dcam_irq_cb_handle);
 		dcam_hw_ctx->dec_all_done = 0;
 		dcam_hw_ctx->dec_layer0_done = 0;
+		dcam_hw_ctx->virtualsensor_dec_int_done = 0;
 	}
 }
 

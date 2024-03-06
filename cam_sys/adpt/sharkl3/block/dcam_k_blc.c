@@ -32,6 +32,9 @@ int dcam_k_blc_block(struct dcam_isp_k_block *param)
 	idx = param->idx;
 	p = &(param->blc.blc_info);
 
+	if (g_dcam_bypass[idx] & (1 << _E_BLC))
+		p->bypass = 1;
+
 	DCAM_REG_MWR(idx, DCAM_MIPI_CAP_CFG, BIT_18, p->bypass << 18);
 	if (p->bypass)
 		return 0;

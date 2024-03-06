@@ -394,14 +394,13 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 			}
 			goto exit;
 		}
-
 		if (((for_capture && (module->capture_type == CAM_CAPTURE_RAWPROC
 			|| module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1
 			|| (param.scene_id == PM_SCENE_OFFLINE_BPC)
 			|| (param.scene_id == PM_SCENE_OFFLINE_CAP)
 			|| (param.scene_id == PM_SCENE_SFNR)))
-			|| (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR && param.scene_id == PM_SCENE_VID))
-			&& !(module->cam_uinfo.virtualsensor && module->cam_uinfo.dcam_slice_mode)) {
+			|| (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR
+			&& param.scene_id == PM_SCENE_VID)) && !(module->cam_uinfo.virtualsensor && module->cam_uinfo.dcam_slice_mode)) {
 			if (g_dbg_raw2frgb_switch == DEBUG_FRGB_MODE) {
 				ret = CAM_PIPEINE_DCAM_OFFLINE_RAW2FRGB_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
 				ret = CAM_PIPEINE_DCAM_OFFLINE_FRGB2YUV_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, &param);
@@ -969,6 +968,7 @@ static int camioctl_crop_set(struct camera_module *module,
 	struct cam_frame *first_param = NULL;
 	struct cam_frame *zoom_param = NULL;
 	struct sprd_img_parm __user *uparam = NULL;
+	struct cam_hw_info *hw = NULL;
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
@@ -1017,6 +1017,7 @@ static int camioctl_crop_set(struct camera_module *module,
 	 * only crop rect size can be re-configured during zoom
 	 * and it is forbidden during capture.
 	 */
+	hw = module->grp->hw_info;
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		if ((module->capture_type != CAM_CAPTURE_STOP) &&
 			module->channel[CAM_CH_CAP].enable &&
@@ -1027,7 +1028,14 @@ static int camioctl_crop_set(struct camera_module *module,
 		zoom_param = cam_queue_empty_frame_get(CAM_FRAME_NODE_ZOOM);
 		zoom_param->user_zoom.zoom_crop = crop;
 		zoom_param->user_zoom.total_zoom_crop = total_crop;
-		ch->latest_user_crop = crop;
+		if (ch->ch_id == CAM_CH_CAP && module->offline_icap_scene
+			&& hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0) {
+			ch->latest_user_crop.x = 0;
+			ch->latest_user_crop.y = 0;
+			ch->latest_user_crop.w = module->cam_uinfo.sn_rect.w;
+			ch->latest_user_crop.h = module->cam_uinfo.sn_rect.h;
+		} else
+			ch->latest_user_crop = crop;
 		if (CAM_QUEUE_ENQUEUE(&ch->zoom_user_crop_q, &zoom_param->list)) {
 			if (ch->zoom_user_crop_q.max == 0) {
 				pr_warn("warning: zoom user q not init or clear, ch id:%d,state:%d, max:%d\n", channel_id, ch->zoom_user_crop_q.state, ch->zoom_user_crop_q.max);
@@ -1159,7 +1167,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	struct cam_hw_info *hw = NULL;
 	struct cam_frame *pframe = NULL;
 	struct sprd_img_parm __user *uparam = NULL;
-	struct channel_context *ch = NULL, *ch_pre = NULL, *ch_cap = NULL;
+	struct channel_context *ch = NULL, *ch_pre = NULL, *ch_cap = NULL, *ch_vid = NULL;
 
 	if ((atomic_read(&module->state) != CAM_CFG_CH) &&
 		(atomic_read(&module->state) != CAM_RUNNING)) {
@@ -1190,6 +1198,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 	ch = &module->channel[channel_id];
 	ch_pre = &module->channel[CAM_CH_PRE];
 	ch_cap = &module->channel[CAM_CH_CAP];
+	ch_vid = &module->channel[CAM_CH_VID];
 
 	for (i = 0; i < buffer_count; i++) {
 		if (is_reserved_buf) {
@@ -1248,8 +1257,6 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			} else {
 				node_id = (ch->ch_id == CAM_CH_CAP && ch->isp_port_id != PORT_VID_OUT) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
 				ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch, ch->isp_port_id, CAM_PIPELINE_CFG_BUF, node_id, pframe);
-				if (module->offline_icap_scene && ch->ch_id == CAM_CH_CAP && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE)
-					ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_BUF_NUM, &buffer_count);
 			}
 		} else {
 			if ((ch->ch_id == CAM_CH_CAP) && pixel_fmt == IMG_PIX_FMT_GREY)
@@ -1272,6 +1279,9 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			} else if (module->offline_icap_scene) {
 				/* for sharkl3 icap scene and bigsize icap scene and 4in1 icap scene*/
 				ret = camcore_icap_buffer_set(module, ch, pframe);
+			} else if (ch->ch_id == CAM_CH_RAW && ch_vid->enable && module->cam_uinfo.need_dcam_raw && 
+				hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0) {
+				ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_vid, CAM_PIPELINE_CFG_BUF, pframe);
 			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable && module->cam_uinfo.need_dcam_raw &&
 				(module->grp->hw_info->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR))){
 				if (ch->ch_uinfo.dst_size.w == ch_cap->ch_uinfo.dst_size.w) {
@@ -1953,11 +1963,6 @@ static int camioctl_capture_start(struct camera_module *module, unsigned long ar
 	if (ch_pre->enable)
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
-	if (module->offline_icap_scene && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
-		cap_param.offline_icap_scene = CAM_ENABLE;
-		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
-	}
-
 	if (ch->isp_port_id == PORT_VID_OUT)
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);
 
@@ -2033,11 +2038,6 @@ static int camioctl_capture_stop(struct camera_module *module,
 	ch_pre = &module->channel[CAM_CH_PRE];
 	if (ch_pre->enable)
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
-
-	if (module->offline_icap_scene && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
-		cap_param.offline_icap_scene = CAM_DISABLE;
-		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
-	}
 
 	if (ch->isp_port_id == PORT_VID_OUT)
 		ret = CAM_PIPEINE_ISP_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, ISP_NODE_MODE_PRE_ID, &cap_param);

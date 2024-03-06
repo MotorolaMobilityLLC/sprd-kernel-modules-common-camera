@@ -234,6 +234,7 @@ int dcam_k_lscm_bypass(struct dcam_isp_k_block *param);
 int dcam_k_lscm_monitor(struct dcam_isp_k_block *param);
 
 int dcam_k_pdaf(struct dcam_isp_k_block *param);
+int dcam_k_grgb_block(struct dcam_isp_k_block *param);
 
 int isp_k_save_vst_ivst(struct dcam_isp_k_block *isp_k_param);
 int isp_k_nlm_block(struct dcam_isp_k_block *isp_k_param, uint32_t idx);
@@ -375,7 +376,6 @@ enum block_bypass {
 	_E_RAND, /* yuv random */
 	_E_PPI,
 	_E_AWBC,
-	_E_NR3,
 	_E_NLM,
 	_E_VST,
 	_E_IVST,

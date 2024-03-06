@@ -32,12 +32,15 @@ int dcam_k_rgb_gain_block(struct dcam_isp_k_block *param)
 	if (param == NULL)
 		return -1;
 
-	/* debug bypass rgb gain */
-	if (param->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[param->idx] & (1 << _E_RGB)))
-		return 0;
-
 	idx = param->idx;
 	p = &(param->rgb.gain_info);
+
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
+	/* debug bypass rgb gain */
+	if (g_dcam_bypass[param->idx] & (1 << _E_RGB))
+		p->bypass = 1;
 
 	DCAM_REG_MWR(idx, ISP_RGBG_PARAM, BIT_0, p->bypass);
 	if (p->bypass)
@@ -63,12 +66,16 @@ int dcam_k_rgb_dither_random_block(struct dcam_isp_k_block *param)
 	if (param == NULL)
 		return -1;
 
-	/* debugfs bypass rgb dither(rand) */
-	if (param->idx == DCAM_HW_CONTEXT_MAX || (g_dcam_bypass[param->idx] & (1 << _E_RAND)))
-		return 0;
-
 	idx = param->idx;
 	p = &(param->rgb.rgb_dither);
+
+	if (idx >= DCAM_HW_CONTEXT_MAX)
+		return 0;
+
+	/* debugfs bypass rgb dither(rand) */
+	if (g_dcam_bypass[param->idx] & (1 << _E_RAND))
+		p->random_bypass = 1;
+
 	DCAM_REG_MWR(idx, ISP_RGBG_YRANDOM_PARAMETER0,
 			BIT_0, p->random_bypass);
 	if (p->random_bypass)

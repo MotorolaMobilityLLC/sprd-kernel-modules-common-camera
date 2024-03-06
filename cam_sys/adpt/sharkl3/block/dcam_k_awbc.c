@@ -34,6 +34,10 @@ int dcam_k_awbc_block(struct dcam_isp_k_block *param)
 
 	idx = param->idx;
 	p = &(param->awbc.awbc_info);
+
+	if (g_dcam_bypass[idx] & (1 << _E_AWBC))
+		p->awbc_bypass = 1;
+
 	DCAM_REG_MWR(idx, ISP_AWBC_PARAM, BIT_0,
 			p->awbc_bypass & 1);
 	if (p->awbc_bypass)

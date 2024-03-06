@@ -748,13 +748,11 @@ static int isp3dnr_blend_ctrl(struct isp_3dnr_ctx_desc *nr3_ctx)
 		 * on N6p/N6L blending trun on when (ref_pic_flag=1 && blend bypass=0)
 		 * trun off when (ref_pic_flag=0 || blend bypass=1)
 		 */
-			nr3_ctx->blending_cnt = 0;
-			nr3_ctx->mv.mv_x = 0;
-			nr3_ctx->mv.mv_y = 0;
-			nr3_ctx->isp_block->nr3_info_base.blend.bypass = 0;
-			nr3_ctx->isp_block->nr3_info_base_v1.blend.bypass = 0;
-		}
-		nr3_ctx->preblend_bypass = curblend_bypass;
+		nr3_ctx->blending_cnt = 0;
+		nr3_ctx->mv.mv_x = 0;
+		nr3_ctx->mv.mv_y = 0;
+	}
+	nr3_ctx->preblend_bypass = curblend_bypass;
 
 	return ret;
 }

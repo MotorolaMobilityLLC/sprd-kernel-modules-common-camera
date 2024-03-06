@@ -183,7 +183,7 @@ void isp_3dnr_config_blend(uint32_t idx,
 	blend->isupdate = ISP_3DNR_ISUPDATE_STAUE_IDLE;
 	pr_debug("ctx_id %d config blend regs\n", idx);
 
-	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, blend->bypass);
+	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0, BIT_0, 0);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0,
 		BIT_1, blend->fusion_mode << 1);
 	ISP_REG_MWR(idx, ISP_3DNR_BLEND_CONTROL0,

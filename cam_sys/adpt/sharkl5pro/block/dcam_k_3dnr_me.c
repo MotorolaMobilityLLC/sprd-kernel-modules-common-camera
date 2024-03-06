@@ -152,10 +152,6 @@ int dcam_k_3dnr_me(struct dcam_isp_k_block *param)
 	dev = param->dev;
 	hw_ctx = &dev->hw_ctx[idx];
 
-	/* debugfs bypass nr3 */
-	if (g_dcam_bypass[idx] & (1 << _E_NR3))
-		return 0;
-
 	p = &param->nr3.nr3_me;
 	DCAM_REG_MWR(idx, NR3_FAST_ME_PARAM,
 			BIT(0), (p->bypass & 0x1));

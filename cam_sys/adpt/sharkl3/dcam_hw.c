@@ -597,8 +597,11 @@ static int dcamhw_fetch_set(void *handle, void *arg)
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
 	DCAM_REG_MWR(fetch->idx, DCAM_INT_EN,
 		DCAMINT_IRQ_LINE_MASK, DCAMINT_IRQ_LINE_MASK);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0x0F << 12, 0x0F << 12);
-	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 4, 0xFF << 4);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0x0F << 12, 0x1 << 12);
+	DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 4, 0x1 << 4);
+	/* HW LIMIT, bypass lsc normal for 9 - FF, abnormal 1 - 8 */
+	if (fetch->simu_mode)
+		DCAM_AXIM_MWR(IMG_FETCH_CTRL, 0xFF << 4, 0x9 << 4);
 	fetch_pitch /= 4;
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG, 0x7, 0x3);
 	DCAM_REG_MWR(fetch->idx, DCAM_MIPI_CAP_CFG,
@@ -1100,6 +1103,7 @@ static int dcamhw_blocks_setall(void *handle, void *arg)
 	dcam_k_rgb_gain_block(p);
 	/* simulator should set this block(random) carefully */
 	dcam_k_rgb_dither_random_block(p);
+	dcam_k_grgb_block(p);
 	pr_debug("dcam%d set all\n", idx);
 
 	return 0;

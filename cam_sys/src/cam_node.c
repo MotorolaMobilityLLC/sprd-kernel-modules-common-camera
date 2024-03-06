@@ -682,6 +682,7 @@ static int camnode_cfg_node_param_dcam_fetch(void *handle, enum cam_node_cfg_cmd
 		node->cap_param.cap_timestamp = cap_param->cap_timestamp;
 		node->cap_param.cap_scene = cap_param->cap_scene;
 		node->cap_param.cap_user_crop = cap_param->cap_user_crop;
+		node->cap_param.no_need_skip_frame_scene = cap_param->no_need_skip_frame_scene;
 		node->cap_param.fid = cap_param->fid;
 		pr_info("node: %s id %d cap K_type %d, scene %d, cnt %d, time %lld, fid %d\n", cam_node_name_get(node->node_graph->type),
 			node->node_graph->id, node->cap_param.cap_type, node->cap_param.cap_scene, atomic_read(&node->cap_param.cap_cnt),
@@ -965,6 +966,9 @@ static int camnode_cfg_node_param_copy(void *handle, enum cam_node_cfg_cmd cmd, 
 		break;
 	case CAM_NODE_CFG_ICAP_SCENE_SWITCH:
 		ret = cam_copy_node_set_icap_scene(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_ICAP_RAW_REPORT_CONDITION:
+		ret = cam_copy_node_set_raw_report_condition(node->handle, in_param->param);
 		break;
 	case CAM_NODE_CFG_CAP_PARAM:
 		cap_param = (struct cam_capture_param *)in_param->param;

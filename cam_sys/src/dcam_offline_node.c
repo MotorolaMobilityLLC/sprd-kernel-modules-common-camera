@@ -70,7 +70,15 @@ static int dcamoffline_node_ts_cal(struct dcam_offline_node *node)
 	struct dcam_offline_slice_info *slice = NULL;
 	struct dcam_hw_context *hw_ctx = NULL;
 
+	if (!node) {
+		pr_err("fail to get dcam offline node\n");
+		return -1;
+	}
 	hw_ctx = node->hw_ctx;
+	if (!hw_ctx) {
+		pr_err("fail to get dcam_hw_ctx\n");
+		return -1;
+	}
 	slice = &hw_ctx->slice_info;
 	os_adapt_time_get_ts(&slice->slice_start_ts[tsid(slice->slice_num - slice->slice_count)]);
 
@@ -664,14 +672,16 @@ static int dcamoffline_node_frame_start(void *param)
 {
 	int ret = 0, loop = 0, time_out = 0, wait_time_flag = 0;
 	struct cam_hw_info *hw = NULL;
-	struct dcam_offline_node *node = NULL;
+	struct dcam_offline_node *node = NULL, *lsc_node = NULL;
 	struct dcam_offline_port *port = NULL;
 	struct cam_frame *pframe = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct dcam_offline_pm_context *pm_pctx = NULL;
 	struct dcam_offline_slice_info *slice = NULL;
-	uint32_t lbuf_width = 0;
+	uint32_t lbuf_width = 0, i = 0;
 	struct dcam_dummy_param dummy_param = {0};
+	struct cam_pipeline *pipeline = NULL;
+	struct cam_node *cam_node = NULL, *cam_lsc_node = NULL;
 
 	node = (struct dcam_offline_node *)param;
 	if (!node) {
@@ -679,6 +689,8 @@ static int dcamoffline_node_frame_start(void *param)
 		return -EFAULT;
 	}
 
+	cam_node = (struct cam_node *)node->data_cb_handle;
+	pipeline = (struct cam_pipeline *)cam_node->data_cb_handle;
 	hw = node->dev->hw;
 	pr_info("dcam offline frame start %px\n", param);
 	ret = wait_for_completion_interruptible_timeout(&node->frm_done, DCAM_OFFLINE_TIMEOUT);
@@ -787,6 +799,21 @@ return_buf:
 		node->data_cb_func(CAM_CB_DCAM_RET_SRC_BUF, pframe, node->data_cb_handle);
 	}
 input_err:
+	if (pipeline->pipeline_graph->type == CAM_PIPELINE_ONLINERAW_2_COPY_2_USER_2_OFFLINEYUV) {
+		if (node->node_type == CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW)
+			pr_debug("Icap Scene First Statge No Set Complete\n");
+		else if (node->node_type == CAM_NODE_TYPE_DCAM_OFFLINE) {
+			for (i = 0; i < pipeline->pipeline_graph->node_cnt; i++) {
+				if (pipeline->pipeline_graph->nodes[i].type == CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW)
+						break;
+				}
+				cam_lsc_node = pipeline->node_list[i];
+				lsc_node = (struct dcam_offline_node *)cam_lsc_node->handle;
+				complete(&lsc_node->frm_done);
+				pr_debug("Icap Scene Second Statge Set Twice Complete\n");
+		} else
+			pr_err("fail to get valid node type\n");
+	}
 	complete(&node->slice_done);
 	complete(&node->frm_done);
 	dcamoffline_ctx_unbind(node);

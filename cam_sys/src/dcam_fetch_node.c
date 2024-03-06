@@ -166,6 +166,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 	struct dcam_irq_proc *irq_proc = NULL;
 	struct cam_frame *frame = NULL;
 	struct dcam_online_port *dcam_port = NULL;
+	struct dcam_online_port *dcam_full_port = NULL;
 	uint32_t mv_ready = 0;
 	struct camera_buf_get_desc buf_desc = {0};
 	struct dcam_offline_slice_info *slice_info = NULL;
@@ -180,7 +181,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 		for (i = DCAM_PATH_FULL; i <= DCAM_PATH_BIN; i++)
 			path_done[i] = atomic_read(&node->hw_ctx->path_done[i]);
 		if ((node->offline_pre_en && path_done[DCAM_PATH_FULL] == path_done[DCAM_PATH_BIN])
-				|| (!node->offline_pre_en)){
+				|| (!node->offline_pre_en && hw_ctx->virtualsensor_dec_int_done == 0)){
 			slice_info->slice_count--;
 			complete(&node->slice_done);
 		}
@@ -198,14 +199,11 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 				mv_ready = online_node->nr3_me.full_path_mv_ready;
 				if (mv_ready == 0) {
 					online_node->nr3_me.full_path_cnt++;
-					complete(&node->frm_done);
-					return ret;
+					goto return_fetch_buf;
 				} else if (mv_ready == 1) {
 					frame = dcamfetch_frame_prepare(online_node, dcam_port, hw_ctx);
-					if (frame == NULL) {
-						complete(&node->frm_done);
-						return ret;
-					}
+					if (frame == NULL)
+						goto return_fetch_buf;
 
 					dcamfetch_nr3_mv_get(hw_ctx, frame);
 					online_node->nr3_me.full_path_mv_ready = 0;
@@ -224,6 +222,7 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 					dcamfetch_frame_dispatch(irq_proc, online_node);
 				}
 			}
+return_fetch_buf:
 			frame = CAM_QUEUE_DEQUEUE(&node->proc_queue, struct cam_frame, list);
 			if (frame) {
 				cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
@@ -243,8 +242,10 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 			}
 			buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
 			frame = cam_buf_manager_buf_dequeue(&dcam_port->result_pool, &buf_desc, online_node->buf_manager_handle);
-			if (unlikely(!frame) || (frame->common.pyr_status && !hw_ctx->dec_all_done))
+			if (unlikely(!frame) || (frame->common.pyr_status && !hw_ctx->dec_all_done)) {
+				atomic_dec(&hw_ctx->path_done[DCAM_PATH_BIN]);
 				return 0;
+			}
 			hw_ctx->dec_all_done = 0;
 			hw_ctx->dec_layer0_done = 0;
 
@@ -252,11 +253,11 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 				mv_ready = online_node->nr3_me.bin_path_mv_ready;
 				if (mv_ready == 0) {
 					online_node->nr3_me.bin_path_cnt++;
-					return ret;
+					goto bin_return_fetch_buf;
 				} else if (mv_ready == 1) {
 					frame = dcamfetch_frame_prepare(online_node, dcam_port, hw_ctx);
 					if (frame == NULL) {
-						return ret;
+						goto bin_return_fetch_buf;
 					}
 					dcamfetch_nr3_mv_get(hw_ctx, frame);
 					online_node->nr3_me.bin_path_mv_ready = 0;
@@ -280,7 +281,9 @@ static int dcamfetch_done_proc(void *param, void *handle, struct dcam_hw_context
 				irq_proc->type = CAM_CB_DCAM_DATA_DONE;
 				dcamfetch_frame_dispatch(irq_proc, online_node);
 			}
-			if (!node->virtualsensor_cap_en) {
+bin_return_fetch_buf:
+			dcam_full_port = dcam_online_node_port_get(online_node, PORT_FULL_OUT);
+			if (dcam_full_port == NULL || (!dcam_full_port && (atomic_read(&dcam_full_port->is_work) < 1))) {
 				frame = CAM_QUEUE_DEQUEUE(&node->proc_queue, struct cam_frame, list);
 				if (frame) {
 					cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);
@@ -334,7 +337,7 @@ static int dcamfetch_irq_proc(void *param, void *handle)
 		dcam_online_node_irq_proc(param, online_node);
 		break;
 	case PREV_START_OF_FRAME:
-		if (slice_info->slice_count == 1) {
+		if (slice_info->slice_count <= 1) {
 			dcam_online_node_irq_proc(param, online_node);
 			hw_ctx->fid++;
 		}
@@ -464,6 +467,7 @@ static int dcamfetch_param_get(struct dcam_fetch_node *node,
 	node->online_node.hw_ctx->hw_fetch.idx = node->online_node.hw_ctx_id;
 	node->online_node.hw_ctx->hw_fetch.virtualsensor_pre_sof = 1;
 	node->online_node.hw_ctx->hw_fetch.fetch_info = &node->fetch_info;
+	node->online_node.hw_ctx->hw_fetch.simu_mode = CAM_ENABLE;
 
 	return ret;
 }
@@ -471,10 +475,13 @@ static int dcamfetch_param_get(struct dcam_fetch_node *node,
 static int dcamfetch_hw_frame_param_set(struct dcam_hw_context *hw_ctx)
 {
 	int ret = 0;
+	struct cam_hw_info *hw = NULL;
 
+	hw = hw_ctx->hw;
 	dcam_hwctx_frame_param_set(hw_ctx);
 	dcam_hwctx_binning_4in1_set(hw_ctx);
 	ret = dcam_hwctx_fetch_set(hw_ctx);
+	hw->dcam_ioctl(hw, hw_ctx->hw_ctx_id, DCAM_HW_CFG_RECORD_ADDR, hw_ctx);
 	return ret;
 }
 
@@ -838,7 +845,6 @@ void *dcam_fetch_node_get(uint32_t node_id, struct dcam_fetch_node_desc *param)
 		}
 	} else {
 		node = *param->node_dev;
-		node->virtualsensor_cap_en = param->virtualsensor_cap_en;
 		pr_info("dcam fetch node has been alloc %p\n", node);
 		goto exit;
 	}

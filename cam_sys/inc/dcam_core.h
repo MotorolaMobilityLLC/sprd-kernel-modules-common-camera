@@ -139,6 +139,7 @@ struct dcam_hw_context {
 	uint32_t iommu_status;
 	uint32_t err_count;/* iommu register dump count in dcam_err */
 	enum cam_en_status dec_all_done;
+	enum cam_en_status virtualsensor_dec_int_done;
 	enum cam_en_status dec_layer0_done;
 	atomic_t shadow_done_cnt;
 	atomic_t shadow_config_cnt;

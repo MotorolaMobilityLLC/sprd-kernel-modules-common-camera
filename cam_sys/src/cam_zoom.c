@@ -392,11 +392,7 @@ static int camzoom_port_info_cfg(struct cam_zoom_port *zoom_port,
 	case CAM_NODE_TYPE_ISP_YUV_SCALER:
 		if (zoom_port->port_type == PORT_TRANSFER_IN) {
 			zoom_base->src = param->isp_src_size;
-			/* node input no need crop same with pre node output */
-			zoom_base->crop.start_x = 0;
-			zoom_base->crop.start_y = 0;
-			zoom_base->crop.size_x = zoom_base->src.w;
-			zoom_base->crop.size_y = zoom_base->src.h;
+			zoom_base->crop = param->isp_input_crop;
 			zoom_base->dst = zoom_base->src;
 			valid = 1;
 			CAM_ZOOM_DEBUG("%s: isp size %d %d trim %d %d %d %d dst %d %d\n",
@@ -956,7 +952,8 @@ int cam_zoom_channel_size_config(
 	raw_zoom_base.crop.size_y = ch_uinfo->src_size.h;
 	if (channel->ch_id == CAM_CH_RAW || module->cam_uinfo.alg_type || module->cam_uinfo.is_4in1
 		|| (channel->ch_id == CAM_CH_CAP && module->cam_uinfo.dcam_slice_mode && !module->cam_uinfo.is_4in1)
-		|| (module->offline_icap_scene && channel->ch_id == CAM_CH_CAP)) {
+		|| (module->offline_icap_scene && channel->ch_id == CAM_CH_CAP)
+		|| (channel->ch_id == CAM_CH_DCAM_VCH && channel->dcam_port_id == PORT_FULL_OUT)) {
 		need_raw_port = 1;
 	}
 
@@ -975,7 +972,8 @@ int cam_zoom_channel_size_config(
 		zoom_info.dcam_dst[node_type][channel->dcam_port_id] = channel->dst_dcam;
 	}
 
-	if (need_raw_port && (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id) || channel->dcam_port_id == PORT_VCH2_OUT)) {
+	if (need_raw_port && (IS_VALID_DCAM_IMG_PORT(channel->dcam_port_id) || channel->dcam_port_id == PORT_VCH2_OUT) &&
+		!(module->cam_uinfo.virtualsensor && channel->nonzsl_pre_pipeline)) {
 		node_type = CAM_NODE_TYPE_DCAM_ONLINE;
 		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_MFNR ||
 			module->cam_uinfo.alg_type == ALG_TYPE_CAP_AINR) {
@@ -1004,13 +1002,27 @@ int cam_zoom_channel_size_config(
 			zoom_info.dcam_dst[node_type][raw2yuv_port_id] = channel->dst_dcam;
 			if (module->offline_icap_scene && hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
 				node_type = CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW;
-				zoom_info.dcam_crop[node_type][raw2yuv_port_id] = channel->trim_dcam;
-				zoom_info.dcam_dst[node_type][raw2yuv_port_id] = channel->dst_dcam;
+				zoom_info.dcam_crop[node_type][raw2yuv_port_id] = raw_zoom_base.crop;
+				zoom_info.dcam_dst[node_type][raw2yuv_port_id] = raw_zoom_base.dst;
+				node_type = CAM_NODE_TYPE_DCAM_OFFLINE;
+				zoom_info.dcam_crop[node_type][raw2yuv_port_id] = raw_zoom_base.crop;
+				zoom_info.dcam_dst[node_type][raw2yuv_port_id] = raw_zoom_base.dst;
 			}
 		}
 	}
 
-	zoom_info.isp_src_size = channel->dst_dcam;
+	if (channel->ch_id == CAM_CH_CAP && module->offline_icap_scene
+		&& hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
+		zoom_info.isp_src_size = raw_zoom_base.src;
+		zoom_info.isp_input_crop = channel->trim_dcam;
+	} else {
+		zoom_info.isp_src_size = channel->dst_dcam;
+		zoom_info.isp_input_crop.start_x = 0;
+		zoom_info.isp_input_crop.start_y = 0;
+		zoom_info.isp_input_crop.size_x = channel->dst_dcam.w;
+		zoom_info.isp_input_crop.size_y = channel->dst_dcam.h;
+	}
+
 	if (IS_VALID_ISP_IMG_PORT(channel->isp_port_id)) {
 		zoom_info.isp_crop[channel->isp_port_id] = channel->trim_isp;
 		zoom_info.isp_dst[channel->isp_port_id] = channel->ch_uinfo.dst_size;
@@ -1067,6 +1079,10 @@ int cam_zoom_channel_size_config(
 		}
 		zoom_info.isp_src_size.w = channel->ch_uinfo.src_size.w / ratio;
 		zoom_info.isp_src_size.h = channel->ch_uinfo.src_size.h / ratio;
+		zoom_info.isp_input_crop.start_x = 0;
+		zoom_info.isp_input_crop.start_y = 0;
+		zoom_info.isp_input_crop.size_x = zoom_info.isp_src_size.w;
+		zoom_info.isp_input_crop.size_y = zoom_info.isp_src_size.h;
 		zoom_info.isp_dst[PORT_PRE_OUT] = zoom_info.isp_src_size;
 		zoom_info.isp_crop[PORT_PRE_OUT].start_x = 0;
 		zoom_info.isp_crop[PORT_PRE_OUT].start_y = 0;

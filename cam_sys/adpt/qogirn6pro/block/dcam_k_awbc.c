@@ -36,6 +36,9 @@ int dcam_k_awbc_block(struct dcam_isp_k_block *param)
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
 	p = &(param->awbc.awbc_info);
+	if (g_dcam_bypass[idx] & (1 << _E_AWBC))
+		p->awbc_bypass = 1;
+
 	DCAM_REG_MWR(idx, DCAM_AWBC_GAIN0, BIT_31,
 			((p->awbc_bypass & 1) << 31));
 	if (p->awbc_bypass)

@@ -1202,15 +1202,27 @@ static int camcore_icap_buffer_set(struct camera_module *module, struct channel_
 	struct cam_frame *pframe = NULL;
 	struct channel_context *ch_cap = NULL;
 	struct channel_context *ch_vch = NULL;
+	struct channel_context *ch_pre = NULL;
+	struct channel_context *ch_raw = NULL;
+	struct cam_hw_info *hw = NULL;
 
+	hw = module->grp->hw_info;
 	pframe = (struct cam_frame *)param;
 	ch_cap = &module->channel[CAM_CH_CAP];
 	ch_vch = &module->channel[CAM_CH_DCAM_VCH];
+	ch_pre = &module->channel[CAM_CH_PRE];
+	ch_raw = &module->channel[CAM_CH_RAW];
 
 	if (channel->ch_id == CAM_CH_RAW) {
-		aux_dcam_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
-		ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(aux_dcam_path),
-				CAM_PIPELINE_CFG_BUF, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
+		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE
+			&& ch_raw->ch_uinfo.dst_size.w != ch_cap->ch_uinfo.dst_size.w) {
+			pr_debug("preview icap scene buf config\n");
+			ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_pre, CAM_PIPELINE_CFG_BUF, pframe);
+		} else {
+			aux_dcam_path = module->grp->hw_info->ip_dcam[0]->dcamhw_abt->aux_dcam_path;
+			ret = CAM_PIPEINE_DCAM_OFFLINE_OUT_PORT_CFG(ch_cap, dcamoffline_pathid_convert_to_portid(aux_dcam_path),
+					CAM_PIPELINE_CFG_BUF, pframe, CAM_NODE_TYPE_DCAM_OFFLINE);
+		}
 	} else if (channel->ch_id == CAM_CH_DCAM_VCH) {
 		/* 4in1 normal sensor raw only adopt full path, icap scene sensor raw one in two out, full & vch path */
 		if (module->cam_uinfo.is_4in1) {
@@ -1281,11 +1293,11 @@ static int camcore_link_change(struct camera_module *module, enum camera_raw_sce
 		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
 			/* cam_copy_node */
 			for (i = 0; i < pipeline_graph->node_cnt; i++) {
-				if (pipeline_graph->nodes[i].type == CAM_NODE_TYPE_DATA_COPY)
+				if (pipeline_graph->nodes[i].type == CAM_NODE_TYPE_DCAM_OFFLINE_LSC_RAW)
 					break;
 			}
 			node_graph = &pipeline_graph->nodes[i];
-			port_graph = &node_graph->inport[PORT_COPY_IN];
+			port_graph = &node_graph->inport[PORT_DCAM_OFFLINE_IN];
 		} else {
 			/* dcam_offline_node */
 			for (i = 0; i < pipeline_graph->node_cnt; i++) {
@@ -1309,7 +1321,7 @@ static int camcore_link_change(struct camera_module *module, enum camera_raw_sce
 static int camcore_icap_scene_config(struct camera_module *module, enum cam_en_status flag)
 {
 	int ret = 0;
-	uint32_t fmt = 0, icap_buffer_num = 0;
+	uint32_t fmt = 0, raw_deal_switch = 0;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *ch_cap = NULL;
 	struct channel_context *ch_raw = NULL;
@@ -1321,16 +1333,20 @@ static int camcore_icap_scene_config(struct camera_module *module, enum cam_en_s
 	hw = module->grp->hw_info;
 
 	if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == CAM_DISABLE) {
-		ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_ICAP_SCENE_SWITCH, &icap_buffer_num);
-		if (ret)
-			pr_err("fail to cfg copy node icap scene\n");
+		if (ch_raw->ch_uinfo.dst_size.w != ch_cap->ch_uinfo.dst_size.w) {
+			raw_deal_switch = CAM_ENABLE;
+			if (flag)
+				module->raw_deal_switch = CAM_ENABLE;
+			else
+				module->raw_deal_switch = CAM_DISABLE;
+		}
 	}
 
 	ret = camcore_link_change(module, CAM_SENSOR_RAW, flag);
 	if (ret)
 		pr_err("fail to cfg sesnor raw scene\n");
 
-	if (ch_raw->enable) {
+	if (ch_raw->enable && !raw_deal_switch) {
 		fmt = ch_raw->ch_uinfo.dcam_raw_fmt;
 		ret = camcore_link_change(module, CAM_DCAM_RAW, flag);
 		if (ret)
@@ -1579,6 +1595,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 	uint32_t pipeline_type = 0, pyrdec_support = 0;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *channel_cap = NULL;
+	struct channel_context *channel_vid = NULL;
 	struct channel_context *channel_prev = NULL;
 	struct cam_pipeline_desc *pipeline_desc = NULL;
 	struct pyr_dec_node_desc *pyr_dec_desc = NULL;
@@ -1645,14 +1662,17 @@ static int camcore_pipeline_init(struct camera_module *module,
 			dcam_port_id = dcamoffline_pathid_convert_to_portid(hw->ip_dcam[0]->dcamhw_abt->dcam_raw_path_id);
 
 		channel_cap = &module->channel[CAM_CH_CAP];
+		channel_vid = &module->channel[CAM_CH_VID];
 		module->cam_uinfo.is_raw_alg = 0;
 		module->cam_uinfo.alg_type = 0;
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
-		if (!channel_cap->enable)
+		if (!channel_cap->enable) {
+			if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0 && channel_vid->enable && module->cam_uinfo.need_dcam_raw)
+				goto fail;
 			pr_info("ITS Only open preview pipeline,shoud open raw channel\n");
-		else {
+		} else {
 			if (module->cam_uinfo.need_dcam_raw &&
 				(hw->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR) || module->cam_uinfo.dcam_slice_mode))
 				goto fail;
@@ -1665,14 +1685,18 @@ static int camcore_pipeline_init(struct camera_module *module,
 		goto fail;
 		break;
 	case CAM_CH_DCAM_VCH:
-		dcam_port_id = PORT_VCH2_OUT;
+		channel_vid = &module->channel[CAM_CH_VID];
+		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0 && channel_vid->enable)
+			dcam_port_id = PORT_FULL_OUT;
+		else
+			dcam_port_id = PORT_VCH2_OUT;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
 		cam_scene_onlineraw_ports_enable(module, dcam_port_id);
 		if (module->cam_uinfo.is_4in1) {
 			module->auto_3dnr = channel->uinfo_3dnr = CAM_DISABLE;
 		}
-		if (hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0 || module->cam_uinfo.dcam_slice_mode)
+		if ((hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0 && !channel_vid->enable) || module->cam_uinfo.dcam_slice_mode)
 			goto fail;
 		break;
 	default:
@@ -1732,8 +1756,6 @@ static int camcore_pipeline_init(struct camera_module *module,
 			dcam_fetch_desc->online_node_desc = dcam_online_desc;
 			dcam_fetch_desc->virtualsensor = module->cam_uinfo.virtualsensor;
 			dcam_fetch_desc->fetch_fmt = channel->ch_uinfo.sensor_raw_fmt;
-			if (dcam_fetch_desc->virtualsensor && channel->ch_id == CAM_CH_CAP)
-				dcam_fetch_desc->virtualsensor_cap_en = 1;
 		}
 	}
 
