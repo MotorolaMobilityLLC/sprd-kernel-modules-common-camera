@@ -1077,8 +1077,8 @@ int cam_zoom_channel_size_config(
 			zoom_info.dcam_dst[node_type][PORT_OFFLINE_BIN_OUT].w = channel->dst_dcam.w / ratio;
 			zoom_info.dcam_dst[node_type][PORT_OFFLINE_BIN_OUT].h = channel->dst_dcam.h / ratio;
 		}
-		zoom_info.isp_src_size.w = channel->ch_uinfo.src_size.w / ratio;
-		zoom_info.isp_src_size.h = channel->ch_uinfo.src_size.h / ratio;
+		zoom_info.isp_src_size.w = channel->dst_dcam.w / ratio;
+		zoom_info.isp_src_size.h = channel->dst_dcam.h / ratio;
 		zoom_info.isp_input_crop.start_x = 0;
 		zoom_info.isp_input_crop.start_y = 0;
 		zoom_info.isp_input_crop.size_x = zoom_info.isp_src_size.w;
