@@ -113,4 +113,5 @@ int sprd_sensor_write_muti_i2c(struct sensor_muti_aec_i2c_tag *muti_aec_i2c);
 void sprd_sensor_unregister_driver(void);
 int sprd_sensor_find_dcam_id(int sensor_id);
 int sprd_sensor_vcm_softlanding(int enable);
+struct i2c_client*  get_actuator_i2c_client(void);
 #endif

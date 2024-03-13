@@ -244,6 +244,13 @@ exit:
 	return ret;
 }
 
+struct i2c_client* af_client;
+struct i2c_client*  get_actuator_i2c_client(void)
+{
+     return af_client;
+}
+EXPORT_SYMBOL(get_actuator_i2c_client);
+
 static int sprd_sensor_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -280,6 +287,7 @@ static int sprd_sensor_probe(struct i2c_client *client,
 		pdata->sensor_id = SPRD_SENSOR_MAIN_ID_E;
 		ret = sprd_sensor_config(dev, pdata);
 		s_sensor_dev_data[SPRD_SENSOR_MAIN_ID_E] = pdata;
+		af_client = client ;
 	} else if (of_device_is_compatible(dev->of_node, "sprd,sensor-sub")) {
 		pdata->sensor_id = SPRD_SENSOR_SUB_ID_E;
 		ret = sprd_sensor_config(dev, pdata);
@@ -375,6 +383,7 @@ int sprd_sensor_set_voltage_by_gpio(int sensor_id, unsigned int val, int type)
 exit:
 	return ret;
 }
+EXPORT_SYMBOL(sprd_sensor_set_voltage_by_gpio);
 
 int sprd_sensor_set_voltage(int sensor_id, unsigned int val, int type)
 {
@@ -437,6 +446,7 @@ exit:
 	mutex_unlock(&p_dev->set_voltage_lock);
 	return ret;
 }
+EXPORT_SYMBOL(sprd_sensor_set_voltage);
 
 static int sprd_sensor_remove(struct i2c_client *client)
 {
