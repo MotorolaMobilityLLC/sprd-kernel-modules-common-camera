@@ -1620,6 +1620,13 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
 	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;
+        if (in->prev_type== PIPELINE_CAPTURE_TYPE) {
+               pr_info("dump yuv cap ee port\n");
+               cur_node->outport[PORT_VID_OUT].link_state = PORT_LINK_NORMAL;
+               cur_node->outport[PORT_VID_OUT].depend_type = PORT_SLAVE;
+        } else if (in->prev_type == PIPELINE_VIDEO_TYPE)
+               cur_node->outport[PORT_VID_OUT].depend_type = PORT_MASTER;
+
 	cur_node++;
 	cur_node->id = ISP_NODE_MODE_OFFLINE_CAP_ID;
 	cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
@@ -2333,6 +2340,7 @@ static void camscene_onlineraw2offlinepreview_pipeline_get(struct cam_pipeline_t
 static int camscene_topology_creat(struct cam_pipeline_topology *param, struct cam_scene_topology_input *in)
 {
 	int ret = 0, index = 0;
+
 	struct cam_pipeline_topology_info pipeline[CAM_PIPELINE_TYPE_MAX] = {
 		[CAM_PIPELINE_PREVIEW] = {
 			.name = "CAM_PIPELINE_PREVIEW", .type = CAM_PIPELINE_PREVIEW,
@@ -2436,7 +2444,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 		[CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_BPCRAW2USER2YUV] = {
 			.name = "CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_BPCRAW2USER2YUV",
 			.type = CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_BPCRAW2USER2YUV,
-			.prev_type = PIPELINE_SCENE_TYPE_MAX,
+			.prev_type = PIPELINE_CAPTURE_TYPE,
 			.base_cfg_func = camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get,
 			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
 			.need_isp_offline = 1, .need_frame_cache = 1, .need_pyr_dec = 1, .need_yuv_scaler = 0, .need_copy_node = 0,
@@ -2480,7 +2488,6 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 0, .need_yuv_scaler = 0, .need_copy_node = 0,
 		},
 	};
-
 	index = in->index;
 	param->type = pipeline[index].type;
 	param->name = pipeline[index].name;
