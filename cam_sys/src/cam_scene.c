@@ -2771,8 +2771,8 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	if (module->cam_uinfo.is_4in1)
 		num = 0;
 
-	if (channel->ch_id == CAM_CH_CAP && (grp->is_mul_buf_share && atomic_inc_return(&grp->mul_buf_alloced) > 1))
-		num = 0;
+	//if (channel->ch_id == CAM_CH_CAP && (grp->is_mul_buf_share && atomic_inc_return(&grp->mul_buf_alloced) > 1))
+	//	num = 0;
 
 	if (channel->ch_id == CAM_CH_CAP && ((module->cam_uinfo.param_frame_sync ||
 		module->cam_uinfo.alg_type != ALG_TYPE_CAP_AINR) && module->cam_uinfo.is_raw_alg))
@@ -2782,10 +2782,11 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	if (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR &&
 		module->grp->hw_info->ip_dcam[0]->dcamhw_abt->bpc_raw_support) {
 		num = module->static_topology->pipeline_list[pipeline_type].buf_num;
-		channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
-		channel->zsl_buffer_num = module->cam_uinfo.zsl_num;
 		num = num + channel->zsl_buffer_num + module->cam_uinfo.buf_num;
 	}
+
+	if (channel->ch_id == CAM_CH_CAP && (grp->is_mul_buf_share && atomic_inc_return(&grp->mul_buf_alloced) > 1))
+		num = 0;
 
 	/* extend buffer queue for slow motion */
 	if (channel->ch_uinfo.is_high_fps)
