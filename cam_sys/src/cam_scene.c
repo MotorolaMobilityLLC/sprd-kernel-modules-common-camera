@@ -1507,7 +1507,7 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
-		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NORMAL;
+		param->buf_num = CAM_PIPELINE_BUFFER_NUM_DEC;
 		param->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
@@ -1860,7 +1860,7 @@ static void camscene_onlinezsl_or_bpcraw2user2offlineyuv_pipeline_get(
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
-		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL_DEC;
+		param->buf_num = CAM_PIPELINE_BUFFER_NUM_DEC;
 		param->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
@@ -1876,7 +1876,7 @@ static void camscene_onlinezsl_or_bpcraw2user2offlineyuv_pipeline_get(
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 		};
-		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL;
+		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NORMAL;
 		param->pyr_layer_num = 0;
 		param->node_cnt = sizeof(node_list_type) / sizeof(node_list_type[0]);
 		for (i = 0; i < param->node_cnt; i++, cur_node++)
@@ -2781,6 +2781,9 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 	/* for N6pro auto XDR full path */
 	if (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR &&
 		module->grp->hw_info->ip_dcam[0]->dcamhw_abt->bpc_raw_support) {
+		num = module->static_topology->pipeline_list[pipeline_type].buf_num;
+		channel->zsl_skip_num = module->cam_uinfo.zsk_skip_num;
+		channel->zsl_buffer_num = module->cam_uinfo.zsl_num;
 		num = num + channel->zsl_buffer_num + module->cam_uinfo.buf_num;
 	}
 
