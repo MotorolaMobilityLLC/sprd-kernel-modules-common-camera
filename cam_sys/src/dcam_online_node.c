@@ -230,7 +230,7 @@ static struct cam_frame *dcamonline_frame_prepare(struct dcam_online_node *node,
 	else
 		frame->common.frame_interval_time = frame->common.boot_sensor_time - node->frame_ts_boot[tsid(dev_fid - 1)];
 
-	pr_info("DCAM%u %s: TX DONE, fid %u, %lld\n", hw_ctx->hw_ctx_id,
+	pr_debug("DCAM%u %s: TX DONE, fid %u, %lld\n", hw_ctx->hw_ctx_id,
 		cam_port_name_get(dcam_port->port_id), frame->common.fid, frame->common.frame_interval_time);
 
 	if (!frame->common.boot_sensor_time) {

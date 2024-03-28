@@ -1401,6 +1401,8 @@ static int camcore_vir_channel_config(
 		path_desc.output_size.h = ch_uinfo->vir_channel[1].dst_size.h;
 		path_desc.is_work = 1;
 		ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(channel_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BASE, ISP_NODE_MODE_CAP_ID, &path_desc);
+		if (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR)
+			ret |= CAM_PIPEINE_ISP_OUT_PORT_CFG(channel_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BASE, ISP_NODE_MODE_OFFLINE_CAP_ID, &path_desc);
 		if (ret)
 			pr_err("fail to cfg isp cap base.\n");
 	}
@@ -1663,9 +1665,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 		channel_cap = &module->channel[CAM_CH_CAP];
 		channel_vid = &module->channel[CAM_CH_VID];
-		module->cam_uinfo.is_raw_alg = 0;
-		module->cam_uinfo.alg_type = 0;
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
+		channel->need_dcam_raw = module->cam_uinfo.need_dcam_raw;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
 		if (!channel_cap->enable) {
@@ -2199,6 +2200,7 @@ static void camcore_channel_default_param_set(struct channel_context *channel, u
 	channel->aux_dcam_port_id = -1;
 	channel->ch_uinfo.dcam_raw_fmt = -1;
 	channel->ch_uinfo.sensor_raw_fmt = -1;
+	channel->dump_ee_buf_cnt = 0;
 	channel->blk_pm.idx = DCAM_HW_CONTEXT_MAX;
 	cam_block_dcam_init(&channel->blk_pm);
 	init_completion(&channel->alloc_com);

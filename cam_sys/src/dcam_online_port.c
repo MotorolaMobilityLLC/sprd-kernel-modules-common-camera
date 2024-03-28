@@ -1039,7 +1039,7 @@ static int dcamonline_port_store_set(void *handle, void *param)
 
 	atomic_inc(&dcam_port->set_frm_cnt);
 
-	pr_info("dcam%u, fid %u, count %d, port out_size %d %d, is_reserver %d, channel_id %d, addr %08x, fbc %u\n",
+	pr_debug("dcam%u, fid %u, count %d, port out_size %d %d, is_reserver %d, channel_id %d, addr %08x, fbc %u\n",
 		idx, frame->common.fid, atomic_read(&dcam_port->set_frm_cnt), dcam_port->out_size.w, dcam_port->out_size.h,
 		frame->common.is_reserved, frame->common.channel_id, (uint32_t)frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM], frame->common.is_compressed);
 

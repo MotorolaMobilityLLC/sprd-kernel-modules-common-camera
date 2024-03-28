@@ -1300,7 +1300,9 @@ static int camnode_data_callback(enum cam_cb_type type, void *param, void *priv_
 				pframe->common.replace_en = CAM_ENABLE;
 				pframe->common.replace_node_id = node->node_graph->outport[cur_port_id].replace_node_id;
 			}
-			if (node->node_graph->outport[cur_port_id].copy_en) {
+			if (node->node_graph->outport[cur_port_id].copy_en &&
+				!(node->cap_param.cap_scene == CAPTURE_RAWALG ||
+				node->cap_param.cap_scene == CAPTURE_AINR)) {
 				pframe->common.copy_en = CAM_ENABLE;
 				pframe->common.copy_node_id = node->node_graph->outport[cur_port_id].copy_node_id;
 			}

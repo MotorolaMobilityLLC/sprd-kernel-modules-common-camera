@@ -64,7 +64,7 @@ static struct cam_node *campipeline_linked_node_get(
 		cur_node = pipeline->node_list[i];
 		if (cur_node && cur_node->node_graph->type == link.node_type
 				&& cur_node->node_graph->id == link.node_id) {
-			pr_info("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type, cam_node_name_get(link.node_type),
+			pr_debug("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type, cam_node_name_get(link.node_type),
 				link.node_id);
 			return pipeline->node_list[i];
 		}
@@ -614,7 +614,6 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	pipeline->ops.streamon = campipeline_stream_on;
 	pipeline->ops.streamoff = campipeline_stream_off;
 	pipeline->ops.cfg_shutoff = campipeline_cfg_shutoff;
-	pipeline->debug_log_switch = CAM_ENABLE;
 
 	node_desc.type = pipeline->pipeline_graph->type;
 	node_desc.nodes_dev = param->nodes_dev;

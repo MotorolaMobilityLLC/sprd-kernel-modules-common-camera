@@ -1239,7 +1239,7 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			pframe->common.buf.offset[2], is_reserved_buf,
 			pframe->common.user_fid);
 
-		if (channel_id == CAM_CH_CAP)
+		if (channel_id == CAM_CH_CAP || channel_id == CAM_CH_VIRTUAL)
 			pr_info("ch %d, mfd 0x%x, off 0x%lx 0x%lx 0x%lx, size 0x%x, reserved %d, buffer_cnt %d\n",
 				pframe->common.channel_id, pframe->common.buf.mfd,
 				pframe->common.buf.offset[0],pframe->common.buf.offset[1], pframe->common.buf.offset[2],
@@ -1252,7 +1252,15 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 					ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch_pre, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_PRE_ID, pframe);
 				} else if ((dump_type[i] == DUMP_CH_CAP) && (ch_cap->enable)) {
 					pframe->common.height = ch->ch_uinfo.vir_channel[1].dst_size.h;
-					ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_CAP_ID, pframe);
+					ch_cap->dump_ee_buf_cnt++;
+					if (ch_cap->dump_ee_buf_cnt % 2 != 0) {
+						pr_debug("normal config\n");
+						ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_CAP_ID, pframe);
+					} else {
+						pr_debug("auto XDR config\n");
+						ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(ch_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BUF, ISP_NODE_MODE_OFFLINE_CAP_ID, pframe);
+						ch_cap->dump_ee_buf_cnt = 0;
+					}
 				}
 			} else {
 				node_id = (ch->ch_id == CAM_CH_CAP && ch->isp_port_id != PORT_VID_OUT) ? ISP_NODE_MODE_CAP_ID : ISP_NODE_MODE_PRE_ID;
@@ -1261,8 +1269,8 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 		} else {
 			if ((ch->ch_id == CAM_CH_CAP) && pixel_fmt == IMG_PIX_FMT_GREY)
 				pframe->common.img_fmt = pixel_fmt;
-			if ((module->cam_uinfo.is_raw_alg && channel_id != CAM_CH_DCAM_VCH) ||
-				(module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)) {
+			if ((module->cam_uinfo.is_raw_alg && (channel_id != CAM_CH_DCAM_VCH &&
+				channel_id != CAM_CH_RAW)) || (module->cam_uinfo.alg_type == ALG_TYPE_VID_NR)) {
 				pframe->common.irq_property = CAM_FRAME_ORIGINAL_RAW;
 				if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR) {
 					pframe->common.irq_property = CAM_FRAME_PROCESS_RAW;
@@ -1279,11 +1287,12 @@ static int camioctl_frame_addr_set(struct camera_module *module,
 			} else if (module->offline_icap_scene) {
 				/* for sharkl3 icap scene and bigsize icap scene and 4in1 icap scene*/
 				ret = camcore_icap_buffer_set(module, ch, pframe);
-			} else if (ch->ch_id == CAM_CH_RAW && ch_vid->enable && module->cam_uinfo.need_dcam_raw && 
+			} else if (ch->ch_id == CAM_CH_RAW && ch_vid->enable && ch->need_dcam_raw &&
 				hw->ip_dcam[0]->dcamhw_abt->mul_raw_output_support == 0) {
 				ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_vid, CAM_PIPELINE_CFG_BUF, pframe);
-			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable && module->cam_uinfo.need_dcam_raw &&
-				(module->grp->hw_info->ip_isp->isphw_abt->fetch_raw_support || (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR))){
+			} else if (ch->ch_id == CAM_CH_RAW && ch_cap->enable && ch->need_dcam_raw &&
+				(module->grp->hw_info->ip_isp->isphw_abt->fetch_raw_support ||
+				(module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR))) {
 				if (ch->ch_uinfo.dst_size.w == ch_cap->ch_uinfo.dst_size.w) {
 					pr_debug("cap path copy\n");
 					ret = CAM_PIPEINE_DATA_COPY_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_BUF, pframe);

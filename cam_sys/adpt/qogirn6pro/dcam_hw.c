@@ -674,7 +674,7 @@ static int dcamhw_force_copy(void *handle, void *arg)
 		pr_err("fail to get dev idx 0x%x exceed DCAM_ID_MAX\n", forcpy->idx);
 	}
 
-	pr_info("DCAM%u: force copy 0x%0x, id 0x%x\n", forcpy->idx, mask, forcpy->id);
+	pr_debug("DCAM%u: force copy 0x%0x, id 0x%x\n", forcpy->idx, mask, forcpy->id);
 	if (mask == 0)
 		return -EFAULT;
 
@@ -1335,7 +1335,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		break;
 	}
 
-	pr_info("done path_id %d, fmt %d\n", patharg->path_id, hwfmt);
+	pr_debug("done path_id %d, fmt %d\n", patharg->path_id, hwfmt);
 	return 0;
 }
 
@@ -1451,7 +1451,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	idx = sizearg->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
-	pr_info("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
+	pr_debug("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
 		sizearg->in_size.w, sizearg->in_size.h, sizearg->out_size.w, sizearg->out_size.h,
 		sizearg->in_trim.start_x, sizearg->in_trim.start_y, sizearg->in_trim.size_x, sizearg->in_trim.size_y);
 
@@ -2200,7 +2200,7 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 		if ((param->frame_addr[1] == 0) && (param->out_fmt & CAM_YUV_BASE))
 			param->frame_addr[1] = param->frame_addr[0] + param->out_pitch * param->out_size.h;
 		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_U_ADDR, param->frame_addr[1]);
-		pr_info("store addr %08x, %08x, pitch %d fmt %d\n", param->frame_addr[0], param->frame_addr[1],
+		pr_debug("store addr %08x, %08x, pitch %d fmt %d\n", param->frame_addr[0], param->frame_addr[1],
 			param->out_pitch, param->out_fmt);
 		break;
 	case DCAM_PATH_RAW:

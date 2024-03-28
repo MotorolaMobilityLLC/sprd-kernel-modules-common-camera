@@ -182,7 +182,7 @@ static irqreturn_t dcamintcommon_isr_root(int irq, void *priv)
 		irq_status.status &= (~dcam_hw_ctx->irq_ops.error_bit.all_error);
 	}
 
-	pr_info("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_status.status);
+	pr_debug("DCAM%u status=0x%x\n", dcam_hw_ctx->hw_ctx_id, irq_status.status);
 	if (dcam_hw_ctx->is_offline_proc) {
 		dcam_core_offline_irq_proc(dcam_hw_ctx, &irq_status);
 	} else
@@ -210,7 +210,7 @@ void dcam_int_common_full_port_done(void *param)
 		return;
 	}
 
-	pr_info("dcamint_full_path_done hw_id: %d\n", dcam_hw_ctx->hw_ctx_id);
+	pr_debug("dcamint_full_path_done hw_id: %d\n", dcam_hw_ctx->hw_ctx_id);
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_FULL_OUT;
 	if (!dcam_int_common_dummy_callback(dcam_hw_ctx, &irq_proc))
@@ -227,7 +227,7 @@ void dcam_int_common_bin_port_done(void *param)
 		return;
 	}
 
-	pr_info("bin_path_done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
+	pr_debug("bin_path_done hw id:%d\n", dcam_hw_ctx->hw_ctx_id);
 	dcam_hw_ctx->dec_layer0_done = 1;
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_BIN_OUT;
@@ -245,7 +245,7 @@ void dcam_int_common_vch2_port_done(void *param)
 		return;
 	}
 
-	pr_info("dcamint_vch2_path_done hw_ctx_id = %d\n", dcam_hw_ctx->hw_ctx_id);
+	pr_debug("dcamint_vch2_path_done hw_ctx_id = %d\n", dcam_hw_ctx->hw_ctx_id);
 	irq_proc.of = CAP_DATA_DONE;
 	irq_proc.dcam_port_id = PORT_VCH2_OUT;
 	if (!dcam_int_common_dummy_callback(dcam_hw_ctx, &irq_proc))

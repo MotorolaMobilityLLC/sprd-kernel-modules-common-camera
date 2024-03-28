@@ -183,6 +183,7 @@ struct channel_context {
 	enum cam_en_status enable;
 	uint32_t frm_base_id;
 	uint32_t frm_cnt;
+	uint32_t dump_ee_buf_cnt;
 	atomic_t err_status;
 
 	enum cam_en_status compress_en;
@@ -194,6 +195,7 @@ struct channel_context {
 	int32_t aux_raw_port_id;
 	int32_t isp_port_id;
 	enum cam_en_status need_framecache;
+	enum cam_en_status need_dcam_raw;
 
 	uint32_t zsl_buffer_num;
 	uint32_t zsl_skip_num;

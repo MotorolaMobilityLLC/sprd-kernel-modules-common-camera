@@ -1498,6 +1498,7 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 		uint32_t node_list_type[] = {
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_DATA_COPY,
 			CAM_NODE_TYPE_FRAME_CACHE,
 			CAM_NODE_TYPE_DCAM_OFFLINE,
 			CAM_NODE_TYPE_DUMP,
@@ -1516,6 +1517,7 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 		uint32_t node_list_type[] = {
 			CAM_NODE_TYPE_DCAM_ONLINE,
 			CAM_NODE_TYPE_DUMP,
+			CAM_NODE_TYPE_DATA_COPY,
 			CAM_NODE_TYPE_FRAME_CACHE,
 			CAM_NODE_TYPE_DCAM_OFFLINE,
 			CAM_NODE_TYPE_DUMP,
@@ -1541,6 +1543,8 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 	cur_node->outport[dcam_online_raw_port_id].link.node_type = CAM_NODE_TYPE_FRAME_CACHE;
 	cur_node->outport[dcam_online_raw_port_id].link.node_id = FRAME_CACHE_OFFLINE_CAP_NODE_ID;
 	cur_node->outport[dcam_online_raw_port_id].link.port_id = PORT_FRAME_CACHE_IN;
+	cur_node->outport[dcam_online_raw_port_id].copy_en = 1;
+	cur_node->outport[dcam_online_raw_port_id].copy_node_id = CAM_COPY_NODE_ID_0;
 	cur_node->outport[PORT_FULL_OUT].dump_node_id = CAM_DUMP_NODE_ID_0;
 	cur_node->outport[PORT_FULL_OUT].dynamic_link_en = 1;
 	cur_node->outport[PORT_FULL_OUT].link_state = PORT_LINK_NORMAL;
@@ -1558,6 +1562,8 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 	}
 	cur_node++;
 	cur_node->id = CAM_DUMP_NODE_ID_0;
+	cur_node++;
+	cur_node->id = CAM_COPY_NODE_ID_0;
 	cur_node++;
 	cur_node->id = FRAME_CACHE_OFFLINE_CAP_NODE_ID;
 	cur_node->outport[PORT_FRAME_CACHE_OUT].dynamic_link_en = 1;
@@ -1620,13 +1626,11 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
 	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;
-        if (in->prev_type== PIPELINE_CAPTURE_TYPE) {
-               pr_info("dump yuv cap ee port\n");
-               cur_node->outport[PORT_VID_OUT].link_state = PORT_LINK_NORMAL;
-               cur_node->outport[PORT_VID_OUT].depend_type = PORT_SLAVE;
-        } else if (in->prev_type == PIPELINE_VIDEO_TYPE)
-               cur_node->outport[PORT_VID_OUT].depend_type = PORT_MASTER;
-
+	if (in->prev_type== PIPELINE_CAPTURE_TYPE) {
+		cur_node->outport[PORT_VID_OUT].link_state = PORT_LINK_NORMAL;
+		cur_node->outport[PORT_VID_OUT].depend_type = PORT_SLAVE;
+	} else if (in->prev_type == PIPELINE_VIDEO_TYPE)
+		cur_node->outport[PORT_VID_OUT].depend_type = PORT_MASTER;
 	cur_node++;
 	cur_node->id = ISP_NODE_MODE_OFFLINE_CAP_ID;
 	cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
@@ -1642,6 +1646,11 @@ static void camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get(
 	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
 	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
 	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;
+	if (in->prev_type== PIPELINE_CAPTURE_TYPE) {
+		cur_node->outport[PORT_VID_OUT].link_state = PORT_LINK_NORMAL;
+		cur_node->outport[PORT_VID_OUT].depend_type = PORT_SLAVE;
+	} else if (in->prev_type == PIPELINE_VIDEO_TYPE)
+		cur_node->outport[PORT_VID_OUT].depend_type = PORT_MASTER;
 }
 
 /* zsl cap & auto raw mfnr */
@@ -2447,7 +2456,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.prev_type = PIPELINE_CAPTURE_TYPE,
 			.base_cfg_func = camscene_online_normal_or_bpcraw2user2offlineyuv_pipeline_get,
 			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 0, .need_dcam_offline_lsc = 0,
-			.need_isp_offline = 1, .need_frame_cache = 1, .need_pyr_dec = 1, .need_yuv_scaler = 0, .need_copy_node = 0,
+			.need_isp_offline = 1, .need_frame_cache = 1, .need_pyr_dec = 1, .need_yuv_scaler = 0, .need_copy_node = 1,
 		},
 		[CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2BPC2USER2YUV] = {
 			.name = "CAM_PIPELINE_ONLINE_NORMALZSLCAPTURE_OR_RAW2USER2BPC2USER2YUV",
@@ -2770,9 +2779,6 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 
 	if (module->cam_uinfo.is_4in1)
 		num = 0;
-
-	//if (channel->ch_id == CAM_CH_CAP && (grp->is_mul_buf_share && atomic_inc_return(&grp->mul_buf_alloced) > 1))
-	//	num = 0;
 
 	if (channel->ch_id == CAM_CH_CAP && ((module->cam_uinfo.param_frame_sync ||
 		module->cam_uinfo.alg_type != ALG_TYPE_CAP_AINR) && module->cam_uinfo.is_raw_alg))
@@ -3268,7 +3274,8 @@ int cam_scene_camcopy_desc_get(void *module_ptr, struct cam_copy_node_desc *cam_
 	}
 	module = (struct camera_module *)module_ptr;
 
-	if (pipeline_type == CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV)
+	if (pipeline_type == CAM_PIPELINE_ONLINEBPCRAW_2_USER_2_OFFLINEYUV ||
+		pipeline_type == CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_BPCRAW2USER2YUV)
 		cam_copy_desc->copy_mode = CAM_COPY_FRAME_IN_DSTBUF;
 	else
 		cam_copy_desc->copy_mode = CAM_COPY_FRAME_IN_SRCBUF;
