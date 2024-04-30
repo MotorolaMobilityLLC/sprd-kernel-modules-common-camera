@@ -286,17 +286,29 @@ static int sprd_flash_ic_cfg_value_torch(void *drvd, uint8_t idx,
 static int sprd_flash_ic_cfg_value_preflash(void *drvd, uint8_t idx,
 					  struct sprd_flash_element *element)
 {
+	int code[10] = {4,12,20,27,35,43,51,58,66,74};
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
 	if (!drv_data)
 		return -EFAULT;
 
 	if (drv_data->i2c_info) {
 
+		//pre_current = ((element->index+1)*3-1)*3.9;
+		//code = (pre_current - 0.75)/1.51;
 		printk("%s:%d led:%d level = %d\n", __func__, __LINE__, idx, element->index);
+		if(element->index < 10) {
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x05, code[element->index]);
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x06, code[element->index]);
+		}else {
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x05, 74);
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x06, 74);
+		}
 
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x05,((element->index * 24 / 9)<0x18)?(element->index * 24 / 9):0x18);
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x05, code);
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x06, code);
 
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x06,((element->index * 24 / 9)<0x18)?(element->index * 24 / 9):0x18);
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x05,((element->index * 24 / 9)<0x18)?(element->index * 24 / 9):0x18);
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x06,((element->index * 24 / 9)<0x18)?(element->index * 24 / 9):0x18);
 	}
 
 	return 0;
@@ -305,6 +317,7 @@ static int sprd_flash_ic_cfg_value_preflash(void *drvd, uint8_t idx,
 static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 					   struct sprd_flash_element *element)
 {
+	int code[10] = {7,18,28,39,50,60,71,82,92,103};
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
 
 	if (!drv_data)
@@ -312,11 +325,19 @@ static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 
 	if (drv_data->i2c_info) {
 
-		printk("%s:%d led:%d level = %d\n", __func__, __LINE__, idx, element->index);
+		//main_current = ((element->index+1)*4-1)*15.63;
+		//code = (main_current - 2.94)/5.87;
+		printk("%s:%d led:%d level = %d,code:%d\n", __func__, __LINE__, idx, element->index, code);
+		if(element->index < 10) {
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x03, code[element->index]);
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x04, code[element->index]);
+		}else {
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x03, 103);
+			flash_ic_driver_reg_write(drv_data->i2c_info, 0x04, 103);
+		}
 
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x03,((element->index * 102 / 9)<0x66)?(element->index * 102 / 9):0x66); //102*5.87+2.94=601.68
-
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x04,((element->index * 102 / 9)<0x66)?(element->index * 102 / 9):0x66);
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x03,((element->index * 102 / 9)<0x66)?(element->index * 102 / 9):0x66); //102*5.87+2.94=601.68
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x04,((element->index * 102 / 9)<0x66)?(element->index * 102 / 9):0x66);
 	}
 
 	return 0;
