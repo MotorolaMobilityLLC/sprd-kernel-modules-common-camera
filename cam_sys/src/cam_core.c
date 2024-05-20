@@ -1802,7 +1802,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 		cam_scene_camcopy_desc_get(module, cam_copy_desc, pipeline_type);
 	}
 
-	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {
+	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV || (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV)) && !channel_prev->enable) {
 		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
 		dcam_offline_desc->offline_pre_en = CAM_ENABLE;
 		isp_node_description->ch_id = CAM_CH_PRE;

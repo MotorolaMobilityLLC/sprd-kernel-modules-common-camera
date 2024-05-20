@@ -239,7 +239,7 @@ static int camioctl_statis_buf_set(struct camera_module *module,
 				pr_err("fail to config isp STATIS, statis_buf.type %d\n", statis_buf.type);
 		} else {
 			pr_debug("prev channel disable, can not set buf %d, %d\n", ch_cap->enable, module->cam_uinfo.dcam_slice_mode);
-			if (ch_cap->enable && module->cam_uinfo.dcam_slice_mode)
+			if (ch_cap->enable && (module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1))
 				ret = CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(ch_cap, CAM_PIPELINE_CFG_STATIS_BUF, ISP_NODE_MODE_PRE_ID, &statis_buf);
 		}
 	}
@@ -427,7 +427,7 @@ static int camioctl_param_cfg(struct camera_module *module, unsigned long arg)
 		if (blk_type.sub_block == ISP_BLOCK_RGB_GTM)
 			param.sub_block = ISP_BLOCK_RGB_GTM;
 		ret = CAM_PIPEINE_ISP_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, node_id, &param);
-		if (blk_type.sub_block == ISP_BLOCK_RGB_LTM && module->cam_uinfo.dcam_slice_mode &&
+		if (blk_type.sub_block == ISP_BLOCK_RGB_LTM && (module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1) &&
 			blk_type.property == ISP_PRO_RGB_LTM_BLOCK) {
 			node_id = ISP_NODE_MODE_PRE_ID;
 			ret = CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(channel, CAM_PIPELINE_CFG_BLK_PARAM, node_id, &param);
@@ -2936,7 +2936,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 				channel = &module->channel[CAM_CH_CAP];
 				if (channel->enable == 0)
 					return 0;
-				if (module->cam_uinfo.dcam_slice_mode)
+				if (module->cam_uinfo.dcam_slice_mode || module->cam_uinfo.is_4in1)
 					CAM_PIPELINE_NONZSL_ISP_PRE_NODE_CFG(channel, CAM_PIPELINE_CFG_PARAM_SWITCH, ISP_NODE_MODE_PRE_ID, &cfg_param);
 				node_id = ISP_NODE_MODE_CAP_ID;
 				if (param.scene_id == PM_SCENE_OFFLINE_CAP &&

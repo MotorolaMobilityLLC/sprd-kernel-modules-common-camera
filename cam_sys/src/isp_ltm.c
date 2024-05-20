@@ -268,7 +268,7 @@ static int ispltm_histo_param_calc(struct isp_ltm_ctx_desc *ctx, ltm_param_t *pa
 	cropRight = cropCols >> 1;
 
 	clipLimit_min = (tile_width * tile_height) >> BIN_NUM_BIT;
-	clipLimit = clipLimit_min + ((clipLimit_min * strength) >> 3);
+	clipLimit = (clipLimit_min * strength) >> BIN_NUM_BIT;
 
 	/* update patameters */
 	param_histo->cropUp = cropUp;
@@ -372,8 +372,16 @@ static int ispltm_histo_config_gen(struct isp_ltm_ctx_desc *ctx, struct isp_ltm_
 	ltm_hist_frame->common.height = param->frame_height;
 	ltm_hist_frame->common.fid = ctx->fid;
 
-	hists->clip_limit = tuning->clip_limit;
-	hists->clip_limit_min = tuning->clip_limit_min;
+
+	if (tuning->clip_limit == 0 && tuning->clip_limit_min == 0) {
+		pr_info("debug_eagle");
+		hists->clip_limit = param->clipLimit;
+		hists->clip_limit_min = param->clipLimit_min;
+	} else {
+		hists->clip_limit = tuning->clip_limit;
+		hists->clip_limit_min = tuning->clip_limit_min;
+	}
+
 	hists->texture_proportion = param->text_proportion;
 	hists->text_point_thres = param->text_point_thres;
 	hists->addr = ltm_hist_frame->common.buf.iova[0];
