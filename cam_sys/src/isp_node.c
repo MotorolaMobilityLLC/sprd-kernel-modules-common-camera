@@ -609,7 +609,7 @@ static int ispnode_rec_frame_process(struct isp_node *inode, struct isp_hw_conte
 		return -EINVAL;
 	}
 
-	if (!inode->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support)
+	if (!inode->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support || inode->dev->sec_mode != SEC_UNABLE)
 		return 0;
 
 	pipe_info = &pctx_hw->pipe_info;
@@ -885,6 +885,13 @@ static int ispnode_start_proc(void *node)
 	hw = dev->isp_hw;
 	slice_need = ispnode_slice_needed(inode);
 
+	ret = wait_for_completion_timeout(&inode->frm_done, ISP_CONTEXT_TIMEOUT);
+	if (ret == 0) {
+		pr_err("fail to wait isp node %d, timeout.\n", inode->node_id);
+		ret = -EFAULT;
+		goto exit;
+	}
+
 	do {
 		pctx_hw = (struct isp_hw_context *)dev->isp_ops->bind(inode, slice_need, ispnode_postproc_irq);
 		if (!pctx_hw) {
@@ -898,6 +905,7 @@ static int ispnode_start_proc(void *node)
 		pr_err("fail to get pctx_hw\n");
 		return -EFAULT;
 	}
+
 	/*TBD: other hw info need to check*/
 	memset(&pctx_hw->pipe_info, 0, sizeof(struct isp_pipe_info));
 	port_cfg.valid_out_frame = 0;
@@ -905,6 +913,7 @@ static int ispnode_start_proc(void *node)
 	memcpy(&inode->pipe_src, &inode->uinfo, sizeof(inode->uinfo));
 	ret = ispnode_port_param_cfg(inode, pctx_hw, &port_cfg);
 	if (ret || !port_cfg.valid_out_frame) {
+		complete(&inode->frm_done);
 		pr_info("No available output buffer cam%d, node_id %d, cfg_id %d, hw %d, valid_out_frame %d, fid %d\n",
 			inode->attach_cam_id, pctx_hw->node_id, inode->cfg_id, pctx_hw->hw_ctx_id, port_cfg.valid_out_frame,
 			port_cfg.src_frame->common.fid);
@@ -965,12 +974,7 @@ static int ispnode_start_proc(void *node)
 				pr_err("fail to set fmcu slw queue\n");
 		}
 	}
-	ret = wait_for_completion_timeout(&inode->frm_done, ISP_CONTEXT_TIMEOUT);
-	if (ret == 0) {
-		pr_err("fail to wait isp node %d, timeout.\n", inode->node_id);
-		ret = -EFAULT;
-		goto exit;
-	}
+
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &inode->port_queue.head, list) {
 		if (port->type == PORT_TRANSFER_IN && atomic_read(&port->user_cnt) > 0) {
 			result_queue_cnt = cam_buf_manager_pool_cnt(&port->fetch_result_pool, inode->buf_manager_handle);
@@ -1851,7 +1855,8 @@ void *isp_node_get(uint32_t node_id, struct isp_node_desc *param)
 	uinfo->mode_3dnr = param->mode_3dnr;
 	node->nr3_blend_cnt = 0;
 
-	if (node->rec_handle == NULL && node->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support) {
+	if (node->rec_handle == NULL && node->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support &&
+		node->dev->sec_mode == SEC_UNABLE) {
 		node->rec_handle = isp_pyr_rec_ctx_get(node->cfg_id, node->dev, node->buf_manager_handle);
 		if (!node->rec_handle) {
 			pr_err("fail to get memory for rec_ctx.\n");
@@ -1930,7 +1935,8 @@ alloc_error:
 	} while (loop-- > 0);
 	camthread_stop(&node->thread);
 proc_thread_err:
-	if (node->rec_handle && node->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support) {
+	if (node->rec_handle && node->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support &&
+		node->dev->sec_mode == SEC_UNABLE) {
 		isp_pyr_rec_ctx_put(node->rec_handle, node->buf_manager_handle);
 		node->rec_handle = NULL;
 	}
@@ -1983,7 +1989,8 @@ void isp_node_put(struct isp_node *node)
 			isp_3dnr_ctx_put(node->nr3_handle);
 			node->nr3_handle = NULL;
 		}
-		if (node->rec_handle && node->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support) {
+		if (node->rec_handle && node->dev->isp_hw->ip_isp->isphw_abt->pyr_rec_support &&
+			node->dev->sec_mode == SEC_UNABLE) {
 			isp_pyr_rec_ctx_put(node->rec_handle, node->buf_manager_handle);
 			node->rec_handle = NULL;
 		}

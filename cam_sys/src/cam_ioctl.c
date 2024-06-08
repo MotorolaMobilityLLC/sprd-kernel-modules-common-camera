@@ -481,12 +481,14 @@ static int camioctl_function_mode_set(struct camera_module *module,
 	}
 	module->cam_uinfo.is_rgb_ltm = hw->ip_isp->isphw_abt->rgb_ltm_support;
 	module->cam_uinfo.is_rgb_gtm = hw->ip_isp->isphw_abt->rgb_gtm_support;
-	if (g_pyr_dec_offline_bypass || module->channel[CAM_CH_CAP].ch_uinfo.is_high_fps)
+	if (g_pyr_dec_offline_bypass || module->channel[CAM_CH_CAP].ch_uinfo.is_high_fps ||
+		(module->grp->camsec_cfg.camsec_mode != SEC_UNABLE))
 		module->cam_uinfo.is_pyr_dec = 0;
 	else
 		module->cam_uinfo.is_pyr_dec = hw->ip_isp->isphw_abt->pyr_dec_support;
 
-	if (g_pyr_dec_online_bypass || (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV))
+	if (g_pyr_dec_online_bypass || (module->cam_uinfo.sensor_if.img_fmt == DCAM_CAP_MODE_YUV) ||
+		(module->grp->camsec_cfg.camsec_mode != SEC_UNABLE))
 		module->cam_uinfo.is_pyr_rec = 0;
 	else
 		module->cam_uinfo.is_pyr_rec = hw->ip_dcam[0]->dcamhw_abt->pyramid_support;
@@ -563,23 +565,24 @@ static int camioctl_cam_security_set(struct camera_module *module,
 	}  else {
 		if (!module->grp->ca_conn) {
 			ca_conn = cam_trusty_connect();
-			if (!ca_conn) {
+			if (ca_conn) {
 				pr_err("fail to init cam_trusty_connect\n");
 				ret = -EINVAL;
 				goto exit;
 			}
-			module->grp->ca_conn = ca_conn;
+			module->grp->ca_conn = !ca_conn;
+			pr_info("ca_conn %d",module->grp->ca_conn);
 		}
 
 		sec_ret = cam_trusty_security_set(&uparam, CAM_TRUSTY_ENTER);
-		if (!sec_ret) {
+		if (sec_ret) {
 			ret = -EINVAL;
 			pr_err("fail to init cam security set\n");
 			goto exit;
 		}
 
 		module->isp_dev_handle->isp_ops->ioctl(module->isp_dev_handle,
-			ISP_IOCTL_CFG_SEC, &module->grp->camsec_cfg.camsec_mode);
+			ISP_IOCTL_CFG_SEC, &uparam.camsec_mode);
 
 		vaor_bp_en = CAM_ENABLE;
 	}
@@ -1841,6 +1844,7 @@ static int camioctl_capture_start(struct camera_module *module, unsigned long ar
 	struct channel_context *ch_pre = NULL;
 	struct cam_capture_param cap_param = {0};
 	struct cam_pipeline_shutoff_param pipeline_shutoff = {0};
+	struct dcam_hw_path_ctrl pathctl = {0};
 
 	ret = copy_from_user(&param, (void __user *)arg,
 			sizeof(struct sprd_img_capture_param));
@@ -1864,7 +1868,8 @@ static int camioctl_capture_start(struct camera_module *module, unsigned long ar
 		goto exit;
 	if (module->opt_frame_fid && module->cam_uinfo.zsl_num) {
 		cap_param.cap_opt_frame_scene = 1;
-		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME, FRAME_CACHE_CAP_NODE_ID, &module->opt_frame_fid);
+		CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_GET_CAP_FRAME,
+			FRAME_CACHE_CAP_NODE_ID, &module->opt_frame_fid);
 	}
 	if(ch) {
 		mutex_lock(&module->buf_lock[ch->ch_id]);
@@ -1886,7 +1891,6 @@ static int camioctl_capture_start(struct camera_module *module, unsigned long ar
 
 	atomic_set(&module->cap_skip_frames, -1);
 
-	/* for L6 auto XDR do yuv cap*/
 	if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR &&
 		module->cap_scene != CAPTURE_RAWALG &&
 		module->grp->hw_info->ip_dcam[0]->dcamhw_abt->bpc_raw_support == CAM_DISABLE)
@@ -1923,7 +1927,8 @@ static int camioctl_capture_start(struct camera_module *module, unsigned long ar
 		atomic_set(&module->capture_frames_dcam, CAP_NUM_COMMON);
 		if (ch->need_framecache && cap_param.cap_opt_frame_scene == 0 &&
 			param.frm_sel_mode != CAM_NODE_FRAME_NO_SEL)
-			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF, FRAME_CACHE_CAP_NODE_ID, NULL);
+			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF,
+				FRAME_CACHE_CAP_NODE_ID, NULL);
 		break;
 	case DCAM_CAPTURE_START_3DNR:
 		module->capture_type = CAM_CAPTURE_START_3DNR;
@@ -1945,6 +1950,7 @@ static int camioctl_capture_start(struct camera_module *module, unsigned long ar
 	cap_param.cap_cnt = module->capture_frames_dcam;
 	cap_param.cap_timestamp = module->capture_times;
 	cap_param.cap_scene = module->cap_scene;
+	cap_param.alg_type = module->cam_uinfo.alg_type;
 	cap_param.cap_user_crop = ch->latest_user_crop;
 	cap_param.skip_first_num = param.skip_first_num;
 	cap_param.zsl_num = param.zsl_num;
@@ -1961,10 +1967,15 @@ static int camioctl_capture_start(struct camera_module *module, unsigned long ar
 	} else
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
-	if (module->cap_scene == CAPTURE_RAWALG && module->cam_uinfo.raw_zsl_num != 0) {
-		node_id = FRAME_CACHE_CAP_NODE_ID;
-		if (cam_pipeline_have_node_id(ch->pipeline_handle, CAM_NODE_TYPE_FRAME_CACHE, FRAME_CACHE_OFFLINE_CAP_NODE_ID))
-			node_id = FRAME_CACHE_OFFLINE_CAP_NODE_ID;
+	if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR) {
+		cap_param.ori_raw_sel = BPC_RAW_SRC_SEL;
+		node_id = FRAME_CACHE_OFFLINE_CAP_NODE_ID;
+		if (cap_param.cap_scene == CAPTURE_AINR) {
+			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CLR_CACHE_BUF, node_id, NULL);
+			pr_debug("Ai_sfnr cap need clr cache frame\n");
+			pathctl.raw_sel = cap_param.switch_raw_sel = ORI_RAW_SRC_SEL;
+			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_PORT_RAW_SEL, &pathctl);
+		}
 		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, node_id, &cap_param);
 	}
 
@@ -1987,10 +1998,11 @@ exit:
 static int camioctl_capture_stop(struct camera_module *module,
 		unsigned long arg)
 {
-	int ret = 0;
+	int ret = 0, need_cfg_shutoff = 0;
 	struct cam_hw_info *hw = NULL;
 	struct channel_context *ch = NULL;
 	struct cam_capture_param cap_param = {0};
+	struct cam_pipeline_shutoff_param pipeline_shutoff = {0};
 	struct channel_context *ch_pre = NULL;
 
 	if (module->capture_type == CAM_CAPTURE_STOP) {
@@ -2031,17 +2043,16 @@ static int camioctl_capture_stop(struct camera_module *module,
 	else
 		ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM, &cap_param);
 
-	if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR && module->cam_uinfo.raw_zsl_num != 0) {
-		if (cam_pipeline_have_node_id(ch->pipeline_handle,
-			CAM_NODE_TYPE_FRAME_CACHE, FRAME_CACHE_OFFLINE_CAP_NODE_ID))
-			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM,
-				FRAME_CACHE_OFFLINE_CAP_NODE_ID, &cap_param);
-		else
-			ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM,
-				FRAME_CACHE_CAP_NODE_ID, &cap_param);
+	if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR) {
+		ret = CAM_PIPEINE_FRAME_CACHE_NODE_CFG(ch, CAM_PIPELINE_CFG_CAP_PARAM,
+			FRAME_CACHE_OFFLINE_CAP_NODE_ID, &cap_param);
 
 		if (module->cam_uinfo.virtualsensor)
 			ret = CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(ch, CAM_PIPELINE_CFG_REG_MIPICAP_RESET, &cap_param);
+
+		need_cfg_shutoff = camcore_shutoff_param_prepare(module, &pipeline_shutoff);
+		if (need_cfg_shutoff)
+			CAM_PIPEINE_SHUTOFF_PARAM_CFG(ch, pipeline_shutoff);
 	}
 
 	ch_pre = &module->channel[CAM_CH_PRE];
@@ -2873,7 +2884,7 @@ static int camioctl_960fps_param_set(struct camera_module *module, unsigned long
 static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned long arg)
 {
 	int ret = 0;
-	uint32_t for_capture = 0, node_id = 0;
+	uint32_t for_capture = 0, camsec_mode = 0, node_id = 0;
 	struct sprd_cfg_param_status param = {0};
 	struct channel_context *channel = NULL;
 	struct cam_pipeline_cfg_param pipe_param = {0};
@@ -2896,6 +2907,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 	cfg_param.scene_id = param.scene_id;
 	cfg_param.update = param.update;
 	cfg_param.dcam_ctx_bind_state = module->dcam_ctx_bind_state;
+	camsec_mode = module->grp->camsec_cfg.camsec_mode;
 
 	if (for_capture && (module->channel[CAM_CH_CAP].enable == 0)) {
 		pr_warn("warn: cam%d cap channel not enable\n");
@@ -2905,7 +2917,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 	pr_debug("cam%d status %d, fid %d, scene %d, update %d\n", module->idx, param.status, param.frame_id,
 		param.scene_id, param.update);
 	if (param.status == 0) {
-		if (module->isp_dev_handle->cfg_handle) {
+		if (module->isp_dev_handle->cfg_handle || camsec_mode != SEC_UNABLE) {
 			if (param.scene_id == PM_SCENE_PRE || param.scene_id == PM_SCENE_VID) {
 				channel = &module->channel[CAM_CH_PRE];
 				if (channel->enable == 0)
@@ -2926,7 +2938,7 @@ static int camioctl_cfg_param_start_end(struct camera_module *module, unsigned l
 	}
 
 	if (param.status) {
-		if (module->isp_dev_handle->cfg_handle) {
+		if (module->isp_dev_handle->cfg_handle || camsec_mode != SEC_UNABLE) {
 			if (param.scene_id == PM_SCENE_PRE || param.scene_id == PM_SCENE_VID) {
 				channel = &module->channel[CAM_CH_PRE];
 				if (channel->enable == 0)

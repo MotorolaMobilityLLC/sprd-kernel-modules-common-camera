@@ -134,6 +134,8 @@ struct dcam_online_node {
 	void *shutoff_cfg_cb_handle;
 };
 
+int dcam_online_set_raw_sel(void *handle, void *param);
+int dcam_online_update_frame_raw_sel(void *handle, uint32_t port_id, uint32_t raw_sel);
 int dcam_online_node_set_shutoff(void *handle, void *param, uint32_t port_id);
 int dcam_online_node_irq_proc(void *param, void *handle);
 int dcam_online_node_pmctx_init(struct dcam_online_node *node);

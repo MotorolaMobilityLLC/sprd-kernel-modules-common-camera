@@ -152,6 +152,8 @@ static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_d
 			} else {
 				node_param.param = pframe;
 				node_param.port_id = pframe->common.link_to.port_id;
+				pr_debug("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type,
+					cam_node_name_get(link_node->node_graph->type), link_node->node_graph->id);
 				ret = link_node->ops.request_proc(link_node, &node_param);
 			}
 			if (ret) {
@@ -335,6 +337,9 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		break;
 	case CAM_PIPELINE_CFG_REG_MIPICAP_RESET:
 		node_cmd = CAM_NODE_CFG_REG_MIPICAP_RESET;
+		break;
+	case CAM_PIPELINE_CFG_PORT_RAW_SEL:
+		node_cmd = CAM_NODE_CFG_PORT_RAW_SEL;
 		break;
 	default:
 		pr_err("fail to support cfg cmd %d\n", cmd);

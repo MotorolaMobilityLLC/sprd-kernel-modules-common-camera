@@ -1313,7 +1313,7 @@ static void camscene_online_normal_or_raw2user2yuv_pipeline_get(struct cam_pipel
 static void camscene_online_normal_or_raw2user2bpc2user2yuv_pipeline_get(
 	struct cam_pipeline_topology *param, void *input)
 {
-	int i = 0;
+	int i = 0, outport_type = 0;
 	uint32_t dcam_offline_port_id = 0, dcam_online_raw_port_id = 0, dcam_offline_bpcraw_port_id = 0;
 	uint32_t pyrdec_support = 0, path_id = 0, raw_path_id = 0;
 	struct cam_scene_topology_input *in = NULL;
@@ -1337,6 +1337,7 @@ static void camscene_online_normal_or_raw2user2bpc2user2yuv_pipeline_get(
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
+			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
 		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL_DEC;
 		param->pyr_layer_num = ISP_PYR_DEC_LAYER_NUM;
@@ -1353,6 +1354,7 @@ static void camscene_online_normal_or_raw2user2bpc2user2yuv_pipeline_get(
 			CAM_NODE_TYPE_DUMP,
 			CAM_NODE_TYPE_ISP_OFFLINE,
 			CAM_NODE_TYPE_ISP_OFFLINE,
+			CAM_NODE_TYPE_ISP_YUV_SCALER,
 		};
 		param->buf_num = CAM_PIPELINE_BUFFER_NUM_NONZSL;
 		param->pyr_layer_num = 0;
@@ -1460,8 +1462,9 @@ static void camscene_online_normal_or_raw2user2bpc2user2yuv_pipeline_get(
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = PORT_FULL_OUT;
 	}
 	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
-	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
-	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;
+	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_ISP_YUV_SCALER;
+	cur_node->outport[PORT_CAP_OUT].link.node_id = ISP_YUV_SCALER_CAP_NODE_ID;
+	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_CAP_ISP_YUV_SCALER_IN;
 	cur_node++;
 	cur_node->id = ISP_NODE_MODE_OFFLINE_CAP_ID;
 	cur_node->inport[PORT_ISP_OFFLINE_IN].link_state = PORT_LINK_NORMAL;
@@ -1475,8 +1478,20 @@ static void camscene_online_normal_or_raw2user2bpc2user2yuv_pipeline_get(
 		cur_node->inport[PORT_ISP_OFFLINE_IN].link.port_id = dcam_offline_port_id;
 	}
 	cur_node->outport[PORT_CAP_OUT].link_state = PORT_LINK_NORMAL;
-	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_USER;
-	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_USER_IN;
+	cur_node->outport[PORT_CAP_OUT].link.node_type = CAM_NODE_TYPE_ISP_YUV_SCALER;
+	cur_node->outport[PORT_CAP_OUT].link.node_id = ISP_YUV_SCALER_CAP_NODE_ID;
+	cur_node->outport[PORT_CAP_OUT].link.port_id = PORT_CAP_ISP_YUV_SCALER_IN;
+
+	cur_node++;
+	cur_node->id = ISP_YUV_SCALER_CAP_NODE_ID;
+	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link_state = PORT_LINK_NORMAL;
+	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.node_type = CAM_NODE_TYPE_ISP_OFFLINE;
+	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.node_id = ISP_NODE_MODE_CAP_ID;
+	cur_node->inport[PORT_CAP_ISP_YUV_SCALER_IN].link.port_id = outport_type;
+	outport_type = camscene_outport_type_get(PIPELINE_CAPTURE_TYPE, ISP_SCALER_OUT);
+	cur_node->outport[outport_type].link_state = PORT_LINK_NORMAL;
+	cur_node->outport[outport_type].link.node_type = CAM_NODE_TYPE_USER;
+	cur_node->outport[outport_type].link.port_id = PORT_USER_IN;
 }
 
 /* auto XDR */
@@ -2448,7 +2463,7 @@ static int camscene_topology_creat(struct cam_pipeline_topology *param, struct c
 			.prev_type = PIPELINE_SCENE_TYPE_MAX,
 			.base_cfg_func = camscene_online_normal_or_raw2user2bpc2user2yuv_pipeline_get,
 			.need_dcam_online = 1, .need_dcam_offline = 1, .need_dcam_offline_bpc = 1, .need_dcam_offline_lsc = 0,
-			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 0, .need_copy_node = 0,
+			.need_isp_offline = 1, .need_frame_cache = 0, .need_pyr_dec = 1, .need_yuv_scaler = 1, .need_copy_node = 0,
 		},
 		[CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_BPCRAW2USER2YUV] = {
 			.name = "CAM_PIPELINE_ONLINE_NORMAL2YUV_OR_BPCRAW2USER2YUV",
@@ -2791,7 +2806,8 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 		num = num + channel->zsl_buffer_num + module->cam_uinfo.buf_num;
 	}
 
-	if (channel->ch_id == CAM_CH_CAP && (grp->is_mul_buf_share && atomic_inc_return(&grp->mul_buf_alloced) > 1))
+	if (channel->ch_id == CAM_CH_CAP && (grp->is_mul_buf_share &&
+		atomic_inc_return(&grp->mul_buf_alloced) > 1))
 		num = 0;
 
 	/* extend buffer queue for slow motion */

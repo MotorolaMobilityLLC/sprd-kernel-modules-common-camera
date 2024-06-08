@@ -200,6 +200,8 @@ struct cam_port_shutoff_ctrl {
 	uint32_t port_id;
 	enum shutoff_scene shutoff_scene;
 	enum shutoff_type shutoff_type;
+	enum cam_en_status raw_switch_en;
+	enum raw_switch_type raw_switch_type;
 };
 
 struct cam_port_topology {

@@ -2952,6 +2952,39 @@ static int dcamhw_reset_mipicap_fetch(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_raw_path_src_sel(void *handle, void *arg)
+{
+	int ret = 0;
+	struct dcam_hw_path_ctrl *pathctl = NULL;
+
+	pathctl = (struct dcam_hw_path_ctrl *)arg;
+	switch (pathctl->raw_sel) {
+	case ORI_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 1 << 13);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 3 << 4);
+		break;
+	case LSC_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 1<< 4);
+		break;
+	case BPC_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 2 << 4);
+		break;
+	case PROCESS_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 0);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 0 << 4);
+		break;
+	default:
+		pr_err("fail to support src_sel %d\n", pathctl->raw_sel);
+		ret = -EINVAL;
+		break;
+	}
+	pr_debug("DCAM%d: raw path sel %d set done\n", pathctl->idx, pathctl->raw_sel);
+
+	return ret;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -3008,6 +3041,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_SLICE_IMBLANCE_SET,    dcamhw_slice_imblance_set},
 	{DCAM_HW_CFG_NONZSL_BLOCK_PARAM,    dcamhw_block_param_config},
 	{DCAM_HW_CFG_MIPI_CAP_FETCH_RESET,  dcamhw_reset_mipicap_fetch},
+	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_raw_path_src_sel},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

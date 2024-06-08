@@ -290,7 +290,6 @@ static int sprd_flash_ic_cfg_value_preflash(void *drvd, uint8_t idx,
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
 	if (!drv_data)
 		return -EFAULT;
-
 	if (drv_data->i2c_info) {
 
 		//pre_current = ((element->index+1)*3-1)*3.9;
@@ -345,6 +344,7 @@ static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 
 static const struct of_device_id sprd_flash_ic_of_match_table[] = {
 	{.compatible = "sprd,flash-aw36514"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct i2c_device_id sprd_flash_ic_ids[] = {

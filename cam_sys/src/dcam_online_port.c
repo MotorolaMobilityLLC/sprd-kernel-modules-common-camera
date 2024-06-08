@@ -516,6 +516,8 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 		dcam_hwctx_update_path_size(dcam_port, frame, hw_ctx, idx);
 		frame->common.width = dcam_port->out_size.w;
 		frame->common.height = dcam_port->out_size.h;
+		frame->common.raw_src = dcam_port->raw_src;
+		pr_debug("fid %d raw src %d store set\n", frame->common.fid, frame->common.raw_src);
 		break;
 	case PORT_BIN_OUT:
 		if (dcam_port->is_pyr_rec)

@@ -772,13 +772,11 @@ static int ispscaler_node_start_proc(void *node)
 	}
 
 	pctx_hw->valid_slc_num = 0;
-	if (pctx_hw->fmcu_handle || slice_need) {
-		ret = ispscaler_node_slice_ctx_init(inode, &pctx_hw->pipe_info);
-		isp_hwctx_fmcu_reset(pctx_hw);
-		ret = ispscaler_node_slice_fmcu(inode, pctx_hw, &slc_cfg);
-		if (!ret)
-			kick_fmcu = 1;
-	}
+	ret = ispscaler_node_slice_ctx_init(inode, &pctx_hw->pipe_info);
+	isp_hwctx_fmcu_reset(pctx_hw);
+	ret = ispscaler_node_slice_fmcu(inode, pctx_hw, &slc_cfg);
+	if (!ret)
+		kick_fmcu = 1;
 
 	ret = wait_for_completion_interruptible_timeout(&inode->frm_done, ISP_CONTEXT_TIMEOUT);
 	if (ret == -ERESTARTSYS) {
