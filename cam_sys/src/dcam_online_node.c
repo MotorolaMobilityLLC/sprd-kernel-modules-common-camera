@@ -1317,6 +1317,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	int ret = 0, loop = 0, is_csi_connect = 0;
 	unsigned long flag = 0;
 	struct cam_frame *frame = NULL;
+	struct cam_node *cam_node = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_reg_trace trace = {0};
@@ -1466,8 +1467,14 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		if (atomic_read(&port->user_cnt) > 0) {
 			if ((port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR &&
 				!node->param_frame_sync) || (port->port_id == PORT_FULL_OUT &&
-				node->alg_type == ALG_TYPE_CAP_XDR))
+				node->alg_type == ALG_TYPE_CAP_XDR)){
 				atomic_set(&port->is_shutoff, 0);
+				if (port->port_id == PORT_FULL_OUT) {
+                                       cam_node = (struct cam_node *)port->shutoff_cb_handle;
+                                       cam_node->node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
+                                       cam_node->node_shutoff.outport_shutoff[port->port_id].shutoff_scene = SHUTOFF_SCENE_MAX;
+                               }
+			}
 
 			patharg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
 			if (patharg.path_id >= DCAM_PATH_MAX) {
@@ -1537,11 +1544,13 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 
 			if ((port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR &&
 				!node->param_frame_sync) || (port->port_id == PORT_FULL_OUT &&
-				node->alg_type == ALG_TYPE_CAP_XDR &&
+				node->alg_type == ALG_TYPE_CAP_XDR && cam_node->need_fetch == CAM_DISABLE &&
 				hw->ip_dcam[0]->dcamhw_abt->bpc_raw_support == CAM_ENABLE)) {
-				port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
-				if (frame)
-					cam_queue_empty_frame_put(frame);
+				if ((port->port_id != PORT_FULL_OUT) && (port->port_cfg_cb_func)) {
+                                       port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
+                                       if (frame)
+                                               cam_queue_empty_frame_put(frame);
+                               }
 				CAM_NODE_SHUTOFF_PARAM_INIT(node_shutoff);
 				node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
 				node_shutoff.outport_shutoff[port->port_id].shutoff_type = SHUTOFF_PAUSE;

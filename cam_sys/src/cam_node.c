@@ -290,6 +290,9 @@ static int camnode_set_shutoff(void *handle, void *param, uint32_t port_id)
 	node = (struct cam_node *)handle;
 	node_shutoff = (struct cam_node_shutoff_ctrl *)param;
 
+	if(node->need_fetch)
+		return 0;
+
 	switch (node->node_graph->type) {
 	case CAM_NODE_TYPE_DCAM_ONLINE:
 		ret = dcam_online_node_set_shutoff(node->handle, node_shutoff, port_id);
@@ -376,6 +379,9 @@ static int camnode_cfg_shutoff_reconfig(struct cam_node *node, uint32_t port_id)
 	struct cam_port_shutoff_ctrl *outport_shutoff = NULL;
 	struct cam_node_shutoff_ctrl node_shutoff = {0};
 	uint32_t frame_cycle = 0;
+
+	if(node->need_fetch)
+		return 0;
 
 	outport_shutoff = &node->node_shutoff.outport_shutoff[port_id];
 	if (outport_shutoff->shutoff_scene != SHUTOFF_SCENE_MAX) {
