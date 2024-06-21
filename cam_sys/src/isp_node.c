@@ -1064,13 +1064,13 @@ exit:
 	}
 
 	inode->isp_using_param = NULL;
-	pctx_hw->isp_using_param = NULL;
 	if (inode->blk_param_node && inode->blk_param_node->isp_blk.param_block)
 		cam_queue_recycle_blk_param(&inode->param_share_queue, inode->blk_param_node);
 
-	if (pctx_hw)
+	if (pctx_hw) {
+		pctx_hw->isp_using_param = NULL;
 		dev->isp_ops->unbind(inode);
-
+	}
 	return ret;
 }
 
