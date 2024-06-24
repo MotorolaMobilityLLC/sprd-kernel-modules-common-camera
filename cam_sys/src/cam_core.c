@@ -2886,7 +2886,7 @@ rewait:
 				read_op.parm.frame.irq_property = pframe->common.irq_property;
 			}
 			if (read_op.parm.frame.channel_id)
-				pr_info("cam%d read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index %d mfd 0x%x\n",
+				pr_debug("cam%d read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index %d mfd 0x%x\n",
 					module->idx, read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.irq_property, read_op.parm.frame.channel_id,
 					read_op.parm.frame.real_index, read_op.parm.frame.mfd);
 		}

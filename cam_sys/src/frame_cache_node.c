@@ -171,7 +171,7 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 {
 	int ret = 0;
 
-	pr_info("frame id %d cache_skip_num %d cache_num %d buf cnt %d, cap type %d\n", pframe->common.fid,
+	pr_debug("frame id %d cache_skip_num %d cache_num %d buf cnt %d, cap type %d\n", pframe->common.fid,
 			node->cache_skip_num, node->cache_real_num, node->cache_buf_queue.cnt, node->cap_param.cap_type);
 	if (node->cap_param.cap_type == DCAM_CAPTURE_STOP ||
 		(node->node_id == FRAME_CACHE_OFFLINE_CAP_NODE_ID &&

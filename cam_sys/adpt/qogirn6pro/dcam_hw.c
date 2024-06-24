@@ -2206,7 +2206,7 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 	case DCAM_PATH_RAW:
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_4, 0);
 		DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, param->frame_addr[0]);
-		pr_info("store addr %08x\n", param->frame_addr[0]);
+		pr_debug("store addr %08x\n", param->frame_addr[0]);
 		break;
 	case DCAM_PATH_AEM:
 		DCAM_REG_WR(idx, DCAM_AEM_BASE_WADDR, param->frame_addr[0]);
