@@ -1467,15 +1467,14 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 		if (atomic_read(&port->user_cnt) > 0) {
 			if ((port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR &&
 				!node->param_frame_sync) || (port->port_id == PORT_FULL_OUT &&
-				node->alg_type == ALG_TYPE_CAP_XDR)){
+				node->alg_type == ALG_TYPE_CAP_XDR)) {
 				atomic_set(&port->is_shutoff, 0);
 				if (port->port_id == PORT_FULL_OUT) {
-                                       cam_node = (struct cam_node *)port->shutoff_cb_handle;
-                                       cam_node->node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
-                                       cam_node->node_shutoff.outport_shutoff[port->port_id].shutoff_scene = SHUTOFF_SCENE_MAX;
-                               }
+					cam_node = (struct cam_node *)port->shutoff_cb_handle;
+					cam_node->node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
+					cam_node->node_shutoff.outport_shutoff[port->port_id].shutoff_scene = SHUTOFF_SCENE_MAX;
+				}
 			}
-
 			patharg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
 			if (patharg.path_id >= DCAM_PATH_MAX) {
 				pr_err("fail to get correct path id\n");

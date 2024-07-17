@@ -1057,6 +1057,9 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				pr_err("fail to enqueue recycle_pool\n");
 		} else {
 			complete(&module->img_com);
+			if ((pframe->common.irq_property == CAM_FRAME_ORIGINAL_RAW) &&
+				(module->cap_scene == CAPTURE_AINR))
+				CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_SHUTOFF_PORT_CNT_DEC, &param);
 		}
 		break;
 	case CAM_CB_DCAM_STATIS_DONE:

@@ -235,13 +235,11 @@ static int camnode_shutoff_callback(void *param, void *priv_data)
 		if (atomic_read(&port_shutoff->cap_cnt)) {
 			raw_sel = dcamonline_shutoff_convert_to_raw_type(port_shutoff->raw_switch_type);
 			ret = dcam_online_update_frame_raw_sel(node->handle, port_id, raw_sel);
-			atomic_dec(&port_shutoff->cap_cnt);
-			if (!atomic_read(&port_shutoff->cap_cnt)) {
-				port_shutoff->raw_switch_type = !port_shutoff->raw_switch_type;
-				path_ctrl.raw_sel = dcamonline_shutoff_convert_to_raw_type(port_shutoff->raw_switch_type);
-				is_shutoff = dcam_online_set_raw_sel(node->handle, &path_ctrl);
-				port_shutoff->raw_switch_en = CAM_DISABLE;
-			}
+		} else {
+			port_shutoff->raw_switch_type = !port_shutoff->raw_switch_type;
+			path_ctrl.raw_sel = dcamonline_shutoff_convert_to_raw_type(port_shutoff->raw_switch_type);
+			is_shutoff = dcam_online_set_raw_sel(node->handle, &path_ctrl);
+			port_shutoff->raw_switch_en = CAM_DISABLE;
 		}
 		return ret;
 	}
@@ -494,6 +492,9 @@ static int camnode_cfg_node_param_dcam_online(void *handle, enum cam_node_cfg_cm
 		break;
 	case CAM_NODE_CFG_PORT_RAW_SEL:
 		ret = dcam_online_set_raw_sel(node->handle, in_param->param);
+		break;
+	case CAM_NODE_CFG_SHUTOFF_PORT_CNT_DEC:
+		atomic_dec(&node->node_shutoff.outport_shutoff[PORT_RAW_OUT].cap_cnt);
 		break;
 	default:
 		pr_err("fail to support node %s cmd %d\n", cam_node_name_get(node->node_graph->type), cmd);
