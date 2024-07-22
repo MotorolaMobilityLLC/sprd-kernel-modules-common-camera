@@ -2804,6 +2804,10 @@ uint32_t cam_scene_dcamonline_buffers_alloc_num(void *channel_ptr, void *module_
 		module->grp->hw_info->ip_dcam[0]->dcamhw_abt->bpc_raw_support) {
 		num = module->static_topology->pipeline_list[pipeline_type].buf_num;
 		num = num + channel->zsl_buffer_num + module->cam_uinfo.buf_num;
+		if(channel->ch_id == CAM_CH_CAP && num == 9)
+			num = 7;
+		if(channel->ch_id == CAM_CH_PRE && num == 8)
+			num = 5;
 	}
 
 	if (channel->ch_id == CAM_CH_CAP && (grp->is_mul_buf_share &&
