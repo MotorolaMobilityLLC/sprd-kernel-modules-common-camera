@@ -1023,9 +1023,8 @@ static int camioctl_crop_set(struct camera_module *module,
 	hw = module->grp->hw_info;
 	if (atomic_read(&module->state) == CAM_RUNNING) {
 		if ((module->capture_type != CAM_CAPTURE_STOP) &&
-			module->channel[CAM_CH_CAP].enable &&
-			(module->channel[CAM_CH_CAP].type_3dnr != CAM_3DNR_OFF)) {
-			pr_err("fail to zoom during 3DNR capture\n");
+			module->channel[CAM_CH_CAP].enable) {
+			pr_err("fail to zoom during capture\n");
 			goto exit;
 		}
 		zoom_param = cam_queue_empty_frame_get(CAM_FRAME_NODE_ZOOM);
