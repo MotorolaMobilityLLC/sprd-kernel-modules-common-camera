@@ -370,7 +370,10 @@ struct cam_capture_param {
 	uint32_t zsl_num;
 	enum cam_node_frmsel_mode frm_sel_mode;
 	uint32_t fid;
+	uint32_t ori_raw_sel;
+	uint32_t switch_raw_sel;
 	uint32_t rawalg_update_dcamraw_link;
+	uint32_t alg_type;
 };
 
 struct cam_buf_alloc_desc {
@@ -416,6 +419,7 @@ struct slowmotion_960fps_info {
 enum shutoff_scene {
 	SHUTOFF_MULTI_PORT_SWITCH = 0,
 	SHUTOFF_SINGLE_PORT_NONZSL,
+	SHUTOFF_SINGLE_PORT_NORMAL,
 	SHUTOFF_SCENE_MAX,
 };
 
@@ -423,6 +427,12 @@ enum shutoff_type {
 	SHUTOFF_PAUSE = 0,
 	SHUTOFF_RESUME,
 	SHUTOFF_TYPE_MAX,
+};
+
+enum raw_switch_type {
+	SWITCH_ORI_RAW = 0,
+	SWITCH_BPC_RAW,
+	SWITCH_TYPE_MAX,
 };
 
 uint32_t cam_data_bits(uint32_t dcam_out_fmt);
@@ -438,6 +448,8 @@ uint32_t dcamonline_portid_convert_to_pathid(uint32_t port_id);
 uint32_t dcamoffline_portid_convert_to_pathid(uint32_t port_id);
 uint32_t dcamoffline_pathid_convert_to_portid(uint32_t path_id);
 uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id);
+uint32_t dcamonline_shutoff_convert_to_raw_type(uint32_t shutoff_type);
+
 
 typedef int(*pyr_dec_buf_cb)(void *param, void *cb_handle);
 typedef int(*reserved_buf_get_cb)(void *param, void *cb_handle);

@@ -516,6 +516,8 @@ static void dcamonline_port_update_addr_and_size(struct dcam_online_port *dcam_p
 		dcam_hwctx_update_path_size(dcam_port, frame, hw_ctx, idx);
 		frame->common.width = dcam_port->out_size.w;
 		frame->common.height = dcam_port->out_size.h;
+		frame->common.raw_src = dcam_port->raw_src;
+		pr_debug("fid %d raw src %d store set\n", frame->common.fid, frame->common.raw_src);
 		break;
 	case PORT_BIN_OUT:
 		if (dcam_port->is_pyr_rec)
@@ -1039,7 +1041,7 @@ static int dcamonline_port_store_set(void *handle, void *param)
 
 	atomic_inc(&dcam_port->set_frm_cnt);
 
-	pr_info("dcam%u, fid %u, count %d, port out_size %d %d, is_reserver %d, channel_id %d, addr %08x, fbc %u\n",
+	pr_debug("dcam%u, fid %u, count %d, port out_size %d %d, is_reserver %d, channel_id %d, addr %08x, fbc %u\n",
 		idx, frame->common.fid, atomic_read(&dcam_port->set_frm_cnt), dcam_port->out_size.w, dcam_port->out_size.h,
 		frame->common.is_reserved, frame->common.channel_id, (uint32_t)frame->common.buf.iova[CAM_BUF_IOMMUDEV_DCAM], frame->common.is_compressed);
 

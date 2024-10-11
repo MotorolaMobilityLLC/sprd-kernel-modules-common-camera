@@ -37,12 +37,16 @@
 		(node_shutoff).inport_shutoff[i].port_id = CAM_NODE_PORT_IN_NUM; \
 		(node_shutoff).inport_shutoff[i].shutoff_scene = SHUTOFF_SCENE_MAX; \
 		(node_shutoff).inport_shutoff[i].shutoff_type = SHUTOFF_TYPE_MAX; \
+		(node_shutoff).inport_shutoff[i].raw_switch_en = CAM_DISABLE; \
+		(node_shutoff).inport_shutoff[i].raw_switch_type = SWITCH_TYPE_MAX; \
 	} \
 	for (i = 0; i < CAM_NODE_PORT_OUT_NUM; i++) { \
 		atomic_set(&(node_shutoff).outport_shutoff[i].cap_cnt, 0); \
 		(node_shutoff).outport_shutoff[i].port_id = CAM_NODE_PORT_OUT_NUM; \
 		(node_shutoff).outport_shutoff[i].shutoff_scene = SHUTOFF_SCENE_MAX; \
 		(node_shutoff).outport_shutoff[i].shutoff_type = SHUTOFF_TYPE_MAX; \
+		(node_shutoff).outport_shutoff[i].raw_switch_en = CAM_DISABLE; \
+		(node_shutoff).outport_shutoff[i].raw_switch_type = SWITCH_TYPE_MAX; \
 	} \
 	ret; \
 })
@@ -93,6 +97,8 @@ enum cam_node_cfg_cmd {
 	CAM_NODE_CFG_BUF_NUM,
 	CAM_NODE_CFG_FETCH_BUF,
 	CAM_NODE_CFG_REG_MIPICAP_RESET,
+	CAM_NODE_CFG_PORT_RAW_SEL,
+	CAM_NODE_CFG_SHUTOFF_PORT_CNT_DEC,
 	CAM_NODE_CFG_MAX,
 };
 

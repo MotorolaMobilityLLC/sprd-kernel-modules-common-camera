@@ -64,7 +64,7 @@ static struct cam_node *campipeline_linked_node_get(
 		cur_node = pipeline->node_list[i];
 		if (cur_node && cur_node->node_graph->type == link.node_type
 				&& cur_node->node_graph->id == link.node_id) {
-			pr_info("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type, cam_node_name_get(link.node_type),
+			pr_debug("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type, cam_node_name_get(link.node_type),
 				link.node_id);
 			return pipeline->node_list[i];
 		}
@@ -152,6 +152,8 @@ static int campipeline_callback(enum cam_cb_type type, void *param, void *priv_d
 			} else {
 				node_param.param = pframe;
 				node_param.port_id = pframe->common.link_to.port_id;
+				pr_debug("pipeline:%d, node: %s, node id:%d\n", pipeline->pipeline_graph->type,
+					cam_node_name_get(link_node->node_graph->type), link_node->node_graph->id);
 				ret = link_node->ops.request_proc(link_node, &node_param);
 			}
 			if (ret) {
@@ -335,6 +337,12 @@ static int campipeline_cfg_param(void *handle, enum cam_pipeline_cfg_cmd cmd, vo
 		break;
 	case CAM_PIPELINE_CFG_REG_MIPICAP_RESET:
 		node_cmd = CAM_NODE_CFG_REG_MIPICAP_RESET;
+		break;
+	case CAM_PIPELINE_CFG_PORT_RAW_SEL:
+		node_cmd = CAM_NODE_CFG_PORT_RAW_SEL;
+		break;
+	case CAM_PIPELINE_CFG_SHUTOFF_PORT_CNT_DEC:
+		node_cmd = CAM_NODE_CFG_SHUTOFF_PORT_CNT_DEC;
 		break;
 	default:
 		pr_err("fail to support cfg cmd %d\n", cmd);
@@ -614,7 +622,6 @@ void *cam_pipeline_creat(struct cam_pipeline_desc *param)
 	pipeline->ops.streamon = campipeline_stream_on;
 	pipeline->ops.streamoff = campipeline_stream_off;
 	pipeline->ops.cfg_shutoff = campipeline_cfg_shutoff;
-	pipeline->debug_log_switch = CAM_ENABLE;
 
 	node_desc.type = pipeline->pipeline_graph->type;
 	node_desc.nodes_dev = param->nodes_dev;

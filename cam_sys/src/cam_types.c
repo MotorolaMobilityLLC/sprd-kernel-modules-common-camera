@@ -317,6 +317,25 @@ uint32_t dcamonline_pathid_convert_to_portid(uint32_t path_id)
 	return port_id;
 }
 
+uint32_t dcamonline_shutoff_convert_to_raw_type(uint32_t shutoff_type)
+{
+	uint32_t raw_src = MAX_RAW_SRC_SEL;
+
+	switch (shutoff_type) {
+	case SWITCH_ORI_RAW:
+		raw_src = ORI_RAW_SRC_SEL;
+		break;
+	case SWITCH_BPC_RAW:
+		raw_src = BPC_RAW_SRC_SEL;
+		break;
+	default :
+		pr_err("fail to support port id %d\n", shutoff_type);
+		break;
+	}
+
+	return raw_src;
+}
+
 /* now just add for dcam offline pathid portid convert */
 uint32_t dcamoffline_pathid_convert_to_portid(uint32_t path_id)
 {

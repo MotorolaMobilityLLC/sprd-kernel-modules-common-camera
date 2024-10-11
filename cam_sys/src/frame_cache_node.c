@@ -71,8 +71,9 @@ static struct cam_frame *framecache_capframe_get(struct frame_cache_node *node,
 	struct cam_frame *pftmp = NULL;
 
 	pftmp = pframe;
-	pr_info("%d %d %d %lld %lld\n", node->cap_param.fid, pftmp->common.fid,
-		node->cap_param.frm_sel_mode, pftmp->common.boot_sensor_time, node->cap_param.cap_timestamp);
+	pr_debug("cap fid %d cur fid %d sel_mode %d sn_time %lld cap_time %lld\n",
+		node->cap_param.fid, pftmp->common.fid, node->cap_param.frm_sel_mode,
+		pftmp->common.boot_sensor_time, node->cap_param.cap_timestamp);
 	if ((node->cap_param.fid && pftmp->common.fid >= node->cap_param.fid)
 		|| (!node->cap_param.fid && node->cap_param.frm_sel_mode == CAM_NODE_FRAME_NO_SEL
 		&& pftmp->common.boot_sensor_time >= node->cap_param.cap_timestamp))
@@ -170,9 +171,13 @@ static int framecache_normal_proc(struct frame_cache_node *node,
 {
 	int ret = 0;
 
-	pr_info("frame id %d cache_skip_num %d cache_num %d buf cnt %d, cap type %d\n", pframe->common.fid,
+	pr_debug("frame id %d cache_skip_num %d cache_num %d buf cnt %d, cap type %d\n", pframe->common.fid,
 			node->cache_skip_num, node->cache_real_num, node->cache_buf_queue.cnt, node->cap_param.cap_type);
-	if (node->cap_param.cap_type == DCAM_CAPTURE_STOP) {
+	if (node->cap_param.cap_type == DCAM_CAPTURE_STOP ||
+		(node->node_id == FRAME_CACHE_OFFLINE_CAP_NODE_ID &&
+		!(node->cap_param.cap_scene == CAPTURE_RAWALG ||
+		node->cap_param.cap_scene == CAPTURE_AINR))) {
+
 		if (node->pre_raw_flag == PRE_RAW_DEAL) {
 			if (node->pre_frame_status == CAM_DISABLE) {
 				ret = CAM_QUEUE_ENQUEUE(&node->cache_buf_queue, &pframe->list);
@@ -358,7 +363,8 @@ int frame_cache_cfg_param(void *handle, uint32_t cmd, void *param)
 		node->cap_param.zsl_num = cap_param->zsl_num;
 		node->cap_param.frm_sel_mode = cap_param->frm_sel_mode;
 		node->cap_param.fid = cap_param->fid;
-		pr_info("cap type %d, cnt %d, time %lld, frm_sel_mode:%d, zsl_num:%d\n", node->cap_param.cap_type,
+		node->cap_param.cap_scene = cap_param->cap_scene;
+		pr_debug("cap type %d, cnt %d, time %lld, frm_sel_mode:%d, zsl_num:%d\n", node->cap_param.cap_type,
 			atomic_read(&node->cap_param.cap_cnt), node->cap_param.cap_timestamp, cap_param->frm_sel_mode,
 			cap_param->zsl_num);
 		break;
@@ -440,6 +446,7 @@ void *frame_cache_node_get(uint32_t node_id, struct frame_cache_node_desc *param
 	}
 
 	node->node_type = param->node_type;
+	node->node_id = node_id;
 	node->cache_real_num = param->cache_real_num;
 	node->cache_skip_num = param->cache_skip_num;
 	if (node_id == FRAME_CACHE_OFFLINE_CAP_NODE_ID || param->need_cache_dcam_raw) {

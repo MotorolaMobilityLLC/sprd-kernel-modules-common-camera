@@ -196,6 +196,7 @@ struct camera_frame {
 	enum cam_en_status is_compressed;
 	enum cam_en_status is_3dnr_close;
 	enum cam_en_status pyr_status;
+	enum dcam_full_src_sel_type raw_src;
 	/*use for isp ltm ctrl*/
 	struct isp_xtm_conflict_info xtm_conflict;
 	uint32_t not_use_isp_reserved_buf;

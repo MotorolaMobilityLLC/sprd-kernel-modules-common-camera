@@ -1034,14 +1034,11 @@ int cam_zoom_channel_size_config(
 		zoom_info.isp_dst[PORT_VID_OUT] = ch_vid->ch_uinfo.dst_size;
 	}
 	if (ch_vir->enable && channel->ch_id == CAM_CH_PRE) {
-		zoom_info.isp_crop[PORT_VID_OUT].size_x = ch_vir->ch_uinfo.vir_channel[0].dst_size.w;
-		zoom_info.isp_crop[PORT_VID_OUT].size_y = ch_vir->ch_uinfo.vir_channel[0].dst_size.h;
+		zoom_info.isp_crop[PORT_VID_OUT] = channel->trim_isp;
 		zoom_info.isp_dst[PORT_VID_OUT].w = ch_vir->ch_uinfo.vir_channel[0].dst_size.w;
 		zoom_info.isp_dst[PORT_VID_OUT].h = ch_vir->ch_uinfo.vir_channel[0].dst_size.h;
 	}
 	if (ch_vir->enable && channel->ch_id == CAM_CH_CAP) {
-		//zoom_info.isp_crop[PORT_VID_OUT].size_x = ch_vir->ch_uinfo.vir_channel[1].dst_size.w;
-		//zoom_info.isp_crop[PORT_VID_OUT].size_y = ch_vir->ch_uinfo.vir_channel[1].dst_size.h;
 		zoom_info.isp_crop[PORT_VID_OUT] = channel->trim_isp;
 		zoom_info.isp_dst[PORT_VID_OUT].w = ch_vir->ch_uinfo.vir_channel[1].dst_size.w;
 		zoom_info.isp_dst[PORT_VID_OUT].h = ch_vir->ch_uinfo.vir_channel[1].dst_size.h;

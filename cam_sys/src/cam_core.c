@@ -983,7 +983,8 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 		read_lock(&hw->soc_dcam->cam_ahb_lock);
 		if (dcam_online_node_dev) {
 			trace.type = ABNORMAL_REG_TRACE;
-			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+			if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX &&
+				module->grp->camsec_cfg.camsec_mode == SEC_UNABLE) {
 				trace.idx = dcam_online_node_dev->hw_ctx_id;
 				hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 			}
@@ -1056,6 +1057,9 @@ static int camcore_pipeline_callback(enum cam_cb_type type, void *param, void *p
 				pr_err("fail to enqueue recycle_pool\n");
 		} else {
 			complete(&module->img_com);
+			if ((pframe->common.irq_property == CAM_FRAME_ORIGINAL_RAW) &&
+				(module->cap_scene == CAPTURE_AINR))
+				CAM_PIPEINE_DCAM_ONLINE_NODE_CFG(channel, CAM_PIPELINE_CFG_SHUTOFF_PORT_CNT_DEC, &param);
 		}
 		break;
 	case CAM_CB_DCAM_STATIS_DONE:
@@ -1401,6 +1405,8 @@ static int camcore_vir_channel_config(
 		path_desc.output_size.h = ch_uinfo->vir_channel[1].dst_size.h;
 		path_desc.is_work = 1;
 		ret = CAM_PIPEINE_ISP_OUT_PORT_CFG(channel_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BASE, ISP_NODE_MODE_CAP_ID, &path_desc);
+		if (module->cam_uinfo.is_raw_alg && module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR)
+			ret |= CAM_PIPEINE_ISP_OUT_PORT_CFG(channel_cap, PORT_VID_OUT, CAM_PIPELINE_CFG_BASE, ISP_NODE_MODE_OFFLINE_CAP_ID, &path_desc);
 		if (ret)
 			pr_err("fail to cfg isp cap base.\n");
 	}
@@ -1624,7 +1630,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 	hw = module->grp->hw_info;
 	buf_manager_handle = module->grp->global_buf_manager;
-	pyrdec_support = hw->ip_isp->isphw_abt->pyr_dec_support;
+	pyrdec_support = (hw->ip_isp->isphw_abt->pyr_dec_support &&
+		module->grp->camsec_cfg.camsec_mode == SEC_UNABLE);
 	channel_prev = &module->channel[CAM_CH_PRE];
 	channel->ch_uinfo.src_size.w = module->cam_uinfo.sn_rect.w;
 	channel->ch_uinfo.src_size.h = module->cam_uinfo.sn_rect.h;
@@ -1663,9 +1670,8 @@ static int camcore_pipeline_init(struct camera_module *module,
 
 		channel_cap = &module->channel[CAM_CH_CAP];
 		channel_vid = &module->channel[CAM_CH_VID];
-		module->cam_uinfo.is_raw_alg = 0;
-		module->cam_uinfo.alg_type = 0;
 		module->auto_3dnr = channel->uinfo_3dnr = 0;
+		channel->need_dcam_raw = module->cam_uinfo.need_dcam_raw;
 		isp_port_id = -1;
 		pipeline_type = CAM_PIPELINE_SENSOR_RAW;
 		if (!channel_cap->enable) {
@@ -1801,7 +1807,7 @@ static int camcore_pipeline_init(struct camera_module *module,
 		cam_scene_camcopy_desc_get(module, cam_copy_desc, pipeline_type);
 	}
 
-	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV) && !channel_prev->enable) {
+	if ((pipeline_type == CAM_PIPELINE_ONLINERAW_2_OFFLINEYUV || (pipeline_type == CAM_PIPELINE_ONLINERAW_2_USER_2_OFFLINEYUV)) && !channel_prev->enable) {
 		uint32_t statis_pipe_type = CAM_PIPELINE_ONLINERAW_2_OFFLINEPREVIEW;
 		dcam_offline_desc->offline_pre_en = CAM_ENABLE;
 		isp_node_description->ch_id = CAM_CH_PRE;
@@ -2166,10 +2172,12 @@ static int camcore_csi_switch_connect(struct camera_module *module, uint32_t mod
 static int camcore_shutoff_param_prepare(struct camera_module *module,
 		struct cam_pipeline_shutoff_param *pipeline_shutoff)
 {
+	uint32_t dcam_port_id = 0, shutoff_cnt = 0;
+	struct channel_context *ch = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_node_shutoff_ctrl *node_shutoff = NULL;
-	uint32_t dcam_port_id = 0, shutoff_cnt = 0;
 
+	ch = &module->channel[CAM_CH_CAP];
 	hw = module->grp->hw_info;
 	shutoff_cnt = atomic_read(&module->capture_frames_dcam);
 	node_shutoff = &pipeline_shutoff->node_shutoff;
@@ -2189,6 +2197,60 @@ static int camcore_shutoff_param_prepare(struct camera_module *module,
 		return 1;
 	}
 
+	if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_AINR && module->cap_scene == CAPTURE_AINR &&
+		!module->cam_uinfo.param_frame_sync) {
+		pipeline_shutoff->node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+		CAM_NODE_SHUTOFF_PARAM_INIT(pipeline_shutoff->node_shutoff);
+		atomic_set(&node_shutoff->outport_shutoff[PORT_FULL_OUT].cap_cnt, shutoff_cnt + 1);
+		node_shutoff->outport_shutoff[PORT_FULL_OUT].port_id = PORT_FULL_OUT;
+		node_shutoff->outport_shutoff[PORT_FULL_OUT].shutoff_scene = SHUTOFF_MULTI_PORT_SWITCH;
+		node_shutoff->outport_shutoff[PORT_FULL_OUT].shutoff_type = SHUTOFF_PAUSE;
+		atomic_set(&node_shutoff->outport_shutoff[PORT_RAW_OUT].cap_cnt, shutoff_cnt + 1);
+		node_shutoff->outport_shutoff[PORT_RAW_OUT].port_id = PORT_RAW_OUT;
+		node_shutoff->outport_shutoff[PORT_RAW_OUT].shutoff_scene = SHUTOFF_MULTI_PORT_SWITCH;
+		node_shutoff->outport_shutoff[PORT_RAW_OUT].shutoff_type = SHUTOFF_RESUME;
+		pr_debug("AINR set shutoff\n");
+		return 1;
+	}
+
+	if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR && module->cap_scene != CAPTURE_RAWALG &&
+		module->grp->hw_info->ip_dcam[0]->dcamhw_abt->bpc_raw_support == CAM_ENABLE) {
+		pipeline_shutoff->node_type = CAM_NODE_TYPE_DCAM_ONLINE;
+		CAM_NODE_SHUTOFF_PARAM_INIT(pipeline_shutoff->node_shutoff);
+		if (module->capture_type == CAM_CAPTURE_STOP) {
+			atomic_set(&node_shutoff->outport_shutoff[PORT_FULL_OUT].cap_cnt, shutoff_cnt + 1);
+			node_shutoff->outport_shutoff[PORT_FULL_OUT].port_id = PORT_FULL_OUT;
+			node_shutoff->outport_shutoff[PORT_FULL_OUT].shutoff_scene = SHUTOFF_SINGLE_PORT_NORMAL;
+			node_shutoff->outport_shutoff[PORT_FULL_OUT].shutoff_type = SHUTOFF_PAUSE;
+			if (module->cam_uinfo.raw_zsl_num == 0) {
+				atomic_set(&node_shutoff->outport_shutoff[PORT_RAW_OUT].cap_cnt, shutoff_cnt + 1);
+				node_shutoff->outport_shutoff[PORT_RAW_OUT].port_id = PORT_RAW_OUT;
+				node_shutoff->outport_shutoff[PORT_RAW_OUT].shutoff_scene = SHUTOFF_SINGLE_PORT_NORMAL;
+				node_shutoff->outport_shutoff[PORT_RAW_OUT].shutoff_type = SHUTOFF_RESUME;
+				pr_info("shutoff: full pause, raw resume\n");
+			}
+		} else {
+			atomic_set(&node_shutoff->outport_shutoff[PORT_FULL_OUT].cap_cnt, shutoff_cnt + 1);
+			node_shutoff->outport_shutoff[PORT_FULL_OUT].port_id = PORT_FULL_OUT;
+			node_shutoff->outport_shutoff[PORT_FULL_OUT].shutoff_scene = SHUTOFF_SINGLE_PORT_NORMAL;
+			node_shutoff->outport_shutoff[PORT_FULL_OUT].shutoff_type = SHUTOFF_RESUME;
+			if (module->cam_uinfo.raw_zsl_num == 0) {
+				atomic_set(&node_shutoff->outport_shutoff[PORT_RAW_OUT].cap_cnt, shutoff_cnt + 1);
+				node_shutoff->outport_shutoff[PORT_RAW_OUT].port_id = PORT_RAW_OUT;
+				node_shutoff->outport_shutoff[PORT_RAW_OUT].shutoff_scene = SHUTOFF_SINGLE_PORT_NORMAL;
+				node_shutoff->outport_shutoff[PORT_RAW_OUT].shutoff_type = SHUTOFF_PAUSE;
+				pr_info("shutoff: raw pause, full resume\n");
+			}
+		}
+		if (module->cam_uinfo.alg_type == ALG_TYPE_CAP_XDR && module->cap_scene == CAPTURE_AINR) {
+			atomic_set(&node_shutoff->outport_shutoff[PORT_RAW_OUT].cap_cnt, shutoff_cnt);
+			node_shutoff->outport_shutoff[PORT_RAW_OUT].port_id = PORT_RAW_OUT;
+			node_shutoff->outport_shutoff[PORT_RAW_OUT].raw_switch_en = CAM_ENABLE;
+			node_shutoff->outport_shutoff[PORT_RAW_OUT].raw_switch_type = SWITCH_ORI_RAW;
+		}
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -2199,6 +2261,7 @@ static void camcore_channel_default_param_set(struct channel_context *channel, u
 	channel->aux_dcam_port_id = -1;
 	channel->ch_uinfo.dcam_raw_fmt = -1;
 	channel->ch_uinfo.sensor_raw_fmt = -1;
+	channel->dump_ee_buf_cnt = 0;
 	channel->blk_pm.idx = DCAM_HW_CONTEXT_MAX;
 	cam_block_dcam_init(&channel->blk_pm);
 	init_completion(&channel->alloc_com);
@@ -2814,7 +2877,8 @@ rewait:
 				if (module->nodes_dev.dcam_online_node_dev) {
 					trace.type = ABNORMAL_REG_TRACE;
 					dcam_online_node_dev = module->nodes_dev.dcam_online_node_dev;
-					if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX) {
+					if (dcam_online_node_dev->hw_ctx_id != DCAM_HW_CONTEXT_MAX &&
+						module->grp->camsec_cfg.camsec_mode == SEC_UNABLE) {
 						trace.idx = dcam_online_node_dev->hw_ctx_id;
 						hw->isp_ioctl(hw, ISP_HW_CFG_REG_TRACE, &trace);
 						hw->isp_ioctl(hw, ISP_HW_CFG_ABNORMAL_UEVENT, module->grp->pdev);
@@ -2825,7 +2889,7 @@ rewait:
 				read_op.parm.frame.irq_property = pframe->common.irq_property;
 			}
 			if (read_op.parm.frame.channel_id)
-				pr_info("cam%d read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index %d mfd 0x%x\n",
+				pr_debug("cam%d read frame, evt 0x%x irq %d, irq_property %d, ch 0x%x index %d mfd 0x%x\n",
 					module->idx, read_op.evt, read_op.parm.frame.irq_type, read_op.parm.frame.irq_property, read_op.parm.frame.channel_id,
 					read_op.parm.frame.real_index, read_op.parm.frame.mfd);
 		}

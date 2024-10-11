@@ -285,7 +285,7 @@ static int sprd_flash_ic_cfg_value_torch(void *drvd, uint8_t idx,
 static int sprd_flash_ic_cfg_value_preflash(void *drvd, uint8_t idx,
 					  struct sprd_flash_element *element)
 {
-
+	int code;
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
 	if (!drv_data)
 		return -EFAULT;
@@ -293,9 +293,13 @@ static int sprd_flash_ic_cfg_value_preflash(void *drvd, uint8_t idx,
 	if (drv_data->i2c_info) {
 
 		printk("%s:%d led:%d level = %d\n", __func__, __LINE__, idx, element->index);
+		if(element->index > 9) 
+			element->index = 9;
 
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x05,(element->index < 0x09)?((element->index)|0x80):0x89);
+		code = (element->index+1)*3-1;
+		flash_ic_driver_reg_write(drv_data->i2c_info, 0x05, code|0x80);
 
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x05,(element->index < 0x09)?((element->index)|0x80):0x89);
 		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x06,((element->index * 12 / 15)<0x0b)?(element->index * 12 / 15):0x0b);
 	}
 
@@ -305,6 +309,7 @@ static int sprd_flash_ic_cfg_value_preflash(void *drvd, uint8_t idx,
 static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 					   struct sprd_flash_element *element)
 {
+	int code;
 	struct flash_driver_data *drv_data = (struct flash_driver_data *)drvd;
 
 	if (!drv_data)
@@ -313,8 +318,13 @@ static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 	if (drv_data->i2c_info) {
 
 		printk("%s:%d led:%d level = %d\n", __func__, __LINE__, idx, element->index);
+		if(element->index > 9) 
+			element->index = 9;
 
-		flash_ic_driver_reg_write(drv_data->i2c_info, 0x03,((element->index * 38 / 9)<0x26)?((element->index * 38 / 9)|0x80):0xa6); //(38*15.63+15.63)*2=1219.14mA
+		code = (element->index+1)*4-1;
+		flash_ic_driver_reg_write(drv_data->i2c_info, 0x03, code|0x80);
+
+		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x03,((element->index * 38 / 9)<0x26)?((element->index * 38 / 9)|0x80):0xa6); //(38*15.63+15.63)*2=1219.14mA
 
 		//flash_ic_driver_reg_write(drv_data->i2c_info, 0x04,((element->index * 30 / 15)<0x1f)?(element->index * 30 / 15):0x1f);
 	}
@@ -324,6 +334,7 @@ static int sprd_flash_ic_cfg_value_highlight(void *drvd, uint8_t idx,
 
 static const struct of_device_id sprd_flash_ic_of_match_table[] = {
 	{.compatible = "sprd,flash-ocp81375"},
+	{/* MUST end with empty struct */},
 };
 
 static const struct i2c_device_id sprd_flash_ic_ids[] = {

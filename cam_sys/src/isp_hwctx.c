@@ -465,7 +465,7 @@ int isp_hwctx_store_frm_set(struct isp_pipe_info *pipe_info, uint32_t path_id, s
 
 	if (pipe_info->fetch.sec_mode == SEC_TIME_PRIORITY)
 		pipe_info->store[ISP_SPATH_VID].sec_mode = SEC_TIME_PRIORITY;
-
+	pipe_info->store[path_id].buf_sec = frame->buf.buf_sec;
 	yuv_addr[0] = frame->buf.iova[CAM_BUF_IOMMUDEV_ISP];
 
 	pr_debug("fmt %s, planes %d addr %lx %lx %lx, pitch:%d\n",

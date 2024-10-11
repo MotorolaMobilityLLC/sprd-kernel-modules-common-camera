@@ -674,7 +674,7 @@ static int dcamhw_force_copy(void *handle, void *arg)
 		pr_err("fail to get dev idx 0x%x exceed DCAM_ID_MAX\n", forcpy->idx);
 	}
 
-	pr_info("DCAM%u: force copy 0x%0x, id 0x%x\n", forcpy->idx, mask, forcpy->id);
+	pr_debug("DCAM%u: force copy 0x%0x, id 0x%x\n", forcpy->idx, mask, forcpy->id);
 	if (mask == 0)
 		return -EFAULT;
 
@@ -1335,7 +1335,7 @@ static int dcamhw_path_start(void *handle, void *arg)
 		break;
 	}
 
-	pr_info("done path_id %d, fmt %d\n", patharg->path_id, hwfmt);
+	pr_debug("done path_id %d, fmt %d\n", patharg->path_id, hwfmt);
 	return 0;
 }
 
@@ -1451,7 +1451,7 @@ static int dcamhw_path_size_update(void *handle, void *arg)
 	idx = sizearg->idx;
 	if (idx >= DCAM_HW_CONTEXT_MAX)
 		return 0;
-	pr_info("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
+	pr_debug("sizearg->path_id:%d in_size:%d %d, out_size:%d %d in_trim:%d %d %d %d\n", sizearg->path_id,
 		sizearg->in_size.w, sizearg->in_size.h, sizearg->out_size.w, sizearg->out_size.h,
 		sizearg->in_trim.start_x, sizearg->in_trim.start_y, sizearg->in_trim.size_x, sizearg->in_trim.size_y);
 
@@ -2200,13 +2200,13 @@ static int dcamhw_set_store_addr(void *handle, void *arg)
 		if ((param->frame_addr[1] == 0) && (param->out_fmt & CAM_YUV_BASE))
 			param->frame_addr[1] = param->frame_addr[0] + param->out_pitch * param->out_size.h;
 		DCAM_REG_WR(idx, DCAM_STORE4_SLICE_U_ADDR, param->frame_addr[1]);
-		pr_info("store addr %08x, %08x, pitch %d fmt %d\n", param->frame_addr[0], param->frame_addr[1],
+		pr_debug("store addr %08x, %08x, pitch %d fmt %d\n", param->frame_addr[0], param->frame_addr[1],
 			param->out_pitch, param->out_fmt);
 		break;
 	case DCAM_PATH_RAW:
 		DCAM_REG_MWR(idx, DCAM_PATH_SEL, BIT_4, 0);
 		DCAM_REG_WR(idx, DCAM_RAW_PATH_BASE_WADDR, param->frame_addr[0]);
-		pr_info("store addr %08x\n", param->frame_addr[0]);
+		pr_debug("store addr %08x\n", param->frame_addr[0]);
 		break;
 	case DCAM_PATH_AEM:
 		DCAM_REG_WR(idx, DCAM_AEM_BASE_WADDR, param->frame_addr[0]);
@@ -2952,6 +2952,39 @@ static int dcamhw_reset_mipicap_fetch(void *handle, void *arg)
 	return 0;
 }
 
+static int dcamhw_raw_path_src_sel(void *handle, void *arg)
+{
+	int ret = 0;
+	struct dcam_hw_path_ctrl *pathctl = NULL;
+
+	pathctl = (struct dcam_hw_path_ctrl *)arg;
+	switch (pathctl->raw_sel) {
+	case ORI_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 1 << 13);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 3 << 4);
+		break;
+	case LSC_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 1<< 4);
+		break;
+	case BPC_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 0 << 13);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 2 << 4);
+		break;
+	case PROCESS_RAW_SRC_SEL:
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_13, 0);
+		DCAM_REG_MWR(pathctl->idx, DCAM_RAW_PATH_CFG, BIT_4 | BIT_5, 0 << 4);
+		break;
+	default:
+		pr_err("fail to support src_sel %d\n", pathctl->raw_sel);
+		ret = -EINVAL;
+		break;
+	}
+	pr_debug("DCAM%d: raw path sel %d set done\n", pathctl->idx, pathctl->raw_sel);
+
+	return ret;
+}
+
 static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_ENABLE_CLK,            dcamhw_clk_eb},
 	{DCAM_HW_CFG_DISABLE_CLK,           dcamhw_clk_dis},
@@ -3008,6 +3041,7 @@ static struct hw_io_ctrl_fun dcam_ioctl_fun_tab[] = {
 	{DCAM_HW_CFG_SLICE_IMBLANCE_SET,    dcamhw_slice_imblance_set},
 	{DCAM_HW_CFG_NONZSL_BLOCK_PARAM,    dcamhw_block_param_config},
 	{DCAM_HW_CFG_MIPI_CAP_FETCH_RESET,  dcamhw_reset_mipicap_fetch},
+	{DCAM_HW_CFG_PATH_SRC_SEL,          dcamhw_raw_path_src_sel},
 };
 
 static hw_ioctl_fun dcamhw_ioctl_fun_get(enum dcam_hw_cfg_cmd cmd)

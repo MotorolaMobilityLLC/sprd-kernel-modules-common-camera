@@ -230,7 +230,7 @@ static struct cam_frame *dcamonline_frame_prepare(struct dcam_online_node *node,
 	else
 		frame->common.frame_interval_time = frame->common.boot_sensor_time - node->frame_ts_boot[tsid(dev_fid - 1)];
 
-	pr_info("DCAM%u %s: TX DONE, fid %u, %lld\n", hw_ctx->hw_ctx_id,
+	pr_debug("DCAM%u %s: TX DONE, fid %u, %lld\n", hw_ctx->hw_ctx_id,
 		cam_port_name_get(dcam_port->port_id), frame->common.fid, frame->common.frame_interval_time);
 
 	if (!frame->common.boot_sensor_time) {
@@ -1316,6 +1316,8 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 {
 	int ret = 0, loop = 0, is_csi_connect = 0;
 	unsigned long flag = 0;
+	struct cam_frame *frame = NULL;
+	struct cam_node *cam_node = NULL;
 	struct dcam_isp_k_block *pm = NULL;
 	struct cam_hw_info *hw = NULL;
 	struct cam_hw_reg_trace trace = {0};
@@ -1332,6 +1334,7 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 	struct dcam_hw_context *hw_ctx = NULL;
 	struct dcam_online_port *port = NULL;
 	struct dcam_switch_param csi_switch = {0};
+	struct cam_node_shutoff_ctrl node_shutoff = {0};
 	struct dcam_dummy_param dummy_param = {0};
 
 	if (!node) {
@@ -1462,9 +1465,16 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 
 	CAM_QUEUE_FOR_EACH_ENTRY(port, &node->port_queue.head, list) {
 		if (atomic_read(&port->user_cnt) > 0) {
-			if (port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR && !node->param_frame_sync)
+			if ((port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR &&
+				!node->param_frame_sync) || (port->port_id == PORT_FULL_OUT &&
+				node->alg_type == ALG_TYPE_CAP_XDR)) {
 				atomic_set(&port->is_shutoff, 0);
-
+				if (port->port_id == PORT_FULL_OUT) {
+					cam_node = (struct cam_node *)port->shutoff_cb_handle;
+					cam_node->node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
+					cam_node->node_shutoff.outport_shutoff[port->port_id].shutoff_scene = SHUTOFF_SCENE_MAX;
+				}
+			}
 			patharg.path_id = dcamonline_portid_convert_to_pathid(port->port_id);
 			if (patharg.path_id >= DCAM_PATH_MAX) {
 				pr_err("fail to get correct path id\n");
@@ -1529,6 +1539,22 @@ static int dcamonline_dev_start(struct dcam_online_node *node, void *param)
 					fbc_arg.compress_en = port->compress_en;
 					hw->dcam_ioctl(hw, node->hw_ctx_id, DCAM_HW_CFG_FBC_CTRL, &fbc_arg);
 				}
+			}
+
+			if ((port->port_id == PORT_RAW_OUT && node->alg_type == ALG_TYPE_CAP_AINR &&
+				!node->param_frame_sync) || (port->port_id == PORT_FULL_OUT &&
+				node->alg_type == ALG_TYPE_CAP_XDR && cam_node->need_fetch == CAM_DISABLE &&
+				hw->ip_dcam[0]->dcamhw_abt->bpc_raw_support == CAM_ENABLE)) {
+				if ((port->port_id != PORT_FULL_OUT) && (port->port_cfg_cb_func)) {
+                                       port->port_cfg_cb_func((void *)&frame, DCAM_PORT_BUFFER_CFG_GET, port);
+                                       if (frame)
+                                               cam_queue_empty_frame_put(frame);
+                               }
+				CAM_NODE_SHUTOFF_PARAM_INIT(node_shutoff);
+				node_shutoff.outport_shutoff[port->port_id].port_id = port->port_id;
+				node_shutoff.outport_shutoff[port->port_id].shutoff_type = SHUTOFF_PAUSE;
+				dcam_online_node_set_shutoff(node, &node_shutoff, port->port_id);
+				node->shutoff_cfg_cb_func(node->shutoff_cfg_cb_handle, CAM_NODE_SHUTOFF_CONFIG, &node_shutoff);
 			}
 		}
 	}
@@ -1752,6 +1778,50 @@ static int dcamonline_dummy_proc(struct dcam_online_node *node, void *param, str
 		pr_err("fail to get dummy cmd:%d\n", irq_proc->dummy_cmd);
 		break;
 	}
+	return 0;
+}
+
+int dcam_online_set_raw_sel(void *handle, void *param)
+{
+	struct dcam_online_node *node = NULL;
+	struct dcam_hw_path_ctrl *path_ctrl = NULL;
+
+	if (!handle || !param) {
+		pr_err("fail to get valid input ptr %px %px\n", handle, param);
+		return -EFAULT;
+	}
+
+	node = (struct dcam_online_node *)handle;
+	path_ctrl = (struct dcam_hw_path_ctrl *)param;
+	path_ctrl->idx = node->hw_ctx_id;
+	pr_debug("set raw sel %d\n", path_ctrl->raw_sel);
+	node->dev->hw->dcam_ioctl(node->dev->hw, node->hw_ctx_id, DCAM_HW_CFG_PATH_SRC_SEL, path_ctrl);
+
+	return 0;
+}
+
+int dcam_online_update_frame_raw_sel(void *handle, uint32_t port_id, uint32_t raw_sel)
+{
+	struct cam_frame *frame = NULL;
+	struct dcam_online_node *node = NULL;
+	struct dcam_online_port *port = NULL;
+	struct camera_buf_get_desc buf_desc = {0};
+
+	if (!handle) {
+		pr_err("fail to get valid input ptr\n");
+		return -EFAULT;
+	}
+	node = (struct dcam_online_node *)handle;
+	port = dcam_online_node_port_get(node, PORT_RAW_OUT);
+	buf_desc.q_ops_cmd = CAM_QUEUE_DEQ_PEEK;
+	frame = cam_buf_manager_buf_dequeue(&port->result_pool, &buf_desc, node->buf_manager_handle);
+	if (frame) {
+		frame->common.raw_src = raw_sel;
+		if (frame->common.raw_src == ORI_RAW_SRC_SEL)
+			frame->common.irq_property = CAM_FRAME_ORIGINAL_RAW;
+		pr_debug("fid %d, raw sel %d\n", frame->common.fid, raw_sel);
+	}
+
 	return 0;
 }
 

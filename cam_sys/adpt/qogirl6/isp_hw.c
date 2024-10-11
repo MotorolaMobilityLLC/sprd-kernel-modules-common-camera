@@ -371,7 +371,6 @@ normal_reg_trace:
 			val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
 	}
 
-	/* full tee faceid need shield */
 	pr_info("dcam axim\n");
 	for (addr = AXIM_CTRL; addr <= DCAM_PORT_CFG;
 			addr += 16) {
@@ -905,7 +904,7 @@ static int isphw_path_store(void *handle, void *arg)
 
 	ISP_REG_WR(idx, addr + ISP_STORE_BORDER, 0);
 
-	if (path_store->sec_mode == SEC_TIME_PRIORITY)
+	if (path_store->sec_mode == SEC_TIME_PRIORITY && path_store->buf_sec == CAM_ENABLE)
 		cam_trusty_isp_store_pitch_set(store_info->pitch.pitch_ch0,
 			store_info->pitch.pitch_ch1,
 			store_info->pitch.pitch_ch2);
@@ -2569,7 +2568,7 @@ static int isphw_frame_addr_store(void *handle, void *arg)
 	store_info = &path_store->store;
 	addr = store_base[path_store->spath_id];
 
-	if (path_store->sec_mode == SEC_TIME_PRIORITY)
+	if (path_store->sec_mode == SEC_TIME_PRIORITY && path_store->buf_sec == CAM_ENABLE)
 		cam_trusty_isp_store_set(store_info->addr.addr_ch0,
 			store_info->addr.addr_ch1,
 			store_info->addr.addr_ch2);

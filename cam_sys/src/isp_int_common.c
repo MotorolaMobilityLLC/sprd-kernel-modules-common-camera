@@ -47,7 +47,8 @@ static int ispint_common_error_done(enum isp_context_hw_id hw_idx, void *isp_han
 	if (pctx_hw->postproc_func)
 		pctx_hw->postproc_func(dev, hw_idx, POSTPROC_FRAME_ERROR_DONE, &is_reset);
 
-	ret = ispint_err_pre_proc(hw_idx, dev);
+	if (dev->sec_mode == SEC_UNABLE)
+		ret = ispint_err_pre_proc(hw_idx, dev);
 	return ret;
 }
 

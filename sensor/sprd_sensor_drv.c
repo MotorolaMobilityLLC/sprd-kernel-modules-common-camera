@@ -1146,24 +1146,21 @@ int sprd_sensor_burst_write_samsung(struct sensor_reg_tag *p_reg_table,
 		goto exit;
 	}
 	p_reg_val_tmp = (uint8_t *) (p_mem.buf_ptr);
-
 	while(written_num < init_table_size) {
-		if (0x6004 == p_reg_table[written_num].reg_addr) {
+		if (0x602A == p_reg_table[written_num].reg_addr) {
 			wr_num_once = 0;
 			//first write , burst start signal& select page & set base-addr
-			for(i = 0; i < 3; i++) {
-				reg_bit.reg_addr = p_reg_table[written_num].reg_addr;
-				reg_bit.reg_value = p_reg_table[written_num].reg_value;
-				reg_bit.reg_bits = reg_bits;
-				ret = sprd_sensor_write_reg(sensor_id, &reg_bit);
-				if (ret) {
-					pr_err("sprd_sensor_burst_write_samsung failed!\n");
-					goto exit;
-				}
-				written_num ++;
+			reg_bit.reg_addr = p_reg_table[written_num].reg_addr;
+			reg_bit.reg_value = p_reg_table[written_num].reg_value;
+			reg_bit.reg_bits = reg_bits;
+			ret = sprd_sensor_write_reg(sensor_id, &reg_bit);
+			if (ret) {
+				pr_err("sprd_sensor_burst_write_samsung failed!\n");
+				goto exit;
 			}
+			written_num ++;
 			//second write, burst reg
-			while(p_reg_table[written_num].reg_addr != 0x6004) {
+			while((written_num < init_table_size) && (p_reg_table[written_num].reg_addr == 0x6F12)) {
 				if(0 == wr_num_once) {
 						p_reg_val_tmp[wr_num_once++] =
 							(uint8_t) ((p_reg_table[written_num].reg_addr >> 8) & 0xff);
@@ -1203,16 +1200,6 @@ int sprd_sensor_burst_write_samsung(struct sensor_reg_tag *p_reg_table,
 				}
 			}
 
-			//last write, burst stop signal
-			reg_bit.reg_addr = p_reg_table[written_num].reg_addr;
-			reg_bit.reg_value = p_reg_table[written_num].reg_value;
-			reg_bit.reg_bits = reg_bits;
-			ret = sprd_sensor_write_reg(sensor_id, &reg_bit);
-			if (ret) {
-				pr_err("sprd_sensor_burst_write_samsung failed!\n");
-				goto exit;
-			}
-			written_num ++;
 		} else {
 			reg_bit.reg_addr = p_reg_table[written_num].reg_addr;
 			reg_bit.reg_value = p_reg_table[written_num].reg_value;
@@ -1552,7 +1539,6 @@ int sprd_sensor_k_write_regtab(struct sensor_reg_tab_tag *p_reg_table,
 	memcpy(pBuff, (void __user *)p_reg_table->sensor_reg_tab_ptr, size);
 
 	sensor_reg_ptr = (struct sensor_reg_tag *)pBuff;
-
 	switch (p_reg_table->burst_mode) {
 	case SPRD_SENSOR_I2C_SINGLE_WRITE: {
 		for (i = 0; i < cnt; i++) {

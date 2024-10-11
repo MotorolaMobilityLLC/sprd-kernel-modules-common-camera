@@ -283,7 +283,8 @@ return_fetch_buf:
 			}
 bin_return_fetch_buf:
 			dcam_full_port = dcam_online_node_port_get(online_node, PORT_FULL_OUT);
-			if (dcam_full_port == NULL || (!dcam_full_port && (atomic_read(&dcam_full_port->is_work) < 1))) {
+			if (dcam_full_port == NULL || (dcam_full_port && (atomic_read(&dcam_full_port->is_work) < 1
+				 || dcam_full_port->port_state == DCAM_PORT_PAUSE || atomic_read(&dcam_full_port->is_shutoff) > 0))) {
 				frame = CAM_QUEUE_DEQUEUE(&node->proc_queue, struct cam_frame, list);
 				if (frame) {
 					cam_buf_manager_buf_status_cfg(&frame->common.buf, CAM_BUF_STATUS_PUT_IOVA, CAM_BUF_IOMMUDEV_DCAM);

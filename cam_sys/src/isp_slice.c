@@ -3398,6 +3398,7 @@ int isp_slice_fmcu_cmds_set(void *fmcu_handle, void *ctx)
 		parg.wmode = wmode;
 		parg.hw_ctx_id = hw_ctx_id;
 		parg.fmcu = fmcu;
+		parg.fetch_path_sel = pctx_hw->pipe_info.fetch.fetch_path_sel;
 		hw->isp_ioctl(hw, ISP_HW_CFG_SLICE_FMCU_CMD, &parg);
 
 		hw->isp_ioctl(hw, ISP_HW_CFG_FMCU_CMD_ALIGN, fmcu);

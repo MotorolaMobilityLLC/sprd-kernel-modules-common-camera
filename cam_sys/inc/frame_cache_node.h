@@ -43,6 +43,7 @@ struct frame_cache_node_desc {
 
 struct frame_cache_node {
 	enum cam_node_type node_type;
+	uint32_t node_id;
 	uint32_t cur_cache_skip_num;
 	uint32_t cache_real_num;
 	uint32_t cache_skip_num;

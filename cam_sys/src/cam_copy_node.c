@@ -23,6 +23,7 @@
 static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 {
 	int i = 0, ret = 0;
+	uint32_t buf_size = 0;
 	struct cam_frame *in_frame = NULL, *out_frame = NULL;
 
 	for (i = 0; i < loop_num; i++) {
@@ -55,10 +56,11 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 			switch (node->scene_id) {
 			case CAM_COPY_NORMAL_SCENE:
 			case CAM_COPY_OPT_SCENE:
+				buf_size = in_frame->common.buf.size;
 				if (in_frame->common.buf.size > out_frame->common.buf.size) {
-					pr_err("fail to out buff is small, in buf size %d and out buf size %d\n",
+					pr_err("warning: out buff is smaller, in buf size %d and out buf size %d\n",
 						in_frame->common.buf.size, out_frame->common.buf.size);
-					goto out_buffer_smaller_fail;
+					buf_size = out_frame->common.buf.size;;
 				}
 				if (cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_GET_K_ADDR, CAM_BUF_IOMMUDEV_MAX)) {
 					pr_err("fail to kmap in buf\n");
@@ -68,7 +70,7 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 					pr_err("fail to kmap out buf\n");
 					goto out_frame_kmap_fail;
 				}
-				memcpy((char *)out_frame->common.buf.addr_k, (char *)in_frame->common.buf.addr_k, in_frame->common.buf.size);
+				memcpy((char *)out_frame->common.buf.addr_k, (char *)in_frame->common.buf.addr_k, buf_size);
 				/* use SOF time instead of ISP time for better accuracy */
 				out_frame->common.width = in_frame->common.width;
 				out_frame->common.height = in_frame->common.height;
@@ -133,7 +135,6 @@ static int camcopy_node_copy_frame(struct cam_copy_node *node, int loop_num)
 out_frame_kmap_fail:
 	cam_buf_manager_buf_status_cfg(&in_frame->common.buf, CAM_BUF_STATUS_PUT_K_ADDR, CAM_BUF_IOMMUDEV_MAX);
 in_frame_kmap_fail:
-out_buffer_smaller_fail:
 	in_frame->common.copy_en = 0;
 	node->copy_cb_func(CAM_CB_COPY_SRC_BUFFER, in_frame, node->copy_cb_handle);
 	CAM_QUEUE_ENQUEUE(&node->out_queue, &out_frame->list);

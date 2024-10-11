@@ -1242,7 +1242,7 @@ static int isphw_path_store(void *handle, void *arg)
 	val = ((store_info->size.h & 0xFFFF) << 16) | (store_info->size.w & 0xFFFF);
 	ISP_REG_WR(idx, addr + ISP_STORE_SLICE_SIZE, val);
 	ISP_REG_WR(idx, addr + ISP_STORE_BORDER, 0);
-	if (path_store->sec_mode == SEC_TIME_PRIORITY)
+	if (path_store->sec_mode == SEC_TIME_PRIORITY && path_store->buf_sec == CAM_ENABLE)
 		cam_trusty_isp_store_pitch_set(store_info->pitch.pitch_ch0,
 			store_info->pitch.pitch_ch1,
 			store_info->pitch.pitch_ch2);
@@ -2446,6 +2446,8 @@ static int isphw_slices_fmcu_cmds(void *handle, void *arg)
 	parg = (struct isp_hw_slices_fmcu_cmds *)arg;
 	if (parg->wmode == ISP_CFG_MODE)
 		addr = ISP_GET_REG(ISP_CFG_CAP_FMCU_RDY);
+	else if (parg->fetch_path_sel == ISP_FETCH_PATH_FBD)
+		addr = ISP_GET_REG(ISP_YUV_AFBD_FETCH_BASE + ISP_AFBD_FETCH_START);
 	else
 		addr = ISP_GET_REG(ISP_FETCH_BASE + ISP_FETCH_START);
 	cmd = 1;
@@ -2956,7 +2958,7 @@ static int isphw_frame_addr_store(void *handle, void *arg)
 	store_info = &path_store->store;
 	addr = store_base[path_store->spath_id];
 
-	if (path_store->sec_mode == SEC_TIME_PRIORITY)
+	if (path_store->sec_mode == SEC_TIME_PRIORITY && path_store->buf_sec == CAM_ENABLE)
 		cam_trusty_isp_store_set(store_info->addr.addr_ch0,
 			store_info->addr.addr_ch1,
 			store_info->addr.addr_ch2);

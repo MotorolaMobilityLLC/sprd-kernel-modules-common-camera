@@ -203,6 +203,7 @@ enum dcam_hw_cfg_cmd {
 	DCAM_HW_CFG_SLICE_IMBLANCE_SET,
 	DCAM_HW_CFG_NONZSL_BLOCK_PARAM,
 	DCAM_HW_CFG_MIPI_CAP_FETCH_RESET,
+	DCAM_HW_CFG_PATH_SRC_SEL,
 	DCAM_HW_CFG_MAX
 };
 
@@ -424,6 +425,7 @@ struct isp_store_info {
 struct isp_hw_path_store {
 	uint32_t ctx_id;
 	uint32_t used;
+	enum cam_en_status buf_sec;
 	enum isp_sub_path_id spath_id;
 	enum sprd_cam_sec_mode sec_mode;
 	struct isp_store_info store;
@@ -643,12 +645,6 @@ struct dcam_hw_path_size {
 	struct yuv_scaler_info *scaler_info;
 };
 
-struct dcam_hw_path_src_sel {
-	uint32_t src_sel;
-	uint32_t idx;
-	uint32_t fmt;
-};
-
 struct dcam_hw_auto_copy {
 	uint32_t id;
 	uint32_t idx;
@@ -758,6 +754,7 @@ struct coeff_arg {
 struct dcam_hw_path_ctrl {
 	uint32_t path_id;
 	uint32_t idx;
+	uint32_t raw_sel;
 	enum dcam_path_ctrl type;
 };
 
@@ -963,6 +960,7 @@ struct isp_hw_slice_nr_info {
 struct isp_hw_slices_fmcu_cmds {
 	int hw_ctx_id;
 	uint32_t wmode;
+	enum isp_fetch_path_select fetch_path_sel;
 	struct isp_fmcu_ctx_desc *fmcu;
 };
 

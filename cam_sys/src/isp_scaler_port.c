@@ -449,6 +449,7 @@ static int ispscaler_port_fetch_normal_get(void *cfg_in, void *cfg_out, struct c
 	else
 		fetch->dispatch_color = 2;
 	fetch->addr.addr_ch0 = frame->common.buf.iova[CAM_BUF_IOMMUDEV_ISP];
+	fetch->fetch_path_sel = ISP_FETCH_PATH_NORMAL;
 
 	switch (fetch->fetch_fmt) {
 	case CAM_YUV422_3FRAME:

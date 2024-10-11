@@ -304,7 +304,7 @@ int cam_trusty_isp_store_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t 
 	store_pitch_set.v_pitch = v_pitch;
 
 	ret = cam_ca_write(&store_pitch_set, sizeof(struct img_pitch_reg_msg));
-	if (!ret) {
+	if (ret) {
 		pr_err("fail to write cam_ca, ret = %d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
@@ -335,7 +335,7 @@ int cam_trusty_isp_store_set(unsigned long y_addr, unsigned long u_addr,
 	yuv_store_addr_set.v_addr = v_addr;
 
 	ret = cam_ca_write(&yuv_store_addr_set, sizeof(struct img_yuv_reg_msg));
-	if (!ret) {
+	if (ret) {
 		pr_err("fail to write cam_ca, ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
@@ -366,7 +366,7 @@ int cam_trusty_isp_fetch_addr_set(unsigned long y_addr, unsigned long u_addr,
 	yuv_addr_set.v_addr = v_addr;
 
 	ret = cam_ca_write(&yuv_addr_set, sizeof(struct img_yuv_reg_msg));
-	if (!ret) {
+	if (ret) {
 		pr_err("fail to write cam_ca, ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
@@ -397,7 +397,7 @@ int cam_trusty_isp_pitch_set(uint32_t y_pitch, uint32_t u_pitch, uint32_t v_pitc
 	pitch_set.v_pitch = v_pitch;
 
 	ret = cam_ca_write(&pitch_set, sizeof(struct img_pitch_reg_msg));
-	if (!ret) {
+	if (ret) {
 		pr_err("fail to write cam_ca, ret = %d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
@@ -424,7 +424,7 @@ int cam_trusty_csi_switch_ctrl_set(uint32_t csi_sel_ctrl)
 	switch_ctrl.csi_sel_ctrl = csi_sel_ctrl;
 
 	ret = cam_ca_write(&switch_ctrl, sizeof(struct csi_switch_ctrl_msg));
-	if (!ret) {
+	if (ret) {
 		pr_err("fail to write cam_ca ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
@@ -461,7 +461,7 @@ static int camca_enter_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 	faceid_msg.sec_cfg.camsec_mode = camsec_cfg->camsec_mode;
 
 	ret = cam_ca_write(&faceid_msg, sizeof(struct faceid_cfg_msg));
-	if (!ret) {
+	if (ret) {
 		pr_err("fail to write cam_ca ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
@@ -493,7 +493,7 @@ static int camca_exit_tamode(struct sprd_cam_sec_cfg *camsec_cfg)
 	faceid_msg.sec_cfg.camsec_mode = camsec_cfg->camsec_mode;
 
 	ret = cam_ca_write(&faceid_msg, sizeof(struct faceid_cfg_msg));
-	if (!ret) {
+	if (ret) {
 		pr_err("fail to write cam_ca ret =%d\n", ret);
 		mutex_unlock(&ca->wlock);
 		return ret;
